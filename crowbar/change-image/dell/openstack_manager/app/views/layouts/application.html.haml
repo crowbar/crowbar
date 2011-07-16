@@ -1,0 +1,34 @@
+!!!
+%html
+  %head
+    %title= "Crowbar: #{ controller.action_name }"
+    = stylesheet_link_tag 'application'
+    /[if IE]
+      -# = stylesheet_link_tag 'ie', :media => "all"
+      = javascript_include_tag "html5"
+    -# ALWAYS DIFFERENT FROM RAILS3
+    = javascript_include_tag 'jquery.min', 'jquery-ui.min', 'jquery.sparkline.min', 'jquery.drag_drop_multi_select_alpha', 'rails', 'codemirror/codemirror', 'codemirror/javascript', 'application'
+    = csrf_meta_tag
+  
+  %body
+    %header
+      .container
+        %h1
+          %a{:href => "/"}
+            %span logo
+        %nav
+          = render_navigation
+    
+    - if flash[:notice] || !CHEF_ONLINE
+      .notice
+        .container
+          %p= flash[:notice]
+          - if !CHEF_ONLINE
+            %p= I18n.t "offline"
+
+    .container
+      = yield
+
+    %footer
+      Provided by <a href="http://dell.com/openstack"><img src="/images/layout/dell.png" alt="Dell, Inc." title="Dell, Inc." style="vertical-align:middle;padding-bottom:2px" /></a>
+      <a href="http://dell.com/openstack">CloudEdge Solutions team</a> — Version #{CROWBAR_VERSION}

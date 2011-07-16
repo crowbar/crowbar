@@ -1,0 +1,18 @@
+<% unless @app.empty? %>
+  <div id="Nodes">
+  <h3>System: <%= pluralize(@app.size, "Node") %></h3>
+<table>
+<th></th>
+    <% nodes = @app
+    nodes = nodes.sort{|a, b| b.name <=> a.name}
+    nodes.each do |node| %>
+      <%  name = node.name.split('.')[0] %>
+<tr>
+      <%= render :partial=>"node", :locals => {:node => node, :name => name } %>
+</tr>
+    <% end %>
+</table>
+  </div>
+<% else %>
+  <div><strong><%= link_to "Retry Connection?", {:controller=>:main, :action=>:index } %></strong></div>
+<% end %>

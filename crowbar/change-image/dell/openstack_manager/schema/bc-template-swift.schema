@@ -1,0 +1,82 @@
+{
+  "type": "map",
+  "required": true,
+  "mapping": {
+    "id": { "type": "str", "required": true, "pattern": "/^bc-swift-|^bc-template-swift$/" },
+    "description": { "type": "str", "required": true },
+    "attributes": {
+      "type": "map",
+      "required": true,
+      "mapping": {
+        "swift": {
+          "type": "map",
+          "required": true,
+          "mapping": {
+            "cluster_hash": { "type": "str", "required": true },
+            "cluster_admin_pw": { "type": "str", "required": true },
+            "replicas": { "type": "int", "required": true },
+            "zones": { "type": "int", "required": true },
+            "min_part_hours": { "type": "int", "required": true },
+            "partitions": { "type": "int", "required": true },            
+            "user": { "type": "str", "required": true },
+            "group": { "type": "str", "required": true },
+            "debug": { "type": "bool", "required": false},
+            "admin_ip_expr": { "type": "str", "required": true},
+			"storage_ip_expr": { "type": "str", "required": true},
+			"disk_enum_expr": { "type": "str", "required": true},
+			"disk_test_expr": { "type": "str", "required": true},
+			"disk_zone_assign_expr": { "type": "str", "required": false} 			
+          }
+        }
+      }
+    },
+    "deployment": {
+      "type": "map",
+      "required": true,
+      "mapping": {
+        "swift": {
+          "type": "map",
+          "required": true,
+          "mapping": {
+            "crowbar-revision": { "type": "int", "required": true },
+            "crowbar-committing": { "type": "bool" },
+            "crowbar-queued": { "type": "bool" },
+            "elements": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                = : {
+                  "type": "seq",
+                  "required": true,
+                  "sequence": [ { "type": "str" } ]
+                }
+              }
+            },
+            "element_order": {
+              "type": "seq",
+              "required": true,
+              "sequence": [ {
+                "type": "seq",
+                "sequence": [ { "type": "str" } ]
+              } ]
+            },
+            "config": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                "environment": { "type": "str", "required": true },
+                "mode": { "type": "str", "required": true },
+                "transitions": { "type": "bool", "required": true },
+                "transition_list": {
+                  "type": "seq",
+                  "required": true,
+                  "sequence": [ { "type": "str" } ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

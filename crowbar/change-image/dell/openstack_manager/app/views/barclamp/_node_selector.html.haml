@@ -1,0 +1,85 @@
+
+%input#proposal_development{:type => "hidden", :name => "proposal_deployment", :value => @proposal.raw_data['deployment'][@proposal.barclamp].to_json }
+%p
+  %label{:for => "drag_drop"}= t('.title')
+  = link_to t('raw'), proposal_barclamp_path(:id => @proposal.name, :controller => @proposal.barclamp, :dep_raw => true, :attr_raw => @attr_raw), :style => "float: right;"
+  %div{ :class => ["container"], :id => "drag_drop" }
+    .column_40.first
+      - @proposal.all_elements.each do |element|
+        %div{ :class => ["list"], :id => "#{element}_div" }
+          %div{ :class => ["list", "title"] }= "#{element}"
+          %ul.list{ :id => "#{element}" }
+            - unless @proposal.elements[element].nil?
+              - @proposal.elements[element].each do |v|
+                %li{ :name => "#{v}" }= v.split('.')[0]
+
+    .column_50.last
+      %div{ :class => ["list"], :id => "nodes_div" }
+        %div{ :class => ["list", "title"] }= t('barclamp.proposal_show.available_nodes')
+        %ul
+          - NodeObject.all.each do |n|
+            %li{ :name => "#{n.name}" }= n.shortname
+
+.clear
+
+:javascript
+  function remove_item(item) {
+    var input = document.getElementById('proposal_development');
+    var json = JSON.parse(input.value);
+    var name = item.attr('name');
+    var listname = item.parent().parent().attr('id').replace("_div", "");
+    var list = json['elements'][listname];
+    var idx = list.indexOf(name); // Find the index
+    if (idx!=-1) list.splice(idx, 1)
+    input.value = JSON.stringify(json);
+  }
+  function copy_item(item, list) {
+    var input = document.getElementById('proposal_development');
+    var json = JSON.parse(input.value);
+    var name = item.attr('name');
+    if (json['elements'][list] == undefined) {
+      json['elements'][list] = new Array();
+    }
+    json['elements'][list].push(name);
+    input.value = JSON.stringify(json);
+  }
+  function node_selector(base_item, constraints){
+    // Set the default function
+    $.fn.drag_drop_multi_select.defaults.after_drop_action = function($item,$old,$new,e,ui){
+        // Possible param $item_instance, $old_container, $new_container, event, helper
+        var $target = $(e.target);
+        var tid = $target.attr('id').replace("_div", "");
+        if (tid != "nodes") {
+          var found = false;
+          var ul = $target.find('ul');
+          var c = constraints[tid];
+          ul.children().each(function(){
+            if ($(this).attr('name') == $item.attr('name')) found = true;
+          });
+          if (c["unique"]) {
+            $.each(constraints, function(key, value) {
+              $("#"+key).children().each(function(){
+                if ($(this).attr('name') == $item.attr('name')) found = true;
+              });
+            });
+          }
+          if (!found && (c["count"] == -1 || c["count"] > ul.children().size())) {
+            copy_item($item, tid);
+            ul.append($.fn.drag_drop_multi_select_clone($item));
+          }
+        }
+        else {
+          if ($item.parent().parent().attr('id') != $target.attr('id')) {
+            remove_item($item);
+            $item.remove();
+          }
+        }
+    };
+    // Initiate the drag & drop
+    base_item.drag_drop_multi_select({
+        element_to_drag_drop_select:'.list ul li',
+        elements_to_drop:'.list',
+        elements_to_cancel_select:'.title'
+    });
+  }
+

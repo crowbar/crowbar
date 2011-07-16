@@ -1,0 +1,17 @@
+{
+  "ntp-client":["hardware"],
+  "provisioner-server":["crowbar"],
+  "network":["network"],
+  "nagios-client":["monitoring"],
+  "nagios-server":["monitoring"],
+  "ganglia-client":["performance"],
+  "ganglia-server":["performance"],
+  "metering-client":["metering"],
+  "nova-multi-compute":["nova"],
+  "nova-multi-controller":["nova_api"],
+  "swift-storage":["swift"],
+  "swift-proxy":["swift_api"],
+  "swift-proxy-acct":["swift_api"],
+  "glance-server":["glance_api","glance"],
+  "deployer-client":["os"]
+}

@@ -1,0 +1,81 @@
+{
+  "providing": {
+  },
+  "attributes": {
+    "dhcp": {
+      "display_name": "DHCP Hash",
+      "description": "Hash of DHCP attributes",
+      "type": "hash",
+      "choice": [
+
+      ],
+      "calculated": false,
+      "required": "optional",
+      "recipes": [
+
+      ]
+    },
+    "dhcp/interfaces": {
+      "display_name": "DHCP Listening Interfaces",
+      "description": "Interfaces that DHCP should listen on",
+      "type": "array",
+      "default": [
+        "eth0"
+      ],
+      "choice": [
+
+      ],
+      "calculated": false,
+      "required": "optional",
+      "recipes": [
+
+      ]
+    },
+    "dhcp/options": {
+      "display_name": "DHCP Default Options",
+      "description": "Options that DHCP should use by default",
+      "type": "array",
+      "default": [
+
+      ],
+      "choice": [
+
+      ],
+      "calculated": false,
+      "required": "optional",
+      "recipes": [
+
+      ]
+    }
+  },
+  "replacing": {
+  },
+  "dependencies": {
+  },
+  "groupings": {
+  },
+  "recommendations": {
+  },
+  "platforms": {
+    "debian": [
+
+    ],
+    "ubuntu": [
+
+    ]
+  },
+  "license": "Apache 2.0",
+  "version": "0.9.5",
+  "maintainer": "Dell, Inc.",
+  "suggestions": {
+  },
+  "recipes": {
+    "dhcp": "Installs dhcp"
+  },
+  "maintainer_email": "crowbar@dell.com",
+  "name": "dhcp",
+  "conflicting": {
+  },
+  "description": "Installs dhcp",
+  "long_description": ""
+}

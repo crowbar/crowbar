@@ -1,0 +1,28 @@
+{
+  "id": "bc-template-test",
+  "description": "provides a shell for writing tests against",
+  "attributes": {
+    "test": {
+      "param1": "test"
+    }
+  },
+  "deployment": {
+    "test": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "test-multi-head" ],
+        [ "test-multi-rest", "test-single" ]
+      ],
+      "config": {
+        "environment": "test-config-test",
+        "mode": "full",
+        "transitions": true,
+        "transition_list": [
+          "discovered"
+        ]
+      }
+    }
+  }
+}
+

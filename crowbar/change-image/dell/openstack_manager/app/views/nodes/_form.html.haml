@@ -1,0 +1,23 @@
+.box
+  -# Rails 2 needs - and Rails 3 needs =
+  - form_for :node, :'data-remote' => true, :url => update_node_path(@node.shortname), :html => { :'data-type' => 'html', :'data-method' => 'put', :id => 'update_node_form', :class => "formtastic" } do |f|
+    %fieldset.inputs
+      %ol
+        %li.text
+          = f.label :description, t('.description')
+          = text_field_tag :description, "#{t 'created_on'} #{l(Time.now)}", :size => 60
+        %li.select
+          = f.label :usage, t('.usage')
+          = select_tag :usage, options_for_select([['Swift','swift'], ['Nova','nova'], ['Glance','glance']], @node.usage.first || 'nova')
+        %li.select
+          = f.label :bios, t('.bios')
+          = select_tag :bios, options_for_select([['Virtualization','Virtualization'], ['Storage','Storage']], @node.bios_set || 'Virtualization')
+        %li.select
+          = f.label :raid, t('.raid')
+          = select_tag :raid, options_for_select([['JBOD Only','JBODOnly'], ['Single RAID 10','SingleRaid10']], @node.raid_set || 'SingleRaid10')
+    %fieldset.buttons
+      %ol
+        %li
+          %input.button{:type => "submit", :name => "submit", :value => t('.allocate')}
+        %li
+          %input.button{:type => "submit", :name => "submit", :value => t('.save')}

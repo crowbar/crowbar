@@ -1,0 +1,65 @@
+{
+  "providing": {
+  },
+  "attributes": {
+    "dns": {
+      "display_name": "DNS Hash",
+      "description": "Hash of DNS attributes",
+      "type": "hash",
+      "choice": [
+
+      ],
+      "calculated": false,
+      "required": "optional",
+      "recipes": [
+
+      ]
+    },
+    "dns/forwarders": {
+      "display_name": "Forwarders",
+      "description": "List of IPs for the DNS server to forward requests",
+      "type": "array",
+      "default": [
+
+      ],
+      "choice": [
+
+      ],
+      "calculated": false,
+      "required": "optional",
+      "recipes": [
+
+      ]
+    }
+  },
+  "replacing": {
+  },
+  "dependencies": {
+  },
+  "groupings": {
+  },
+  "recommendations": {
+  },
+  "platforms": {
+    "debian": [
+
+    ],
+    "ubuntu": [
+
+    ]
+  },
+  "license": "Apache 2.0",
+  "version": "0.9.5",
+  "maintainer": "Dell, Inc.",
+  "suggestions": {
+  },
+  "recipes": {
+    "bind9": "Installs bind9"
+  },
+  "maintainer_email": "crowbar@dell.com",
+  "name": "bind9",
+  "conflicting": {
+  },
+  "description": "Installs bind9",
+  "long_description": ""
+}

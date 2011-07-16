@@ -1,0 +1,4 @@
+%h1= @node.name
+%p.links
+  = link_to t('back'), nodes_path(:selected => @node.shortname)
+= render 'form'

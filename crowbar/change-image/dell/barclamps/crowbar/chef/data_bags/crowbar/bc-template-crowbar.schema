@@ -1,0 +1,88 @@
+{
+  "type": "map",
+  "required": true,
+  "mapping": {
+    "id": { "type": "str", "required": true, "pattern": "/^bc-crowbar-|^bc-template-crowbar$/" },
+    "description": { "type": "str", "required": true },
+    "attributes": { "type": "map", "required": true, "mapping": {
+        "crowbar": { "type": "map", "required": true, "mapping": {
+            "barclamps": { "type": "seq", "required": true, "sequence": [ { "type": "str" } ] },
+            "run_order": { "type": "map", "required": true, "mapping": {
+                = : { "type": "int", "required": true }
+              }
+            },
+            "instances": { "type": "map", "required": true, "mapping": {
+                = : { "type": "seq", "required": true, "sequence": [ { "type": "str" } ] }
+              }
+            },
+            "users": { "type": "map", "required": true, "mapping": {
+                = : { "type": "map", "required": true, "mapping": { 
+                    "password": { "type": "str", "required": true },
+                    "description": { "type": "str", "required": true }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "rails": { "type": "map", "required": true, "mapping": {
+            "environment": { "type": "str", "required": true },
+            "max_pool_size": { "type": "int", "required": true }
+          }
+        },
+        "passenger": { "type": "map", "required": true, "mapping": {
+            "max_pool_size": { "type": "int", "required": true }
+          }
+        }
+      }
+    },
+    "deployment": {
+      "type": "map",
+      "required": true,
+      "mapping": {
+        "crowbar": {
+          "type": "map",
+          "required": true,
+          "mapping": {
+            "crowbar-revision": { "type": "int", "required": true },
+            "crowbar-committing": { "type": "bool" },
+            "crowbar-queued": { "type": "bool" },
+            "elements": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                = : {
+                  "type": "seq",
+                  "required": true,
+                  "sequence": [ { "type": "str" } ]
+                }
+              }
+            },
+            "element_order": {
+              "type": "seq",
+              "required": true,
+              "sequence": [ {
+                "type": "seq",
+                "sequence": [ { "type": "str" } ]
+              } ]
+            },
+            "config": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                "environment": { "type": "str", "required": true },
+                "mode": { "type": "str", "required": true },
+                "transitions": { "type": "bool", "required": true },
+                "transition_list": {
+                  "type": "seq",
+                  "required": true,
+                  "sequence": [ { "type": "str" } ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

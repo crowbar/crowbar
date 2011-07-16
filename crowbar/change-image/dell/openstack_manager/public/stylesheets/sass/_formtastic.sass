@@ -1,0 +1,131 @@
+form.formtastic
+  margin: 0
+  padding: 0
+  ul, ol, li, fieldset, legend, input, textarea, select, p
+    margin: 0
+    padding: 0
+  fieldset
+    border: 0
+  em, strong
+    font-style: normal
+    font-weight: normal
+  ol, ul
+    list-style: none
+  abbr, acronym
+    border: 0
+    font-variant: normal
+  input, textarea, select
+    font-family: inherit
+    font-size: inherit
+    font-weight: inherit
+  input, textarea, select
+    font-size: 85%
+  legend
+    white-space: normal
+    color: #000
+  ul.errors
+    color: #cc0000
+    margin: 0.5em 0 1.5em 25%
+    list-style: square
+    li
+      padding: 0
+      border: none
+      display: list-item
+  fieldset
+    overflow: hidden
+    &.inputs
+    &.buttons
+      padding-left: 25%
+    ol
+    &.buttons li
+      float: left
+      padding-right: 0.5em
+    > ol > li
+      padding: 0.5em 0
+      margin-top: -0.5em
+      margin-bottom: 1em
+      overflow: hidden
+      &.required, &.optional, &.error
+      label
+        display: block
+        width: 25%
+        float: left
+        padding-top: .2em
+      > li label
+        line-height: 100%
+        padding-top: 0
+        input
+          line-height: 100%
+          vertical-align: middle
+          margin-top: -0.1em
+      fieldset
+        position: relative
+        legend
+          position: absolute
+          width: 95%
+          left: 0px
+          span, &.label label
+            position: absolute
+        ol
+          float: left
+          width: 74%
+          margin: 0
+          padding: 0 0 0 25%
+          li
+            padding: 0
+            border: 0
+      p
+        &.inline-hints
+          color: #666
+          margin: 0.5em 0 0 25%
+        &.inline-errors
+          color: #cc0000
+          margin: 0.5em 0 0 25%
+      ul.errors
+        color: #cc0000
+        margin: 0.5em 0 0 25%
+        list-style: square
+        li
+          padding: 0
+          border: none
+          display: list-item
+      &.string input, &.password input, &.numeric input, &.email input, &.url input, &.phone input, &.search input
+        width: 72%
+      &.string input[size], &.password input[size], &.numeric input[size], &.email input[size], &.url input[size], &.phone input[size], &.search input[size]
+        width: auto
+        max-width: 72%
+      &.text textarea
+        width: 72%
+        &[cols]
+          width: auto
+          max-width: 72%
+    ol li.hidden
+      display: none
+    > ol > li
+      &.boolean label
+        padding-left: 25%
+        width: auto
+        input
+          margin: 0 0.5em 0 0.2em
+      &.radio fieldset, &.check_boxes fieldset
+        overflow: visible
+        ol
+          margin-bottom: -0.5em
+          li
+            margin: 0.1em 0 0.5em 0
+            overflow: visible
+            label
+              float: none
+              width: 100%
+              input
+                margin-right: 0.2em
+      &.date fieldset ol li, &.time fieldset ol li, &.datetime fieldset ol li
+        float: left
+        width: auto
+        margin: 0 .3em 0 0
+      &.date fieldset ol li label, &.time fieldset ol li label, &.datetime fieldset ol li label
+        display: none
+      &.date fieldset ol li label input, &.time fieldset ol li label input, &.datetime fieldset ol li label input
+        display: inline
+        margin: 0
+        padding: 0

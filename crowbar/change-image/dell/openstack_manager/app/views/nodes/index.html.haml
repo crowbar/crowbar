@@ -1,0 +1,72 @@
+.column_100
+  - unless @nodes.empty?
+    %section.box#details
+      - if @node
+        = render :partial => 'show'
+      - else
+        %p= t("status_empty", :scope=>"nodes.index") % @nodes.count
+
+#nodes
+  - @nodes.group_by(&:switch_name).each_with_index do |switch, i|
+    .column_25{:class => column_class(i,4)}
+      %table.data.box{:id => "switch_#{switch[0].parameterize}"}
+        %thead
+          %tr
+            %th.status{:title => ''}
+              - status = NodeObject.status(switch[1])
+              .inline_piechart= [status["ready"], status["unready"], status["unknown"], status["pending"]] * ","
+            %th= switch[0] == -1 ? 'Unknown' : switch[0]
+
+        %tbody
+          - switch[1].sort_by{|n| n.location.to_i }.each do |node|
+            %tr{ :class => ["node", cycle(:odd, :even, :name => "nodes_#{i}")], :id => node.shortname }
+              %td.status
+                .led{:class => node.status, :title=> node.state}
+              %td
+                %a{:href => node_path(node.shortname), :title=> "#{NodeObject.human_attribute_name :description}: #{node.description}", :class => 'node_details', :id => node.shortname.parameterize}= node.shortname
+
+.clear
+
+:javascript
+  var racks = {};
+  function update() {
+    $.getJSON('#{nodes_status_path}', function(data) {
+      
+      // If node count has changed, re-render the page
+      var current_nodes = $('.node').length;
+      if(data['count'] != current_nodes) {
+        location.reload();
+      }
+      
+      // Update switch-level piecharts
+      $.each(data['switches'], function(key,val) {
+        var values = val['ready'] + ', ' + val['unready'] + ', ' + val['unknown'] + ', ' + val['pending'];
+        var total = val['ready']+val['unready']+val['unknown']+val['pending'];
+        if (racks[key]==undefined) { 
+          racks[key] = total; 
+        } else if (racks[key]!=total) {
+          location.reload();
+        }
+        $('#switch_'+key.toLowerCase()+' th.status .inline_piechart').html(values).sparkline('html', piechart_options );
+        var status = "#{t :status_pie, :scope=>'nodes.index'}";
+        status = status.replace("{0}", total);
+        status = status.replace("{1}", val['ready']);
+        status = status.replace("{2}", val['unready']);
+        status = status.replace("{3}", val['unknown']);
+        status = status.replace("{4}", val['pending']);
+        $('#switch_'+key.toLowerCase()+' th.status').attr('title', status)
+      });
+      
+      // Update nodes
+      $.each(data['nodes'], function(key,val) {
+        var td = $('#'+key+' td');
+        var led = td.children('.led');
+        if(!led.hasClass(val['status'])){
+          led.attr('class', 'led '+val['status']);
+          td.effect("highlight", {color: '#666666'}, 2000);
+        }
+        led.attr('title', val['state']);
+      });
+      
+    });
+  }

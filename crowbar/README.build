@@ -1,0 +1,142 @@
+This file documents how to build the Crowbar installation DVD image.
+
+Prerequisites:
+  * An unfiltered Internet connection and a decent amount of bandwidth.
+    The first time you try to build Crowbar it will need to download
+    about 1.5 gigs worth of data from the official Ubuntu apt repositories,
+    the Opscode chef repository, the official Openstack 2011.2 PPA, and
+    an official Ubuntu CD image mirror.
+  * bash version 4 or higher
+    build_crowbar.sh uses associative arrays, which bash got in version 4.
+  * mkisofs
+    The end product of the build script is an ISO image that will be used
+    to bootstrap the Crowbar admin node. 
+  * debootstrap
+    The build process needs to download all the .debs and gems that 
+    Crowbar requires, and we don't want to inadvertently mess up the build
+    machine when we do that.  All extra packages are downloaded into a
+    chrooted minimal Ubuntu intall, and we use debootstrap to enable that.
+  * Sudo to root privileges for the following commands:
+    * /bin/mount, /bin/umount
+      We have to be able to mount and umount the Ubuntu .iso image, as well as
+      a tmpfs for debootstrap, and we have to be able to bind mount 
+      /dev, /dev/pts, /proc, and /sys into the debootstrap chroot environment.
+    * /usr/sbin/debootstrap
+      debootstrap requires root privileges to run.
+    * /bin/cp
+      We need to copy things into and out of the debootstrap environment to
+      ensure it downloads and caches the right packages.
+    * /usr/sbin/chroot
+      All our package caching is done in a chroot environment, and chroot
+      requires root permissions to run.
+
+      If you want to allow build_crowbar to run the above commands as root
+      without having to enter a password each time, the build_crowbar.sh
+      includes a sample line you can fix up and add to /etc/sudoers.
+  * A working Sledgehammer tftpboot image.
+    Sledgehammer is a minimal CentOS 5.6 pxe bootable image that we use
+    to perform hardware discovery and configuration for devices that do not
+    have low-level management tools for Ubuntu. You can find information on 
+    how to build Sledgehamemr by reading its HOWTO.Non.Redhat file.  We do 
+    not do fully automated builds of Sledgehammer due to a lack of a CentOS
+    equivalent of debootstrap.
+
+Usage:
+  * Run build_crowbar.sh.  
+    The first time it is run, it will download and cache all the files it 
+    needs from the official Ubuntu, Chef, and Openstack repositories. It will
+    then build the Crowbar installation image, save it to the current 
+    working directory, and print out a message saying where it saved the image.
+    On subsequent runs it will run with the files it cached from the first
+    run, unless update-cache is passed as a parameter to the script.
+
+Customization:
+  
+   build_crowbar.sh has several different parameters you can tune, either from
+   $HOME/.build-crowbar.conf (for developer use), or from build-crowbar.conf
+   in the current directory (for automated builds).
+
+   Here are the parameters you can change through the above configuration files:
+   * DEBUG
+     If DEBUG is set to anything, build_crowbar will run in debug mode, and will
+     print a transcript of everything it is doing to standard error.
+   * CACHE_DIR
+     This is the default location where build_crowbar.sh will keep the files
+     it caches, along with the temporary directories used to mount the
+     ISO image, the debootstrap chroot, and the directory we perform the build
+     in.  It defaults to $HOME/.crowbar-build-cache.
+   * ISO_LIBRARY
+     This is the default location where the Ubuntu .iso is stored. It defaults 
+     to $CACHE_DIR/iso
+   * ISO_DEST
+     This is the location that we will save the Crowbar install iamge to.
+     It defaults to the current directory.
+   * IMAGE_DIR
+     This is the location that we will mount isos in.  
+     It defaults to $CACHE_DIR/image
+   * BUILD_DIR
+     This is the directory we will stage the Crowbar build into.
+     It defaults to $CACHE_DIR/build
+   * UBUNTU_VERSION
+     This is the numeric version of Ubuntu we are building Crowbar with.
+     Right now we base the build on 10.10
+   * UBUNTU_CODENAME
+     This is the one-word codename of $UBUNTU_VERSION.  Weird things will
+     happen if it is not kept in sync with $UBUNTU_VERSION
+   * PPAS
+     This is an array of PPA archives to look in to gather packages from.
+     This defaults to ("openstack-release/2011.2"), which is the official
+     PPA for the Cactus release of Openstack.
+   * UBUNTU_ISO_MIRROR
+     This is the base URL for the mirror we will try to download the 
+     Ubuntu server ISO from.  It defaults to "http://mirror.anl.gov/pub".
+   * SLEDGEHAMMER_PXE_DIR
+     This points to the location we expect to find the unpacked Sledgehammer
+     PXE boot archive.  It defaults to $CACHE_DIR/tftpboot
+   * VERSION
+     The default version of Crowbar.  Defaults to dev.
+   * OPENSTACK_ISO
+     The name of the ISO that build_crowbar.sh generates.
+     Defaults to openstack-$VERSION.iso
+   * CROWBAR_DIR
+     The directory that the Crowbar source is cheched out to.
+     Defaults to the directory that build_crowbar.sh is in.
+   * SLEDGEHAMMER_DIR
+     The directory that the Sledgehammer source is checked out to.
+     Defaults to $CROWBAR_DIR/../sledgehammer
+   * VCS_CLEAN_CMD
+     This is the command that build_crowbar.sh will run to clean the tree before
+     staging the Crowbar build.  
+     Defaults to 'git clean -f -x -d'
+   * DEBS
+     This is an array of additional packages that build_crowbar.sh will try 
+     to populate the .deb cache with.  It is empty by default.
+   * GEMS
+     This is an array of additional Ruby gems that build_crowbar will try to
+     populate its .gem cache with.  It is empty by default.
+   * AMIS
+     This is an array of urls for AMI images that you want to prepopulate
+     Crowbar with.  By default it contains the URL for the official release 
+     AMI of Ubuntu 11.04 x86_64 server.
+   * UBUNTU_CHROOT
+     This is the directory that we will mount a tmpfs on when we debootstrap
+     a minimal Ubuntu install to prepopulate the deb and gem caches.
+     It defaults to $CACHE_DIR/$UBUNTU_CODENAME.chroot
+   * DEB_CACHE
+     This is the directory that will hold our .deb cache.
+     It defaults to $CACHE_DIR/$UBUNTU_CODENAME/debs
+   * GEM_CACHE
+     This is the directory that will hold our gem cache.
+     It defaults to $CACHE_DIR/gems
+   * AMI_CACHE
+     This is the directory that will hold our AMI cache.
+     It defaults to $CACHE_DIR/amis
+   * UBUNTU_ISO
+     This is the full name of the Ubuntu ISO we will use as the base of the 
+     Crowbar installation image.
+     Defaults to "ubuntu-$UBUNTU_VERSION-server-amd64.iso", which will 
+     base us on the amd64 server spin of Ubuntu.
+   * UBUNTU_DIR
+     This is the directory we will mount $UBUNTU_ISO on when we extract files
+     from it.
+     Defaults to $IMAGE_DIR/$UBUNTU_ISO minus the .iso at the end.

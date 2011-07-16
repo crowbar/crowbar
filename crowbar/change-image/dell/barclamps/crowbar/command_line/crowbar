@@ -1,0 +1,23 @@
+#!/usr/bin/env ruby
+
+loc=File.expand_path(File.dirname(__FILE__))
+def usage (rc)
+  puts "Usage: crowbar <area> <subcommand>"
+  puts "  Areas: #{@areas.join(" ")}"
+  exit rc
+end
+
+@areas = Dir.glob("./crowbar_*").map! { |x| x.gsub("./crowbar_", "") }
+@areas << Dir.glob(File.join(loc,"crowbar_*")).map! { |x| x.gsub(File.join(loc,"crowbar_"), "") }
+@areas = @areas.flatten
+
+if ARGV.length == 0
+  usage -1
+end
+
+area = ARGV.shift
+
+usage -1 unless @areas.include?(area)
+
+exec("./crowbar_#{area}", *ARGV) if File.exists?("./crowbar_#{area}")
+exec(File.join(loc,"crowbar_#{area}"), *ARGV) if File.exists?(File.join(loc,"crowbar_#{area}"))

@@ -1,0 +1,16 @@
+# File managed by chef
+
+<% if not @options.empty? -%>
+  <% @options.each do |option| -%>
+<%= option %>;
+  <% end -%>
+<% end -%>
+
+# Use this to send dhcp log messages to a different log file (you also
+# have to hack syslog.conf to complete the redirection).
+log-facility local7;
+
+include "/etc/dhcp3/groups.d/group_list.conf";
+include "/etc/dhcp3/subnets.d/subnet_list.conf";
+include "/etc/dhcp3/hosts.d/host_list.conf";
+

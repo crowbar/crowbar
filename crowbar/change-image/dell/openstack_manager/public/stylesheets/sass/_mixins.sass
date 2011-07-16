@@ -1,0 +1,138 @@
+=primary
+  color: $primary_fg
+  background: $primary_bg
+  h1
+    color: #6B9999
+  h2
+    font-weight: normal
+    color: #99AF75
+  h3,h4,h5
+    color: $primary_fg + #222
+  a
+    color: #A20000
+    &:hover
+      color: #8E0004
+
+=secondary
+  color: $secondary_fg
+  background: $secondary_bg
+  h1,h2,h3,h4,h5
+    color: $secondary_fg + #222
+  a
+    color: #f5f5f5
+    &:hover
+      color: #fff
+
+=tertiary
+  color: $tertiary_fg
+  background: $tertiary_bg
+  h1,h2,h3,h4,h5
+    color: $tertiary_fg + #222
+  a
+    color: $tertiary_link
+    &:hover
+      color: $tertiary_link + #444
+
+=plain_list
+  margin: 0
+  padding: 0
+  list-style: none
+  li
+    margin: 0
+    padding: 0
+
+=inline_list
+  margin: 0
+  padding: 0
+  list-style: none
+  li
+    display: inline
+
+=opacity($amount: 0.7)
+  opacity: $amount
+  -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=#{$amount * 100})"
+  filter: alpha(opacity=#{$amount * 100})
+
+=rounded_corners($tl: 0, $tr: 0, $bl: 0, $br: 0)
+  border-top-left-radius: $tl
+  border-top-right-radius: $tr
+  border-bottom-left-radius: $bl
+  border-bottom-right-radius: $br
+  -moz-border-radius-topleft: $tl
+  -moz-border-radius-topright: $tr
+  -moz-border-radius-bottomleft: $bl
+  -moz-border-radius-bottomright: $br
+  -webkit-border-top-left-radius: $tl
+  -webkit-border-top-right-radius: $tr
+  -webkit-border-bottom-left-radius: $bl
+  -webkit-border-bottom-right-radius: $br
+
+=shadow($x: 0, $y: 2px, $size: 4px, $color: $shadow_color)
+  box-shadow: $x $y $size $color
+  -moz-box-shadow: $x $y $size $color
+  -webkit-box-shadow: $x $y $size $color
+
+=gradient($top_color: #999, $bottom_color: #333)
+  background-color: $top_color
+  background-image: -moz-linear-gradient(100% 100% 90deg, $bottom_color, $top_color)
+  background-image: -webkit-gradient(linear, 0% 0%, 0% 100%, from($top_color), to($bottom_color))
+
+=button
+  +rounded_corners(10px,10px,10px,10px)
+  +gradient($button_bg - #111, $button_bg)
+  +shadow(0, 1px, 2px)
+  color: $button_fg
+  font-size: 13px
+  font-weight: bold !important
+  height: 16px
+  line-height: 18px
+  padding: 1px 20px 3px !important
+  border: $button_border
+  text-align: center
+  &:hover
+    text-decoration: none
+    color: white
+    border-color: $button_border_color + #111
+    +gradient($button_bg, $button_bg + #111)
+  &.pressed
+    background: ($button_bg - #222) url('/images/#{$theme}icons/ajax-loader.gif') no-repeat 2px 2px
+
+=columns($width: 960px)
+  width: $width
+  .column_100
+    width: $width
+    clear: left
+  .column_20, .column_25, .column_33, .column_40, .column_50, .column_66, .column_75
+    float: left
+    margin-right: $column_margin
+    &.first
+      clear: left
+    &.last
+      margin-right: 0
+  .column_20
+    width: floor(($width - $column_margin * 4) / 5)
+  .column_25
+    width: floor(($width - $column_margin * 3) / 4)
+  .column_33
+    width: floor(($width - $column_margin * 2) / 3)
+  .column_40
+    width: floor(($width - $column_margin) * 0.4)
+  .column_50
+    width: floor(($width - $column_margin) / 2)
+  .column_66
+    width: floor(($width - $column_margin) / 3 * 2)
+  .column_75
+    width: floor(($width - $column_margin) * 0.75)
+  .equal_height_wrapper
+    overflow: hidden
+    .column_20, .column_25, .column_33, .column_40, .column_50, .column_66, .column_75
+      padding-bottom: 9999px
+      margin-bottom: -9999px
+
+=clearfix
+  &:after
+    content: "."
+    display: block
+    height: 0
+    clear: both
+    visibility: hidden

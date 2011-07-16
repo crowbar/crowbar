@@ -1,0 +1,42 @@
+%h1= "#{t('.title')} #{@bc_name.titlecase}"
+
+%table.data.box
+  %thead
+    %tr
+      %th= ProposalObject.human_attribute_name :barclamp
+      %th= ProposalObject.human_attribute_name :status
+      %th= ProposalObject.human_attribute_name :name
+      %th= ProposalObject.human_attribute_name :description
+
+  %tbody
+    - @proposals.sort_by{|n| "#{n.barclamp}/#{n.name}" }.each do |proposal|
+      %tr{ :class => ["proposal", cycle(:odd, :even)], :id => "#{proposal.barclamp}_#{proposal.name}" }
+        %td= link_to proposal.barclamp.titlecase, barclamp_show_barclamp_path(proposal.barclamp)
+        %td.status
+          .led{:class => proposal.status}
+        %td= link_to proposal.name, proposal_barclamp_path(:id => proposal.name, :controller => proposal.barclamp)
+        %td= proposal.description
+
+:javascript
+  function update() {
+    $.getJSON('#{status_proposals_barclamp_path}', function(data) {
+
+      // If proposal count has changed, re-render the page
+      var current_proposals = $('.proposal').length;
+      if(data['count'] != current_proposals) {
+        location.reload();
+      }
+
+      // Update proposals
+      $.each(data['proposals'], function(key,val) {
+        var td = $('#'+key+' td');
+        var led = td.children('.led');
+        if(!led.hasClass(val)){
+          led.attr('class', 'led '+val);
+          td.effect("highlight", {color: '#666666'}, 2000);
+        }
+      });
+
+    });
+  }
+

@@ -1,0 +1,30 @@
+{
+  "id": "bc-template-deployer",
+  "description": "Initial classification system for the Crowbar environment ",
+  "attributes": {
+    "deployer": {
+      "use_allocate": true,
+      "bios_map": [
+        { "pattern": "nova-.*", "bios_set": "Virtualization", "raid_set": "SingleRaid10" },
+        { "pattern": "swift-.*", "bios_set": "Storage", "raid_set": "JBODOnly" },
+        { "pattern": ".*", "bios_set": "Virtualization", "raid_set": "SingleRaid10" }
+      ]
+    }
+  },
+  "deployment": {
+    "deployer": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "deployer-client" ]
+      ],
+      "config": {
+        "environment": "deployer-config-test",
+        "mode": "full",
+        "transitions": true,
+        "transition_list": [ "all" ]
+      }
+    }
+  }
+}
+

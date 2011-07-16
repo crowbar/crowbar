@@ -1,0 +1,140 @@
+h1,h2,h3,h4,h5
+  color: $h1_color
+  padding-bottom: 5px
+  margin-bottom: 5px
+  margin-top: 7px
+  span
+    font-weight: normal
+
+h3
+  font-family: $default_font
+  font-size: 18px
+  font-style: normal
+  font-weight: bold
+  text-transform: normal
+  color: #47433A
+
+h4
+  font-size: 15px
+
+a
+  cursor: pointer
+  &:link, &:visited
+    color: $link_color
+    text-decoration: none
+  &:hover, &:active
+    color: $link_color
+    text-decoration: underline
+  img
+    border: none
+  &.highlight
+    background: desaturate($link_color - #444, 50%)
+
+ul.plain
+  +plain_list
+
+dl
+  margin-left: 0
+  dt
+    float: left
+    clear: left
+    width: 13%
+    font-weight: bold
+  dd
+    margin-left: 16%
+
+.column_50
+  dl
+    dt
+      width: 30%
+    dd
+      margin-left: 33%
+
+pre.code
+  width: auto
+  padding: 5px 10px
+  overflow: scroll
+  border: 1px solid $border_color
+
+.clear
+  clear: both
+
+.box
+  background: $content_bg
+  +rounded_corners(10px,10px,10px,10px)
+  padding: 5px 15px
+  +shadow
+  margin-bottom: 1em
+  .columns
+    // only works in a full-size box...
+    +columns(930px)
+
+.translation_missing
+  background: yellow
+
+.led
+  display: block
+  width: 17px
+  height: 17px
+  background: url('/images/icons/led/off.png')
+  &.ready, &.active, &.green
+    background: url('/images/icons/led/green.png')
+  &.unready, &.red
+    background: url('/images/icons/led/red.png')
+  &.unknown, &.off
+    background: url('/images/icons/led/off.png')
+  &.pending, &.yellow
+    background: url('/images/icons/led/yellow.png')
+  &.blink
+    +opacity(0.5)
+
+ul.buttons
+  +plain_list
+  +clearfix
+  a.button
+    float: right
+    margin-right: 10px
+
+a.button
+  +button
+
+input.button
+  +button
+  height: 24px
+
+// From the Haml scaffold CSS:
+#notice
+  color: green
+
+.field_with_errors
+  padding: 2px
+  background-color: red
+
+#error_explanation
+  width: 450px
+  border: 2px solid red
+  padding: 7px
+  padding-bottom: 0
+  margin-bottom: 20px
+  background-color: #f0f0f0
+  h2
+    text-align: left
+    font-weight: bold
+    padding: 5px 5px 5px 15px
+    font-size: 12px
+    margin: -7px
+    margin-bottom: 0px
+    background-color: #c00
+    color: #fff
+  ul li
+    font-size: 12px
+    list-style: square
+
+form.box
+  input:not(.button), textarea
+    background: #666
+    color: #fff
+    border: 1px solid #888
+    height: 16px
+    &.default
+      color: #ccc

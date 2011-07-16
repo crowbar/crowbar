@@ -1,0 +1,54 @@
+%h1{:style=>"float: left"}= "#{@node.shortname} (#{link_to t('edit'), edit_node_path(@node.shortname)})"#.html_safe
+
+%ul.buttons
+  %li= link_to "Reboot", hit_node_path(@node.shortname, 'reboot'), :class => 'button', :'data-remote' => true
+  %li= link_to "Shutdown", hit_node_path(@node.shortname, 'shutdown'), :class => 'button', :'data-remote' => true
+  %li= link_to "Power On", hit_node_path(@node.shortname, 'poweron'), :class => 'button', :'data-remote' => true
+  %li= link_to "Identify", hit_node_path(@node.shortname, 'identify'), :class => 'button', :'data-remote' => true
+
+.column_50.first
+  %dl
+    = dl_item((NodeObject.human_attribute_name :name), @node.name)
+    = dl_item((NodeObject.human_attribute_name :state), t(@node.state, :scope => :state))
+    = dl_item((NodeObject.human_attribute_name :uptime), (@node.ready? ? @node.uptime : NodeObject.human_attribute_name(:na)))
+    = dl_item((NodeObject.human_attribute_name :switch_name_port), "#{@node.switch_name} / #{@node.switch_port}")
+    = dl_item((NodeObject.human_attribute_name :mac), @node.mac)
+    = dl_item((NodeObject.human_attribute_name :allocated), (@node.allocated ? t('.active') : t('.inactive')))
+
+.column_50.last
+  %dl
+    = dl_item((NodeObject.human_attribute_name :description), @node.description)
+    = dl_item((NodeObject.human_attribute_name :hardware), @node.hardware)
+    = dl_item((NodeObject.human_attribute_name :cpu), @node.cpu)
+    = dl_item((NodeObject.human_attribute_name :memory), format_memory(@node.memory))
+    = dl_item((NodeObject.human_attribute_name :number_of_drives), @node.number_of_drives)
+    = dl_item((NodeObject.human_attribute_name :asset_tag), @node.asset_tag)
+
+.clear
+
+%dl.networks
+  = dl_item((NodeObject.human_attribute_name :ip), "<ul class='plain'>#{ip_addresses(@network)}</ul>", {:escape_html=>false})
+
+%dl.links
+  %dt
+    = t('.links')
+  %dd
+    = link_to t('.bmc'), "https://#{@node.get_network_by_type("bmc")["address"]}", :target => '_blank'
+    - unless @node["crowbar"]["links"].nil?
+      - @node["crowbar"]["links"].each do |name,link|
+        , 
+        = link_to name, link, :target => '_blank'
+  
+%dl.barclamps
+  = dl_item((NodeObject.human_attribute_name :barclamps), barclamps_list(@node.roles), {:escape_html=>false})
+
+%dl.roles
+  = dl_item((NodeObject.human_attribute_name :roles), roles_list(@node.roles), {:escape_html=>false})
+
+%ul.buttons
+  - unless @node.admin?
+    %li= link_to "Hardware Update", hit_node_path(@node.shortname, 'update'), :class => 'button', :'data-remote' => true
+    %li= link_to "Reinstall", hit_node_path(@node.shortname, 'reinstall'), :class => 'button', :'data-remote' => true
+    %li= link_to "Reset", hit_node_path(@node.shortname, 'reset'), :class => 'button', :'data-remote' => true  
+    %li= link_to "Delete", hit_node_path(@node.shortname, 'delete'), :class => 'button', :'data-remote' => true
+

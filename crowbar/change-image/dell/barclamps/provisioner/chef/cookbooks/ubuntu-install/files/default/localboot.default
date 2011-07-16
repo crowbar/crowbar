@@ -1,0 +1,8 @@
+include ../../isolinux/menu.cfg
+default localboot
+prompt 0
+timeout 10
+
+LABEL localboot
+  menu label ^Boot from first hard disk
+  localboot 0x80

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+watch "/opt/dell/bin/crowbar_node_state status ; echo ' ' ; /opt/dell/bin/crowbar_node_status"
+

@@ -1,0 +1,72 @@
+table.data
+  width: 100%
+  font-size: 12px
+  line-height: 17px
+  border-spacing: 0
+  a
+    font-size: 12px
+  thead th, table > tr th
+    padding: 3px 10px
+    text-align: left
+    border-bottom: 3px solid $page_bg
+    +gradient($secondary_bg, $secondary_bg + #222)
+  td, tbody th
+    padding: 5px 10px
+    text-align: left
+    &.action
+      text-align: right
+      white-space: nowrap
+
+table.box
+  padding: 0
+  tr
+    th:first-child
+      +rounded_corners(10px,0,0,0)
+    th:last-child
+      +rounded_corners(0,10px,0,0)
+    td:first-child
+      padding-left: 15px
+    td:last-child
+      padding-right: 15px
+  tr:last-child
+    td:first-child
+      +rounded_corners(0,0,10px,0)
+    td:last-child
+      +rounded_corners(0,0,0,10px)
+
+table
+  tr
+    // cell classes
+    th, td
+      &.number, &.percent, &.money
+        text-align: right
+      &.short
+        width: 18px
+      &.status
+        width: 17px
+      &[colspan]
+        text-align: center
+    th.status
+      padding-left: 15px
+    &.odd
+      td
+        background: $odd
+      &.selected
+        td
+          background: mix($odd, $selected)
+    &.even
+      td
+        background: $even
+      &.selected
+        td
+          background: mix($even, $selected)
+
+table.plain
+  background: none
+  tbody tr, tr
+    td, th
+      background: none
+
+table.top
+  td,th
+    vertical-align: top

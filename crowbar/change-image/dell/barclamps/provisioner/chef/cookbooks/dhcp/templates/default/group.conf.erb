@@ -1,0 +1,9 @@
+# File managed by puppet
+
+group "<%= @name %>" {
+<% if not @options.empty? -%>
+<%   @options.each do |option| -%>
+  <%= option %>;
+<%   end -%>
+<% end -%>
+}

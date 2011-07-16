@@ -1,0 +1,41 @@
+{
+  "platforms": {
+
+  },
+  "suggestions": {
+
+  },
+  "license": "Apache 2.0",
+  "conflicting": {
+
+  },
+  "long_description": "",
+  "providing": {
+
+  },
+  "description": "configures BMC",
+  "version": "0.1.0",
+  "maintainer": "Dell, Inc.",
+  "replacing": {
+
+  },
+  "attributes": {
+
+  },
+  "maintainer_email": "openstack@dell.com",
+  "name": "ipmi",
+  "recipes": {
+
+  },
+  "groupings": {
+
+  },
+  "dependencies": {
+    "utils": [
+
+    ]
+  },
+  "recommendations": {
+
+  }
+}

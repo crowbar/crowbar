@@ -1,0 +1,8 @@
+
+# remote rsyslog from Ubuntu will log here using TCP
+$ModLoad imtcp
+$InputTCPServerRun 514
+
+# remote syslog from CentOS will log here using UDP
+$ModLoad imudp
+$InputUDPServerRun 514

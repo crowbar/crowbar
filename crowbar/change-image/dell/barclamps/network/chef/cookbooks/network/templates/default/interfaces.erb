@@ -1,0 +1,48 @@
+
+auto lo
+iface lo inet loopback
+
+<% @interfaces.each do |interface| -%>
+<% next if interface[:interface] == "bmc" -%>
+
+<% if interface[:interface] =~ /^br/ %>
+
+auto <%= interface[:interface] %>
+iface <%= interface[:interface] %> inet static
+  bridge_ports <%= interface[:interface_list].first %>
+  bridge_stp off
+  bridge_maxwait 0
+  bridge_fd 0
+
+<% else # nova part -%>
+
+auto <%= interface[:interface] %>
+iface <%= interface[:interface] %> inet static
+
+<% end # if nova -%>
+
+<% if !interface[:ipaddress].nil? -%>
+  address <%= interface[:ipaddress] %>
+<% else -%>
+  address 0.0.0.0
+<% end -%>
+<% if !interface[:netmask].nil? -%>
+  netmask <%= interface[:netmask] %>
+<% end -%>
+<% if !interface[:broadcast].nil? -%>
+  broadcast <%= interface[:broadcast] %>
+<% end -%>
+<% if !interface[:router].nil? -%>
+  gateway <%= interface[:router] %>
+<% end -%>
+
+<% unless interface[:interface_list].nil? or interface[:interface_list].size <= 1 -%>
+  down /sbin/ifenslave -d <%= interface[:interface] %> <%= interface[:interface_list].join(" ") %>
+  up /sbin/ifenslave <%= interface[:interface] %> <%= interface[:interface_list].join(" ") %>
+<% end -%>
+<% if interface[:use_vlan] and interface[:vlan] -%>
+  vlan_raw_device <%= interface[:interface_list].first %>
+<% end -%>
+
+<% end # loop -%>
+

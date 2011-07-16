@@ -1,0 +1,23 @@
+
+%input#proposal_attributes{:type => "hidden", :name => "proposal_attributes", :value => @proposal.raw_data['attributes'][@proposal.barclamp].to_json}
+%p
+  %label{:for => "proposal_attributes"}= t('.attributes')
+  = link_to "Raw", proposal_barclamp_path(:id => @proposal.name, :controller => @proposal.barclamp, :dep_raw => @dep_raw, :attr_raw => true), :style => "float: right;"
+  %div.container
+
+    %p
+      %label{ :for => :bmc_enable }= t('.bmc_enable')
+      = select_tag :bmc_enable, options_for_select([['true','true'], ['false', 'false']], @proposal.raw_data['attributes'][@proposal.barclamp]["bmc_enable"].to_s), :onchange => "update_value('bmc_enable', 'bmc_enable', 'boolean')"
+
+    %p
+      %label{ :for => :bmc_user }= t('.bmc_user')
+      %input#bmc_user{:type => "text", :name => "bmc_user", :'data-default' => @proposal.raw_data['attributes'][@proposal.barclamp]["bmc_user"], :onchange => "update_value('bmc_user', 'bmc_user', 'string')"}
+
+    %p
+      %label{ :for => :bmc_password }= t('.bmc_password')
+      %input#bmc_password{:type => "text", :name => "bmc_password", :'data-default' => @proposal.raw_data['attributes'][@proposal.barclamp]["bmc_password"], :onchange => "update_value('bmc_password', 'bmc_password', 'string')"}
+
+    %p
+      %label{ :for => :debug }= t('.debug')
+      = select_tag :debug, options_for_select([['true','true'], ['false', 'false']], @proposal.raw_data['attributes'][@proposal.barclamp]["debug"].to_s), :onchange => "update_value('debug', 'debug', 'boolean')"
+

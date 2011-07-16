@@ -1,0 +1,13 @@
+%h1= "#{@role.barclamp.titlecase} #{@role.inst}"
+
+.box
+  %h2= t '.attributes'
+  - @role.default_attributes[@role.barclamp].each_pair do |key, value|
+    = dl_item "#{t '.key'} <b>#{key}</b>", (value.is_a?(Enumerable) ? hash_to_ul(value) : value), {:escape_html=>false} #hash_to_ul(value).html_safe
+
+.box
+  %h2= t '.deployment'
+  - @role.elements.each_pair do |key, value|
+    = dl_item "#{t '.role'} <b>#{key}</b>", (value.map{|m| m.split('.').first}.map{|m| link_to m, nodes_path(:selected => m)}.join('<br/>')), {:escape_html=>false} #.html_safe
+
+= link_to t('.delete_role'), delete_barclamp_path(:controller => @role.barclamp, :id => @role.inst), :method => :delete, :class => 'button', :'data-remote' => true

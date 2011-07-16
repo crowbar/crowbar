@@ -1,0 +1,255 @@
+# Copyright 2011, Dell 
+# 
+# Licensed under the Apache License, Version 2.0 (the "License"); 
+# you may not use this file except in compliance with the License. 
+# You may obtain a copy of the License at 
+# 
+#  http://www.apache.org/licenses/LICENSE-2.0 
+# 
+# Unless required by applicable law or agreed to in writing, software 
+# distributed under the License is distributed on an "AS IS" BASIS, 
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+# See the License for the specific language governing permissions and 
+# limitations under the License. 
+# 
+# Author: RobHirschfeld 
+# 
+
+# Sample localization file for English. Add more files in this directory for other locales.
+# See http://github.com/svenfuchs/rails-i18n/tree/master/rails%2Flocale for starting points.
+
+en:
+
+  # Layout
+  nav:
+    dashboard: Dashboard
+    overview: Overview
+    barclamps: Barclamps
+    roles: Active Roles
+    proposals: Proposals
+    help: Help
+
+  # Model Names / Attributes
+  model:
+    node: Node
+    proposal: Proposal
+    service:
+      name_exists: Name already exists. Please choose another.
+      too_short: Invalid name.  Name must have some characters.
+      illegal_chars: Invalid name.  Please limit name to [A-z0-9_] without spaces
+      already_commit: Proposal already in a commit
+      cannot_find: Failed to find proposal
+    attributes:
+      node:
+        name: Full Name
+        mac: MAC Address
+        allocated: Allocated
+        ip: IP Address
+        status: Status
+        state: State
+        hardware: Hardware
+        switch_name: Switch Name
+        switch_port: Switch Port
+        switch_name_port: Switch Name/Port
+        uptime: Uptime
+        na: Unavailable
+        memory: Memory
+        cpu: CPU
+        number_of_drives: Disk Drives
+        description: Description
+        roles: Roles
+        barclamps: Barclamps
+        asset_tag: Asset Tag
+      proposal:
+        name: Proposal
+        description: Description
+        status: Status
+        barclamp: Barclamp
+        data: JSON Data
+      role:
+        name: Proposal
+        description: Description
+        proposal_count: Proposals
+        status: Status
+        barclamp: Barclamp
+
+  # Views
+  nodes:
+    index:
+      new_node: Add Node
+      title: Node list
+      status_empty: There are %i nodes available in the system.
+      status_pie: Total {0} - {1} Ready, {2} Unknown, {3} Not Ready and {4} Pending
+    new:
+      title: Add Node
+    show:
+      title: Node
+      ganglia: Ganglia
+      nagios: Nagios
+      bmc: IP Mgmt Interface
+      chef: Chef
+      links: Links
+      active: Allocated
+      inactive: Not Allocated
+    form:
+      allocate: Allocate
+      save: Save
+      raid: Raid
+      bios: BIOS
+      usage: Usage
+      save_node_success: Node saved successfully
+      allocate_node_success: Node allocated successfully
+      description: Description
+  barclamp:
+    barclamp_index:
+      title: Barclamps
+      none: None
+    barclamp_show:
+      title: Barclamp Details
+      create_proposal: Create Proposal
+      name: Name
+      description: Description
+      active: Active Proposals
+      proposals: All Proposals
+      default: default
+    barclamp_roles:
+      title: Active Roles
+    barclamp_proposals:
+      title: Proposals
+    proposal_index:
+      title: Proposals
+    proposal_show:
+      title: Edit Proposal
+      apply_changes: Apply changes now?
+      create_proposal_success: Successfully created proposal
+      commit_proposal: Apply Proposal
+      commit_proposal_success: Successfully applied proposal
+      commit_proposal_queued: Successfully queued proposal until the following become ready
+      save_proposal: Save Proposal
+      save_proposal_success: Successfully saved changes to proposal
+      delete_changes: Delete proposal now?
+      dequeue_proposal: Dequeue Proposal
+      dequeue_proposal_success: Successfully dequeued proposal
+      dequeue_proposal_failure: Failed to dequeued proposal
+      delete_proposal: Delete Proposal
+      delete_proposal_success: Successfully delete proposal
+      confirm_delete_proposal: Are you sure you wish to delete this proposal?
+      available_nodes: Available Nodes
+      ui_advice: Drag nodes from Available Nodes into desired deployment list(s).
+    bios_edit_attributes:
+      attributes: Attributes
+      bios_setup_enable: Enable BIOS Setup
+      bios_update_enable: Enable BIOS Update
+      debug: Enable Barclamp Debug
+    ipmi_edit_attributes:
+      attributes: Attributes
+      debug: Enable Barclamp Debug
+      bmc_enable: Enable BMC
+      bmc_user: BMC User
+      bmc_password: BMC Password
+    raid_edit_attributes:
+      attributes: Attributes
+      enable: Enable RAID
+      debug: Enable Barclamp Debug
+    crowbar_edit_attributes: 
+      attributes: Attributes
+    ganglia_edit_attributes: 
+      attributes: Attributes
+    glance_edit_attributes: 
+      attributes: Attributes
+      backing_type: Backing Type
+    nagios_edit_attributes: 
+      attributes: Attributes
+    swift_edit_attributes: 
+      attributes: Attributes
+      zones: Number of Zones
+      partitions: Partitions
+      min_part_hours: Parts per Hour
+      replicas: Number of Replicas
+      cluster_hash: Cluster Hash
+      cluster_admin_pw: Cluster Admin Password
+      user: Swift User
+      group: Swift Group
+      debug: Swift Debug
+    crowbar_edit_deployment: 
+      deployment: Deployment
+    node_selector:
+      title: Deployment
+    edit_attributes_raw:
+      title: Attributes
+    edit_deployment_raw:
+      title: Deployment
+    index:
+      title: Active Roles
+    show:
+      delete_role: Delete Role
+      confirm_delete_role: Are you sure you wish to delete this role?
+      delete_role_success: Successfully delete role
+      deployment: Nodes Activated
+      attributes: Proposal Attributes
+      role: Role
+      key: Key
+  overview:
+    index:
+      api_clients: API Clients
+      ops_infrastructure: Ops Infrastructure
+      ops_mgmt: Operations Mgmt.
+      nova_api: Nova API
+      glance_api: Glance API
+      swift_api: Swift API
+      metering: Metering
+      performance: Performance
+      monitoring: Monitoring
+      crowbar: Crowbar
+      nova: Nova
+      glance: Glance
+      swift: Swift
+      os: Operating System
+      hardware: Hardware
+      network: Network
+
+  # Global
+  show: View
+  destroy: Remove
+  back: Go Back
+  edit: Edit
+  actions: Actions
+  are_you_sure: Are you sure?
+  unknown: Unknown
+  not_set: Not set
+  undetermined: Undetermined
+  name: Name
+  offline: Chef Offline
+  raw: Raw
+  custom: Custom
+  created_on: Created On
+  
+  # Error messages, etc.
+  error:
+    warning: Warning
+    no_nodes_found: No nodes found
+  
+  state:
+    unknown: Unknown
+    noupdate: No Data (Off)
+    ready: Ready
+    readying: Readying
+    install: Install
+    installing: Installing
+    installed: Installed
+    discovering: Discovering
+    discovered: Discovered
+    hardware-installed: Hardware Installed
+    hardware-installing: Hardware Installing
+    hardware-updated: Hardware Updated
+    hardware-updating: Hardware Updating
+    update: Hardware Update
+    reset: Reset
+    reinstall: Reinstall
+    allocate: Allocate
+    allocated: Allocated
+    problem: Ready Retrying
+    delete: Information Deleted
+    shutdown: Power Off
+    reboot: Power Restart
+    poweron: Power On

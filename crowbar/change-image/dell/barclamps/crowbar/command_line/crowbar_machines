@@ -1,0 +1,331 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'net/http'
+require 'net/http/digest_auth'
+require 'uri'
+require 'json'
+require 'getoptlong'
+
+@debug = false
+@hostname = ENV["CROWBAR_IP"]
+# DO NOT CHANGE THE FORMAT OF THE NEXT 2 LINES.
+# gather_cli relies on the exact spacing of them to 
+# rewrite the addreses when it is serving the CLI.
+@hostname = "127.0.0.1" unless @hostname
+@port = 3000
+@headers = {
+  "Accept" => "application/json",
+  "Content-Type" => "application/json"
+}
+@data = ""
+@allow_zero_args = false
+@timeout = 500
+@barclamp="machines"
+@key = ENV["CROWBAR_KEY"]
+if @key
+  @username=@key.split(':',2)[0]
+  @password=@key.split(':',2)[1]
+end
+
+#
+# Parsing options can be added by adding to this list before calling opt_parse
+# 
+@options = [
+    [ [ '--help', '-h', GetoptLong::NO_ARGUMENT ], "--help or -h - help" ],
+    [ [ '--username', '-U', GetoptLong::REQUIRED_ARGUMENT ], "--username <username> or -U <username>  - specifies the username to use" ],
+    [ [ '--password', '-P', GetoptLong::REQUIRED_ARGUMENT ], "--password <password> or -P <password>  - specifies the password to use" ],
+    [ [ '--hostname', '-n', GetoptLong::REQUIRED_ARGUMENT ], "--hostname <name or ip> or -n <name or ip>  - specifies the destination server" ],
+    [ [ '--port', '-p', GetoptLong::REQUIRED_ARGUMENT ], "--port <port> or -p <port> - specifies the destination server port" ],
+    [ [ '--debug', '-d', GetoptLong::NO_ARGUMENT ], "--debug or -d - turns on debugging information" ],
+    [ [ '--data', GetoptLong::REQUIRED_ARGUMENT ], "--data <data> - used by create or edit as data (must be in json format)" ],
+    [ [ '--file', GetoptLong::REQUIRED_ARGUMENT ], "--file <file> - used by create or edit as data when read from a file (must be in json format)" ],
+    [ [ '--timeout', GetoptLong::REQUIRED_ARGUMENT ], "--timeout <seconds> - timeout in seconds for read http reads" ]
+]
+
+@commands = {
+  "help" => [ "help", "help - this page" ],
+  "api_help" => [ "api_help", "crowbar API help - help for this barclamp." ],
+  "list" => [ "list", "list - show a list of current configs" ],
+  "show" => [ "show ARGV.shift, ARGV.shift", "show <name> [arg] - show a specific config" ],
+  "create" => [ "create ARGV.shift", "create <name> - create a specific config" ],
+  "edit" => [ "edit ARGV.shift", "edit <name> - edit a new config" ],
+  "delete" => [ "delete ARGV.shift", "delete <name> - delete a node" ],
+  "reboot" => [ "action \"reboot\", ARGV.shift", "reboot <name> - reboot a node" ],
+  "shutdown" => [ "action \"shutdown\", ARGV.shift", "shutdown <name> - shutdown a node" ],
+  "poweron" => [ "action \"poweron\", ARGV.shift", "poweron <name> - poweron a node" ],
+  "identify" => [ "action \"identify\", ARGV.shift", "identify <name> - identify a node" ],
+  "allocate" => [ "action \"allocate\", ARGV.shift", "allocate <name> - allocate a node" ],
+  "reset" => [ "action \"reset\", ARGV.shift", "reset <name> - reset a node" ],
+  "reinstall" => [ "action \"reinstall\", ARGV.shift", "reinstall <name> - reinstall a node" ]
+}
+
+
+def print_commands(cmds, spacer = "  ")
+  cmds.each do |key, command|
+    puts "#{spacer}#{command[1]}"
+    print_commands(command[2], "  #{spacer}") if command[0] =~ /run_sub_command\(/
+  end
+end
+
+def usage (rc)
+  puts "Usage: crowbar #{@barclamp} [options] <subcommands>"
+  @options.each do |options|
+    puts "  #{options[1]}"
+  end
+  print_commands(@commands)
+  exit rc
+end
+
+def help
+  usage 0
+end
+
+def authenticate(req,uri,data=nil)
+  uri.user=@username
+  uri.password=@password
+  res=nil
+  Net::HTTP.start(uri.host, uri.port) {|http|
+    r = req.new(uri.request_uri,@headers)
+    r.body = data if data
+    res = http.request r
+    if res['www-authenticate']
+      digest_auth=Net::HTTP::DigestAuth.new
+      auth=Net::HTTP::DigestAuth.new.auth_header(uri,
+                                                 res['www-authenticate'],
+                                                 req::METHOD)
+      r.add_field 'Authorization', auth
+      res = http.request r
+    end
+  }
+  res
+end  
+
+def get_json(path)
+  uri = URI.parse("http://#{@hostname}:#{@port}/crowbar/#{@barclamp}/1.0#{path}")
+  res = authenticate(Net::HTTP::Get,uri)
+
+  puts "DEBUG: (g) hostname: #{uri.host}:#{uri.port}" if @debug
+  puts "DEBUG: (g) request: #{uri.path}" if @debug
+  puts "DEBUG: (g) return code: #{res.code}" if @debug
+  puts "DEBUG: (g) return body: #{res.body}" if @debug
+
+  return [res.body, res.code.to_i ] if res.code.to_i != 200
+
+  struct = JSON.parse(res.body)
+
+  puts "DEBUG: (g) JSON parse structure = #{struct.inspect}" if @debug
+
+  return [struct, 200]
+end
+
+def post_json(path, data)
+  uri = URI.parse("http://#{@hostname}:#{@port}/crowbar/#{@barclamp}/1.0#{path}")
+  res = authenticate(Net::HTTP::Post,uri,data)
+
+  puts "DEBUG: (post) hostname: #{uri.host}:#{uri.port}" if @debug
+  puts "DEBUG: (post) request: #{uri.path}" if @debug
+  puts "DEBUG: (post) data: #{@data}" if @debug
+  puts "DEBUG: (post) return code: #{res.code}" if @debug
+  puts "DEBUG: (post) return body: #{res.body}" if @debug
+
+  [res.body, res.code.to_i ]
+end
+
+def put_json(path, data)
+  uri = URI.parse("http://#{@hostname}:#{@port}/crowbar/#{@barclamp}/1.0#{path}")
+  res = authenticate(Net::HTTP::Put,uri,data)
+
+  puts "DEBUG: (put) hostname: #{uri.host}:#{uri.port}" if @debug
+  puts "DEBUG: (put) request: #{uri.path}" if @debug
+  puts "DEBUG: (put) data: #{@data}" if @debug
+  puts "DEBUG: (put) return code: #{res.code}" if @debug
+  puts "DEBUG: (put) return body: #{res.body}" if @debug
+
+  [res.body, res.code.to_i ]
+end
+
+def delete_json(path)
+  uri = URI.parse("http://#{@hostname}:#{@port}/crowbar/#{@barclamp}/1.0#{path}")
+  res = authenticate(Net::HTTP::Delete,uri)
+
+  puts "DEBUG: (d) hostname: #{uri.host}:#{uri.port}" if @debug
+  puts "DEBUG: (d) request: #{uri.path}" if @debug
+  puts "DEBUG: (d) return code: #{res.code}" if @debug
+  puts "DEBUG: (d) return body: #{res.body}" if @debug
+
+  [res.body, res.code.to_i ]
+end
+
+def list
+  struct = get_json("/")
+
+  if struct[1] != 200
+    [ "Failed to talk to service list: #{struct[1]}: #{struct[0]}", 1 ]
+  elsif struct[0].nil? or struct[0].empty? 
+    [ "No current configurations", 0 ]
+  else
+    out = ""
+    struct[0].each do |name|
+      out = out + "\n" if out != ""
+      out = out + "#{name}"
+    end
+    [ out, 0 ]
+  end
+end
+
+def api_help
+  struct=get_json("/help")
+  if struct[1] != 200
+    [ "Failed to talk to service list: #{struct[1]}: #{struct[0]}", 1 ]
+  elsif struct[0].nil? or struct[0].empty? 
+    [ "No help", 0 ]
+  else
+    [ jj(struct[0]), 0 ]
+  end
+end
+
+def show(name, field = nil)
+  usage -1 if name.nil? or name == ""
+
+  struct = get_json("/0?name=#{name}")
+
+  if struct[1] == 200
+    if field.nil?
+      [ "#{JSON.pretty_generate(struct[0])}", 0 ]
+    else
+      data = struct[0]
+      fields = field.split(".")
+      fields.each { |x| data = data[x] }
+
+      [ "#{JSON.pretty_generate(data)}", 0 ]
+    end
+  elsif struct[1] == 404
+    [ "No current configuration for #{name}", 1 ]
+  else
+    [ "Failed to talk to service show: #{struct[1]}: #{struct[0]}", 1 ]
+  end
+end
+
+def create(name)
+  usage -1 if name.nil? or name == ""
+
+  @data = "{\"name\":\"#{name}\"}" if @data.nil? or @data == ""
+
+  struct = put_json("/", @data)
+
+  if struct[1] == 200
+    [ "Created #{name}", 0 ]
+  else
+    [ "Failed to talk to service create: #{struct[1]}: #{struct[0]}", 1 ]
+  end
+end
+
+def edit(name)
+  usage -1 if name.nil? or name == ""
+
+  struct = post_json("/#{name}", @data)
+
+  if struct[1] == 200
+    [ "Edited #{name}", 0 ]
+  elsif struct[1] == 404
+    [ "Failed to edit: #{name} : Not Found", 1 ]
+  elsif struct[1] == 400
+    [ "Failed to edit: #{name} : Errors in data\n#{struct[0]}", 1 ]
+  else
+    [ "Failed to talk to service edit: #{struct[1]}: #{struct[0]}", 1 ]
+  end
+end
+
+def delete(name)
+  usage -1 if name.nil? or name == ""
+ 
+  struct = delete_json("?name=#{name}")
+
+  if struct[1] == 200
+    [ "Deleted #{name}", 0 ]
+  elsif struct[1] == 404
+    [ "Delete failed for #{name}: Not Found", 1 ] 
+  else
+    [ "Failed to talk to service delete: #{struct[1]}: #{struct[0]}", 1 ]
+  end
+end
+
+def action(aaa, name)
+  usage -1 if name.nil? or name == ""
+
+  @data = "{\"name\":\"#{name}\"}" if @data.nil? or @data == ""
+
+  struct = post_json("/#{aaa}/0", @data)
+
+  if struct[1] == 200
+    [ "#{aaa} #{name}", 0 ]
+  else
+    [ "Failed to talk to service #{aaa}: #{struct[1]}: #{struct[0]}", 1 ]
+  end
+end
+
+### Start MAIN ###
+
+def opt_parse()
+  sub_options = @options.map { |x| x[0] }
+  lsub_options = @options.map { |x| [ x[0][0], x[2] ] }
+  opts = GetoptLong.new(*sub_options)
+
+  opts.each do |opt, arg|
+    case opt
+      when '--help'
+        usage 0
+      when '--debug'
+        @debug = true
+      when '--hostname'
+        @hostname = arg
+      when '--username'
+        @username = arg
+      when '--password'
+        @password = arg
+      when '--port'
+        @port = arg.to_i
+      when '--data'
+        @data = arg
+      when '--timeout'
+        @timeout = arg
+      when '--file'
+        data = File.read(arg, "r")
+      else
+        found = false
+        lsub_options.each do |x|
+          next if x[0] != opt
+          eval x[1]
+          found = true
+        end
+        usage -1 unless found
+    end
+  end
+
+  STDERR.puts "CROWBAR_KEY not set, will not be able to authenticate!" if @username.nil? or @password.nil?
+  STDERR.puts "Please set CROWBAR_KEY or use -U and -P" if @username.nil? or @password.nil?
+  if ARGV.length == 0 and !@allow_zero_args
+    usage -1
+  end
+end
+
+def run_sub_command(cmds, subcmd)
+  cmd = cmds[subcmd]
+  usage -2 if cmd.nil?
+  eval cmd[0]
+end
+
+def run_command()
+  run_sub_command(@commands, ARGV.shift)
+end
+
+def main()
+  opt_parse
+  res = run_command
+  puts res[0]
+  exit res[1]
+end
+
+main
+

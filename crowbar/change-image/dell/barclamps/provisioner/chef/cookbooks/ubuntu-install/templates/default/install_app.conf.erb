@@ -1,0 +1,14 @@
+Listen 8091
+<VirtualHost *:8091>
+  ServerName <%= @params[:server_name] %>
+  DocumentRoot <%= @params[:docroot] %>
+
+  LogLevel warn
+  ErrorLog      <%= node[:apache][:log_dir] %>/<%= @params[:name] %>_error.log
+  CustomLog     <%= node[:apache][:log_dir] %>/<%= @params[:name] %>_access.log combined
+
+  <Directory />
+    Options FollowSymLinks +Indexes
+    AllowOverride None
+  </Directory>
+</VirtualHost>

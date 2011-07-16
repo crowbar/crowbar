@@ -1,0 +1,4 @@
+#!/bin/bash
+
+wget -q "http://<%= @cc_built_admin_node_ip %>:3000/machines/transition/0.yaml?mac=\$MAC&state=ready" -O-
+

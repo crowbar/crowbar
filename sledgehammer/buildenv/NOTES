@@ -1,0 +1,11 @@
+#
+# Need to make sure we are running a squashfs that works
+#
+# Make sure that you have the proper squashfs
+# Run:
+# yum reinstall squashfs-tools
+#
+# Run:
+# cp -p /sbin/mksquashfs /sbin/mksquashfs.orig
+# cp mksquashfs /sbin/mksquashfs
+#

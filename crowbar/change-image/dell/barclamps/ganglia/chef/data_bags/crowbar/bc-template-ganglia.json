@@ -1,0 +1,27 @@
+{
+  "id": "bc-template-ganglia",
+  "description": "a common Ganglia service for the cluster that can be used by other barclamps",
+  "attributes": {
+    "ganglia": {
+      "interface_eval": "Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, \"admin\").interface"
+    }
+  },
+  "deployment": {
+    "ganglia": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "ganglia-server", "ganglia-client" ]
+      ],
+      "config": {
+        "environment": "ganglia-base-config",
+        "mode": "full",
+        "transitions": true,
+        "transition_list": [
+          "discovered"
+        ]
+      } 
+    }
+  }
+}
+

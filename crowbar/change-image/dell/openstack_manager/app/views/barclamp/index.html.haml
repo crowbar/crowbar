@@ -1,0 +1,39 @@
+%h1= "#{t('.title')} #{@bc_name.titlecase}"
+
+%table.data.box
+  %thead
+    %tr
+      %th= RoleObject.human_attribute_name :barclamp
+      %th= RoleObject.human_attribute_name :name
+      %th= RoleObject.human_attribute_name :description
+
+  %tbody
+    - @roles.sort_by{|n| "#{n.barclamp}/#{n.name}" }.each do |role|
+      %tr{ :class => ["role", cycle(:odd, :even)], :id => "#{role.barclamp}_#{role.name}" }
+        %td= link_to role.barclamp, barclamp_show_barclamp_path(role.barclamp)
+        %td= link_to role.inst, show_barclamp_path(:id => role.inst, :controller => role.barclamp)
+        %td= role.description
+
+:javascript
+  function update() {
+    $.getJSON('#{status_barclamp_path}', function(data) {
+
+      // If role has changed, re-render the page
+      var current_roles = $('.role').length;
+      if(data['count'] != current_roles) {
+        location.reload();
+      }
+
+      // Update roles
+      $.each(data['roles'], function(key,val) {
+        var td = $('#'+key+' td');
+        var led = td.children('.led');
+        if(!led.hasClass(val)){
+          led.attr('class', 'led '+val);
+          td.effect("highlight", {color: '#666666'}, 2000);
+        }
+      });
+
+    });
+  }
+

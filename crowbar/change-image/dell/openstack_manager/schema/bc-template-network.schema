@@ -1,0 +1,109 @@
+{
+  "type": "map",
+  "required": true,
+  "mapping": {
+    "id": { "type": "str", "required": true, "pattern": "/^bc-network-|^bc-template-network$/" },
+    "description": { "type": "str", "required": true },
+    "attributes": {
+      "type": "map",
+      "required": true,
+      "mapping": {
+        "network": {
+          "type": "map",
+          "required": true,
+          "mapping": {
+            "mode": { "type": "str", "required": true, "pattern": "/^single$|^dual$|^team$/" },
+            "teaming": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                "mode": { "type": "int", "required": true }
+              }
+            },
+            "networks": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                = : {
+                  "type": "map",
+                  "required": true,
+                  "mapping": {
+                    "vlan": { "type": "int", "required": true },
+                    "use_vlan": { "type": "bool", "required": true },
+                    "add_bridge": { "type": "bool", "required": true },
+                    "subnet": { "type": "str", "required": true, "name": "IpAddress" },
+                    "netmask": { "type": "str", "required": true, "name": "IpAddress" },
+                    "broadcast": { "type": "str", "required": true, "name": "IpAddress" },
+                    "router": { "type": "str", "name": "IpAddress" },
+                    "ranges": {
+                      "type": "map",
+                      "required": true,
+                      "mapping": {
+                        = : {
+                          "type": "map",
+                          "required": true,
+                          "mapping": {
+                            "start": { "type": "str", "required": true, "name": "IpAddress" },
+                            "end": { "type": "str", "required": true, "name": "IpAddress" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "deployment": {
+      "type": "map",
+      "required": true,
+      "mapping": {
+        "network": {
+          "type": "map",
+          "required": true,
+          "mapping": {
+            "crowbar-revision": { "type": "int", "required": true },
+            "crowbar-committing": { "type": "bool" },
+            "crowbar-queued": { "type": "bool" },
+            "elements": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                = : {
+                  "type": "seq",
+                  "required": true,
+                  "sequence": [ { "type": "str" } ]
+                }
+              }
+            },
+            "element_order": {
+              "type": "seq",
+              "required": true,
+              "sequence": [ {
+                "type": "seq",
+                "sequence": [ { "type": "str" } ]
+              } ]
+            },
+            "config": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                "environment": { "type": "str", "required": true },
+                "mode": { "type": "str", "required": true },
+                "transitions": { "type": "bool", "required": true },
+                "transition_list": {
+                  "type": "seq",
+                  "required": true,
+                  "sequence": [ { "type": "str" } ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

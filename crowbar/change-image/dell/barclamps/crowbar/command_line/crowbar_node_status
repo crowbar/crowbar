@@ -1,0 +1,22 @@
+#!/bin/bash
+
+[[ $CROWBAR_IP ]] || CROWBAR_IP="127.0.0.1"
+
+stat_line_re='status(OK|WARNING|CRITICAL|UNKNOWN|PENDING)'
+echo "Host   OK  WARN  CRIT  UNKNOWN  PENDING"
+while read HOST; do
+    HOST=${HOST%%.*}
+    OK=0 WARN=0 CRIT=0 UNKN=0 PEND=0
+    while read -r line; do
+	[[ $line =~ $stat_line_re ]] || continue
+	case ${BASH_REMATCH[1]} in
+	    OK) ((OK++));;
+	    WARNING) ((WARN++));;
+	    CRITICAL) ((CRIT++));;
+	    UNKNOWN) ((UNKN++));;
+	    PENDING) ((PEND++));;
+	esac
+    done < <(wget --user=nagiosadmin --password=password \
+	"http://${CROWBAR_IP:=127.0.0.1}/cgi-bin/nagios3/status.cgi?host=$HOST" -O- -q)
+    echo "$HOST  $OK  $WARN  $CRIT  $UNKN  $PEND"
+done < <(knife node list | grep "\"" | awk -F\" '{ print $2 }')

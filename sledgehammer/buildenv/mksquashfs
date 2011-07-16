@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# nuke any -no-progress arg, leave the rest unchanged.
+/sbin/mksquashfs.orig "${@//-no-progress/}"

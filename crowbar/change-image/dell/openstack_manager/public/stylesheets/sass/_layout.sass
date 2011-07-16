@@ -1,0 +1,72 @@
+body
+  margin: 0
+  padding: 0
+  background: $page_bg
+  font-family: $default_font
+  color: $text_color
+
+header
+  background: $header_bg
+  border-top: 1px solid $header_bg
+  border-bottom: 1px solid $header_border
+  height: 95px
+  h1
+    margin: 20px 0 0
+    width: 204px
+    height: 72px
+    float: left
+    a
+      display: block
+      background: url('/images/#{$theme}layout/crowbar.png') no-repeat
+      width: 279px
+      height: 72px
+      span
+        display: none
+  nav
+    float: right
+    margin-top: 50px
+    ul
+      +inline_list
+      li
+        a:link, a:visited
+          color: $nav_color
+          padding-left: 20px
+          &.selected
+            color: $nav_selected
+        a:hover
+          color: $nav_selected
+
+.notice
+  text-align: center
+  color: $notice_fg
+  background: $notice_bg
+  border: solid $notice_border_color
+  border-width: 1px 0
+  font-size: 12px
+  clear: both
+  margin-bottom: 1em
+  .container
+    padding: 0
+    p
+      margin: 0.5em 0
+
+.container
+  margin: 0 auto
+  padding: 0 20px 2em
+  +columns(960px)
+
+footer
+  clear: both
+  color: #666
+  font-size: 10px
+  padding: 3em 10px 5px
+  text-align: center
+  a
+    color: #999
+
+#details
+  +columns(930px)
+  h1
+    font-size: 16px
+  dl
+    font-size: 12px

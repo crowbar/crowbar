@@ -1,0 +1,27 @@
+{
+  "id": "bc-template-logging",
+  "description": "centralized logging system based on syslog",
+  "attributes": {
+    "logging": {
+      "external_servers": [ ]
+    }
+  },
+  "deployment": {
+    "logging": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "logging-server", "logging-client" ]
+      ],
+      "config": {
+        "environment": "logging-base-config",
+        "mode": "full",
+        "transitions": true,
+        "transition_list": [
+          "discovered"
+        ]
+      }
+    }
+  }
+}
+

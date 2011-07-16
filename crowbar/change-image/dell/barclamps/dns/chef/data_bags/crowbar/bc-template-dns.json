@@ -1,0 +1,31 @@
+{
+  "id": "bc-template-dns",
+  "description": "manages the DNS subsystem for the cluster",
+  "attributes": {
+    "dns": {
+      "domain": "pod.cloud.openstack.org",
+      "contact": "support@pod.cloud.openstack.org",
+      "forwarders": [ ],
+      "static": { }
+    }
+  },
+  "deployment": {
+    "dns": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "dns-server" ], 
+        [ "dns-client" ]
+      ],
+      "config": {
+        "environment": "dns-base-config",
+        "mode": "full",
+        "transitions": true,
+        "transition_list": [
+          "discovered"
+        ]
+      }
+    }
+  }
+}
+

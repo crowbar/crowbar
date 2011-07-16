@@ -1,0 +1,37 @@
+{
+  "providing": {
+  },
+  "attributes": {
+  },
+  "replacing": {
+  },
+  "dependencies": {
+  },
+  "groupings": {
+  },
+  "recommendations": {
+  },
+  "platforms": {
+    "debian": [
+
+    ],
+    "ubuntu": [
+
+    ]
+  },
+  "license": "Apache 2.0",
+  "version": "0.9.5",
+  "maintainer": "Dell, Inc.",
+  "suggestions": {
+  },
+  "recipes": {
+    "logging-server": "Installs the logging server",
+    "logging-client": "Installs the logging client"
+  },
+  "maintainer_email": "crowbar@dell.com",
+  "name": "logging",
+  "conflicting": {
+  },
+  "description": "Installs the logging",
+  "long_description": ""
+}

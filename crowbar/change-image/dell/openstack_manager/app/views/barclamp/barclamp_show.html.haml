@@ -1,0 +1,25 @@
+%h1= t '.title'
+%h2= @barclamp.bc_name.titlecase
+
+%h3= t '.create_proposal'
+.box
+  -# NOTE: There is a small change for RAILS2!
+  - form_for :proposal, :remote => true, :url => create_proposal_barclamp_path(:controller => @barclamp.bc_name), :html => { :'data-type' => 'html', :'data-method' => 'put', :method => :put, :id => 'create_proposal_form', :class => "formtastic"} do |f|
+    = hidden_field_tag :barclamp, @barclamp.bc_name
+    %fieldset.inputs
+      %ol
+        %li.text
+          = f.label :name, t('.name')
+          = text_field_tag :name, t('.default')
+        %li.text
+          = f.label :description, t('.description')
+          = text_field_tag :description, "#{t 'created_on'} #{l(Time.now) }", :size => 60
+      %input.button{:type => "submit", :value => t('.create_proposal')}
+
+%h3= t '.active'
+- @barclamp.list_active[1].each do |role|
+  = dl_item link_to(role, show_barclamp_path(:id => role, :controller => @barclamp.bc_name)), role, {:escape_html=>false}
+
+%h3= t '.proposals'
+- @barclamp.proposals[1].each do |proposal|
+  = dl_item link_to(proposal, proposal_barclamp_path(:id => proposal, :controller => @barclamp.bc_name)), proposal, {:escape_html=>false}

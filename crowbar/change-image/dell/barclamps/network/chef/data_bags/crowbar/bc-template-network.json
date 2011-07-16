@@ -1,0 +1,116 @@
+{
+  "id": "bc-template-network",
+  "description": "Instantiates network interfaces on the crowbar managed systems. Also manages the address pool",
+  "attributes": {
+    "network": {
+      "mode": "single",
+      "teaming": {
+        "mode": 6
+      },
+      "networks": {
+        "storage": {
+          "vlan": 200,
+          "use_vlan": true,
+          "add_bridge": false,
+          "subnet": "192.168.125.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "192.168.125.255",
+          "ranges": {
+            "host": { "start": "192.168.125.10", "end": "192.168.125.239" }
+          }
+        },
+        "public": {
+          "vlan": 300,
+          "use_vlan": true,
+          "add_bridge": false,
+          "subnet": "192.168.122.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "192.168.122.255",
+          "router": "192.168.122.1",
+          "ranges": {
+            "host": { "start": "192.168.122.2", "end": "192.168.122.49" },
+            "dhcp": { "start": "192.168.122.50", "end": "192.168.122.254" },
+            "router": { "start": "192.168.122.1", "end": "192.168.122.1" }
+          }
+        },
+        "nova_fixed": {
+          "vlan": 500,
+          "use_vlan": true,
+          "add_bridge": true,
+          "subnet": "192.168.123.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "192.168.123.255",
+          "router": "192.168.123.1",
+          "ranges": {
+            "host": { "start": "192.168.123.2", "end": "192.168.123.49" },
+            "dhcp": { "start": "192.168.123.50", "end": "192.168.123.254" }
+          }
+        },
+        "nova_floating": {
+          "vlan": 400,
+          "use_vlan": true,
+          "add_bridge": false,
+          "subnet": "192.168.126.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "192.168.126.255",
+          "ranges": {
+            "host": { "start": "192.168.126.2", "end": "192.168.126.255" }
+          }
+        },
+        "bmc": {
+          "vlan": 100,
+          "use_vlan": false,
+          "add_bridge": false,
+          "subnet": "192.168.124.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "192.168.124.255",
+          "ranges": {
+            "host": { "start": "192.168.124.162", "end": "192.168.124.240" }
+          }
+        },
+        "bmc_vlan": {
+          "vlan": 100,
+          "use_vlan": true,
+          "add_bridge": false,
+          "subnet": "192.168.124.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "192.168.124.255",
+          "ranges": {
+            "host": { "start": "192.168.124.161", "end": "192.168.124.161" }
+          }
+        },
+        "admin": {
+          "vlan": 100,
+          "use_vlan": false,
+          "add_bridge": false,
+          "subnet": "192.168.124.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "192.168.124.255",
+          "router": "192.168.124.1",
+          "ranges": {
+            "admin": { "start": "192.168.124.10", "end": "192.168.124.11" },
+            "dhcp": { "start": "192.168.124.21", "end": "192.168.124.80" },
+            "host": { "start": "192.168.124.81", "end": "192.168.124.160" },
+            "switch": { "start": "192.168.124.241", "end": "192.168.124.250" }
+          }
+        }
+      }
+    }
+  },
+  "deployment": {
+    "network": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "network" ]
+      ],
+      "config": {
+        "environment": "network-base-config",
+        "mode": "full",
+        "transitions": true,
+        "transition_list": [ "discovered" ]
+      }
+    }
+  }
+}
+

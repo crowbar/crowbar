@@ -1,0 +1,45 @@
+{
+  "type": "map",  "required": true,  "mapping": {
+    "id": { "type": "str", "required": true, "pattern": "/^bc-ipmi-|^bc-template-ipmi$/" },
+    "description": { "type": "str", "required": true },
+    "attributes": { "type": "map", "required": true, "mapping": {
+        "ipmi": { "type": "map", "required": true, "mapping": {
+            "bmc_enable": { "type": "bool", "required": true},
+            "bmc_user": { "type": "str", "required": true },
+            "bmc_password": { "type": "str", "required": true },
+            "debug":  { "type": "bool", "required": true}
+          }
+        }
+      }
+    },
+    "deployment": {  "type": "map", "required": true, "mapping": {
+        "ipmi": { "type": "map", "required": true, "mapping": {
+            "crowbar-revision": { "type": "int", "required": true },
+            "crowbar-committing": { "type": "bool" },
+            "crowbar-queued": { "type": "bool" },
+            "elements": { "type": "map", "required": true, "mapping": {
+                = : {  "type": "seq", "required": true,
+                  "sequence": [ { "type": "str" } ]
+                }
+              }
+            },
+            "element_order": { "type": "seq", "required": true,
+              "sequence": [ { "type": "seq",
+                "sequence": [ { "type": "str" } ]
+              } ]
+            },
+            "config": { "type": "map", "required": true, "mapping": {
+                "environment": { "type": "str", "required": true },
+                "mode": { "type": "str", "required": true },
+                "transitions": { "type": "bool", "required": true },
+                "transition_list": { "type": "seq", "required": true,
+                  "sequence": [ { "type": "str" } ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

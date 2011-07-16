@@ -1,0 +1,30 @@
+{
+  "id": "bc-template-ipmi",
+  "description": "The default proposal for the ipmi barclamp",
+  "attributes": {
+    "ipmi": {
+	  "bmc_enable" : true,
+	  "bmc_user": "crowbar",
+	  "bmc_password": "crowbar",
+	  "debug": true
+	 }
+  },
+  "deployment": {
+    "ipmi": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "ipmi-configure"  ]
+      ],
+      "config": {
+        "environment": "ipmi-base-config",
+        "mode": "full",
+        "transitions": true,
+        "transition_list": [
+          "discovered"
+	]
+      } 
+    }
+  }
+}
+

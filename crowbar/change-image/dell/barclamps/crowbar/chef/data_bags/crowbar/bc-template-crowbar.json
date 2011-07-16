@@ -1,0 +1,68 @@
+{
+  "id": "bc-template-crowbar",
+  "description": "Self-referential barclamp enabling other barclamps",
+  "attributes": {
+    "crowbar": {
+      "barclamps": [ 
+        "crowbar", 
+        "deployer", 
+        "ipmi", 
+        "network", 
+        "provisioner", 
+        "ntp", 
+        "dns", 
+        "nagios", 
+        "ganglia", 
+        "logging" 
+      ],
+      "run_order": {
+        "deployer": 10,
+        "ipmi": 17,
+        "network": 20,
+        "dns": 30,
+        "logging": 40,
+        "ntp": 50,
+        "nagios": 70,
+        "ganglia": 80,
+        "provisioner": 1060
+      },
+      "instances": {
+        "deployer": [ "default" ],
+        "ipmi": [ "default" ],
+        "provisioner": [ "default" ],
+        "network": [ "default" ],
+        "ntp": [ "default" ],
+        "dns": [ "default" ],
+        "nagios": [ "default" ],
+        "ganglia": [ "default" ],
+        "logging": [ "default" ]
+      },
+      "users": {
+        "crowbar": { "password": "crowbar", "description": "Crowbar" }
+      }
+    },
+    "rails": {
+      "max_pool_size": 256,
+      "environment": "production"
+    },
+    "passenger": {
+      "max_pool_size": 256
+    }
+  },
+  "deployment": {
+    "crowbar": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "crowbar" ]
+      ],
+      "config": {
+        "environment": "crowbar-config-test",
+        "mode": "full",
+        "transitions": false,
+        "transition_list": [ ]
+      }
+    }
+  }
+}
+

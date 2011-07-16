@@ -1,0 +1,31 @@
+%h1= t('.title')
+
+%table.data.box
+  %thead
+    %tr
+      %th= ProposalObject.human_attribute_name :name
+      %th= RoleObject.human_attribute_name :proposal_count
+      %th= ProposalObject.human_attribute_name :description
+
+  %tbody
+    - @barclamps.sort.each do |entry|
+      %tr{ :class => cycle(:odd, :even), :id => entry[0] }
+        %td= link_to entry[0].titlecase, barclamp_show_barclamp_path(entry[0])
+        %td.count= t '.none'
+        %td= entry[1]
+
+:javascript
+  function onload() {
+    update();
+  }
+
+  function update() {
+    $.getJSON('#{status_barclamp_path}', function(data) {
+
+      // Update roles
+      $.each(data['barclamps'], function(key,val) {
+        $('#'+key+' .count').text((parseInt(val)==0 ? '#{t ".none"}' : val));
+      });
+      
+    });
+  }

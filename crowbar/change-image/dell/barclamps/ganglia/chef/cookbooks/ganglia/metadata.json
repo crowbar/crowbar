@@ -1,0 +1,38 @@
+{
+  "providing": {
+  },
+  "attributes": {
+  },
+  "replacing": {
+  },
+  "dependencies": {
+  },
+  "groupings": {
+  },
+  "recommendations": {
+  },
+  "platforms": {
+    "debian": [
+
+    ],
+    "ubuntu": [
+
+    ]
+  },
+  "license": "Apache 2.0",
+  "version": "0.9.5",
+  "maintainer": "Dell, Inc.",
+  "suggestions": {
+  },
+  "recipes": {
+    "ganglia": "Ganglia",
+    "ganglia::server": "Ganglia Server",
+    "ganglia::client": "Ganglia Monitoring Client"
+  },
+  "maintainer_email": "crowbar@dell.com",
+  "name": "ganglia",
+  "conflicting": {
+  },
+  "description": "Installs ganglia",
+  "long_description": ""
+}

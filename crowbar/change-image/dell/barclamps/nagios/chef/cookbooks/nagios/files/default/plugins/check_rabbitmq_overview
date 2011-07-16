@@ -1,0 +1,271 @@
+#!/usr/bin/env perl
+#
+# check_rabbitmq_overview
+#
+# Use the management APIs to count pending messages in broker
+#
+use strict;
+use warnings;
+
+use Nagios::Plugin qw(%STATUS_TEXT OK CRITICAL WARNING UNKNOWN);
+use LWP::UserAgent;
+use URI::Escape;
+use JSON;
+
+use vars qw($VERSION $PROGNAME  $verbose $timeout);
+$VERSION = '1.0';
+
+# get the base name of this script for use in the examples
+use File::Basename;
+$PROGNAME = basename($0);
+
+my $p = Nagios::Plugin->new(
+    usage => "Usage: %s [options] -H hostname",
+    license => "",
+    version => $VERSION,
+    blurb => 'This plugin uses the RabbitMQ management to count messages in server.',
+);
+
+$p->add_arg(spec => 'host|H=s',
+    help => "Specify the host to connect to",
+    required => 1
+);
+$p->add_arg(spec => 'port=i',
+    help => "Specify the port to connect to (default: %s)",
+    default => 55672
+);
+
+$p->add_arg(spec => 'user|u=s',
+    help => "Username (default: %s)",
+    default => "guest",
+);
+$p->add_arg(spec => 'password|p=s',
+    help => "Password (default: %s)",
+    default => "guest"
+);
+
+$p->add_arg(
+    spec => 'warning|w=s',
+    help =>
+qq{-w, --warning=INTEGER,INTEGER,INTEGER
+   Warning thresholds specified in order that the metrics are returned.
+   Specify -1 if no warning threshold.},
+
+);
+
+$p->add_arg(
+    spec => 'critical|c=s',
+    help =>
+qq{-c, --critical=INTEGER,INTEGER,INTEGER
+   Critical thresholds specified in order that the metrics are returned.
+   Specify -1 if no critical threshold.},
+);
+
+# Parse arguments and process standard ones (e.g. usage, help, version)
+$p->getopts;
+
+
+# perform sanity checking on command line options
+my %warning;
+if (defined $p->opts->warning) {
+    my @warning = split(',', $p->opts->warning);
+    $p->nagios_die("You should specify three ranges for --warning argument") unless $#warning == 2;
+
+    $warning{'messages'} = shift @warning;
+    $warning{'messages_ready'} = shift @warning;
+    $warning{'messages_unacknowledged'} = shift @warning;
+}
+
+my %critical;
+if (defined $p->opts->critical) {
+    my @critical = split(',', $p->opts->critical);
+    $p->nagios_die("You should specify three ranges for --critical argument") unless $#critical == 2;
+
+    $critical{'messages'} = shift @critical;
+    $critical{'messages_ready'} = shift @critical;
+    $critical{'messages_unacknowledged'} = shift @critical;
+}
+
+
+##############################################################################
+# check stuff.
+
+my $hostname=$p->opts->host;
+my $port=$p->opts->port;
+
+my $ua = LWP::UserAgent->new(env_proxy=>1);
+$ua->agent($PROGNAME.' ');
+$ua->timeout($p->opts->timeout);
+$ua->credentials("$hostname:$port",
+    "Management: Web UI", $p->opts->user, $p->opts->password);
+
+
+my $url = sprintf("http://%s:%d/api/overview", $hostname, $port);
+my ($retcode, $result) = request($url);
+if ($retcode != 200) {
+    $p->nagios_exit(CRITICAL, "$result : /api/overview");
+}
+
+my @metrics = ( "messages", "messages_ready", "messages_unacknowledged");
+for my $metric (@metrics) {
+    my $warning = undef;
+    $warning = $warning{$metric} if (defined $warning{$metric} and $warning{$metric} != -1);
+    my $critical = undef;
+    $critical = $critical{$metric} if (defined $critical{$metric} and $critical{$metric} != -1);
+
+    my $value = $result->{'queue_totals'}->{$metric};
+    my $code = $p->check_threshold(check => $value, warning => $warning, critical=> $critical);
+    $p->add_message($code, sprintf("$metric ".$STATUS_TEXT{$code}." (%d)", $value)) ;
+    $p->add_perfdata(label=>$metric, value => $value, warning=>$warning, critical=> $critical);
+}
+
+my ($code, $message) = $p->check_messages(join_all=>', ');
+$p->nagios_exit(return_code => $code, message => $message);
+
+
+sub request {
+    my ($url) = @_;
+    my $req = HTTP::Request->new(GET => $url);
+    my $res = $ua->request($req);
+
+    if (!$res->is_success) {
+        # Deal with standard error conditions - make the messages more sensible
+        if ($res->code == 400) {
+            my $bodyref = decode_json $res->content;
+            return (400, $bodyref->{'reason'});
+
+        }
+        $res->code == 404 and return (404, "Not Found");
+        $res->code == 401 and return (401, "Access Refused");
+        $res->status_line =~ /Can\'t connect/ and return (500, "Connection Refused : $url");
+        if ($res->code < 200 or $res->code > 400 ) {
+            return ($res->code, "Received ".$res->status_line);
+        }
+    }
+    my $bodyref = decode_json $res->content;
+    return($res->code, $bodyref);
+}
+
+=head1 NAME
+
+check_rabbitmq_overview - Nagios plugin using RabbitMQ management API to
+count the messages pending on the broker
+
+=head1 SYNOPSIS
+
+check_rabbitmq_overview [options] -H hostname
+
+=head1 DESCRIPTION
+
+Use the management interface of RabbitMQ to count the number of pending,
+ready and unacknowledged messages.  These are published as performance
+metrics for the check.
+
+Critical and warning thresholds can be set for each of the metrics.
+
+It uses Nagios::Plugin and accepts all standard Nagios options.
+
+=head1 OPTIONS
+
+=over
+
+=item -h | --help
+
+Display help text
+
+=item -v | --verbose
+
+Verbose output
+
+=item -t | --timeout
+
+Set a timeout for the check in seconds
+
+=item -H | --host
+
+The host to connect to
+
+=item --port
+
+The port to connect to (default: 55672)
+
+=item --user
+
+The user to connect as (default: guest)
+
+=item --pass
+
+The password for the user (default: guest)
+
+=item -w | --warning
+
+The warning levels for each count of messages, messages_ready and
+messages_unacknowledged.  This field consists of three comma-separated
+integers.  Specify -1 if no threshold for a particular count.
+
+=item -c | --critical
+
+The critical levels for each count of messages, messages_ready and
+messages_unacknowledged.  This field consists of three comma-separated
+integers.  Specify -1 if no threshold for a particular count
+
+=back
+
+=head1 EXAMPLES
+
+The defaults all work with a standard fresh install of RabbitMQ, and all that
+is needed is to specify the host to connect to:
+
+    check_rabbitmq_overview -H rabbit.example.com
+
+This returns a standard Nagios result:
+
+    RABBITMQ_OVERVIEW OK - messages OK (25794) messages_ready OK (22971)
+      messages_unacknowledged OK (2823) | messages=25794;;
+      messages_ready=22971;; messages_unacknowledged=2823;;
+
+=head1 ERRORS
+
+The check tries to provide useful error messages on the status line for
+standard error conditions.
+
+Otherwise it returns the HTTP Error message returned by the management
+interface.
+
+=head1 EXIT STATUS
+
+Returns zero if check is OK otherwise returns standard Nagios exit codes to
+signify WARNING, UNKNOWN or CRITICAL state.
+
+=head1 SEE ALSO
+
+See Nagios::Plugin(3)
+
+The RabbitMQ management plugin is described at
+http://www.rabbitmq.com/management.html
+
+=head1 LICENSE
+
+This file is part of nagios-plugins-rabbitmq.
+
+Copyright 2010, Platform 14.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+=head1 AUTHOR
+
+James Casey <jamesc.000@gmail.com>
+
+=cut
+
+1;

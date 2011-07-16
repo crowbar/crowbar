@@ -1,0 +1,10 @@
+
+%p
+  = render :partial => "barclamp/node_selector"
+
+:javascript
+  $(document).ready(function(){
+    var constraints = { "ganglia-server": { "unique": true, "count": 1 }, "ganglia-client": { "unique": true, "count": -1 } }
+    node_selector($('#drag_drop'), constraints)
+  });
+

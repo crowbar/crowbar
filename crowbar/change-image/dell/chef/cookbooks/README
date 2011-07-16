@@ -1,0 +1,34 @@
+Download cookbooks into this directory from the Opscode Cookbooks site
+using knife, or remove this file to clone an upstream Git Repository.
+
+DEFINITELY USED
+apache - no changes
+apt - no changes
+mysql - ubuntu-10.10 templates
+nscd - no changes
+openldap - potentially modified
+openssl - no changes 
+rabbitmq - no changes
+openssh - no changes
+glance -duh
+nova - duh
+swift - duh
+build-essential - added ruby-dev, move patch up
+runit - no changes
+
+
+POTENTIALLY UNUSED
+anso - Anso specific scripts
+bluepill - no changes
+chef - no changes
+couchdb - no changes
+daemontools -  no changes
+erlang -  no changes
+java -  no changes
+nginx - looks like no changs, old version here 
+ohai - no changes
+rabbitmq_chef - no changes
+ucspi-tcp - no changes
+xml - no changes
+zlib - no changes
+

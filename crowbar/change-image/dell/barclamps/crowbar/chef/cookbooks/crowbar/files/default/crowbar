@@ -1,0 +1,52 @@
+#!/bin/bash
+#
+# Mark the admin node as ready on reboot.
+#
+
+IP="127.0.0.1"
+
+exec 2>>/var/log/crowbar-join.errlog
+
+export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
+set -x
+
+if [[ -f /etc/crowbar.install.key ]]; then
+    export CROWBAR_KEY="$(cat /etc/crowbar.install.key)"
+fi
+
+# Run a command and log its output.
+log_to() {
+    # $1 = install log to log to
+    # $@ = rest of args
+    local __log="/var/log/install-$1"
+    local __timestamp="$(date '+%F %T %z')"
+    shift
+    printf "\n%s\n" "$__timestamp: Running $*" | \
+	tee -a "$__log.err" >> "$__log.log"
+    local _ret=0
+    if "$@" 2>> "$__log.err" >>"$__log.log"; then
+	_ret=0
+    else
+	_ret="$?"
+	echo "$__timestamp: $* failed."
+	echo "See $__log.log and $__log.err for more information."
+    fi
+    printf "\n$s\n--------\n"  "$(date '+%F %T %z'): Done $*" | \
+	tee -a "$__log.err" >> "$__log.log"
+    return $_ret
+}
+
+post_state() {
+  local curlargs=(-o "/var/log/$1-$2.json" --connect-timeout 60 -s \
+      -L -X POST --data-binary "{ \"name\": \"$1\", \"state\": \"$2\" }" \
+      -H "Accept: application/json" -H "Content-Type: application/json" \
+      --max-time 240)
+  [[ $CROWBAR_KEY ]] && curlargs+=(-u "$CROWBAR_KEY" --digest)
+  curl "${curlargs[@]}" "http://$IP:3000/crowbar/crowbar/1.0/transition/default"
+}
+
+# Mark us as readying, and get our cert.
+post_state $HOSTNAME "readying"
+post_state $HOSTNAME "ready"
+
+echo "Done"

@@ -1,0 +1,16 @@
+#!/bin/bash
+
+ERC=0
+cd "${1:-/opt/dell/chef/data_bags}"
+
+for item in */*.json; do
+    /opt/dell/bin/validate_data_bag "${item%.json}.schema" $item
+    RC=$?
+    if [ $RC -ne 0 ] ; then
+	ERC=$RC
+    fi
+done
+
+cd - 2>/dev/null >/dev/null
+
+exit $ERC

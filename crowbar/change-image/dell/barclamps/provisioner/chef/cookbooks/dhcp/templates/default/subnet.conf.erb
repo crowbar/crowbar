@@ -1,0 +1,14 @@
+# File managed by puppet
+
+subnet <%= @subnet %> netmask <%= @netmask%> {
+<% if not @routers.empty? -%>
+  option routers <%= routers.collect! {|i| "#{i}" }.join(",") %>;
+<% end -%>
+  option subnet-mask <%= @netmask %>;
+  option broadcast-address <%= @broadcast %>;
+<% if not @options.empty? -%>
+<%   @options.each do |option| -%>
+  <%= option %>;
+<%   end -%>
+<% end -%>
+}

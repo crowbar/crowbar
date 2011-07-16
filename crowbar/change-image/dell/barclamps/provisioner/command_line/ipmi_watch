@@ -1,0 +1,50 @@
+#!/bin/bash
+
+print_usage() {
+ echo " Usage: $0 -h <hostname|ip> -u <username> -p <password>"
+}
+
+run_watch() {
+  echo " Connecting to BMC console on $1... "
+  ipmitool -I lanplus -H "$1" -U "$2" -P "$3" sol activate
+}
+
+run_interactive() {
+  clear
+  read -p " IPMI address : " hostname
+  read -p " Username : " username
+  prompt=" Password : "
+  while read -p "${prompt}" -s -n 1 char ; do 
+    if [[ $char == $'\0' ]] ; then
+      break
+    fi
+    prompt='*'
+    password+="$char"
+  done
+  echo
+}
+
+if [ $# -eq 0 ] ; then
+  run_interactive
+else
+  while getopts 'h:u:p:--help' OPTION ; do
+    case $OPTION in 
+    h) hostname="$OPTARG"
+      ;;
+    u) username="$OPTARG"
+      ;;
+    p) password="$OPTARG"
+      ;;
+    *) print_usage && exit 1
+      ;;
+    esac
+  done
+  if ! [[ $username && $password  && $hostname ]] ; then
+      echo " You have to set a username, password and hostname"
+      echo " Run ./$0 --help for more information"
+      exit 1
+  fi
+fi
+
+run_watch "$hostname" "$username" "$password"
+

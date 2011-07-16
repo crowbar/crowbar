@@ -1,0 +1,132 @@
+{
+  "type": "map",
+  "required": true,
+  "mapping": {
+    "id": { "type": "str", "required": true, "pattern": "/^bc-nova-|^bc-template-nova$/" },
+    "description": { "type": "str", "required": true },
+    "attributes": {
+      "type": "map",
+      "required": true,
+      "mapping": {
+        "nova": { 
+          "type": "map", 
+          "required": true,
+          "mapping": {
+            "use_barclamp": { "type": "bool", "required": true },
+            "libvirt_type": { "type": "str", "required": true },
+            "network_type": { "type": "str", "required": true, "pattern": "/^flat$|^flatdhcp$|^dhcpvlan$/" },
+            "flat_network": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                "flat_network_bridge": { "type": "str" },
+                "flat_injected": { "type": "bool" }
+              }
+            },
+            "flat_dhcp_network": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                "flat_network_bridge": { "type": "str" },
+                "flat_network_dhcp_start": { "type": "str" },
+                "flat_interface": { "type": "str" }
+              }
+            },
+            "dhcp_vlan_network": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                "vlan_interface": { "type": "str" },
+                "vlan_start": { "type": "int" },
+                "vpn_start": { "type": "int" }
+              }
+            },
+            "public_interface": { "type": "str" },
+            "fixed_range": { "type": "str" },
+            "floating_range": { "type": "str" },
+            "num_networks": { "type": "int" },
+            "network_size": { "type": "int" },
+            "user": { "type": "str", "required": true },
+            "user_group": { "type": "str", "required": true },
+            "project": { "type": "str", "required": true },
+            "access_key": { "type": "str", "required": true },
+            "secret_key": { "type": "str", "required": true },
+            "user_dir": { "type": "str", "required": true },
+            "images": {
+              "type": "seq",
+              "required": true,
+              "sequence": [ { "type": "str" } ]
+            },
+            "rabbit": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                "port": { "type": "int" },
+                "password": { "type": "str", "required": true },
+                "user": { "type": "str", "required": true },
+                "vhost": { "type": "str", "required": true }
+              }
+            },
+            "db": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                "password": { "type": "str", "required": true },
+                "user": { "type": "str", "required": true },
+                "database": { "type": "str", "required": true }
+              }
+            }
+          }
+        }
+      }
+    },
+    "deployment": {
+      "type": "map",
+      "required": true,
+      "mapping": {
+        "nova": {
+          "type": "map",
+          "required": true,
+          "mapping": {
+            "crowbar-revision": { "type": "int", "required": true },
+            "crowbar-committing": { "type": "bool" },
+            "crowbar-queued": { "type": "bool" },
+            "elements": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                = : {
+                  "type": "seq",
+                  "required": true,
+                  "sequence": [ { "type": "str" } ]
+                }
+              }
+            },
+            "element_order": {
+              "type": "seq",
+              "required": true,
+              "sequence": [ {
+                "type": "seq",
+                "sequence": [ { "type": "str" } ]
+              } ]
+            },
+            "config": {
+              "type": "map",
+              "required": true,
+              "mapping": {
+                "environment": { "type": "str", "required": true },
+                "mode": { "type": "str", "required": true },
+                "transitions": { "type": "bool", "required": true },
+                "transition_list": {
+                  "type": "seq",
+                  "required": true,
+                  "sequence": [ { "type": "str" } ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

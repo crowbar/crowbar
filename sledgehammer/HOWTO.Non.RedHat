@@ -1,0 +1,52 @@
+This file documents the process needed to create Sledgehammer on a non-Redhat
+system.
+
+1: Download a CentOS 5.6 install CD or DVD from your favourite mirror.
+2: Install a basic non-GUI, single-partition, no-LVM  install in KVM using a 
+   raw disk image.
+   a) Make a raw hard drive image to store the basic install:
+      qemu-img create -f raw centos.img 6G
+   b) Install CentOS on the raw image.  Ensure that you use a single-
+      partition install without LVM, and do not install any desktop software.
+      kvm -m 512M -net none -hda centos.img -boot d -cdrom iso/CentOS-5.6-x86_64-bin-DVD-1of2.iso -usbdevice tablet
+      When you get to disk partitioning, select remove all partitions, and
+      select Remove and modify partitioning layout.  
+      Delete all the logical volumes, then the volume group, then the 
+      partitions.  Once that is done. create a single partition that uses
+      all the space on the disk as the root filesystem, and force it to be a 
+      primary partition. Ignore the warning about no swap space.
+3: Once the install is finished, power off the VM, bind the disk image
+   to a loopback device, create a device for the partition using kpartx,
+   and mount the filesystem.
+   sudo losetup /dev/loop0 centos.img
+   sudo kpartx -a /dev/loop0
+   mkdir centos_img centos
+   sudo mount /dev/mapper/loop0p1 centos_img
+   sudo cp -a centos_img/. centos/.
+   sudo umount centos_img
+   sudo kpartx -d /dev/loop0
+   sudo losetup -d /dev/loop0
+4: Bind mount /proc, /sys, and the sledgehammer directory into the mounted
+   file system.
+   cd centos
+   sudo mkdir sledgehammer
+   sudo mount --bind /proc proc
+   sudo mount --bind /sys sys
+   sudo mount --bind /dev dev
+   sudo mount --bind "$SLEDGEHAMMER_DIR" sledgehammer
+5: Copy over /etc/resolv.conf, and then chroot into the file system.
+   sudo cp /etc/resolv.conf etc/resolv.conf
+   sudo chroot . /bin/bash
+6: Install the livecd-tools into the chroot following the instructions at 
+   https://projects.centos.org/trac/livecd/wiki/GetToolset
+7: In the sledgehammer directory in the chroot, run build_sledgehammer.sh
+   This will wind up creating bin/sledgehammer-tftpboot.tar.gz
+8: Leave the chroot, and copy the tarball created in the last step to
+   wherever you configured build_crowbar.sh to find it.
+9: Umount the bind mounts you created in step 4
+
+All done, until sledgehammer needs to be rebuilt again.  We don't anticipate
+that happening too often -- Crowbar does all the heavy lifting, Sledgehammer
+just provides an environment for us to discover hardware, configure the 
+RAID and BMC, and change whatever hardware settings we need to configure but
+that we cannot to in Ubuntu for whatever reason.

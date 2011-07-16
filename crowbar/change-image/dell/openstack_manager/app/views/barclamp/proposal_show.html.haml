@@ -1,0 +1,26 @@
+%h1= t '.title'
+
+-# Rails 2 needs - and Rails 3 needs =
+- form_for :proposal, :url => update_proposal_barclamp_path(:id => @proposal.name, :controller => @proposal.barclamp), :html => { :method => :post, :'data-type' => 'html', :id => 'update_proposal_form', :class => "box" } do |f|
+  %h2= "#{@proposal.barclamp.titlecase} #{@proposal.name.titlecase}"
+
+  %input#barclamp{:type => "hidden", :name => "barclamp", :value => @proposal.barclamp}
+  %input#name{:type => "hidden", :name => "name", :value => @proposal.name}
+  
+  =(@attr_raw ? (render :partial => 'barclamp/edit_attributes_raw') : (begin render :partial => "barclamp/#{@proposal.barclamp}_edit_attributes" rescue (render :partial => 'barclamp/edit_attributes_raw') end))
+  =# render :partial => "barclamp/#{@proposal.barclamp}_edit_attributes"
+  = render :partial => "barclamp/attribute_helper"
+
+  =(@dep_raw ? (render :partial => 'barclamp/edit_deployment_raw') : (begin render :partial => "barclamp/#{@proposal.barclamp}_edit_deployment" rescue (render :partial => 'barclamp/edit_deployment_raw') end))
+  =# render :partial => "barclamp/#{@proposal.barclamp}_edit_deployment" 
+
+  %p
+    - if @proposal["deployment"][@proposal.barclamp]["crowbar-committing"].nil? or !@proposal["deployment"][@proposal.barclamp]["crowbar-committing"]
+      %input.button{:type => "submit", :name => "submit", :value => t('.save_proposal')}
+      %input.button{:type => "submit", :name => "submit", :value => t('.commit_proposal'), :'data-confirm' => t('.apply_changes')}
+      - unless @proposal["deployment"][@proposal.barclamp]["crowbar-queued"]
+        %input.button{:type => "submit", :name => "submit", :value => t('.delete_proposal'), :'data-confirm' => t('.delete_changes')}
+      - if @proposal["deployment"][@proposal.barclamp]["crowbar-queued"]
+        %input.button{:type => "submit", :name => "submit", :value => t('.dequeue_proposal')}
+
+
