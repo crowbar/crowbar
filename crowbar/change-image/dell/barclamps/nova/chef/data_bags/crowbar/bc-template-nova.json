@@ -1,0 +1,60 @@
+{
+  "id": "bc-template-nova",
+  "description": "installs and configures the Openstack Nova component. It relies upon the network and glance barclamps for normal operation.",
+  "attributes": {
+    "nova": {
+      "use_barclamp": true,
+      "libvirt_type": "kvm",
+      "user": "nova",
+      "user_group": "nogroup",
+      "project": "admin",
+      "user_dir": "/var/lib/nova",
+      "access_key": "secure_password",
+      "secret_key": "secure_password",
+      "network_type": "flat",
+      "flat_network": {
+        "flat_injected": true
+      },
+      "flat_dhcp_network": {
+      },
+      "dhcp_vlan_network": {
+        "vpn_start": 1000
+      },
+      "num_networks": 1,
+      "network_size": 256,
+      "images": [
+        "http://<ADMINWEB>/ubuntu_dvd/ami/ubuntu-11.04-server-uec-amd64.tar.gz"
+      ],
+      "rabbit": {
+        "password": "secure_password",
+        "user": "nova",
+        "vhost": "/nova"
+      },
+      "db": {
+        "password": "",
+        "user": "nova",
+        "database": "nova"
+      }
+    }
+  },
+  "deployment": {
+    "nova": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "nova-multi-controller" ],
+        [ "nova-rabbitmq-server", "nova-mysql-server"],
+        [ "nova-multi-compute" ],
+        [ "nova-single-machine" ],
+        [ "nova-dashboard-server" ]
+      ],
+      "config": {
+        "environment": "nova-config-base",
+        "mode": "full",
+        "transitions": false,
+        "transition_list": []
+      }
+    }
+  }
+}
+

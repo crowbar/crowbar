@@ -1,0 +1,15 @@
+
+%p
+  = render :partial => "barclamp/node_selector"
+
+:javascript
+  $(document).ready(function(){
+    var constraints = {  
+      "swift-storage": { "unique": false, "count": -1 },
+      "swift-proxy": { "unique": false, "count": -1 }, 
+      "swift-proxy-acct": {"unique": false, "count": 1 },
+      "swift-ring-compute": {"unique": false, "count": 1 }
+    };
+    node_selector($('#drag_drop'), constraints);
+  });
+

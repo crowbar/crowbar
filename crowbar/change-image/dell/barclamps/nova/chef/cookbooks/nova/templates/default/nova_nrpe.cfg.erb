@@ -1,0 +1,21 @@
+
+#command[check_nova_ldap]=/usr/lib/nagios/plugins/check_procs -w 1:3 -c 1:3 -C nova
+
+<% unless node[:nova].nil? or node[:nova][:rabbit].nil? -%>
+command[check_nova_rabbit]=/usr/lib/nagios/plugins/check_rabbitmq_aliveness -H <%= node[:ipaddress] %> -u <%= node[:nova][:rabbit][:user] %> -p <%= node[:nova][:rabbit][:password] %> --vhost <%= node[:nova][:rabbit][:vhost] %>
+<% end -%>
+
+<% unless node[:nova].nil? or node[:nova][:db].nil? -%>
+command[check_nova_mysql]=/usr/lib/nagios/plugins/check_mysql -H localhost -u <%= node[:nova][:db][:user] %> -p <%= node[:nova][:db][:password] %> -d <%= node[:nova][:db][:database] %>
+<% end -%>
+
+<% unless @nova_scale.nil? %>
+command[check_nova_manage]=/usr/lib/nagios/plugins/check_nova_manage -S <%= @nova_scale[:schedulers].length %> -N <%= @nova_scale[:networks].length %> -C <%= @nova_scale[:computes].length %> -V <%= @nova_scale[:volumes].length %> -w 1 -c 3
+<% end %>
+command[check_nova_api]=/usr/lib/nagios/plugins/check_procs -w 2:4 -c 2:10 -a "nova-api"
+command[check_nova_compute]=/usr/lib/nagios/plugins/check_procs -w 2:4 -c 2:10 -a "nova-compute"
+command[check_nova_network]=/usr/lib/nagios/plugins/check_procs -w 2:4 -c 2:10 -a "nova-network"
+command[check_nova_objectstore]=/usr/lib/nagios/plugins/check_procs -w 2:4 -c 2:10 -a "nova-objectstore"
+command[check_nova_scheduler]=/usr/lib/nagios/plugins/check_procs -w 2:4 -c 2:10 -a "nova-scheduler"
+command[check_nova_volume]=/usr/lib/nagios/plugins/check_procs -w 2:4 -c 2:10 -a "nova-volume"
+

@@ -1,0 +1,58 @@
+--daemonize=1
+--dhcpbridge_flagfile=/etc/nova/nova.conf
+--dhcpbridge=/usr/bin/nova-dhcpbridge
+--logdir=/var/log/nova
+--state_path=/var/lib/nova
+--lock_path=/var/lock/nova
+--verbose
+--my_ip=<%= node[:nova][:my_ip] %>
+--iscsi_ip_prefix=<%= node[:nova][:my_ip].split('.')[0..2].join('.') %>
+--use_syslog
+--s3_host=<%= @s3_host %>
+--s3_dmz_host=<%= @s3_dmz_host %>
+--ec2_host=<%= @ec2_host %>
+--ec2_dmz_host=<%= @ec2_dmz_host %>
+--osapi_host=<%= @ec2_host %>
+--FAKE_subdomain=ec2
+<% unless @glance_server_ip.nil? -%>
+--glance_host=<%= @glance_server_ip %>
+--image_service=nova.image.glance.GlanceImageService
+<% end -%>
+<% if @sql_connection -%>
+--sql_connection=<%= @sql_connection %>
+<% end -%>
+<% if node[:nova][:libvirt_type] %>
+--libvirt_type=<%= node[:nova][:libvirt_type] %>
+<% end -%>
+<% if @rabbit_settings -%>
+--rabbit_host=<%= @rabbit_settings[:address] %>
+<% unless @rabbit_settings[:port].nil? -%>
+--rabbit_port=<%= @rabbit_settings[:port] %>
+<% end -%>
+--rabbit_userid=<%= @rabbit_settings[:user] %>
+--rabbit_password=<%= @rabbit_settings[:password] %>
+--rabbit_virtual_host=<%= @rabbit_settings[:vhost] %>
+<% end -%>
+--routing_source_ip=<%= @network_public_ip %>
+--fixed_range=<%= node[:nova][:fixed_range] %>
+--public_interface=<%= node[:nova][:public_interface] %>
+--network_size=<%= node[:nova][:network_size] %>
+--num_networks=<%= node[:nova][:num_networks] %>
+<% if node[:nova][:network_type] == "flatdhcp" -%>
+--network_manager=nova.network.manager.FlatDHCPManager
+--flat_network_bridge=<%= node[:nova][:flat_dhcp_network][:flat_network_bridge] %>
+--flat_network_dhcp_start=<%= node[:nova][:flat_dhcp_network][:flat_network_dhcp_start] %>
+--flat_network_dns=<%= @dns_server_public_ip %>
+<% elsif node[:nova][:network_type] == "flat" -%>
+--network_manager=nova.network.manager.FlatManager
+--flat_network_bridge=<%= node[:nova][:flat_network][:flat_network_bridge] %>
+--flat_injected=<%= node[:nova][:flat_network][:flat_injected] %>
+--flat_network_dns=<%= @dns_server_public_ip %>
+<% elsif node[:nova][:network_type] == "dhcpvlan" -%>
+--network_manager=nova.network.manager.VlanManager
+--vlan_interface=<%= node[:nova][:dhcp_vlan_network][:vlan_interface] %>
+--vlan_start=<%= node[:nova][:dhcp_vlan_network][:vlan_start] %>
+--vpn_start=<%= node[:nova][:dhcp_vlan_network][:vpn_start] %>
+--vpn_ip=<%= @network_public_ip %>
+<% end -%>
+--floating_range=<%= node[:nova][:floating_range] %>

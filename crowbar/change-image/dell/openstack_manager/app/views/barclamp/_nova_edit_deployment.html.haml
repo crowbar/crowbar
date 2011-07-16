@@ -1,0 +1,17 @@
+
+%p
+  = render :partial => "barclamp/node_selector"
+
+:javascript
+  $(document).ready(function(){
+    var constraints = {  
+      "nova-multi-controller": { "unique": false, "count": 1 },
+      "nova-multi-compute": { "unique": false, "count": -1 }, 
+      "nova-rabbitmq-server": {"unique": false, "count": 0 },
+      "nova-mysql-server": {"unique": false, "count": 0 },
+      "nova-single-machine": {"unique": false, "count": 1 },
+      "nova-dashboard-server": {"unique": false, "count": 0 }
+    };
+    node_selector($('#drag_drop'), constraints);
+  });
+

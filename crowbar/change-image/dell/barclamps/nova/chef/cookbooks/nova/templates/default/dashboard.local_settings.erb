@@ -1,0 +1,18 @@
+import os
+
+DEBUG = True
+
+LOCAL_PATH = os.path.abspath(os.path.dirname(__file__))
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(LOCAL_PATH, '<%=node[:nova][:dashboard][:database_name]%>'),
+    },
+}
+
+NOVA_DEFAULT_ENDPOINT = 'http://<%=node[:nova][:my_ip]%>:8773/services/Cloud'
+NOVA_DEFAULT_REGION = '<%=node[:nova][:dashboard][:default_region]%>'
+NOVA_ACCESS_KEY = '<%=node[:nova][:access_key]%>'
+NOVA_SECRET_KEY = '<%=node[:nova][:secret_key]%>'
+

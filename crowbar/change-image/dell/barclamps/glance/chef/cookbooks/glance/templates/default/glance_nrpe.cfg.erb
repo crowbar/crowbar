@@ -1,0 +1,9 @@
+
+<% @svcs.each do |s| %>
+command[check_<%= s%>]=/usr/lib/nagios/plugins/check_procs -w 2:10 -c 1:100 -a "<%=s  %>" 
+<% end unless @svcs.nil? %>
+
+
+<% @ports.each do |name,dest|  %>
+command[check_port_<%= name %>]=/usr/lib/nagios/plugins/check_tcp -H <%= dest[0] %> -p <%= dest[1] %>
+<% end unless @ports.nil?  %>

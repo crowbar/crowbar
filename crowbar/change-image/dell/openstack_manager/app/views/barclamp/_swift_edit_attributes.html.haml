@@ -1,0 +1,42 @@
+
+%input#proposal_attributes{:type => "hidden", :name => "proposal_attributes", :value => @proposal.raw_data['attributes'][@proposal.barclamp].to_json}
+%p
+  %label{:for => "proposal_attributes"}= t('.attributes')
+  = link_to "Raw", proposal_barclamp_path(:id => @proposal.name, :controller => @proposal.barclamp, :dep_raw => @dep_raw, :attr_raw => true), :style => "float: right;"
+  %div.container
+    %p
+      %label{ :for => :zones }= t('.zones')
+      %input#zones{:type => "text", :name => "zones", :'data-default' => @proposal.raw_data['attributes'][@proposal.barclamp]["zones"], :onchange => "update_value('zones', 'zones', 'integer')"}
+
+    %p
+      %label{ :for => :partitions }= t('.partitions')
+      %input#partitions{:type => "text", :name => "partitions", :'data-default' => @proposal.raw_data['attributes'][@proposal.barclamp]["partitions"], :onchange => "update_value('partitions', 'partitions', 'integer')"}
+
+    %p
+      %label{ :for => :min_part_hours }= t('.min_part_hours')
+      %input#min_part_hours{:type => "text", :name => "min_part_hours", :'data-default' => @proposal.raw_data['attributes'][@proposal.barclamp]["min_part_hours"], :onchange => "update_value('min_part_hours', 'min_part_hours', 'integer')"}
+
+    %p
+      %label{ :for => :replicas }= t('.replicas')
+      %input#replicas{:type => "text", :name => "replicas", :'data-default' => @proposal.raw_data['attributes'][@proposal.barclamp]["replicas"], :onchange => "update_value('replicas', 'replicas', 'integer')"}
+
+    %p
+      %label{ :for => :cluster_hash }= t('.cluster_hash')
+      %input#cluster_hash{:type => "text", :name => "cluster_hash", :'data-default' => @proposal.raw_data['attributes'][@proposal.barclamp]["cluster_hash"], :onchange => "update_value('cluster_hash', 'cluster_hash', 'string')"}
+
+    %p
+      %label{ :for => :cluster_admin_pw }= t('.cluster_admin_pw')
+      %input#cluster_admin_pw{:type => "text", :name => "cluster_admin_pw", :'data-default' => @proposal.raw_data['attributes'][@proposal.barclamp]["cluster_admin_pw"], :onchange => "update_value('cluster_admin_pw', 'cluster_admin_pw', 'string')"}
+
+    %p
+      %label{ :for => :user }= t('.user')
+      %input#user{:type => "text", :name => "user", :'data-default' => @proposal.raw_data['attributes'][@proposal.barclamp]["user"], :onchange => "update_value('user', 'user', 'string')"}
+
+    %p
+      %label{ :for => :group }= t('.group')
+      %input#group{:type => "text", :name => "group", :'data-default' => @proposal.raw_data['attributes'][@proposal.barclamp]["group"], :onchange => "update_value('group', 'group', 'string')"}
+
+    %p
+      %label{ :for => :debug }= t('.debug')
+      = select_tag :debug, options_for_select([['true','true'], ['false', 'false']], @proposal.raw_data['attributes'][@proposal.barclamp]["debug"].to_s), :onchange => "update_value('debug', 'debug', 'boolean')"
+

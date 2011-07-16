@@ -1,0 +1,26 @@
+{
+  "id": "bc-template-glance",
+  "description": "Glance service (Nova image management) for the cloud",
+  "attributes": {
+    "glance": {
+      "backing_type": "file"
+    }
+  },
+  "deployment": {
+    "glance": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "glance-server" ]
+      ],
+      "config": {
+        "environment": "glance-base-config",
+        "mode": "full",
+        "transitions": false,
+        "transition_list": [
+        ]
+      }
+    }
+  }
+}
+

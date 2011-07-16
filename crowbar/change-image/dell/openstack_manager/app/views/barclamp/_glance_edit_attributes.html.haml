@@ -1,0 +1,10 @@
+
+%input#proposal_attributes{:type => "hidden", :name => "proposal_attributes", :value => @proposal.raw_data['attributes'][@proposal.barclamp].to_json}
+%p
+  %label{:for => "proposal_attributes"}= t('.attributes')
+  = link_to t('raw'), proposal_barclamp_path(:id => @proposal.name, :controller => @proposal.barclamp, :dep_raw => @dep_raw, :attr_raw => true), :style => "float: right;"
+  %div.container
+    %p
+      %label{ :for => :backing_type }= t('.backing_type')
+      = select_tag :backing_type, options_for_select([['File','file'], ['Swift', 'swift']], @proposal.raw_data['attributes'][@proposal.barclamp]["backing_type"]), :onchange => "update_value('backing_type', 'backing_type', 'string')"
+

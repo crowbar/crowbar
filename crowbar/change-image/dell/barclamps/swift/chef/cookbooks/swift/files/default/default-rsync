@@ -1,0 +1,56 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+#
+# defaults file for rsync daemon mode
+
+# start rsync in daemon mode from init.d script?
+#  only allowed values are "true", "false", and "inetd"
+#  Use "inetd" if you want to start the rsyncd from inetd,
+#  all this does is prevent the init.d script from printing a message
+#  about not starting rsyncd (you still need to modify inetd's config yourself).
+RSYNC_ENABLE=true
+
+# which file should be used as the configuration file for rsync.
+# This file is used instead of the default /etc/rsyncd.conf
+# Warning: This option has no effect if the daemon is accessed
+#          using a remote shell. When using a different file for
+#          rsync you might want to symlink /etc/rsyncd.conf to
+#          that file.
+# RSYNC_CONFIG_FILE=
+
+# what extra options to give rsync --daemon?
+#  that excludes the --daemon; that's always done in the init.d script
+#  Possibilities are:
+#   --address=123.45.67.89		(bind to a specific IP address)
+#   --port=8730				(bind to specified port; default 873)
+RSYNC_OPTS=''
+
+# run rsyncd at a nice level?
+#  the rsync daemon can impact performance due to much I/O and CPU usage,
+#  so you may want to run it at a nicer priority than the default priority.
+#  Allowed values are 0 - 19 inclusive; 10 is a reasonable value.
+RSYNC_NICE=''
+
+# run rsyncd with ionice?
+#  "ionice" does for IO load what "nice" does for CPU load.
+#  As rsync is often used for backups which aren't all that time-critical,
+#  reducing the rsync IO priority will benefit the rest of the system.
+#  See the manpage for ionice for allowed options.
+#  -c3 is recommended, this will run rsync IO at "idle" priority. Uncomment
+#  the next line to activate this.
+# RSYNC_IONICE='-c3'
+
+# Don't forget to create an appropriate config file,
+# else the daemon will not start.
+

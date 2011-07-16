@@ -1,0 +1,9 @@
+
+<% @svcs.each do |s| %>
+command[check_<%= s%>]=/usr/lib/nagios/plugins/check_procs -w 2:10 -c 1:100 -a "<%=s  %>" 
+<% end unless @svcs.nil? %>
+
+
+<% @swift_ports.each do |name,port|  %>
+command[check_port_swift-<%= name %>]=/usr/lib/nagios/plugins/check_tcp -H 127.0.0.1 -p <%= port %>
+<% end unless @swift_ports.nil?  %>

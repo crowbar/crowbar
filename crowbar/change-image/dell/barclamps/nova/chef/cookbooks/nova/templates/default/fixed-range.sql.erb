@@ -1,0 +1,8 @@
+begin;
+update fixed_ips set reserved = '1' ;
+commit;
+
+<% @network.each do |x| -%>
+begin; update fixed_ips set reserved = '0' where address = '<%= x %>'; commit;
+<% end -%>
+

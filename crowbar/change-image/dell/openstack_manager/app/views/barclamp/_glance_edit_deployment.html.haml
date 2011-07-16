@@ -1,0 +1,10 @@
+
+%p
+  = render :partial => "barclamp/node_selector"
+
+:javascript
+  $(document).ready(function(){
+    var constraints = { "glance-server": { "unique": false, "count": 1 } };
+    node_selector($('#drag_drop'), constraints);
+  });
+

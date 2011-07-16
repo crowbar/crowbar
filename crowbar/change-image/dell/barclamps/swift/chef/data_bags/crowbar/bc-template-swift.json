@@ -1,0 +1,42 @@
+
+{
+  "id": "bc-template-swift",
+  "description": "part of Openstack, and provides a distributed blob storage",
+  "attributes": {
+    "swift": {
+	  "cluster_hash": "fa8bea159b55bd7e",
+	  "cluster_admin_pw": "swauth",
+	  "replicas": 1,
+	  "partitions": 18,
+	  "zones": 2,
+	  "min_part_hours": 1,
+	  "user": "swift",
+	  "group": "swift", 	  
+	  "debug": true,
+	  "admin_ip_expr": "Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, \"admin\").address",
+	  "storage_ip_expr": "Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, \"storage\").address",
+	  "disk_enum_expr": "node[\"crowbar\"][\"disks\"]",
+	  "disk_test_expr": "v[\"usage\"] == \"Storage\"", 
+	  "disk_zone_assign_expr":  "$SWIFT_DISK_CNT||=0; $SWIFT_DISK_CNT= $SWIFT_DISK_CNT+1 ;[ $SWIFT_DISK_CNT % node[:swift][:zones] , 99]"  	  
+    }
+  },
+  "deployment": {
+    "swift": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "swift-storage" ],  
+        [ "swift-ring-compute" ], 
+        [ "swift-proxy-acct", "swift-proxy" ],
+        [ "swift-storage" ]
+      ],
+      "config": {
+        "environment": "swift-config-base",
+        "mode": "full",
+        "transitions": false,
+        "transition_list": []
+      }
+    }
+  }
+}
+

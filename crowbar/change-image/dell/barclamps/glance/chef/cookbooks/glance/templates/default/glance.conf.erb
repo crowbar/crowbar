@@ -1,0 +1,74 @@
+[DEFAULT]
+# Show more verbose log output (sets INFO log level output)
+verbose = <%= node[:glance][:verbose] %>
+
+# Show debugging output in logs (sets DEBUG log level output)
+debug = <%= node[:glance][:debug] %>
+
+[app:glance-api]
+paste.app_factory = glance.server:app_factory
+
+# Which backend store should Glance use by default is not specified
+# in a request to add a new image to Glance? Default: 'file'
+# Available choices are 'file', 'swift', and 's3'
+default_store = <%= node[:glance][:default_store] %>
+
+# Address to bind the API server
+bind_host = <%= node[:glance][:api_bind_host] %>
+
+# Port the bind the API server to
+bind_port = <%= node[:glance][:api_bind_port] %>
+
+# Address to find the registry server
+registry_host = <%= node[:glance][:registry_bind_host] %>
+
+# Port the registry server is listening on
+registry_port = <%= node[:glance][:registry_bind_port] %>
+
+# ============ Filesystem Store Options ========================
+
+# Directory that the Filesystem backend store
+# writes image data to
+filesystem_store_datadir=<%= node[:glance][:filesystem_store_datadir] %>
+
+# ============ Swift Store Options =============================
+
+# Address where the Swift authentication service lives
+swift_store_auth_address = <%= node[:glance][:swift_store_auth_address] %>
+
+# User to authenticate against the Swift authentication service
+swift_store_user = <%= node[:glance][:swift_store_user] %>
+
+# Auth key for the user authenticating against the
+# Swift authentication service
+swift_store_key = <%= node[:glance][:swift_store_key] %>
+
+# Container within the account that the account should use
+# for storing images in Swift
+swift_store_container = <%= node[:glance][:swift_store_container] %>
+
+# Do we create the container if it does not exist?
+swift_store_create_container_on_put = <%= node[:glance][:swift_store_create_container_on_put] %>
+
+[app:glance-registry]
+paste.app_factory = glance.registry.server:app_factory
+
+# Address to bind the registry server
+bind_host = <%= node[:glance][:registry_bind_host] %>
+
+# Port the bind the registry server to
+bind_port = <%= node[:glance][:registry_bind_port] %>
+
+# SQLAlchemy connection string for the reference implementation
+# registry server. Any valid SQLAlchemy connection string is fine.
+# See: http://www.sqlalchemy.org/docs/05/reference/sqlalchemy/connections.html#sqlalchemy.create_engine
+sql_connection = <%= node[:glance][:sql_connection] %>
+
+# Period in seconds after which SQLAlchemy should reestablish its connection
+# to the database.
+#
+# MySQL uses a default `wait_timeout` of 8 hours, after which it will drop
+# idle connections. This can result in 'MySQL Gone Away' exceptions. If you
+# notice this, you can lower this value to ensure that SQLAlchemy reconnects
+# before MySQL can drop the connection.
+sql_idle_timeout = 3600

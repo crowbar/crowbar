@@ -13,6 +13,9 @@
         "dns", 
         "nagios", 
         "ganglia", 
+        "nova", 
+        "glance", 
+        "swift", 
         "logging" 
       ],
       "run_order": {
