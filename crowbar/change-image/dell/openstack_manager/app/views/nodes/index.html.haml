@@ -6,6 +6,7 @@
       - else
         %p= t("status_empty", :scope=>"nodes.index") % @nodes.count
 
+%input#node_sum{:type => "hidden", :name => "node_sum", :value => @sum}
 #nodes
   - @nodes.group_by(&:switch_name).each_with_index do |switch, i|
     .column_25{:class => column_class(i,4)}
@@ -35,6 +36,12 @@
       // If node count has changed, re-render the page
       var current_nodes = $('.node').length;
       if(data['count'] != current_nodes) {
+        location.reload();
+      }
+
+      // If node name sum has changed, re-render the page
+      var current_sum = $('#node_sum').val();
+      if(data['sum'] != current_sum) {
         location.reload();
       }
       

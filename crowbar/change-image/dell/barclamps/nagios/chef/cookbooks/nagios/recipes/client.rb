@@ -40,7 +40,7 @@ domain_name = node[:dns][:domain]
 # Create a list of monitoring hosts (filter duplicate ip's in the list)
 dup_list = Hash.new
 mon_host = Array.new
-search(:node, "role:nagios-server#{env_filter}") do |n|
+search(:node, "roles:nagios-server#{env_filter}") do |n|
   ip = Nagios::Evaluator.get_value_by_type(n, :admin_ip_eval)
   next if ip.nil?
   if (!dup_list.has_key?(ip))

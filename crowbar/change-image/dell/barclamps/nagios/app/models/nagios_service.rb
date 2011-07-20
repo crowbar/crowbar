@@ -56,9 +56,9 @@ class NagiosService < ServiceObject
 
         unless server_ip.nil?
           node = NodeObject.find_node_by_name(name)
-          node["crowbar"] = {} if node["crowbar"].nil?
-          node["crowbar"]["links"] = {} if node["crowbar"]["links"].nil?
-          node["crowbar"]["links"]["Nagios"] = "http://#{server_ip}/nagios3/cgi-bin/extinfo.cgi?type=1&host=#{node.shortname}"
+          node.crowbar["crowbar"] = {} if node.crowbar["crowbar"].nil?
+          node.crowbar["crowbar"]["links"] = {} if node.crowbar["crowbar"]["links"].nil?
+          node.crowbar["crowbar"]["links"]["Nagios"] = "http://#{server_ip}/nagios3/cgi-bin/extinfo.cgi?type=1&host=#{node.shortname}"
           node.save
         end 
       end

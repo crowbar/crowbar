@@ -37,5 +37,5 @@ template "/etc/nagios/nrpe.d/glance_nrpe.cfg" do
     :ports => ports
   })    
    notifies :restart, resources(:service => "nagios-nrpe-server")
-end if node.role?("nagios-client")    
+end if node["roles"].include?("nagios-client")    
 

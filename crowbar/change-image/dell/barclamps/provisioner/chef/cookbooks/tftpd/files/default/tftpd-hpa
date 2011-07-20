@@ -1,5 +1,5 @@
 
-# Puppet managed, do not edit.
+# Crowbar managed, do not edit.
 
 TFTP_USERNAME="tftp"
 TFTP_DIRECTORY="/tftpboot"

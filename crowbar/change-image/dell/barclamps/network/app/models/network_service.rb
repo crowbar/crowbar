@@ -53,8 +53,8 @@ class NetworkService < ServiceObject
       intf = net_info["interface"]
       net_info = fix_interface(node, net_info, mode)
       unless net_info.nil?
-        node["crowbar"]["network"][intf] = nil
-        node["crowbar"]["network"][net_info["interface"]] = net_info
+        node.crowbar["crowbar"]["network"][intf] = nil
+        node.crowbar["crowbar"]["network"][net_info["interface"]] = net_info
         node.save
       end
       @logger.error("Network allocate_ip: node already has address: #{name} #{network} #{range}")
@@ -122,7 +122,7 @@ class NetworkService < ServiceObject
 
     # Save the information.
     net_info = { "interface" => interface, "address" => address.to_s, "netmask" => netmask, "mac" => mac, "node" => name, "router" => router, "subnet" => subnet, "broadcast" => broadcast, "usage" => network, "interface_list" => interface_list, "use_vlan" => use_vlan, "vlan" => vlan, "add_bridge" => add_bridge }
-    node["crowbar"]["network"][interface] = net_info
+    node.crowbar["crowbar"]["network"][interface] = net_info
     node.save
 
     @logger.info("Network allocate_ip: Assigned: #{name} #{network} #{range} #{net_info["address"]}")
@@ -160,12 +160,12 @@ class NetworkService < ServiceObject
       result = add_role_to_instance_and_node("network", inst, name, db, role, "network")
 
       @logger.debug("Network transition: Exiting #{name} for #{state} discovered path")
-      return [200, {}] if result
+      return [200, NodeObject.find_node_by_name(name).to_hash] if result
       return [400, "Failed to add role to node"] unless result
     end
 
     @logger.debug("Network transition: Exiting #{name} for #{state}")
-    [200, NodeObject.find_node_by_name(name).to_hash ]
+    [200, NodeObject.find_node_by_name(name).to_hash]
   end
 
   def apply_role_pre_chef_call(old_role, role, all_nodes)
@@ -184,7 +184,7 @@ class NetworkService < ServiceObject
 
       save_it = false
       new_hash = {}
-      node["crowbar"]["network"].each do |intf, o_net_info|
+      node.crowbar["crowbar"]["network"].each do |intf, o_net_info|
         net_info = fix_interface(node, o_net_info, new_mode) 
         unless net_info.nil?
           save_it = true
@@ -193,7 +193,7 @@ class NetworkService < ServiceObject
           new_hash[intf] = o_net_info
         end 
       end
-      node["crowbar"]["network"] = new_hash
+      node.crowbar["crowbar"]["network"] = new_hash
 
       @logger.debug("Network apply_role_pre_chef_call: saving node") if save_it
       node.save if save_it
@@ -307,8 +307,8 @@ class NetworkService < ServiceObject
       intf = net_info["interface"]
       net_info = fix_interface(node, net_info, mode)
       unless net_info.nil?
-        node["crowbar"]["network"][intf] = nil
-        node["crowbar"]["network"][net_info["interface"]] = net_info
+        node.crowbar["crowbar"]["network"][intf] = nil
+        node.crowbar["crowbar"]["network"][net_info["interface"]] = net_info
         node.save
       end
       @logger.error("Network enable_interface: node already has address: #{name} #{network}")
@@ -339,7 +339,7 @@ class NetworkService < ServiceObject
 
     # Save the information.
     net_info = { "interface" => interface, "netmask" => netmask, "mac" => mac, "node" => name, "router" => router, "subnet" => subnet, "broadcast" => broadcast, "usage" => network, "interface_list" => interface_list, "use_vlan" => use_vlan, "vlan" => vlan, "add_bridge" => add_bridge }
-    node["crowbar"]["network"][interface] = net_info
+    node.crowbar["crowbar"]["network"][interface] = net_info
     node.save
 
     @logger.info("Network enable_interface: Assigned: #{name} #{network}")

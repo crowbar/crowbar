@@ -23,6 +23,7 @@ include_recipe "passenger_apache2"
 include_recipe "rails"
 
 package "ipmitool"
+package "curl"
 
 group "crowbar"
 

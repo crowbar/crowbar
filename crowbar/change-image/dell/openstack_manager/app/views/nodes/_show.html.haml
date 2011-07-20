@@ -1,10 +1,11 @@
 %h1{:style=>"float: left"}= "#{@node.shortname} (#{link_to t('edit'), edit_node_path(@node.shortname)})"#.html_safe
 
 %ul.buttons
-  %li= link_to "Reboot", hit_node_path(@node.shortname, 'reboot'), :class => 'button', :'data-remote' => true
-  %li= link_to "Shutdown", hit_node_path(@node.shortname, 'shutdown'), :class => 'button', :'data-remote' => true
-  %li= link_to "Power On", hit_node_path(@node.shortname, 'poweron'), :class => 'button', :'data-remote' => true
-  %li= link_to "Identify", hit_node_path(@node.shortname, 'identify'), :class => 'button', :'data-remote' => true
+  - if @node.bmc_set?
+    %li= link_to "Reboot", hit_node_path(@node.shortname, 'reboot'), :class => 'button', :'data-remote' => true, :'data-confirm' => t('are_you_sure') 
+    %li= link_to "Shutdown", hit_node_path(@node.shortname, 'shutdown'), :class => 'button', :'data-remote' => true, :'data-confirm' => t('are_you_sure')
+    %li= link_to "Power On", hit_node_path(@node.shortname, 'poweron'), :class => 'button', :'data-remote' => true, :'data-confirm' => t('are_you_sure')
+    %li= link_to "Identify", hit_node_path(@node.shortname, 'identify'), :class => 'button', :'data-remote' => true
 
 .column_50.first
   %dl
@@ -17,7 +18,7 @@
 
 .column_50.last
   %dl
-    = dl_item((NodeObject.human_attribute_name :description), @node.description)
+    = dl_item((NodeObject.human_attribute_name :description), @node.description || (I18n.t :not_set))
     = dl_item((NodeObject.human_attribute_name :hardware), @node.hardware)
     = dl_item((NodeObject.human_attribute_name :cpu), @node.cpu)
     = dl_item((NodeObject.human_attribute_name :memory), format_memory(@node.memory))
@@ -47,8 +48,8 @@
 
 %ul.buttons
   - unless @node.admin?
-    %li= link_to "Hardware Update", hit_node_path(@node.shortname, 'update'), :class => 'button', :'data-remote' => true
-    %li= link_to "Reinstall", hit_node_path(@node.shortname, 'reinstall'), :class => 'button', :'data-remote' => true
-    %li= link_to "Reset", hit_node_path(@node.shortname, 'reset'), :class => 'button', :'data-remote' => true  
-    %li= link_to "Delete", hit_node_path(@node.shortname, 'delete'), :class => 'button', :'data-remote' => true
+    %li= link_to "Hardware Update", hit_node_path(@node.shortname, 'update'), :class => 'button', :'data-remote' => true, :'data-confirm' => t('are_you_sure')
+    %li= link_to "Reinstall", hit_node_path(@node.shortname, 'reinstall'), :class => 'button', :'data-remote' => true, :'data-confirm' => t('are_you_sure')
+    %li= link_to "Reset", hit_node_path(@node.shortname, 'reset'), :class => 'button', :'data-remote' => true, :'data-confirm' => t('are_you_sure')
+    %li= link_to "Delete", hit_node_path(@node.shortname, 'delete'), :class => 'button', :'data-remote' => true, :'data-confirm' => t('are_you_sure')
 

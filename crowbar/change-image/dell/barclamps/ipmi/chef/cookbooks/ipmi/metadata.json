@@ -1,33 +1,32 @@
 {
+  "recommendations": {
+
+  },
   "platforms": {
 
   },
+  "license": "Apache 2.0",
   "suggestions": {
 
   },
-  "license": "Apache 2.0",
   "conflicting": {
 
   },
-  "long_description": "",
+  "long_description": "Configures IPMI/BMC parameters for management access",
+  "description": "Configures IPMI/BMC parameters for management access",
+  "version": "0.1.0",
   "providing": {
 
   },
-  "description": "configures BMC",
-  "version": "0.1.0",
   "maintainer": "Dell, Inc.",
-  "replacing": {
-
-  },
   "attributes": {
 
   },
-  "maintainer_email": "openstack@dell.com",
-  "name": "ipmi",
-  "recipes": {
+  "replacing": {
 
   },
-  "groupings": {
+  "name": "ipmi",
+  "recipes": {
 
   },
   "dependencies": {
@@ -35,7 +34,8 @@
 
     ]
   },
-  "recommendations": {
+  "maintainer_email": "crowbar@dell.com",
+  "groupings": {
 
   }
 }

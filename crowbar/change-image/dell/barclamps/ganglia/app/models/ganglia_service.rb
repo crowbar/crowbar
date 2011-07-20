@@ -68,9 +68,9 @@ class GangliaService < ServiceObject
 
         unless server_ip.nil?
           node = NodeObject.find_node_by_name(name)
-          node["crowbar"] = {} if node["crowbar"].nil?
-          node["crowbar"]["links"] = {} if node["crowbar"]["links"].nil?
-          node["crowbar"]["links"]["Ganglia"] = "http://#{server_ip}/ganglia/?c=Crowbar PoC&h=#{node.name}&m=load_one&r=hour&s=descending&hc=4&mc=2"
+          node.crowbar["crowbar"] = {} if node.crowbar["crowbar"].nil?
+          node.crowbar["crowbar"]["links"] = {} if node.crowbar["crowbar"]["links"].nil?
+          node.crowbar["crowbar"]["links"]["Ganglia"] = "http://#{server_ip}/ganglia/?c=Crowbar PoC&h=#{node.name}&m=load_one&r=hour&s=descending&hc=4&mc=2"
           node.save
         end 
       end

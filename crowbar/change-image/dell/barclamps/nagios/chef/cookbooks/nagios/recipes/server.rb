@@ -48,7 +48,7 @@ else
 end
 
 # Remove nodes that are in the process of going away.
-nodes.delete_if { |n| n[:state] == "delete" }
+nodes.delete_if { |n| n["state"] == "delete" }
 
 # Get a list of system administration users
 sysadmins = search(:users, 'groups:sysadmin')
@@ -70,7 +70,8 @@ role_list = Array.new
 service_hosts = Hash.new
 search(:role, "*:*") do |r|
   role_list << r.name
-  search(:node, "role:#{r.name} #{env_filter}") do |n|
+  search(:node, "roles:#{r.name} #{env_filter}") do |n|
+    next if n["state"] == "delete"
     service_hosts[r.name] = n['hostname']
   end
 end

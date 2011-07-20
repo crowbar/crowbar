@@ -10,6 +10,7 @@ cookbook_file "/etc/default/tftpd-hpa" do
 end
 
 service "tftpd-hpa" do
+  provider Chef::Provider::Service::Upstart
   supports :restart => true, :status => true, :reload => true
   running true
   enabled true

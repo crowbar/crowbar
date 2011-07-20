@@ -93,18 +93,16 @@ class DeployerService < ServiceObject
           @logger.debug("Deployer transition: renaming node for #{name} #{node.name} -> #{new_name}")
           node.destroy
 
-          node.name = new_name
-          node[:fqdn] = new_name
-          node[:domain] = ChefObject.cloud_domain
-          save_it = true
+          # Rename saves the node.
+          node.rename(new_name, ChefObject.cloud_domain)
           name = new_name
         end
       else # We are an admin node - display bios updates for now.
-        node[:bios] ||= {}
-        node[:bios][:bios_setup_enable] = false
-        node[:bios][:bios_update_enable] = false
-        node[:raid] ||= {}
-        node[:raid][:enable] = false
+        node.crowbar["bios"] ||= {}
+        node.crowbar["bios"]["bios_setup_enable"] = false
+        node.crowbar["bios"]["bios_update_enable"] = false
+        node.crowbar["raid"] ||= {}
+        node.crowbar["raid"]["enable"] = false
         save_it = true
       end
 
@@ -114,7 +112,8 @@ class DeployerService < ServiceObject
       # This is hard coded for now.  Should be parameter driven one day.
       # 
       @logger.debug("Deployer transition: Update the inventory crowbar structures for #{name}")
-      node[:crowbar][:disks] = {} if node[:crowbar][:disks].nil?
+      node.crowbar["crowbar"] = {} if node.crowbar["crowbar"].nil?
+      node.crowbar["crowbar"]["disks"] = {} if node.crowbar["crowbar"]["disks"].nil?
       node[:block_device].each do |disk, data|
         # XXX: Make this into a config map one day.
         next if disk.start_with?("ram")
@@ -131,22 +130,22 @@ class DeployerService < ServiceObject
         # RedHat under KVM reports drives as hdX.  Ubuntu reports them as sdX.
         disk = disk.gsub("hd", "sd") if disk.start_with?("h") and node[:dmi][:system][:product_name] == "KVM"
 
-        node[:crowbar][:disks][disk] = data
+        node.crowbar["crowbar"]["disks"][disk] = data
 
-        node[:crowbar][:disks][disk][:usage] = "OS" if disk == "sda"
-        node[:crowbar][:disks][disk][:usage] = "Storage" unless disk == "sda"
+        node.crowbar["crowbar"]["disks"][disk]["usage"] = "OS" if disk == "sda"
+        node.crowbar["crowbar"]["disks"][disk]["usage"] = "Storage" unless disk == "sda"
 
         save_it = true
       end unless node[:block_device].nil? or node[:block_device].empty?
 
-      node[:crowbar][:usage] = [] if node[:crowbar][:usage].nil?
-      if (node[:crowbar][:disks].size > 1) and !node[:crowbar][:usage].include?("swift")
-        node[:crowbar][:usage] << "swift"
+      node.crowbar["crowbar"]["usage"] = [] if node.crowbar["crowbar"]["usage"].nil?
+      if (node.crowbar["crowbar"]["disks"].size > 1) and !node.crowbar["crowbar"]["usage"].include?("swift")
+        node.crowbar["crowbar"]["usage"] << "swift"
         save_it = true
       end
 
-      if !node[:crowbar][:usage].include?("nova")
-        node[:crowbar][:usage] << "nova"
+      if !node.crowbar["crowbar"]["usage"].include?("nova")
+        node.crowbar["crowbar"]["usage"] << "nova"
         save_it = true
       end
 
@@ -181,7 +180,7 @@ class DeployerService < ServiceObject
 
       # Let it fly to the provisioner. Reload to get the address.
       node = NodeObject.find_node_by_name node.name
-      node[:crowbar][:usedhcp] = true
+      node.crowbar["crowbar"]["usedhcp"] = true
 
       role = RoleObject.find_role_by_name "deployer-config-#{inst}"
       if role.default_attributes["deployer"]["use_allocate"] and !node.admin?
@@ -203,11 +202,11 @@ class DeployerService < ServiceObject
     if state == "hardware-installing"
       # build a list of current and pending roles to check against
       roles = []
-      node["crowbar"]["pending"].each do |k,v|
+      node.crowbar["crowbar"]["pending"].each do |k,v|
         roles << v
-      end unless node["crowbar"]["pending"].nil?
+      end unless node.crowbar["crowbar"]["pending"].nil?
       roles.flatten!
-      node.run_list.run_list_items.each do |item|
+      node.crowbar_run_list.run_list_items.each do |item|
         roles << item.name
       end
 
@@ -217,9 +216,9 @@ class DeployerService < ServiceObject
       role.default_attributes["deployer"]["bios_map"].each do |match|
         roles.each do |role|
           if role =~ /#{match["pattern"]}/
-            node["crowbar"]["hardware"] = {} if node["crowbar"]["hardware"].nil? 
-            node["crowbar"]["hardware"]["bios_set"] = match["bios_set"] if node["crowbar"]["hardware"]["bios_set"].nil?
-            node["crowbar"]["hardware"]["raid_set"] = match["raid_set"] if node["crowbar"]["hardware"]["raid_set"].nil?
+            node.crowbar["crowbar"]["hardware"] = {} if node.crowbar["crowbar"]["hardware"].nil? 
+            node.crowbar["crowbar"]["hardware"]["bios_set"] = match["bios_set"] if node.crowbar["crowbar"]["hardware"]["bios_set"].nil?
+            node.crowbar["crowbar"]["hardware"]["raid_set"] = match["raid_set"] if node.crowbar["crowbar"]["hardware"]["raid_set"].nil?
             done = true
             break
           end
@@ -234,9 +233,9 @@ class DeployerService < ServiceObject
     # We should make sure that we save and setup the run-list for updating.
     #
     if state == "update" or state == "hardware-installing"
-      save_list = node["crowbar"]["save_run_list"] || []
+      save_list = node.crowbar["crowbar"]["save_run_list"] || []
       seen_bios = false
-      node.run_list.run_list_items.each do |item|
+      node.crowbar_run_list.run_list_items.each do |item|
         if seen_bios and !(item.name =~ /^ipmi-/)
           save_list << item.name
         else
@@ -245,10 +244,10 @@ class DeployerService < ServiceObject
       end
 
       save_list.each do |item|
-        node.run_list.run_list_items.delete "role[#{item}]"
+        node.crowbar_run_list.run_list_items.delete "role[#{item}]"
       end
 
-      node["crowbar"]["save_run_list"] = save_list
+      node.crowbar["crowbar"]["save_run_list"] = save_list
       save_it = true
     end
 
@@ -256,13 +255,13 @@ class DeployerService < ServiceObject
     # Put the run-list back.
     #
     if state == "hardware-updated" or state == "hardware-installed"
-      unless node["crowbar"]["save_run_list"].nil?
-        node["crowbar"]["save_run_list"].each do |name|
-          node.run_list.run_list_items << "role[#{name}]"
+      unless node.crowbar["crowbar"]["save_run_list"].nil?
+        node.crowbar["crowbar"]["save_run_list"].each do |name|
+          node.crowbar_run_list.run_list_items << "role[#{name}]"
         end
       end
 
-      node["crowbar"]["save_run_list"] = []
+      node.crowbar["crowbar"]["save_run_list"] = []
       save_it = true
     end
 

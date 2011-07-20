@@ -33,7 +33,7 @@ template "/etc/nagios/nrpe.d/swift_nrpe.cfg" do
     :swift_ports => swift_ports
   })    
    notifies :restart, resources(:service => "nagios-nrpe-server")
-end if node.role?("nagios-client")    
+end if node["roles"].include?("nagios-client")    
     
 service   "nagios-nrpe-server" do
   action :nothing

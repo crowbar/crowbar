@@ -124,9 +124,10 @@ tries=0
 
 ## The SSH test is known to not work right now.
 # Leave it enabled, but do not fail the smoketest if it fails.
-while ! nova_do "$nova_ip" ssh -o 'StrictHostKeyChecking no' -o 'UserKnownHostsFile /dev/null' -i mykey.priv ubuntu@"$img_addr" date >> "$LOGDIR/nova-ssh-$img_addr.log"; do
-    if ((tries++ > 60)) ; then
+while ! nova_do "$nova_ip" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i mykey.priv ubuntu@"$img_addr" date >> "$LOGDIR/nova-ssh-$img_addr.log" ; do
+    if ((tries++ > 120)) ; then
       cat "$LOGDIR/nova-ssh-$img_addr.log"
+      cat "$LOGDIR/nova-ssh-$img_addr.err"
       echo "Could not ssh $img_addr from $nova_ip"
       exit 0
     fi

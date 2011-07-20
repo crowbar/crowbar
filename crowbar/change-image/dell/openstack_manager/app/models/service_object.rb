@@ -58,6 +58,7 @@ class ServiceObject
   end
 
   def queue_proposal(inst, bc = @bc_name)
+    @logger.debug("queue proposal: enter #{inst} #{bc}")
     begin
       f = acquire_lock "queue"
 
@@ -71,6 +72,7 @@ class ServiceObject
       end
 
       db["proposal_queue"].each do |item|
+        @logger.debug("queue proposal: exit #{inst} #{bc}: already queued") if item["barclamp"] == bc and item["inst"] == inst
         return if item["barclamp"] == bc and item["inst"] == inst
       end
 
@@ -84,15 +86,19 @@ class ServiceObject
 
     prop = ProposalObject.find_proposal(bc, inst)
     prop["deployment"][bc]["crowbar-queued"] = true
-    prop.save
+    res = prop.save
+    @logger.debug("queue proposal: exit #{inst} #{bc}")
+    res
   end
 
   def dequeue_proposal(inst, bc = @bc_name)
+    @logger.debug("dequeue proposal: enter #{inst} #{bc}")
     begin
       f = acquire_lock "queue"
 
       db = ProposalObject.find_data_bag_item "crowbar/queue"
-      return if db.nil?
+      @logger.debug("dequeue proposal: exit #{inst} #{bc}: no entry") if db.nil?
+      return true if db.nil?
 
       db["proposal_queue"].delete_if { |item| item["barclamp"] == bc and item["inst"] == inst }
       db.save
@@ -105,45 +111,60 @@ class ServiceObject
       end
     rescue Exception => e
       @logger.error("Error dequeuing proposal for #{bc}:#{inst}: #{e.message}")
+      @logger.debug("dequeue proposal: exit #{inst} #{bc}: error")
       return false
     ensure
       release_lock f
     end
+    @logger.debug("dequeue proposal: exit #{inst} #{bc}")
     true
   end
 
   def process_queue
+    @logger.debug("process queue: enter")
     list = []
     queue = []
     begin
       f = acquire_lock "queue"
 
       db = ProposalObject.find_data_bag_item "crowbar/queue"
+      @logger.debug("process queue: exit: empty queue") if db.nil?
       return if db.nil?
 
       queue = db["proposal_queue"]
     rescue Exception => e
       @logger.error("Error queuing proposal for #{bc}:#{inst}: #{e.message}")
+      @logger.debug("process queue: exit: error")
+      return
     ensure
       release_lock f
     end
 
+    @logger.debug("process queue: queue: #{queue.inspect}")
+
     # Test for ready
     queue.each do |item|
       prop = ProposalObject.find_proposal(item["barclamp"], item["inst"])
-      dequeue_proposal(item["inst"], item["barclamp"]) if prop.nil?
-      next if prop.nil?
+      if prop.nil?
+        dequeue_proposal(item["inst"], item["barclamp"])
+        next
+      end
       list << item if elements_not_ready(prop["deployment"][item["barclamp"]]["elements"]).empty?
     end
 
+    @logger.debug("process queue: list: #{list.inspect}")
+
     # For each ready item, apply it.
     list.each do |item|
+      @logger.debug("process queue: item to do: #{item.inspect}")
       bc = item["barclamp"]
       inst = item["inst"]
       service = eval("#{bc.capitalize}Service.new @logger")
       answer = service.proposal_commit(inst)
+      @logger.debug("process queue: item #{item.inspect}: results #{answer.inspect}")
       dequeue_proposal(inst, bc) if answer[0] == 200
     end
+    @logger.debug("process queue: exit")
   end
 
   def elements_not_ready(elements)
@@ -166,7 +187,7 @@ class ServiceObject
         node.save
       end
 
-      delay << n if node["state"] != "ready"
+      delay << n if node.state != "ready"
     end
     delay
   end
@@ -186,8 +207,8 @@ class ServiceObject
       node = NodeObject.find_node_by_name(n)
       next if node.nil?
 
-      node["crowbar"]["pending"] = {} if node["crowbar"]["pending"].nil?
-      node["crowbar"]["pending"]["#{bc}-#{inst}"] = val
+      node.crowbar["crowbar"]["pending"] = {} if node.crowbar["crowbar"]["pending"].nil?
+      node.crowbar["crowbar"]["pending"]["#{bc}-#{inst}"] = val
       node.save
     end
   end
@@ -206,8 +227,8 @@ class ServiceObject
     all_new_nodes.each do |n|
       node = NodeObject.find_node_by_name(n)
       next if node.nil?
-      unless node["crowbar"]["pending"].nil? or node["crowbar"]["pending"]["#{bc}-#{inst}"].nil?
-        node["crowbar"]["pending"]["#{bc}-#{inst}"] = {}
+      unless node.crowbar["crowbar"]["pending"].nil? or node.crowbar["crowbar"]["pending"]["#{bc}-#{inst}"].nil?
+        node.crowbar["crowbar"]["pending"]["#{bc}-#{inst}"] = {}
         node.save
       end
     end
@@ -549,14 +570,16 @@ class ServiceObject
       # Remove the roles being lost
       rlist.each do |item|
         next unless node.role? item
-        node.run_list.run_list_items.delete "role[#{item}]"
+        @logger.debug("AR: Removing role #{item} to #{node.name}")
+        node.crowbar_run_list.run_list_items.delete "role[#{item}]"
         save_it = true
       end
 
       # Add the roles being gained
       alist.each do |item|
         next if node.role? item
-        node.run_list.run_list_items << "role[#{item}]"
+        @logger.debug("AR: Adding role #{item} to #{node.name}")
+        node.crowbar_run_list.run_list_items << "role[#{item}]"
         save_it = true
       end
 
@@ -564,17 +587,20 @@ class ServiceObject
       if all_nodes.include?(node.name)
         # Add the config role 
         unless node.role?(role.name)
-          node.run_list.run_list_items << "role[#{role.name}]"
+          @logger.debug("AR: Adding role #{role.name} to #{node.name}")
+          node.crowbar_run_list.run_list_items << "role[#{role.name}]"
           save_it = true
         end
       else
         # Remove the config role 
         if node.role?(role.name)
-          node.run_list.run_list_items.delete "role[#{role.name}]"
+          @logger.debug("AR: Removing role #{role.name} to #{node.name}")
+          node.crowbar_run_list.run_list_items.delete "role[#{role.name}]"
           save_it = true
         end
       end
 
+      @logger.debug("AR: Saving node #{node.name}") if save_it
       node.save if save_it
     end
 
@@ -597,6 +623,9 @@ class ServiceObject
         snodes = snodes + " OR " if snodes != ""
         snodes = snodes + "name:#{n}"
       end
+ 
+      @logger.debug("AR: Calling knife for #{role.name} on non-admin nodes #{snodes}")
+      @logger.debug("AR: Calling knife for #{role.name} on admin nodes #{admin_list}")
 
       # Only take the actions if we are online
       if CHEF_ONLINE
@@ -634,12 +663,12 @@ class ServiceObject
 
     save_it = false
     unless node.role?(newrole)
-      node.run_list.run_list_items << "role[#{newrole}]"
+      node.crowbar_run_list.run_list_items << "role[#{newrole}]"
       save_it = true
     end
 
     unless node.role?("#{barclamp}-config-#{instance}")
-      node.run_list.run_list_items << "role[#{barclamp}-config-#{instance}]"
+      node.crowbar_run_list.run_list_items << "role[#{barclamp}-config-#{instance}]"
       save_it = true
     end
 

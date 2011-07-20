@@ -1,4 +1,6 @@
 
+package "ipmitool"
+
 directory "/root/.ssh" do
   owner "root"
   group "root"

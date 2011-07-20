@@ -27,10 +27,13 @@ class NodeObject < ChefObject
       end
       if nodes[2] != 0
         answer = nodes[0].map do |x| 
-          self.dump x, 'node', x.name unless x.nil?
+          unless x.nil?
+            dumped = self.dump x, 'node', x.name
+            RoleObject.find_roles_by_search "name:#{make_role_name(x.name)}" if dumped
+          end
           NodeObject.new x
         end
-        answer.delete_if { |x| x.nil? or x.node.nil? }
+        answer.delete_if { |x| x.nil? or !x.has_node? }
       end
     else
       files = offline_search 'node-', ''
@@ -60,15 +63,33 @@ class NodeObject < ChefObject
     self.find nil
   end
 
-  def self.create_new(new_name, new_domain, new_mac)
-    machine = Chef::Node.new
-    machine["crowbar"] = {}
-    machine["crowbar"]["node-id"] = new_mac
-    machine["crowbar"]["network"] = {} if machine["crowbar"]["network"].nil?
-    machine["crowbar"]["decoration"] = { "name" => new_name }
-    machine["fqdn"] = "#{new_name}.#{new_domain}"
-    machine.name "#{new_name}.#{new_domain}"
+  def self.make_role_name(name)
+    "crowbar-#{name.gsub(".", "_")}"
+  end
 
+  def self.create_new_role(new_name, machine)
+    name = make_role_name new_name
+    if CHEF_ONLINE
+      role = RoleObject.new Chef::Role.new
+    else
+      self.create_object 'role', name, "NodeObject Create New Role"
+      role = RoleObject.find_role_by_name(name)
+    end
+    role.name = name
+    role.default_attributes["crowbar"] = {}
+    role.default_attributes["crowbar"]["network"] = {} if role.default_attributes["crowbar"]["network"].nil?
+    role.save
+
+    machine.run_list.run_list_items << "role[#{role.name}]"
+    machine.save
+
+    role
+  end
+
+  def self.create_new(new_name)
+    machine = Chef::Node.new
+    machine.name "#{new_name}"
+    machine["fqdn"] = "#{new_name}"
     NodeObject.new machine
   end
 
@@ -81,17 +102,19 @@ class NodeObject < ChefObject
   end
   
   def initialize(node)
+    @role = RoleObject.find_role_by_name NodeObject.make_role_name(node.name)
+    @role = NodeObject.create_new_role(node.name, node) if @role.nil?
     @node = node
+  end
+
+  def has_node?
+    !@node.nil?
   end
 
   def shortname
     name.split('.')[0]
   end
 
-  def node
-    @node
-  end
-  
   def name
     @node.nil? ? 'unknown' : @node.name
   end
@@ -115,23 +138,23 @@ class NodeObject < ChefObject
   
   def state 
     return 'unknown' if @node.nil? 
-    if @node['state'] === 'ready' and CHEF_ONLINE
+    if self.crowbar['state'] === 'ready' and CHEF_ONLINE and @node['ohai_time']
       since_last = Time.now.to_i-@node['ohai_time'].to_i
       return 'noupdate' if since_last > 1200 # or 20 mins
     end
-    return @node['state']
+    return self.crowbar['state']
   end
 
   def ip
     net_info = get_network_by_type("admin")
     return net_info["address"] unless net_info.nil?
-    node["ipaddress"] || (I18n.t :unknown)
+    @node["ipaddress"] || (I18n.t :unknown)
   end
   
   def public_ip
     net_info = get_network_by_type("public")
     return net_info["address"] unless net_info.nil?
-    node["ipaddress"] || (I18n.t :unknown)
+    @node["ipaddress"] || (I18n.t :unknown)
   end
   
   def mac
@@ -144,41 +167,53 @@ class NodeObject < ChefObject
   end
 
   def allocated
-    @node.nil? ? false : @node["crowbar"]["allocated"]
+    @node.nil? ? false : self.crowbar["crowbar"]["allocated"]
   end
   
   def allocated=(value)
-    return false if @node.nil?
-    @node["crowbar"]["allocated"] = value
+    return false if @role.nil?
+    self.crowbar["crowbar"]["allocated"] = value
   end
   
   def allocated?
+    @node.nil? ? false : self.crowbar["crowbar"]["allocated"]
+  end
+  
+  def ipmi_enabled?
+    #placeholder until we have a better mechanism
     @node.nil? ? false : @node["crowbar"]["allocated"]
   end
 
-  def name=(value)
+  def rename(value, domain)
     return "unknown" if @node.nil?
     @node.name value
+    @node[:fqdn] = value
+    @node[:domain] = domain
+    @node.run_list.run_list_items.delete "role[#{@role.name}]"
+    @role.name = "crowbar-#{value.gsub(".", "_")}"
+    @node.run_list.run_list_items << "role[#{@role.name}]"
+    @node.save
+    save
   end 
 
   def memory
-    node['memory']['total'] rescue nil
+    @node['memory']['total'] rescue nil
   end
   
   def cpu
-    node['cpu']['0']['model_name'].squeeze(" ").strip rescue nil
+    @node['cpu']['0']['model_name'].squeeze(" ").strip rescue nil
   end
   
   def uptime
-    node["uptime"]
+    @node["uptime"]
   end
   
   def asset_tag
-    node["dmi"]["chassis"]["serial_number"]  
+    @node["dmi"]["chassis"]["serial_number"]  
   end
   
   def number_of_drives
-    node['crowbar']['disks'].length rescue -1
+    self.crowbar['crowbar']['disks'].length rescue -1
   end
 
   def [](attrib)
@@ -186,18 +221,25 @@ class NodeObject < ChefObject
     @node[attrib]
   end
 
-  def []=(attrib, value)
-    return nil if @node.nil?
-    @node[attrib] = value
+  def crowbar_run_list(*args)
+    return nil if @role.nil?
+    args.length > 0 ? @role.run_list(args) : @role.run_list
   end
 
-  def run_list(*args)
-    return nil if @node.nil?
-    args.length > 0 ? @node.run_list(args) : @node.run_list
+  def crowbar
+    @role.default_attributes
+  end
+
+  def crowbar=(value)
+    return nil if @role.nil?
+    @role.default_attributes = value
   end
 
   def role?(role_name)
     return false if @node.nil?
+    @role.run_list.run_list_items.each do |item|
+      return true if item == "role[#{role_name}]"
+    end
     @node.role?(role_name)
   end
   
@@ -205,44 +247,64 @@ class NodeObject < ChefObject
     @node['roles'].nil? ? nil : @node['roles'].sort
   end
 
+  def recursive_merge!(b, h)
+    b.merge!(h) {|key, _old, _new| if _old.class.kind_of? Hash.class then recursive_merge(_old, _new) else _new end  }
+  end
+
   def save
-    if @node["crowbar-revision"].nil?
-      @node["crowbar-revision"] = 0
+    if @role.default_attributes["crowbar-revision"].nil?
+      @role.default_attributes["crowbar-revision"] = 0
       Rails.logger.debug("Starting Node Revisions: #{@node.name} - unset")
     else
-      Rails.logger.debug("Starting Node Revisions: #{@node.name} - #{@node["crowbar-revision"]}")
-      @node["crowbar-revision"] = @node["crowbar-revision"] + 1
+      Rails.logger.debug("Starting Node Revisions: #{@node.name} - #{@role.default_attributes["crowbar-revision"]}")
+      @role.default_attributes["crowbar-revision"] = @role.default_attributes["crowbar-revision"] + 1
     end
-    Rails.logger.debug("Saving node: #{@node.name} - #{@node["crowbar-revision"]}")
+    Rails.logger.debug("Saving node: #{@node.name} - #{@role.default_attributes["crowbar-revision"]}")
+
+    recursive_merge!(@node.normal_attrs, @role.default_attributes)
+
     if CHEF_ONLINE
+      @role.save
       @node.save
     else
       NodeObject.offline_cache(@node, NodeObject.nfile('node', @node.name))
+      NodeObject.offline_cache(@role, RoleObject.nfile('role', @role.name))
     end
-    Rails.logger.debug("Done saving node: #{@node.name} - #{@node["crowbar-revision"]}")
+    Rails.logger.debug("Done saving node: #{@node.name} - #{@role.default_attributes["crowbar-revision"]}")
   end
 
   def destroy
-    Rails.logger.debug("Destroying node: #{@node.name} - #{@node["crowbar-revision"]}")
+    Rails.logger.debug("Destroying node: #{@node.name} - #{@role.default_attributes["crowbar-revision"]}")
+    @role.destroy
     @node.destroy
-    Rails.logger.debug("Done with removal of node: #{@node.name} - #{@node["crowbar-revision"]}")
+    Rails.logger.debug("Done with removal of node: #{@node.name} - #{@role.default_attributes["crowbar-revision"]}")
   end
 
+  def networks
+    self.crowbar["crowbar"]["network"]
+  end
+  
   def get_network_by_type(type)
-    return nil if @node.nil?
-    @node["crowbar"]["network"].each do |intf, data|
+    return nil if @role.nil?
+    networks.each do |intf, data|
       return data if data["usage"] == type
     end
     nil
   end
 
   def get_network_by_interface(intf)
-    return nil if @node.nil?
-    @node["crowbar"]["network"][intf]
+    return nil if @role.nil?
+    self.crowbar["crowbar"]["network"][intf]
   end
 
+  #
+  # This is from the crowbar role assigned to the admin node at install time.
+  # It is not a node.role parameter
+  #
   def admin?
     return false if @node.nil?
+    return false if @node["crowbar"].nil?
+    return false if @node["crowbar"]["admin_node"].nil?
     @node["crowbar"]["admin_node"]
   end
 
@@ -257,9 +319,11 @@ class NodeObject < ChefObject
     end
     answer
   end
+
+  # Switch config is actually a node set property from customer ohai.  It is really one the node and not the role
   def switch_name
-    unless node["crowbar"].nil? or node["crowbar"]["switch_config"].nil?
-      switch_name = node["crowbar"]["switch_config"]["eth0"]["switch_name"] || (I18n.t :undetermined)
+    unless @node["crowbar"].nil? or @node["crowbar"]["switch_config"].nil?
+      switch_name = @node["crowbar"]["switch_config"]["eth0"]["switch_name"] || (I18n.t :undetermined)
       switch_name = (I18n.t :undetermined) if switch_name == -1
       switch_name.to_s.gsub(':', '-')
     else
@@ -268,80 +332,79 @@ class NodeObject < ChefObject
   end
   
   def switch_port
-    unless node["crowbar"].nil? or node["crowbar"]["switch_config"].nil?
-      switch_name = node["crowbar"]["switch_config"]["eth0"]["switch_port"] || (I18n.t :undetermined)
+    unless @node["crowbar"].nil? or @node["crowbar"]["switch_config"].nil?
+      switch_name = @node["crowbar"]["switch_config"]["eth0"]["switch_port"] || (I18n.t :undetermined)
     else
       switch_name = (I18n.t :undetermined)
     end
   end
   
   def location
-    unless node["crowbar"].nil? or node["crowbar"]["switch_config"].nil?
-      location = node["crowbar"]["switch_config"]["eth0"]["switch_port"] || (I18n.t :not_set)
+    unless @node["crowbar"].nil? or @node["crowbar"]["switch_config"].nil?
+      location = @node["crowbar"]["switch_config"]["eth0"]["switch_port"] || (I18n.t :not_set)
     else
       location = (I18n.t :not_set)
     end
   end
+  # Switch config is actually a node set property from customer ohai.  It is really one the node and not the role
 
-  def description
-    unless node["crowbar"].nil? or node["crowbar"]["description"].nil?
-      node["crowbar"]["description"] || (I18n.t :not_set)
-    else
-      I18n.t :not_set
-    end
+  def description    
+    @role.description.length==0 ? nil : @role.description
   end
   
   def description=(value)
-     node["crowbar"]["description"] = value
+    @role.description = value
   end
   
   def hardware
-    node["dmi"].system.product_name
+    @node["dmi"].system.product_name
   end
 
   def usage
-    return [] if @node.nil?
-    return [] if @node["crowbar"].nil?
-    @node["crowbar"]["usage"]
+    return [] if @role.nil?
+    return [] if self.crowbar["crowbar"].nil?
+    self.crowbar["crowbar"]["usage"]
   end
 
   def usage=(value)
-    return [] if @node.nil?
-    return [] if @node["crowbar"].nil?
-    @node["crowbar"]["usage"] = value
+    return [] if @role.nil?
+    return [] if self.crowbar["crowbar"].nil?
+    self.crowbar["crowbar"]["usage"] = value
   end
   
   def raid_set
-    return nil if @node.nil?
-    return nil if @node["crowbar"].nil?
-    return nil if @node["crowbar"]["hardware"].nil?
-    @node["crowbar"]["hardware"]["raid_set"]
+    return nil if @role.nil?
+    return nil if self.crowbar["crowbar"].nil?
+    return nil if self.crowbar["crowbar"]["hardware"].nil?
+    self.crowbar["crowbar"]["hardware"]["raid_set"]
   end
 
   def raid_set=(value)
-    return nil if @node.nil?
-    return nil if @node["crowbar"].nil?
-    @node["crowbar"]["hardware"] = {} if @node["crowbar"]["hardware"].nil?
-    @node["crowbar"]["hardware"]["raid_set"] = value
+    return nil if @role.nil?
+    return nil if self.crowbar["crowbar"].nil?
+    self.crowbar["crowbar"]["hardware"] = {} if self.crowbar["crowbar"]["hardware"].nil?
+    self.crowbar["crowbar"]["hardware"]["raid_set"] = value
   end
   
   def bios_set
-    return nil if @node.nil?
-    return nil if @node["crowbar"].nil?
-    return nil if @node["crowbar"]["hardware"].nil?
-    @node["crowbar"]["hardware"]["bios_set"]
+    return nil if @role.nil?
+    return nil if self.crowbar["crowbar"].nil?
+    return nil if self.crowbar["crowbar"]["hardware"].nil?
+    self.crowbar["crowbar"]["hardware"]["bios_set"]
   end
 
   def bios_set=(value)
-    return nil if @node.nil?
-    return nil if @node["crowbar"].nil?
-    @node["crowbar"]["hardware"] = {} if @node["crowbar"]["hardware"].nil?
-    @node["crowbar"]["hardware"]["bios_set"] = value
+    return nil if @role.nil?
+    return nil if self.crowbar["crowbar"].nil?
+    self.crowbar["crowbar"]["hardware"] = {} if self.crowbar["crowbar"]["hardware"].nil?
+    self.crowbar["crowbar"]["hardware"]["bios_set"] = value
   end
   
   def to_hash
     return {} if @node.nil?
-    @node.to_hash
+    nhash = @node.to_hash
+    rhash = @role.default_attributes.to_hash
+    nhash.merge rhash
   end
 
   def set_state(state)
@@ -351,7 +414,7 @@ class NodeObject < ChefObject
       results = cb.transition "default", @node.name, state
     else
       puts "Node #{name} Chef State Changed to #{state}"
-      @node['state'] = state
+      self.crowbar['state'] = state
       save
     end
 
@@ -396,8 +459,8 @@ class NodeObject < ChefObject
   end
 
   def power_change_state(state)
-    @node['state'] = state
-    @node.save
+    self.crowbar['state'] = state
+    save
   end
 
   def identify
@@ -408,8 +471,16 @@ class NodeObject < ChefObject
 
   def allocate
     return if @node.nil?
+    return if @role.nil?
     self.allocated = true
-    @node.save
+    save
+  end
+
+  def bmc_set?
+    return false if @node.nil? or @node["crowbar"].nil? or @node["crowbar"]["status"].nil?
+    return false if @node["crowbar"]["status"]["ipmi"].nil?
+    return false if @node["crowbar"]["status"]["ipmi"]["address_set"].nil?
+    @node["crowbar"]["status"]["ipmi"]["address_set"]
   end
 
 end

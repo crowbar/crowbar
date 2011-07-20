@@ -52,7 +52,7 @@ class NovaService < ServiceObject
     @logger.debug("Nova apply_role_pre_chef_call: entering #{all_nodes.inspect}")
     return if all_nodes.empty?
 
-    nodes = NodeObject.find("role:provisioner-server")
+    nodes = NodeObject.find("roles:provisioner-server")
     unless nodes.nil? or nodes.length < 1
       admin_ip = nodes[0].get_network_by_type("admin")["address"]
       web_port = nodes[0]["provisioner"]["web_port"]

@@ -50,6 +50,9 @@ module CrowbarOffline
         rescue Exception => e
           Rails.logger.warn("Error dumping Chef #{serial} object to '#{name}' with '#{e.inspect}'")
         end #dump object
+        return true
+      else
+        return false
       end #unless exist
     end
     
@@ -74,6 +77,25 @@ module CrowbarOffline
       Rails.logger.info("Removed Cached Object '#{file}'")
       puts "Cache delete #{file}"
       File.delete(file) if File.exists? file
+    end
+    
+    def create_object(type, name, description)
+      template =  File.join('lib', 'offline', "#{type}-.template")
+      file = File.join(OFFLINE_FILES_DIR, "#{type}-#{name}.json")
+      if File.exist? file
+        throw "Cannot create new objects because one exists at '#{file}'."
+      end
+      if File.exist? template
+        base = File.open(template, 'r').gets
+        base = base.gsub("$NAME$", name)
+        base = base.gsub("$DESCRIPTION$", description || "Default offline object for #{name}")
+        base = base.gsub("$GUID$", "0-OfflineModeHasNoGUIDs")
+        File.open(file, 'w') do |f|
+          f.puts base
+        end
+      else
+        throw "No Offline Template found matching '#{template}'."
+      end
     end
     
     def recover_json(file)

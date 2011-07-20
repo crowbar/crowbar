@@ -1,7 +1,7 @@
 
 package "ntp"
 
-if node.role?("ntp-client")
+if node["roles"].include?("ntp-client")
   unless Chef::Config[:solo]
     env_filter = " AND environment:#{node[:ntp][:config][:environment]}"
     servers = search(:node, "roles:ntp\\-server#{env_filter}")

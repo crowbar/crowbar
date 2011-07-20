@@ -31,7 +31,9 @@ for f in /opt/dell/bin/*; do
 done
 
 cd "${loc}"
-cp /tftpboot/ubuntu_dvd/extra/gems/net-http-digest*.gem .
+for gem in net-http-digest json; do
+    cp /tftpboot/ubuntu_dvd/extra/gems/${gem}*.gem .
+done
 cat >install.sh <<"EOF"
 #!/bin/bash
 
@@ -39,16 +41,18 @@ cat >install.sh <<"EOF"
     echo "Please pass a directory to install the Crowbar CLI to."
     exit 1
 }
-gem install net-http-digest_auth --no-ri --no rdoc --local net-http-*.gem || {
-    echo "Could not install the net-http-digest_auth gem."
-    echo "Make sure gem is installed, and you have permissions to install gems."
-    exit 1
-}
+for gem in net-http-digest_auth json; do
+    gem install $gem --no-ri --no rdoc --local ${gem}*.gem || {
+        echo "Could not install the net-http-digest_auth gem."
+        echo "Make sure gem is installed, and you have permissions to install gems."
+        exit 1
+    }
+done
 rm *.gem
 cp * "$1"
 
 EOF
 chmod 755 *
-tar czf "$dest" crowbar* barclamp* *.sh *.gem
+tar czf "$dest" crowbar* barclamp* install.sh *.gem
 cd /
 rm -rf "${loc}"

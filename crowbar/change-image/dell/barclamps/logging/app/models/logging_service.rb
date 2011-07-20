@@ -51,13 +51,13 @@ class LoggingService < ServiceObject
       end
 
       @logger.debug("Logging transition: leaving from discovered state for #{name} for #{state}")
-      a = [200, {}] if result
+      a = [200, NodeObject.find_node_by_name(name).to_hash] if result
       a = [400, "Failed to add logging role to node"] unless result
       return a
     end
 
     @logger.debug("Logging transition: leaving for #{name} for #{state}")
-    [200, NodeObject.find_node_by_name(name).to_hash ]
+    [200, NodeObject.find_node_by_name(name).to_hash]
   end
 
 end

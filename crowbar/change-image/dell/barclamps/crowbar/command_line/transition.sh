@@ -3,7 +3,7 @@
 key_re='crowbar\.install\.key=([^ ]+)'
 if [[ $(cat /proc/cmdline) =~ $key_re ]]; then
     export CROWBAR_KEY="${BASH_REMATCH[1]}"
-elif [[ -f /etc/crowbar.install.key ]]
+elif [[ -f /etc/crowbar.install.key ]]; then
     export CROWBAR_KEY="$(cat /etc/crowbar.install.key)"
 fi
 

@@ -37,7 +37,7 @@ en:
       name_exists: Name already exists. Please choose another.
       too_short: Invalid name.  Name must have some characters.
       illegal_chars: Invalid name.  Please limit name to [A-z0-9_] without spaces
-      already_commit: Proposal already in a commit
+      already_commit: Proposal already being applied.
       cannot_find: Failed to find proposal
     attributes:
       node:
@@ -121,18 +121,18 @@ en:
     proposal_show:
       title: Edit Proposal
       apply_changes: Apply changes now?
-      create_proposal_success: Successfully created proposal
+      create_proposal_success: Successfully created the proposal
       commit_proposal: Apply Proposal
-      commit_proposal_success: Successfully applied proposal
-      commit_proposal_queued: Successfully queued proposal until the following become ready
+      commit_proposal_success: Successfully applied the proposal
+      commit_proposal_queued: Successfully queued the proposal until the following become ready
       save_proposal: Save Proposal
-      save_proposal_success: Successfully saved changes to proposal
+      save_proposal_success: Successfully saved changes to the proposal
       delete_changes: Delete proposal now?
       dequeue_proposal: Dequeue Proposal
-      dequeue_proposal_success: Successfully dequeued proposal
-      dequeue_proposal_failure: Failed to dequeued proposal
+      dequeue_proposal_success: Successfully dequeued the proposal
+      dequeue_proposal_failure: Failed to dequeued the proposal
       delete_proposal: Delete Proposal
-      delete_proposal_success: Successfully delete proposal
+      delete_proposal_success: Successfully deleted the proposal
       confirm_delete_proposal: Are you sure you wish to delete this proposal?
       available_nodes: Available Nodes
       ui_advice: Drag nodes from Available Nodes into desired deployment list(s).
@@ -184,7 +184,7 @@ en:
     show:
       delete_role: Delete Role
       confirm_delete_role: Are you sure you wish to delete this role?
-      delete_role_success: Successfully delete role
+      delete_role_success: Successfully deleted the role
       deployment: Nodes Activated
       attributes: Proposal Attributes
       role: Role

@@ -51,7 +51,7 @@ class NtpService < ServiceObject
       end
 
       @logger.debug("NTP transition: leaving from discovered state for #{name} for #{state}")
-      return [200, {}] if result
+      return [200, NodeObject.find_node_by_name(name).to_hash ] if result
       return [400, "Failed to add role to node"] unless result
     end
 

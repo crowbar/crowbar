@@ -11,6 +11,7 @@ else
 end
 
 service "rsyslog" do
+  provider Chef::Provider::Service::Upstart
   supports :restart => true, :status => true, :reload => true
   running true
   enabled true

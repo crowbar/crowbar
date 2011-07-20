@@ -18,7 +18,7 @@ serial_console = node[:provisioner][:use_serial_console] ? "console=tty0 console
 ["update", "hwinstall"].each do |dir|
   link "/tftpboot/ubuntu_dvd/#{dir}" do
     action :create
-    to "/tftpboot/ubuntu_dvd/discovery"
+    to "discovery"
     not_if "test -L /tftpboot/ubuntu_dvd/#{dir}"
   end
 end
@@ -163,6 +163,10 @@ if not nodes.nil? and not nodes.empty?
 
     next if new_group.nil?
 
+    # Delete the node
+    system("knife node delete -y #{mnode.name} -u chef-webui -k /etc/chef/webui.pem") if new_group == "delete"
+    system("knife node delete -y crowbar-#{mnode.name.gsub(".","_")} -u chef-webui -k /etc/chef/webui.pem") if new_group == "delete"
+
     admin_data_net = Chef::Recipe::Barclamp::Inventory.get_network_by_type(mnode, "admin")
 
     # Skip if we don't have admin
@@ -192,8 +196,6 @@ if not nodes.nil? and not nodes.empty?
           group new_group
           action :remove
         end
-
-        system("knife node delete -y #{mnode.name} -u chef-webui -k /etc/chef/webui.pem") if new_group == "delete"
       else
         dhcp_host "#{mnode.name}-#{count}" do
           hostname mnode.name

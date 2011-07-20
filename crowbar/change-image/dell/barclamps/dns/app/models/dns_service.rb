@@ -48,7 +48,7 @@ class DnsService < ServiceObject
       @logger.debug("DNS transition: adding #{name} to dns-client role")
       result = add_role_to_instance_and_node("dns", inst, name, db, role, "dns-client")
 
-      a = [200, {}] if result
+      a= [200, NodeObject.find_node_by_name(name).to_hash ] if result
       a = [400, "Failed to add role to node"] unless result
       @logger.debug("DNS transition: leaving for #{name} for #{state}: discovered")
       return a

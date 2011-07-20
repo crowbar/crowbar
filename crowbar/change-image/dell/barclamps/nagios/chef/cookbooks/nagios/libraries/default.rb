@@ -52,7 +52,7 @@ class Evaluator
     location = node[:nagios][type]
     e = Evaluator.new(node)
     val = e.eval_with_context(location)
-    Chef::Log.info("Looking at #{location} for #{type}. Got: #{val}")
+    Chef::Log.debug("Looking at #{location} for #{type}. Got: #{val}")
     val
   end
   

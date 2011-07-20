@@ -1,30 +1,17 @@
-
+# Managed by Crowbar via Chef.
+# Do not manually edit, all your changes will be reverted and your 
+# networking will be undone.  
 auto lo
 iface lo inet loopback
 
 <% @interfaces.each do |interface| -%>
 <% next if interface[:interface] == "bmc" -%>
-
-<% if interface[:interface] =~ /^br/ %>
-
+<% if interface[:auto] -%>
 auto <%= interface[:interface] %>
-iface <%= interface[:interface] %> inet static
-  bridge_ports <%= interface[:interface_list].first %>
-  bridge_stp off
-  bridge_maxwait 0
-  bridge_fd 0
-
-<% else # nova part -%>
-
-auto <%= interface[:interface] %>
-iface <%= interface[:interface] %> inet static
-
-<% end # if nova -%>
-
+<% end -%>
+iface <%= interface[:interface] %> inet <%= interface[:config] %>
 <% if !interface[:ipaddress].nil? -%>
   address <%= interface[:ipaddress] %>
-<% else -%>
-  address 0.0.0.0
 <% end -%>
 <% if !interface[:netmask].nil? -%>
   netmask <%= interface[:netmask] %>
@@ -35,13 +22,17 @@ iface <%= interface[:interface] %> inet static
 <% if !interface[:router].nil? -%>
   gateway <%= interface[:router] %>
 <% end -%>
-
-<% unless interface[:interface_list].nil? or interface[:interface_list].size <= 1 -%>
+<% case interface[:mode] -%>
+<% when "bridge" -%>
+  bridge_ports <%= interface[:interface_list].join %>
+  bridge_stp on
+  bridge_maxwait 0
+  bridge_fd 0
+<% when "vlan" -%>
+  vlan_raw_device <%= interface[:interface_list].first %>
+<% when "team" -%>
   down /sbin/ifenslave -d <%= interface[:interface] %> <%= interface[:interface_list].join(" ") %>
   up /sbin/ifenslave <%= interface[:interface] %> <%= interface[:interface_list].join(" ") %>
-<% end -%>
-<% if interface[:use_vlan] and interface[:vlan] -%>
-  vlan_raw_device <%= interface[:interface_list].first %>
 <% end -%>
 
 <% end # loop -%>

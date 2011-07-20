@@ -6,10 +6,10 @@ define host {
   use server
   address <%= ip %>
   host_name <%= n["hostname"] %>
-<% if n.run_list.roles.nil? -%>
+<% if n.roles.nil? -%>
   hostgroups all
 <% else -%>
-  hostgroups <%= n.run_list.roles.to_a.join(",") %>
+  hostgroups <%= n.roles.to_a.join(",") %>
 <% end -%>
 }
 

@@ -30,7 +30,7 @@ nova_scale = {
 }
 
 unless node[:nova_environment].nil?
-  search(:node, "role:nova-single-machine AND nova_environment:#{node[:nova_environment]}") do |n|
+  search(:node, "roles:nova-single-machine AND nova_environment:#{node[:nova_environment]}") do |n|
     nova_scale[:computes] << n
 #   nova_scale[:volumes] << n
     nova_scale[:networks] << n
@@ -39,14 +39,14 @@ unless node[:nova_environment].nil?
     nova_scale[:objectstores] << n
   end
 
-  search(:node, "role:nova-multi-controller AND nova_environment:#{node[:nova_environment]}") do |n|
+  search(:node, "roles:nova-multi-controller AND nova_environment:#{node[:nova_environment]}") do |n|
     nova_scale[:networks] << n
     nova_scale[:schedulers] << n
     nova_scale[:apis] << n
     nova_scale[:objectstores] << n
   end
 
-  search(:node, "role:nova-multi-compute AND nova_environment:#{node[:nova_environment]}") do |n|
+  search(:node, "roles:nova-multi-compute AND nova_environment:#{node[:nova_environment]}") do |n|
     nova_scale[:computes] << n
 #   nova_scale[:volumes] << n
   end
@@ -62,5 +62,5 @@ template "/etc/nagios/nrpe.d/nova_nrpe.cfg" do
     :nova_scale => nova_scale
   })    
    notifies :restart, resources(:service => "nagios-nrpe-server")
-end if node.role?("nagios-client")    
+end if node["roles"].include?("nagios-client")    
 

@@ -21,6 +21,7 @@ class NodesController < ApplicationController
   # GET /nodes
   # GET /nodes.xml
   def index
+    @sum = 0
     if params.has_key?(:role)
       result = NodeObject.all #this is not efficient, please update w/ a search!
       @nodes = result.find_all { |node| node.role? params[:role] }
@@ -32,6 +33,9 @@ class NodesController < ApplicationController
       @nodes = NodeObject.all
       get_node_and_network(params[:selected]) if params[:selected]
       flash[:notice] = "<b>#{t :warning, :scope => :error}:</b> #{t :no_nodes_found, :scope => :error}" if @nodes.empty? #.html_safe if @nodes.empty?
+      @nodes.each do |node|
+        @sum = @sum + node.name.hash
+      end
     end
     respond_to do |format|
       format.html # index.html.erb
@@ -43,6 +47,7 @@ class NodesController < ApplicationController
   def status
     nodes = {}
     switches = {}
+    sum = 0
     begin
       result = NodeObject.all
       result.each do |node|      
@@ -50,8 +55,9 @@ class NodesController < ApplicationController
         count = switches[node.switch_name] || {"ready"=>0, "pending"=>0, "unready"=>0, "unknown"=>0}
         count[node.status] += 1
         switches[node.switch_name] = count
+        sum = sum + node.name.hash
       end
-      render :inline => {:nodes=>nodes, :switches=>switches, :count=>nodes.length}.to_json, :cache => false
+      render :inline => {:sum => sum, :nodes=>nodes, :switches=>switches, :count=>nodes.length}.to_json, :cache => false
     rescue Exception=>e
       count = (e.class.to_s == "Errno::ECONNREFUSED" ? -2 : -1)
       Rails.logger.fatal("Failed to iterate over node list due to '#{e.message}'")
@@ -105,7 +111,7 @@ class NodesController < ApplicationController
     if request.post?
       get_node_and_network(params[:id] || params[:name])
       if params[:submit] == t('nodes.form.allocate')
-        @node["crowbar"]["allocated"] = true
+        @node.allocated = true
         save_node
         flash[:notice] = t('nodes.form.allocate_node_success')
       elsif params[:submit] == t('nodes.form.save')
@@ -128,7 +134,7 @@ class NodesController < ApplicationController
     @node.usage = [ params[:usage] ]
     @node.bios_set = params[:bios]
     @node.raid_set = params[:raid]
-    @node.description = params[:node][:description] unless params[:node].nil?
+    @node.description = params[:description]
     @node.save
   end
   
@@ -139,9 +145,9 @@ class NodesController < ApplicationController
     if @node
       # build network information (this may need to move into the object)
       interfaces = @node.interface_list.find_all { |n| n=~/^eth/ }
-      @node[:crowbar][:network].each do |intf, data|
-        @network[data[:usage]] = {} if @network[data[:usage]].nil?
-        @network[data[:usage]][intf] = data[:address] || 'n/a'
+      @node.networks.each do |intf, data|
+        @network[data["usage"]] = {} if @network[data["usage"]].nil?
+        @network[data["usage"]][intf] = data["address"] || 'n/a'
         interfaces.delete(intf)
       end
       interfaces.map { |i| notconns[i] = nil }

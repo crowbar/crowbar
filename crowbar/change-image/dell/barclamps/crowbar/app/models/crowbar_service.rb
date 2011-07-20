@@ -34,36 +34,28 @@ class CrowbarService < ServiceObject
     node = NodeObject.find_node_by_name name
     if node.nil? and (state == "discovering" or state == "testing")
       @logger.debug("Crowbar transition: creating new node for #{name} to #{state}")
-      node = Chef::Node.new
-      node["crowbar"] = {}
-
-      node[:fqdn] = name
-      node.name name
-
-      node = NodeObject.new node
-      node.save
+      node = NodeObject.create_new name
     end
     if node.nil?
       @logger.error("Crowbar transition leaving: node not found nor created - #{name} to #{state}")
-      return [200, {}]
+      return [404, "Node not found"]
     end
 
-    node["crowbar"] = {} if node["crowbar"].nil?
-    node["crowbar"]["network"] = {} if node["crowbar"]["network"].nil?
-    node["crowbar"]["decoration"] = { :name=> name }
+    node.crowbar["crowbar"] = {} if node.crowbar["crowbar"].nil?
+    node.crowbar["crowbar"]["network"] = {} if node.crowbar["crowbar"]["network"].nil?
 
     pop_it = false
-    if node[:state] != state
+    if node.crowbar["state"] != state
       @logger.debug("Crowbar transition: state has changed so we need to do stuff for #{name} to #{state}")
 
-      node["crowbar"]["state_debug"] = {} if node["crowbar"]["state_debug"].nil?
-      if node["crowbar"]["state_debug"][state].nil?
-        node["crowbar"]["state_debug"][state] = 1
+      node.crowbar["crowbar"]["state_debug"] = {} if node.crowbar["crowbar"]["state_debug"].nil?
+      if node.crowbar["crowbar"]["state_debug"][state].nil?
+        node.crowbar["crowbar"]["state_debug"][state] = 1
       else
-        node["crowbar"]["state_debug"][state] = node["crowbar"]["state_debug"][state] + 1
+        node.crowbar["crowbar"]["state_debug"][state] = node.crowbar["crowbar"]["state_debug"][state] + 1
       end
 
-      node[:state] = state
+      node.crowbar["state"] = state
       save_it = true
       pop_it = true
     end
@@ -141,10 +133,10 @@ class CrowbarService < ServiceObject
     answer = super
     @logger.debug("Crowbar apply_role: super apply_role finished")
 
-    node = role.default_attributes
+    role = role.default_attributes
     @logger.debug("Crowbar apply_role: create initial instances")
-    unless node["crowbar"].nil? or node["crowbar"]["instances"].nil?
-      node["crowbar"]["instances"].each do |k,plist|
+    unless role["crowbar"].nil? or role["crowbar"]["instances"].nil?
+      role["crowbar"]["instances"].each do |k,plist|
         plist.each do |v|
           id = "default"
           data = "{\"id\":\"#{id}\"}" 

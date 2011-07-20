@@ -43,7 +43,7 @@ class Swift
       ip_location = node[:swift][type]
       e = Evaluator.new(node)
       ip = e.eval_with_context(ip_location)
-      Chef::Log.info("Looking at #{ip_location} for #{type} IP addr. Got: #{ip}")
+      Chef::Log.debug("Looking at #{ip_location} for #{type} IP addr. Got: #{ip}")
       ip
     end
     

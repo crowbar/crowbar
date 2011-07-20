@@ -75,9 +75,9 @@ class ProvisionerService < ServiceObject
 
         unless server_ip.nil?
           node = NodeObject.find_node_by_name(name)
-          node["crowbar"] = {} if node["crowbar"].nil?
-          node["crowbar"]["links"] = {} if node["crowbar"]["links"].nil?
-          node["crowbar"]["links"]["Chef"] = "http://#{server_ip}:4040/nodes/#{node.name}"
+          node.crowbar["crowbar"] = {} if node.crowbar["crowbar"].nil?
+          node.crowbar["crowbar"]["links"] = {} if node.crowbar["crowbar"]["links"].nil?
+          node.crowbar["crowbar"]["links"]["Chef"] = "http://#{server_ip}:4040/nodes/#{node.name}"
           node.save
         end
       end

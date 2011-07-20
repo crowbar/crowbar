@@ -183,10 +183,23 @@ def node_manipulation
 
   assertEqual(delete_json("/proposals/test_p1"), ["{}", 200], "Failed to delete proposal: test_p1", "Success: delete test_p1 proposal")
 
+#
+# Delete only works if the deployer runs.
+#  oldbc = @barclamp
+#  @barclamp = "machines"
+#  assertEqual(delete_json("?name=dtest-machine-1.dell.com"), ["{}", 200], "Failed to delete machine: dtest-machine-1.dell.com", "Success: deleted dtest-machine-1.dell.com")
+#  assertEqual(delete_json("?name=dtest-machine-2.dell.com"), ["{}", 200], "Failed to delete machine: dtest-machine-2.dell.com", "Success: deleted dtest-machine-2.dell.com")
+#
+#  assertEqualTimes("get_json(\"/\")", ["{}", 200], "Failed: Nodes still listed", "Success: node list is empty", 60)
+#
+#  @barclamp = oldbc
+
   empty_db_tests
 
   system("knife node -y delete dtest-machine-1.dell.com")
+  system("knife role -y delete crowbar-dtest-machine-1_dell_com")
   system("knife node -y delete dtest-machine-2.dell.com")
+  system("knife role -y delete crowbar-dtest-machine-2_dell_com")
 end
 
 

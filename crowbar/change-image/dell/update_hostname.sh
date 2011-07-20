@@ -14,7 +14,7 @@ DOMAINNAME=${FQDN#*.}
 grep -v "unassigned-hostname" /etc/hosts | \
     grep -v "redundant" /etc/hosts > /tmp/greg.out
 mv /tmp/greg.out /etc/hosts
-echo "127.0.1.1    $FQDN $HOSTNAME puppet" >> /etc/hosts
+echo "127.0.1.1    $FQDN $HOSTNAME" >> /etc/hosts
 chown root.root /etc/hosts
 
 echo "$FQDN" > /etc/hostname
