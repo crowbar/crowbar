@@ -12,6 +12,7 @@
           "type": "map",
           "required": true,
           "mapping": {
+            "start_up_delay": { "type": "int", "required": true },
             "mode": { "type": "str", "required": true, "pattern": "/^single$|^dual$|^team$/" },
             "teaming": {
               "type": "map",

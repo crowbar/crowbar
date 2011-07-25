@@ -48,8 +48,8 @@ if node[:ipmi][:bmc_enable]
   ### lan parameters to check and set. The loop that follows iterates over this array.
   # [0] = name in "print" output, [1] command to issue, [2] desired value.
   lan_params = [
-    [ "IP Address" ,"ipmitool lan set 1 ipaddr #{bmc_address}", bmc_address ] ,
     [ "IP Address Source" ,"ipmitool lan set 1 ipsrc static", "Static Address" ] ,
+    [ "IP Address" ,"ipmitool lan set 1 ipaddr #{bmc_address}", bmc_address ] ,
     [ "Subnet Mask" , "ipmitool lan set 1 netmask #{bmc_netmask}", bmc_netmask ]
   ]
 

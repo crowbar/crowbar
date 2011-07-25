@@ -148,6 +148,8 @@ log_to apt apt-get -q --force-yes -y upgrade
 post_state $HOSTNAME "$final_state"
 
 log_to time service ntp start
+# Chef client restart / start aren't implemented quite right.  So make sure we really start the chef-client fresh
+log_to chef service chef-client stop
 log_to chef service chef-client start
 
 echo "Done"

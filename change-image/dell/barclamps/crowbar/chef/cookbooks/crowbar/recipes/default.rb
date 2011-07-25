@@ -98,14 +98,26 @@ file "/opt/dell/openstack_manager/tmp/ip.lock" do
   action :create
 end
 
-# Add crowbar users - system added machine-install in install-chef.sh
-node["crowbar"]["users"].each do |user,hash|
-  crowbar_user user do
-    action :add
-    description hash["description"]
-    password hash["password"]
+unless node["crowbar"].nil? or node["crowbar"]["users"].nil?
+  web_port = node["crowbar"]["web_port"]
+  realm = node["crowbar"]["realm"]
+  users = node["crowbar"]["users"]
+  # Fix passwords into digests.
+  users.each do |k,h|
+    h["digest"] = Digest::MD5.hexdigest("#{k}:#{realm}:#{h["password"]}") if h["digest"].nil?
   end
-end unless node["crowbar"].nil? or node["crowbar"]["users"].nil?
+
+  template "/opt/dell/openstack_manager/htdigest" do
+    source "htdigest.erb"
+    variables(:users => users, :realm => realm)
+    owner "crowbar"
+    owner "crowbar"
+    mode "0644"
+  end
+else
+  web_port = 3000
+  realm = "Crowbar - By selecting OK are agreeing to the License Agreement"
+end
 
 bash "set permissions" do
   code "chown -R crowbar:crowbar /opt/dell/openstack_manager"
@@ -116,6 +128,8 @@ web_app "crowbar_app" do
   server_name node[:fqdn]
   docroot "/opt/dell/openstack_manager/public"
   template "crowbar_app.conf.erb"
+  realm realm
+  web_port web_port
 end
 
 cookbook_file "/etc/init.d/crowbar" do

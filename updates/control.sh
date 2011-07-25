@@ -83,6 +83,13 @@ case $STATE in
         run_chef $HOSTNAME_MAC
         post_state $HOSTNAME_MAC discovered
 
+        #
+        # rely on the DHCP server to do the right thing
+        # Stick with this address until we get finished.
+        #
+        killall dhclient
+        killall dhclient3
+
         while [ "$NODE_STATE" != "true" ] ; do
           sleep 15
           get_state

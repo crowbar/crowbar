@@ -1,12 +1,12 @@
-Listen 3000
-<VirtualHost *:3000>
+Listen <%= @params[:web_port] %>
+<VirtualHost *:<%= @params[:web_port] %>>
     ServerName <%= @params[:server_name] %>
     DocumentRoot <%= @params[:docroot] %>
 
     <Location />
     	      AuthType Digest
-	      AuthName "Crowbar"
-	      AuthDigestDomain http://192.168.124.10:3000/
+	      AuthName "<%= @params[:realm] %>"
+	      AuthDigestDomain http://192.168.124.10:<%= @params[:web_port] %>/
 	      AuthDigestProvider file
 	      AuthUserFile /opt/dell/openstack_manager/htdigest
 	      Require valid-user

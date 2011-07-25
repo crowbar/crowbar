@@ -1,8 +1,8 @@
 # File managed by Crowbar
 
 subnet <%= @subnet %> netmask <%= @netmask%> {
-<% if not @routers.empty? -%>
-  option routers <%= routers.collect! {|i| "#{i}" }.join(",") %>;
+<% unless @routers.nil? or @routers.empty? -%>
+  option routers <%= @routers.collect! {|i| "#{i}" }.join(",") %>;
 <% end -%>
   option subnet-mask <%= @netmask %>;
   option broadcast-address <%= @broadcast %>;
