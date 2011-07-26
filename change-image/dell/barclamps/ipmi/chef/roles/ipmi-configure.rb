@@ -1,6 +1,6 @@
 #
-# Cookbook Name: bios
-# Role: bios-install
+# Cookbook Name: ipmi
+# Role: ipmi-install
 #
 # Copyright (c) 2011 Dell Inc.
 #

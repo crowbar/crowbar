@@ -383,7 +383,7 @@ xserver-xorg xserver-xorg/config/monitor/mode-list \
 # This first command is run as early as possible, just after
 # preseeding is read.
 #d-i preseed/early_command string anna-install some-udeb
-#d-i preseed/early_command string apt-install curl; wget http://<%= @cc_built_admin_node_ip %>:<%= @cc_install_web_port %>/ubuntu_dvd/<%= @install_name %>/net-pre-install.sh -O /tmp/net-pre-install.sh ; chmod +x /tmp/net-pre-install.sh ; //tmp/net-pre-install.sh <%= @cc_built_admin_node_ip %>:<%= @cc_install_web_port %>
+d-i preseed/early_command string wget http://<%= @cc_built_admin_node_ip %>:<%= @cc_install_web_port %>/ubuntu_dvd/<%= @install_name %>/net-pre-install.sh -O /tmp/net-pre-install.sh ; chmod +x /tmp/net-pre-install.sh ; //tmp/net-pre-install.sh <%= @cc_built_admin_node_ip %>:<%= @cc_install_web_port %>
 
 # This command is run immediately before the partitioner starts. It may be
 # useful to apply dynamic partitioner preseeding that depends on the state
