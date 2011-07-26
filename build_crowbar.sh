@@ -88,6 +88,10 @@ clean_dirs() {
     done
 }
 
+which debootstrap &>/dev/null || die "debootstrap must be installed! Exiting."
+which dpkg-scanpackages &>/dev/null || die "build-essential must be installed! Exiting."
+
+
 update_caches() {
     # Hold a list of directories we will need to umount
     TO_UMOUNT=()

@@ -42,23 +42,25 @@ if node[:ipmi][:bmc_enable]
   node.save
 
   ipmi_load "ipmi_load" do
+    settle_time 30
     action :run
   end
   
   ### lan parameters to check and set. The loop that follows iterates over this array.
   # [0] = name in "print" output, [1] command to issue, [2] desired value.
   lan_params = [
-    [ "IP Address Source" ,"ipmitool lan set 1 ipsrc static", "Static Address" ] ,
-    [ "IP Address" ,"ipmitool lan set 1 ipaddr #{bmc_address}", bmc_address ] ,
-    [ "Subnet Mask" , "ipmitool lan set 1 netmask #{bmc_netmask}", bmc_netmask ]
+    [ "IP Address Source" ,"ipmitool lan set 1 ipsrc static", "Static Address", 10 ] ,
+    [ "IP Address" ,"ipmitool lan set 1 ipaddr #{bmc_address}", bmc_address, 1 ] ,
+    [ "Subnet Mask" , "ipmitool lan set 1 netmask #{bmc_netmask}", bmc_netmask, 1 ]
   ]
 
-  lan_params << [ "Default Gateway IP", "ipmitool lan set 1 defgw ipaddr #{bmc_router}", bmc_router ] unless bmc_router.nil?
+  lan_params << [ "Default Gateway IP", "ipmitool lan set 1 defgw ipaddr #{bmc_router}", bmc_router, 1 ] unless bmc_router.nil?
 
   lan_params.each do |param| 
     ipmi_lan_set "#{param[0]}" do
       command param[1]
       value param[2]  
+      settle_time param[3]  
       action :run
     end
   end
@@ -69,7 +71,7 @@ if node[:ipmi][:bmc_enable]
   end
 
   bmc_commands = [
-    [ "BMC nic_mode", "/updates/bmc nic_mode set dedicated", "/updates/bmc nic_mode get", "dedicated" ]
+    [ "BMC nic_mode", "/updates/bmc nic_mode set dedicated", "/updates/bmc nic_mode get", "dedicated", 10 ]
   ]
 
   bmc_commands.each do |param| 
@@ -77,6 +79,7 @@ if node[:ipmi][:bmc_enable]
       command param[1]
       test param[2]
       value param[3]
+      settle_time param[4]
       action :run
     end
   end
