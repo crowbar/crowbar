@@ -76,7 +76,7 @@ GEMS=()
 AMIS=("http://uec-images.ubuntu.com/releases/11.04/release/ubuntu-11.04-server-uec-amd64.tar.gz")
 
 
-die() { shift; echo "$(date '+%F %T %z'): $*" >&2; exit 1; }
+die() { echo "$(date '+%F %T %z'): $*" >&2; exit 1; }
 debug() { echo "$(date '+%F %T %z'): $*" >&2; }
 clean_dirs() {
     local d=''
@@ -117,7 +117,7 @@ update_caches() {
     sudo mount -t tmpfs -o size=1G none "$UBUNTU_CHROOT" 
     sudo debootstrap "$UBUNTU_CODENAME" "$UBUNTU_CHROOT" \
 	"file://$BUILD_DIR" || \
-	die 1 "Could not bootstrap our scratch target!"
+	die "Could not bootstrap our scratch target!"
     # mount some important directories for the chroot
     for d in proc sys dev dev/pts; do
 	bind_mount "/$d" "$UBUNTU_CHROOT/$d"
@@ -294,9 +294,12 @@ maybe_update_cache() {
     fi
 }
 
-for cmd in sudo chroot debootstrap mkisofs; do
-    which "$cmd" &>/dev/null || \
-	die 1 "Please install $cmd before trying to build Crowbar."
+for cmd in sudo chroot debootstrap mkisofs dpkg-scanpackages; do
+    if which "$cmd" &>/dev/null; then continue; fi
+    case $cmd in
+	dpkg-scanpackages) die "Please install build-essential before trying to build Crowbar";;
+	*) die "Please install $cmd before trying to build Crowbar.";;
+    esac
 done
 
 {
@@ -341,7 +344,7 @@ done
     if ! [[ -f $SLEDGEHAMMER_DIR/bin/sledgehammer-tftpboot.tar.gz || \
 	-f $SLEDGEHAMMER_PXE_DIR/initrd0.img ]]; then
 	echo "Slegehammer TFTP image missing!"
-	echo "Please build Sledgehammer from $SLEDGEHAMMER_DIR before buildin gCrowbar."
+	echo "Please build Sledgehammer from $SLEDGEHAMMER_DIR before building Crowbar."
 	exit 1
     fi  
   
@@ -350,7 +353,7 @@ done
 	[[ -f $AMI_CACHE/${ami##*/} ]] && continue
 	echo "$(date '+%F %T %z'): Downloading and caching $ami"
 	curl -o "$AMI_CACHE/${ami##*/}" "$ami" || \
-	    die 1 "Could not download $ami"
+	    die "Could not download $ami"
     done 
 
     # Try and download our ISO if we don't already have it
@@ -358,7 +361,7 @@ done
 	echo "$(date '+%F %T %z'): Downloading and caching $UBUNTU_ISO"
 	curl -o "$ISO_LIBRARY/$UBUNTU_ISO" \
 	"$UBUNTU_ISO_MIRROR/ubuntu-iso/CDs/$UBUNTU_VERSION/$UBUNTU_ISO" || \
-	die 1 "Missing our Ubuntu source image"
+	die "Missing our Ubuntu source image"
     }
 
     # Start with a clean slate.
@@ -397,7 +400,7 @@ done
     # Make our new packages repository.
     (   cd "$BUILD_DIR/extra" 
 	debug "Recreating Packages.gz"
-	dpkg-scanpackages debs /dev/null 2>/dev/null |gzip -9 >Packages.gz)
+	dpkg-scanpackages debs /dev/null |gzip -9 >Packages.gz)
     # Store off the version
     echo "$VERSION" >> "$BUILD_DIR/dell/Version"
    
@@ -452,6 +455,6 @@ done
 	    -b isolinux/isolinux.bin -c isolinux/boot.cat \
 	    -no-emul-boot --boot-load-size 4 -boot-info-table \
 	    -o "$ISO_DEST/$OPENSTACK_ISO" "$BUILD_DIR" ) || \
-	    die 1 "There was a problem building our ISO."
+	    die "There was a problem building our ISO."
     echo "$(date '+%F %T %z'): Finshed. Image at $ISO_DEST/$OPENSTACK_ISO"
 } 65> /tmp/.build_crowbar.lock
