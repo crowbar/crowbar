@@ -28,6 +28,7 @@ en:
     roles: Active Roles
     proposals: Proposals
     help: Help
+    eula: EULA
 
   # Model Names / Attributes
   model:

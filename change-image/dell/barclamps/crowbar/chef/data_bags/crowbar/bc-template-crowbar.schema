@@ -15,10 +15,12 @@
                 = : { "type": "seq", "required": true, "sequence": [ { "type": "str" } ] }
               }
             },
+            "web_port": { "type": "int", "required": true },
+            "realm": { "type": "str", "required": true },
             "users": { "type": "map", "required": true, "mapping": {
                 = : { "type": "map", "required": true, "mapping": { 
-                    "password": { "type": "str", "required": true },
-                    "description": { "type": "str", "required": true }
+                    "password": { "type": "str" },
+                    "digest": { "type": "str" }
                   }
                 }
               }

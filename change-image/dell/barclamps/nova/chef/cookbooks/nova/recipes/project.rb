@@ -36,13 +36,13 @@ end
 
 execute "nova-manage network create #{node[:nova][:fixed_range]} #{node[:nova][:num_networks]} #{node[:nova][:network_size]}" do
   user node[:nova][:user]
-  not_if { File.exists?("/var/lib/nova/setup") }
+  not_if { ::File.exists?("/var/lib/nova/setup") }
 end
 
 if node[:nova][:network_type] == "dhcpvlan"
   execute "nova-manage floating create #{node[:nova][:hostname]} #{node[:nova][:floating_range]}" do
     user node[:nova][:user]
-    not_if { File.exists?("/var/lib/nova/setup") }
+    not_if { ::File.exists?("/var/lib/nova/setup") }
   end
 end
 
@@ -87,13 +87,13 @@ end
 # User Credentials and Environment Settings
 execute "nova-manage project zipfile #{node[:nova][:project]} #{node[:nova][:user]} #{node[:nova][:user_dir]}/nova.zip" do
   user node[:nova][:user]
-  not_if {File.exists?("#{node[:nova][:user_dir]}/nova.zip")}
+  not_if { ::File.exists?("#{node[:nova][:user_dir]}/nova.zip")}
 end
 
 execute "unzip -o /var/lib/nova/nova.zip -d #{node[:nova][:user_dir]}/" do
   user node[:nova][:user]
   group node[:nova][:group]
-  not_if {File.exists?("#{node[:nova][:user_dir]}/novarc")}
+  not_if { ::File.exists?("#{node[:nova][:user_dir]}/novarc")}
 end
 
 link "#{node[:nova][:user_dir]}/.bashrc" do
@@ -118,7 +118,7 @@ end
 #generate a private key
 execute "euca-add-keypair --config #{node[:nova][:user_dir]}/novarc mykey > #{node[:nova][:user_dir]}/mykey.priv" do
   user node[:nova][:user]
-  not_if {File.exists?("#{node[:nova][:user_dir]}/mykey.priv")}
+  not_if { ::File.exists?("#{node[:nova][:user_dir]}/mykey.priv")}
 end
 
 execute "chmod 0600 #{node[:nova][:user_dir]}/mykey.priv" do
@@ -127,7 +127,7 @@ end
 
 file "/var/lib/nova/setup" do
   action :touch
-  not_if { File.exists?("/var/lib/nova/setup") }
+  not_if { ::File.exists?("/var/lib/nova/setup") }
 end
 
 cmd = Chef::ShellOut.new("sudo -i -u #{node[:nova][:user]} euca-describe-groups")

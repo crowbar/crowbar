@@ -3,6 +3,7 @@
   "description": "Instantiates network interfaces on the crowbar managed systems. Also manages the address pool",
   "attributes": {
     "network": {
+      "start_up_delay": 30,
       "mode": "single",
       "teaming": {
         "mode": 6

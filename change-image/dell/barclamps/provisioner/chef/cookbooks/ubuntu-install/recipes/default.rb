@@ -142,9 +142,9 @@ dhcp_subnet admin_net["subnet"] do
   action :add
   broadcast admin_net["broadcast"]
   netmask admin_net["netmask"]
+  routers (admin_net["router"].nil? ? [] : [ admin_net["router"] ])
   options [ "option domain-name \"#{domain_name}\"",
             "option domain-name-servers #{admin_ip}",
-            "option routers #{admin_net["router"]}",
             "range #{dhcp_start} #{dhcp_end}",
             "default-lease-time #{lease_time}",
             "max-lease-time #{lease_time}",

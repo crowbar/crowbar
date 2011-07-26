@@ -114,14 +114,17 @@ cp /root/.ssh/authorized_keys \
     /opt/dell/chef/cookbooks/ubuntu-install/files/default/authorized_keys
 
 # generate the machine install username and password
+REALM=$(/tftpboot/ubuntu_dvd/updates/parse_node_data /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
+REALM=${REALM##*=}
 if [[ ! -e /etc/crowbar.install.key ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
 	(read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    printf "${CROWBAR_KEY%%:*}:Crowbar:${CROWBAR_KEY##*:}" |md5sum - | (
+    printf "${CROWBAR_KEY%%:*}:$REALM:${CROWBAR_KEY##*:}" |md5sum - | (
 	read key rest
-	printf "\n${CROWBAR_KEY%%:*}:Crowbar:$key\n" >> \
+	printf "\n${CROWBAR_KEY%%:*}:$REALM:$key\n" >> \
 	    /opt/dell/openstack_manager/htdigest)
+    sed -i "s/machine_password/${CROWBAR_KEY##*:}/g" /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json
 else
   export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
 fi

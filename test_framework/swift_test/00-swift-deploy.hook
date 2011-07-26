@@ -1,5 +1,7 @@
 #!/bin/bash
 # This does a test deploy of Swift
+
+overall_failure=0
 die () { local _res=$1; shift; echo "$@"; exit $_res; }
 
 [[ $DEBUG ]] && set -x
@@ -22,33 +24,40 @@ if ! [[ $(nslookup "$proxy" "$CROWBAR_IP") =~ $addr_re ]]; then
     die 1 "Could not find IP address of the swift proxy ($proxy)"
 fi
 proxy_ip="${BASH_REMATCH[1]}"
+
+try_with_recovery() {
+    for action in 'service memcached restart' \
+	'swift-ring-builder /etc/swift/account.builder' \
+	'service swift-account restart' \
+	'swift-init proxy restart' \
+	'reboot'; do
+        run_on "$proxy_ip" "$@"
+	if [ $? -eq 0 ] ; then
+	    break
+	fi
+	overall_failure=1
+	printf "Trying workaround: %s\n" "$action"
+	run_on "$proxy_ip" $action || :
+	if [[ $action =~ reboot ]]; then
+	    sleep 120
+	else
+	    sleep 5
+	fi
+    done
+}
+
 crowbar swift show cluster1 >"$LOGDIR/swift-deployed.json"
 echo "Swift proxy at $proxy_ip.  Prepping the Storage subsystem..."
-while ! run_on "$proxy_ip" swauth-prep -K swauth -U .super_admin \
-    -A 'https://127.0.0.1:8080/auth/'; do
-    echo "Unable to prep the authentication subsystem, rebooting proxy node."
-    echo "This is definitly a big in the way Swift is deployed."
-    run_on $proxy_ip reboot
-    sleep 120
-done
+try_with_recovery swauth-prep -K swauth -U .super_admin \
+    -A 'https://127.0.0.1:8080/auth/'
 
 echo "Creating an account..."
-while ! run_on "$proxy_ip" swauth-add-account -K swauth -U .super_admin \
-    -A https://127.0.0.1:8080/auth/ a_test; do
-    echo "Unable to create an account, rebooting proxy node."
-    echo "This is definitly a bug in the way Swift is being deployed."
-    run_on "$proxy_ip" reboot
-    sleep 120
-done
+try_with_recovery swauth-add-account -K swauth -U .super_admin \
+    -A https://127.0.0.1:8080/auth/ a_test
 
 echo "Creating a user..."
-while ! run_on "$proxy_ip" swauth-add-user -K swauth -U .super_admin \
-    -A https://127.0.0.1:8080/auth/ -a a_test test test; do
-    echo "Unable to create a user, rebooting proxy node."
-    echo "This is definitly a bug in the Swift deploy."
-    run_on "$proxy_ip" reboot
-    sleep 120
-done
+try_with_recovery swauth-add-user -K swauth -U .super_admin \
+    -A https://127.0.0.1:8080/auth/ -a a_test test test
 
 auth_hdr=$(mktemp "$LOGDIR/swift-auth-header-XXXXX.txt") || \
     die 1 "Could not make a temp location for the aithentication header."
@@ -97,5 +106,5 @@ do_swift PUT testdir/testfile "$testfile" || \
 do_swift GET testdir/testfile "$outfile" || \
     die 1 "Could not get our random data back from Swift"
 echo "Swift deploy passed."
-exit 0
+exit $overall_failure
 

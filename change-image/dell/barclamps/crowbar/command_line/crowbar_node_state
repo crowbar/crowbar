@@ -27,6 +27,7 @@ if @key
   @username=@key.split(':',2)[0]
   @password=@key.split(':',2)[1]
 end
+@noready = false
 
 #
 # Parsing options can be added by adding to this list before calling opt_parse
@@ -38,7 +39,8 @@ end
     [ [ '--hostname', '-n', GetoptLong::REQUIRED_ARGUMENT ], "--hostname <name or ip> or -n <name or ip>  - specifies the destination server" ],
     [ [ '--port', '-p', GetoptLong::REQUIRED_ARGUMENT ], "--port <port> or -p <port> - specifies the destination server port" ],
     [ [ '--debug', '-d', GetoptLong::NO_ARGUMENT ], "--debug or -d - turns on debugging information" ],
-    [ [ '--timeout', GetoptLong::REQUIRED_ARGUMENT ], "--timeout <seconds> - timeout in seconds for read http reads" ]
+    [ [ '--timeout', GetoptLong::REQUIRED_ARGUMENT ], "--timeout <seconds> - timeout in seconds for read http reads" ],
+    [ [ '--no-ready', GetoptLong::NO_ARGUMENT ], "--no-ready - ignore ready nodes" ]
 ]
 
 @commands = {
@@ -110,7 +112,7 @@ def status()
   if struct[1] == 200
     string = ""
     struct[0]["nodes"].each do |n, hash|
-      string += "#{n}   #{hash["state"]}\n"
+      string += "#{n}   #{hash["state"]}\n" unless @noready and hash["state"] == "Ready"
     end
     [ "#{string}", 0 ]
   elsif struct[1] == 404
@@ -131,6 +133,8 @@ def opt_parse()
         usage 0
       when '--debug'
         @debug = true
+      when '--no-ready'
+        @noready = true
       when '--hostname'
         @hostname = arg
       when '--username'

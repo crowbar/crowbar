@@ -58,6 +58,7 @@ if (!compute_nodes.nil? and compute_nodes.length > 0 )
     execute "pull #{ring} ring" do
       command "rsync #{node[:swift][:user]}@#{compute_node_addr}::ring/#{ring}.ring.gz ."
       cwd "/etc/swift"
+      ignore_failure true
     end
   }
     

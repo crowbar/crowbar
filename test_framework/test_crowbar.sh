@@ -24,7 +24,7 @@
 # We expect to live in $HOME/test_framework.
 # We use bash4 specific functionality (hash tables), and cgroups to
 # make sure we clean up everything when we exit a test run.
-# You will need a fairly revent Linux distro to run this test -- 
+# You will need a fairly recent Linux distro to run this test -- 
 # RHEL/CentOS 5 will not work without some significant rework.
 
 # always run in debugging mode, and log everything to a test log
@@ -533,18 +533,43 @@ fi
 
 # Run a KVM session.
 run_kvm() {
+    # run_kvm will try to process the arguemnts it knows about first.
+    # It will assume that the first argument it does not know how to process
+    # is the name of the VM you want to create, and that any remining arguments
+    # are to be passed to KVM verbatim.
+    # Note that you must provide either a -bootc or a -bootn argument
+    # before the name of the VM if you want the VM to boot off the first
+    # hard drive or to PXE boot.  If you do not, or do not otherwise arrange
+    # for a way to boot the VM, it will never boot.  The reason for this
+    # is the design decision that anu hard drives not attached to IDE channels
+    # are not considered boot candidates without a special argument passed
+    # to the -drive parameter, and we have to use SCSI attached hard drives to 
+    # work around device naming differences in CentOS 5 (for Sledgehammer) and
+    # more current kernels.
     # $1 = name of KVM to run. Disk image and logfile names are
     # derived from this.
     # KVMs are always oneshot virtual machines -- this works around 
     # a few booting and rebooting bugs.
     # $@ = after shifing, other args to be passed to kvm.
     # In addition, we expect that the caller has set vm_nics appropriatly.
-    local waitargs=() reboot=false
+    local waitargs=() reboot=false 
+    local pxeboot='' driveboot=''
     while true; do
 	case $1 in
+	    # -daemon tells the framework to stop active monitoring
+	    # once the PID file is written.
 	    -daemon) waitargs+=('-daemonif' 'true');;
+	    # -bootc tells the VM to boot off the first hard drive
+	    -bootc) driveboot=true;;
+	    # -bootn tells the VM to PXE boot.
+	    -bootn) pxeboot=true;;
+	    # -timeout will wait up to $2 seconds before killing the VM if 
+	    # we are actively monitoring the VM.
 	    -timeout) waitargs+=("$1" "$2"); shift;;
+	    # -daemonif will have the framework stop actively monitoring the 
+	    # VM once $2 exits with a zero status.
 	    -daemonif) waitargs+=("$1" "$2"); shift;;
+	    # -reboot allows the VM to reboot instead of halting on reboot.
 	    -reboot) reboot=true;;
 	    *) break;;
 	esac
@@ -560,9 +585,13 @@ run_kvm() {
 	kvm_generations["$vmname"]=$((${kvm_generations["$vmname"]} + 1))
     fi
     local cpu_count=2 mem_size=2G
-    if [ "$vmname" == "admin" ] ; then
+    if [[ $vmname = admin ]] ; then
       cpu_count=4
       mem_size=4G
+    fi
+    local drivestr="file=$testdir/$vmname.disk,if=scsi,format=raw,cache=$drive_cache"
+    if [[ $driveboot ]]; then
+	drivestr+=",boot=on"
     fi
     local vm_gen="$vmname.${kvm_generations[$vmname]}"
     # create a new log directory for us.  vm_logdir needs to be global
@@ -577,21 +606,25 @@ run_kvm() {
     local kvmargs=(-enable-kvm 
 	-m $mem_size
 	-smp $cpu_count
-	-drive "file=$testdir/$vmname.disk,format=raw,cache=$drive_cache"
+	-drive "$drivestr"
+	-pidfile "$pidfile"
 	-serial "file:$vm_logdir/ttyS0.log"
 	-serial "file:$vm_logdir/ttyS1.log"
-	-option-rom "$FRAMEWORKDIR/8086100e.rom"
-	-pidfile "$pidfile"
 	-name "kvm-$vm_gen")
     # Add appropriate nics based on the contents of vm_nics.
     for line in "${vm_nics[@]}"; do
 	kvmargs+=(-net "nic,macaddr=${line%%,*},model=e1000")
 	kvmargs+=(-net "tap,ifname=${line##*,},script=no,downscript=no")
     done
+    if [[ $pxeboot ]]; then
+	kvmargs+=(-boot "order=n" -option-rom "$FRAMEWORKDIR/8086100e.rom")
+    elif [[ $driveboot ]]; then
+	kvmargs+=(-boot "order=c")
+    fi
     # Add additional disks if we have any.
     for image in "$testdir/$vmname-"*".disk"; do
 	[[ -f $image ]] || continue
-	kvmargs+=(-drive "file=$image,format=qcow2,cache=$drive_cache")
+	kvmargs+=(-drive "file=$image,if=scsi,format=qcow2,cache=$drive_cache")
     done
 
     if [[ $reboot = false ]]; then
@@ -683,8 +716,12 @@ run_admin_node() {
     [[ $DISPLAY ]] || kernel_params+=" console=ttyS1,115200n81"
     [[ -r $HOME/.ssh/id_rsa.pub ]] && kernel_params+=" crowbar.authkey=$(sed 's/ /\\040/g' <"$HOME/.ssh/id_rsa.pub")"
     update_status admin "Performing install from ${ISO##*/}"
-    if ! run_kvm -timeout 1200 "$nodename" -cdrom "$ISO" -boot 'once=d' \
-	-kernel "$kernel" -initrd "$initrd" \
+    # First run of the admin node.  Note that we do not actaully boot off the
+    # .iso image, instead we boot the vm directly using the extracted kernel
+    # and initrd, and arrange for the kernel arguments to contain the 
+    # extra arguments that the test framework needs.
+    if ! run_kvm -timeout 1200 "$nodename" \
+	-cdrom "$ISO" -kernel "$kernel" -initrd "$initrd" \
 	-append "$kernel_params"; then
 	update_status "$nodename" "Failed to install admin node after 1200 seconds."
 	update_status "$nodename" "Node failed to deploy."
@@ -696,9 +733,8 @@ run_admin_node() {
     
     # restart the admin node as a daemon, and wait for it to be ready to
     # start installing compute nodes.
-    # for debugging, uncomment the next line.
     update_status admin "Deploying admin node crowbar tasks"
-    if ! run_kvm -reboot -timeout 1800 \
+    if ! run_kvm -reboot -timeout 1800 -bootc \
 	-daemonif "$FRAMEWORKDIR/check_ready admin.pod.cloud.openstack.org" \
 	"$nodename"; then
 	update_status admin "Node failed to deploy."
@@ -802,12 +838,12 @@ create_slaves() {
 		in_reset=false
 		
 		# If we have a valid MBR on our primary disk, boot to it.
-		# This works around a bug in KVM where you cannot boot to a local
-		# disk if you are asked to while PXE booting.
+		# This works around a bug in KVM where you cannot boot to a
+		# local disk if you are asked to while PXE booting.
 		if [[ $(hexdump -n 2 -s 0x1fe "$testdir/$nodename.disk") =~ \
 		    aa55 ]]; then
 		    update_status "$nodename" "Booting node to disk ($((count++)))"
-		    if run_kvm "$nodename"; then
+		    if run_kvm -bootc "$nodename"; then
 			kill_vm "$nodename" exited
 		    else
 			update_status "$nodename" "Node failed to deploy."
@@ -816,7 +852,7 @@ create_slaves() {
 		else
 		    # Otherwise, PXE boot the machine.
 		    update_status "$nodename" "PXE booting node ($((count++)))"
-		    if run_kvm -timeout 1200 "$nodename" -boot 'order=n'; then
+		    if run_kvm -bootn -timeout 1200 "$nodename"; then
 			kill_vm "$nodename" exited
 		    else
 			update_status "$nodename" "Node failed to deploy"
@@ -985,7 +1021,7 @@ run_hooks() {
     esac
 }
 
-pause() { read -p "${1:-Press any key to continue:}" -n 1; }
+pause() { printf "\n%s\n" "${1:-Press any key to continue:}"; read -n 1; } 
 
 # This is the primary test-running function.
 run_test() {
@@ -1109,7 +1145,11 @@ case $1 in
 	build_crowbar.sh
 	echo "$(date '+%F %T %z'): Finshed building Crowbar."
 	run_test "$@";;
-    cleanup) shift; cleanup;;
+    cleanup) shift; 
+	for l in "$TESTING_LOCK" "$KVM_LOCK" "$CLEANUP_LOCK"; do
+	    rm -f "$l"
+	done
+	cleanup;;
     '') run_test nova swift "$@";;
     *) do_help;;
 esac

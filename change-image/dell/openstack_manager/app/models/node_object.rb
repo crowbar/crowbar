@@ -26,14 +26,12 @@ class NodeObject < ChefObject
         ChefObject.query_chef.search "node", "#{chef_escape(search)}"
       end
       if nodes[2] != 0
+        nodes[0].delete_if { |x| x.nil? }
         answer = nodes[0].map do |x| 
-          unless x.nil?
-            dumped = self.dump x, 'node', x.name
-            RoleObject.find_roles_by_search "name:#{make_role_name(x.name)}" if dumped
-          end
+          dumped = self.dump x, 'node', x.name
+          RoleObject.find_roles_by_search "name:#{make_role_name(x.name)}" if dumped
           NodeObject.new x
         end
-        answer.delete_if { |x| x.nil? or !x.has_node? }
       end
     else
       files = offline_search 'node-', ''
@@ -90,6 +88,8 @@ class NodeObject < ChefObject
     machine = Chef::Node.new
     machine.name "#{new_name}"
     machine["fqdn"] = "#{new_name}"
+    role = RoleObject.find_role_by_name NodeObject.make_role_name(new_name)
+    role = NodeObject.create_new_role(new_name, machine) if role.nil?
     NodeObject.new machine
   end
 
@@ -103,7 +103,14 @@ class NodeObject < ChefObject
   
   def initialize(node)
     @role = RoleObject.find_role_by_name NodeObject.make_role_name(node.name)
-    @role = NodeObject.create_new_role(node.name, node) if @role.nil?
+    if @role.nil?
+      # An admin node can exist without a role - so create one
+      if !node["crowbar"].nil? and node["crowbar"]["admin_node"]
+        @role = NodeObject.create_new_role(node.name, node)
+      else
+        Rails.logger.fatal("Node exists without role!! #{node.name}")
+      end
+    end
     @node = node
   end
 
@@ -314,6 +321,8 @@ class NodeObject < ChefObject
     @node["network"]["interfaces"].each do |k,v|
       next if k == "lo"     # no loopback, please
       next if k =~ /^sit/   # Ignore sit interfaces
+      next if k =~ /^vlan/  # Ignore nova create interfaces
+      next if k =~ /^br/    # Ignore bridges interfaces
       next if k =~ /\.\d+/  # no vlan interfaces, please
       answer << k
     end

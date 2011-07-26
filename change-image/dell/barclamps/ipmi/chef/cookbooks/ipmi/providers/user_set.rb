@@ -22,6 +22,7 @@ action :run do
         code <<-EOH
 #{command}
 EOH
+        ignore_failure true
       end 
       bash "bmc user settle time #{item}" do
         code "sleep #{settle_time}"

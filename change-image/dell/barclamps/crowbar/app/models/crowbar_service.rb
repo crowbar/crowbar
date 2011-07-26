@@ -45,7 +45,7 @@ class CrowbarService < ServiceObject
     node.crowbar["crowbar"]["network"] = {} if node.crowbar["crowbar"]["network"].nil?
 
     pop_it = false
-    if node.crowbar["state"] != state
+    if (state == "hardware-installing" or state == "hardware-updating" or state == "update") or node.crowbar["state"] != state
       @logger.debug("Crowbar transition: state has changed so we need to do stuff for #{name} to #{state}")
 
       node.crowbar["crowbar"]["state_debug"] = {} if node.crowbar["crowbar"]["state_debug"].nil?

@@ -37,7 +37,7 @@ def local_interfaces
     when "vlan_raw_device" then
       res[iface][:mode] = "vlan"
         res[iface][:vlan] = iface.split('.',2)[1].to_i
-        res[iface][:interface_list] = parts[1]
+        res[iface][:interface_list] = Array[ parts[1] ]
     when "down" then 
       res[iface][:mode] = "team"
       res[iface][:interface_list] = parts[4..-1]
@@ -51,6 +51,7 @@ def crowbar_interfaces
   res = Hash.new
   order = 0
   node["crowbar"]["network"].each do |intf, network|
+    next if intf == "bmc"
     iface = Hash.new
     if network["add_bridge"]
       # Add base interface
@@ -144,14 +145,22 @@ new_interfaces = crowbar_interfaces
 interfaces_to_up={}
 
 def deorder(i)
-  i.reject{|k,v|k == :order}
+  i.reject{|k,v|k == :order or v.nil? or (v.respond_to?(:empty?) and v.empty?)}
 end
 
-if new_interfaces
+log("Current interfaces:\n#{old_interfaces.inspect}") { level :debug }
+log("New interfaces:\n#{new_interfaces.inspect}\n") { level :debug }
+
+if (not new_interfaces) or new_interfaces.empty?
+  log("Crowbar instructed us to tear down all our interfaces!") { level :fatal }
+  log("Refusing to do so.") { level :fatal }
+  raise ::RangeError.new("Not enough active network interfaces.")
+else
   # First, tear down any interfaces that are going to be deleted in 
   # reverse order in which they appear in the current /etc/network/interfaces
   (old_interfaces.keys - new_interfaces.keys).sort{|a,b| 
     old_interfaces[b][:order] <=> old_interfaces[a][:order]}.each {|i|
+    log("Removing #{old_interfaces[i]}\n") { level :debug }
     bash "ifdown #{i} for removal" do
       code "ifdown --force #{i}"
     end
@@ -160,10 +169,12 @@ if new_interfaces
   # Second, examine each interface that exists in both the old and the
   # new configuration to see what changed, and take appropriate action.
   (old_interfaces.keys & new_interfaces.keys).each {|i|
+    log("Transitioning #{i}:\n#{old_interfaces[i].inspect}\n=>\n#{new_interfaces[i].inspect}\n") { level :debug }
     case
     when deorder(old_interfaces[i]) == deorder(new_interfaces[i])
       # The only thing that changed is the proposed position in the interfaces
       # file.  Don't do anything with this interface.
+      log "#{i} did not change, skipping."
       next
     when old_interfaces[i][:config] == "dhcp"
       # We are going to transition an interface into being owned by Crowbar.
@@ -233,9 +244,10 @@ if new_interfaces
   
   # If we need to sleep now, do it.
   if delay
-    execute "delay-networking" do
-      command "sleep 30"
-      action :nothing
+    delay_time = node["network"]["start_up_delay"]
+    log "Sleeping for #{delay_time} seconds due new link coming up"
+    bash "network delay sleep" do
+      code "sleep #{delay_time}"
     end
   end
 end
