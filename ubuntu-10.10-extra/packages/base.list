@@ -84,7 +84,6 @@ debs bind9 bind9utils
 # ganglia stuff
 debs ganglia-monitor gmetad ganglia-webfrontend
 
-
 # ntp stuff
 debs ntp
 
