@@ -13,7 +13,7 @@ done
 trap 'rm -f "$lockfile"; exit $?' INT TERM EXIT
 echo "$$" >"$lockfile"
 ret=0
-for loglvl in info debug; do
+for loglvl in debug debug; do
     chef-client -l "$loglvl" -V && break
     case $loglvl in
 	info) echo "Chef client run failed, will retry with debugging.";;
