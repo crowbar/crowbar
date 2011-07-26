@@ -610,7 +610,6 @@ run_kvm() {
 	-pidfile "$pidfile"
 	-serial "file:$vm_logdir/ttyS0.log"
 	-serial "file:$vm_logdir/ttyS1.log"
-	-option-rom "$FRAMEWORKDIR/8086100e.rom"
 	-name "kvm-$vm_gen")
     # Add appropriate nics based on the contents of vm_nics.
     for line in "${vm_nics[@]}"; do
@@ -618,7 +617,7 @@ run_kvm() {
 	kvmargs+=(-net "tap,ifname=${line##*,},script=no,downscript=no")
     done
     if [[ $pxeboot ]]; then
-	kvmargs+=(-boot "once=n")
+	kvmargs+=(-boot "order=n" -option-rom "$FRAMEWORKDIR/8086100e.rom")
     elif [[ $driveboot ]]; then
 	kvmargs+=(-boot "order=c")
     fi
@@ -722,8 +721,7 @@ run_admin_node() {
     # and initrd, and arrange for the kernel arguments to contain the 
     # extra arguments that the test framework needs.
     if ! run_kvm -timeout 1200 "$nodename" \
-	-drive "file=$ISO,if=scsi,media=cdrom" \
-	-kernel "$kernel" -initrd "$initrd" \
+	-cdrom "$ISO" -kernel "$kernel" -initrd "$initrd" \
 	-append "$kernel_params"; then
 	update_status "$nodename" "Failed to install admin node after 1200 seconds."
 	update_status "$nodename" "Node failed to deploy."

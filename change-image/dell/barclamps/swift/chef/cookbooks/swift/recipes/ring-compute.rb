@@ -115,18 +115,21 @@ target_nodes.each {|t|
   execute "push account ring-to #{t}" do
     command "rsync account.ring.gz #{node[:swift][:user]}@#{t}::ring"
     cwd "/etc/swift"
+    ignore_failure true
     action :nothing 
     subscribes :run, resources(:swift_ringfile =>"account.builder")  
   end  
   execute "push container ring-to #{t}" do
     command "rsync container.ring.gz #{node[:swift][:user]}@#{t}::ring"
     cwd "/etc/swift"
+    ignore_failure true
     action :nothing
     subscribes :run, resources(:swift_ringfile =>"container.builder")  
   end
   execute "push object ring-to #{t}" do
     command "rsync object.ring.gz #{node[:swift][:user]}@#{t}::ring"
     cwd "/etc/swift"
+    ignore_failure true
     action :nothing
     subscribes :run, resources(:swift_ringfile =>"object.builder")
   end 

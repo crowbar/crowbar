@@ -44,7 +44,7 @@ if node[:ipmi][:bmc_enable]
   ipmi_load "ipmi_load" do
     action :run
   end
-
+  
   ### lan parameters to check and set. The loop that follows iterates over this array.
   # [0] = name in "print" output, [1] command to issue, [2] desired value.
   lan_params = [
@@ -67,5 +67,19 @@ if node[:ipmi][:bmc_enable]
     password bmc_password
     action :run
   end
+
+  bmc_commands = [
+    [ "BMC nic_mode", "/updates/bmc nic_mode set dedicated", "/updates/bmc nic_mode get", "dedicated" ]
+  ]
+
+  bmc_commands.each do |param| 
+    ipmi_bmc_command "bmc #{param[0]}" do
+      command param[1]
+      test param[2]
+      value param[3]
+      action :run
+    end
+  end
+
 end
 

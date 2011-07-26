@@ -321,6 +321,8 @@ class NodeObject < ChefObject
     @node["network"]["interfaces"].each do |k,v|
       next if k == "lo"     # no loopback, please
       next if k =~ /^sit/   # Ignore sit interfaces
+      next if k =~ /^vlan/  # Ignore nova create interfaces
+      next if k =~ /^br/    # Ignore bridges interfaces
       next if k =~ /\.\d+/  # no vlan interfaces, please
       answer << k
     end

@@ -73,12 +73,24 @@ end
 ## default configuration is take from: node[:memcached] / [:memory], [:port] and [:user] 
 node[:memcached][:listen] = local_ip
 node[:memcached][:name] = "swift-proxy"
-memcached_instance do
+memcached_instance "swift-proxy" do
 end
 
 
 service "swift-proxy" do
+  restart_command "/etc/init.d/swift-proxy stop ; /etc/init.d/swift-proxy start"
   action [:enable, :start]
+end
+
+bash "restart swift proxy things" do
+  code <<-EOH
+EOH
+  action :run
+  notifies :restart, resources(:service => "memcached-swift-proxy")
+  notifies :restart, resources(:service => "swift-proxy")
+  subscribes :run, resources(:swift_ringfile =>"account.builder")
+  subscribes :run, resources(:swift_ringfile =>"container.builder")
+  subscribes :run, resources(:swift_ringfile =>"object.builder")
 end
 
 ### 

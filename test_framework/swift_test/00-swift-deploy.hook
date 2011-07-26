@@ -31,7 +31,8 @@ try_with_recovery() {
 	'service swift-account restart' \
 	'swift-init proxy restart' \
 	'reboot'; do
-	if [[ $(run_on "$proxy_ip" "$@") ]]; then
+        run_on "$proxy_ip" "$@"
+	if [ $? -eq 0 ] ; then
 	    break
 	fi
 	overall_failure=1
