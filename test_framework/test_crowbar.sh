@@ -683,7 +683,7 @@ run_admin_node() {
     update_status admin "Hacking up kernel parameters"
     # OK, now figure out what we need to grab by reading the
     # isolinux.cfg file.
-    kernel_re='kernel([^/]+)(/.*)$'
+    kernel_re='kernel (.+)$'
     append_re='append([^a-zA-Z/=?]+)(.*)$'
     initrd_re='initrd=([^ ]+)'
     console_re='console=([^ ]+)'
@@ -691,15 +691,26 @@ run_admin_node() {
     
     while read line; do
 	[[ ! $kernel && ( $line =~ $kernel_re ) ]] && \
-	    kernel="$LOOPDIR/${BASH_REMATCH[2]}" || :
+	    kernel="${BASH_REMATCH[1]}" || :
 	[[ ! $kernel_params && ( $line =~ $append_re ) ]] && \
 	    kernel_params=${BASH_REMATCH[2]} || :
 	[[ ! $initrd && $kernel_params && ( $kernel_params =~ $initrd_re ) ]] && {
 	    kernel_params=${kernel_params/append=${BASH_REMATCH[1]}/}
-	    initrd="$LOOPDIR/${BASH_REMATCH[1]}"
+	    initrd="${BASH_REMATCH[1]}"
 	} || :
     done < "$LOOPDIR/isolinux/isolinux.cfg"
-    
+
+    # Fix up our paths to the initrd and the kernel
+    if [[ -d "$LOOPDIR/Server" ]]; then
+        # RHEL keeps its kernel and initrd in isolinux
+	kernel="$LOOPDIR/isolinux/$kernel"
+	initrd="$LOOPDIR/isolinux/$initrd"
+    else
+	# Uubntu does not.
+	kernel="$LOOPDIR/$kernel"
+	initrd="$LOOPDIR/$initrd"
+    fi
+
     [[ $kernel && -f $kernel && $kernel_params && $initrd && -f $initrd ]] || \
 	die -1 "Could not find our kernel!"
 	# create our admin disk image
