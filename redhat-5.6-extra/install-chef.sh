@@ -22,7 +22,7 @@
 
 export FQDN="$1"
 export PATH="/opt/dell/bin:$PATH"
-die() { local _r=$1; shift; echo "$(date '+%F %T %z'): $@"; exit $_r; }
+die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
 
 # mac address and IP address matching routines
 mac_match_re='link/ether ([0-9a-fA-F:]+)'
@@ -66,7 +66,7 @@ chef_or_die() {
     # If we were left without an IP address, rectify that.
     ip link set eth0 up
     ip addr add 192.168.124.10/24 dev eth0
-    die 1 "$@"
+    die "$@"
 }
 
 # Keep trying to start a service in a loop.
@@ -84,7 +84,7 @@ restart_svc_loop() {
 # Make sure there is something of a domain name
 DOMAINNAME=${FQDN#*.}
 [[ $DOMAINNAME = $FQDN || $DOMAINNAME = ${DOMAINNAME#*.} ]] && \
-    die -1 "Please specify an FQDN for the admin name"
+    die "Please specify an FQDN for the admin name"
 
 # Setup hostname from config file
 echo "$(date '+%F %T %z'): Setting Hostname..."
@@ -107,10 +107,18 @@ log_to svc service rsyslog restart
 # Install the base rpm packages
 #
 echo "$(date '+%F %T %z'): Installing Chef Server..."
-log_to yum yum update
+log_to yum yum -y update
 
 # Install the rpm and gem packages
-./install-packages.sh
+yum -y install rubygem-chef-server
+
+# Install ruby gems
+echo "$(date '+%F %T %z'): Installing Gems..."
+for g in gems/*.gem; do
+    echo "install $g"
+    log_to gem gem install --local --no-ri --no-rdoc "$g"
+done
+
 
 echo "$(date '+%F %T %z'): Building Keys..."
 # Generate root's SSH pubkey
@@ -158,7 +166,7 @@ restart_svc_loop chef-solr "Restarting chef-solr - spot one"
 chef_or_die "Initial chef run failed"
 echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
-    die -5 "Crowbar configuration has errors.  Please fix and rerun install."
+    die "Crowbar configuration has errors.  Please fix and rerun install."
 
 # Run knife in a loop until it doesn't segfault.
 knifeloop() {
@@ -237,12 +245,12 @@ if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
         sleep 1
     done
     if [[ ! $proposal_created ]]; then
-        die 1 "Could not create default proposal"
+        die "Could not create default proposal"
     fi
 fi
 crowbar crowbar proposal show default >/var/log/default-proposal.json
 crowbar crowbar proposal commit default || \
-    die 1 "Could not commit default proposal!"
+    die "Could not commit default proposal!"
 crowbar crowbar show default >/var/log/default.json
 chef_or_die "Chef run after default proposal commit failed!"
 
@@ -256,7 +264,7 @@ do
     while [[ -f "/tmp/chef-client.lock" ]]; do sleep 1; done
     printf "$state: "
     crowbar crowbar transition "$FQDN" "$state" || \
-        die 1 "Transition to $state failed!"
+        die "Transition to $state failed!"
     chef_or_die "Chef run for $state transition failed!"
 done
 
@@ -286,4 +294,4 @@ cd /tftpboot/redhat_dvd/extra
 
 # Run tests -- currently the host will run this.
 #/opt/dell/bin/barclamp_test.rb -t || \
-#    die -6 "Crowbar validation has errors! Please check the logs and correct."
+#    die "Crowbar validation has errors! Please check the logs and correct."
