@@ -69,7 +69,7 @@ EOF
     cat >/etc/yum.repos.d/RHEL5.6-Base.repo <<EOF
 [RHEL56-Base]
 name=RHEL 5.6 Server
-baseurl=file:///$BASEDIR/Server
+baseurl=file://$BASEDIR/Server
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
 EOF
@@ -77,10 +77,19 @@ EOF
     cat >/etc/yum.repos.d/crowbar-xtras.repo <<EOF
 [crowbar-xtras]
 name=Crowbar Extra Packages
-baseurl=file:///$BASEDIR/extra/pkgs
+baseurl=file://$BASEDIR/extra/pkgs
 gpgcheck=0
 EOF
-    
+
+# We prefer rsyslog.
+yum -y install rsyslog
+chkconfig syslog off
+chkconfig rsyslog on
+
+# Make sure rsyslog picks up our stuff
+echo '$IncludeConfig /etc/rsyslog.d/*.conf' >>/etc/rsyslog.conf
+mkdir -p /etc/rsyslog.d/
+
 # Make sure /opt is created
     mkdir -p /opt/dell/bin
     
