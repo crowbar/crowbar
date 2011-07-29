@@ -88,7 +88,7 @@ DOMAINNAME=${FQDN#*.}
 
 # Setup hostname from config file
 echo "$(date '+%F %T %z'): Setting Hostname..."
-set_hostname.sh $FQDN
+update_hostname.sh $FQDN
 
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
@@ -110,7 +110,7 @@ echo "$(date '+%F %T %z'): Installing Chef Server..."
 log_to yum yum -y update
 
 # Install the rpm and gem packages
-yum -y install rubygem-chef-server
+yum -y install rubygem-chef-server ruby-devel curl-devel 
 
 # Install ruby gems
 echo "$(date '+%F %T %z'): Installing Gems..."
