@@ -28,7 +28,7 @@ trap 'rm -f "$lockfile"; exit $?' INT TERM EXIT
 echo "$$" >"$lockfile"
 ret=0
 for loglvl in debug debug; do
-    chef-client -l "$loglvl" -V && break
+    chef-client -l "$loglvl" && break
     case $loglvl in
 	info) echo "Chef client run failed, will retry with debugging.";;
 	debug) echo "Chef client run failed with debug enabled."; ret=1;;
