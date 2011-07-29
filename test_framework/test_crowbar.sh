@@ -705,7 +705,7 @@ run_admin_node() {
 	# create our admin disk image
     update_status admin "Creating disk image"
     screen -S "$SCREENNAME" -X screen -t Status "$HOME/test_framework/watch_Status.sh"
-    qemu-img create -f raw "$testdir/admin.disk" 6G &>/dev/null
+    qemu-img create -f raw "$testdir/admin.disk" 10G &>/dev/null
 
     # makenics populates vm_nics with the appropriate information for
     # run_kvm.  This part cannot run in a subshell, because it relies
