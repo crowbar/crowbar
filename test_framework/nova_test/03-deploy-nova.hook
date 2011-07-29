@@ -23,7 +23,7 @@ nova_do() {
     local address="$1" 
     shift
     [[ $1 ]] || return 1
-    run_on "$address" sudo -u nova -H -i "$@"
+    run_on "$address" -- sudo -u nova -H -i "$@"
 }
 
 echo "Deploying Nova..."
@@ -119,7 +119,7 @@ tries=0
 
 ## The SSH test is known to not work right now.
 # Leave it enabled, but do not fail the smoketest if it fails.
-while ! nova_do "$nova_ip" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i mykey.priv ubuntu@"$img_addr" date >> "$LOGDIR/nova-ssh-$img_addr.log" ; do
+while ! nova_do "$nova_ip" ssh -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i /var/lib/nova/mykey.priv ubuntu@"$img_addr" date >> "$LOGDIR/nova-ssh-$img_addr.log" ; do
     if ((tries++ > 120)) ; then
       cat "$LOGDIR/nova-ssh-$img_addr.log"
       cat "$LOGDIR/nova-ssh-$img_addr.err"
