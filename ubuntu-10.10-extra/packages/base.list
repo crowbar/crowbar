@@ -2,7 +2,7 @@
 # repository <deb line> = a debian repostiroy definition that will be added
 #                         to sources.list.
 # ppas <personal package archives> A list of PPAs to grab packages from.
-# debs <package list> = deb pacakges to prefetch
+# pkgs <package list> = deb pacakges to prefetch
 # gems <package list> = gems to prefetch
 
 # required Ubuntu repositories
@@ -24,74 +24,74 @@ repository deb-src http://security.ubuntu.com/ubuntu maverick-security main rest
 repository deb http://apt.opscode.com/ maverick main
 
 # base Chef packages
-debs chef chef-server chef-server-webui kwalify libcurl4-gnutls-dev build-essential ruby-dev rubygems1.8
+pkgs chef chef-server chef-server-webui kwalify libcurl4-gnutls-dev build-essential ruby-dev rubygems1.8
 
 # base gems we will need
 gems activesupport-3.0.8 haml-3.1.1  i18n-0.6.0  json-1.5.2  net-http-digest_auth-1.1.1  patron-0.4.11  sass-3.1.2  simple-navigation-3.3.0  syslogger-1.2.4 passenger net-ssh-multi
 
 # additional debs we will need
 # apache stuff
-debs apache2 libapache2-mod-wsgi libapache2-mod-php5 apache2-prefork-dev libopkele-dev libopkele3 libapache2-mod-python libapache2-svn libapache2-mod-fcgid libapache2-mod-passenger
+pkgs apache2 libapache2-mod-wsgi libapache2-mod-php5 apache2-prefork-dev libopkele-dev libopkele3 libapache2-mod-python libapache2-svn libapache2-mod-fcgid libapache2-mod-passenger
 
 # sun java
-debs sun-java6-jdk sun-java6-jre
+pkgs sun-java6-jdk sun-java6-jre
 
 # apt-cacher stuff
-debs apt-cacher
+pkgs apt-cacher
 
 # mysql stuff
-debs libmysqlclient-dev mysql-client libmysql-ruby mysql-server
+pkgs libmysqlclient-dev mysql-client libmysql-ruby mysql-server
 
 # openssh stuff
-debs openssh-client openssh-server
+pkgs openssh-client openssh-server
 
 # openldap stuff
-debs ldap-utils db4.8-util slapd libnss-ldap libpam-ldap
+pkgs ldap-utils db4.8-util slapd libnss-ldap libpam-ldap
 
 # runit stuff
-debs runit
+pkgs runit
 
 # sudo stuff
-debs sudo
+pkgs sudo
 
 # rabbitmq stuff
-debs rabbitmq-server
+pkgs rabbitmq-server
 
 # minicom stuff
-debs minicom
+pkgs minicom
 
 # rails stuff
-debs rails
+pkgs rails
 
 # build essential stuff
-debs build-essential binutils-doc autoconf flex bison
+pkgs build-essential binutils-doc autoconf flex bison
 
 # ruby stuff
-debs ruby1.8 ruby1.8-dev libshadow-ruby1.8
+pkgs ruby1.8 ruby1.8-dev libshadow-ruby1.8
 
 # ncsd stuff
-debs nscd
+pkgs nscd
 
 # nagios stuff
-debs nagios-nrpe-server nagios-plugins nagios-plugins-basic nagios-plugins-standard libjson-perl libmath-calc-units-perl libnagios-plugin-perl libnagios-object-perl libparams-validate-perl nagios3 nagios-nrpe-plugin nagios-images
+pkgs nagios-nrpe-server nagios-plugins nagios-plugins-basic nagios-plugins-standard libjson-perl libmath-calc-units-perl libnagios-plugin-perl libnagios-object-perl libparams-validate-perl nagios3 nagios-nrpe-plugin nagios-images
 
 # glance stuff
-debs glance python-glance
+pkgs glance python-glance
 
 # bind9 stuff
-debs bind9 bind9utils
+pkgs bind9 bind9utils
 
 # ganglia stuff
-debs ganglia-monitor gmetad ganglia-webfrontend
+pkgs ganglia-monitor gmetad ganglia-webfrontend
 
 # ntp stuff
-debs ntp
+pkgs ntp
 
 # rsyslog stuff
-debs rsyslog
+pkgs rsyslog
 
 # ipmi stuff
-debs ipmitool
+pkgs ipmitool
 
 # network stuff
-debs bridge-utils vlan ifenslave-2.6 dhcp3-server tftpd-hpa nfs-common portmap nfs-kernel-server
+pkgs bridge-utils vlan ifenslave-2.6 dhcp3-server tftpd-hpa nfs-common portmap nfs-kernel-server
