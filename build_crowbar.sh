@@ -68,7 +68,7 @@ GEMS=()
 AMIS=("http://uec-images.ubuntu.com/releases/11.04/release/ubuntu-11.04-server-uec-amd64.tar.gz")
 
 
-die() { shift; echo "$(date '+%F %T %z'): $*" >&2; exit 1; }
+die() { echo "$(date '+%F %T %z'): $*" >&2; exit 1; }
 debug() { echo "$(date '+%F %T %z'): $*" >&2; }
 clean_dirs() {
     local d=''
