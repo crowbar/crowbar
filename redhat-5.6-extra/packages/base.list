@@ -9,6 +9,10 @@ repository rpm -Uvh http://rbel.frameos.org/rbel5
 
 # Base repository for EPEL on RHEL5, we will need this.
 repository rpm -Uvh http://ftp.cse.buffalo.edu/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
+
+# Base repository for Passenger
+repository rpm -Uvh http://passenger.stealthymonkeys.com/rhel/5/passenger-release.noarch.rpm
+
 # base Chef packages
 pkgs rubygem-chef-server ruby-devel curl-devel
 
@@ -17,67 +21,56 @@ gems activesupport-3.0.8 haml-3.1.1  i18n-0.6.0  json-1.5.2  net-http-digest_aut
 
 # additional debs we will need
 # apache stuff
-
-rpms httpd
-
-debs apache2 libapache2-mod-wsgi libapache2-mod-php5 apache2-prefork-dev libopkele-dev libopkele3 libapache2-mod-python libapache2-svn libapache2-mod-fcgid libapache2-mod-passenger
-
-# apt-cacher stuff
-debs apt-cacher
+pkgs httpd mod_wsgi php httpd-devel mod_python mod_fcgid mod_passenger
 
 # mysql stuff
-debs libmysqlclient-dev mysql-client libmysql-ruby mysql-server
+pkgs ruby-mysql mysql mysql-devel mysql-server
 
 # openssh stuff
-debs openssh-client openssh-server
+pkgs openssh openssh-server
 
 # openldap stuff
-debs ldap-utils db4.8-util slapd libnss-ldap libpam-ldap
+pkgs openldap nss_ldap openldap-servers openldap-clients 
 
 # runit stuff
-debs runit
+repository rpm -Uvh http://repo.annvix.org/media/EL5/x86_64/annvix-release-1.0-2.el5.avx.x86_64.rpm
+pkgs runit
 
 # sudo stuff
-debs sudo
-
-# rabbitmq stuff
-debs rabbitmq-server
+pkgs  sudo
 
 # minicom stuff
-debs minicom
+pkgs minicom
 
 # rails stuff
-debs rails
+gems rails-2.3.5
 
 # build essential stuff
-debs build-essential binutils-doc autoconf flex bison
+pkgs autoconf flex bison make patch
 
 # ruby stuff
-debs ruby1.8 ruby1.8-dev libshadow-ruby1.8
+pkgs ruby-shadow
 
 # ncsd stuff
-debs nscd
+pkgs nscd
 
 # nagios stuff
-debs nagios-nrpe-server nagios-plugins nagios-plugins-basic nagios-plugins-standard libjson-perl libmath-calc-units-perl libnagios-plugin-perl libnagios-object-perl libparams-validate-perl nagios3 nagios-nrpe-plugin nagios-images
-
-# glance stuff
-debs glance python-glance
+pkgs nrpe nagios nagios-plugins nagios-plugins-nrpe nagios-plugins-perl 
 
 # bind9 stuff
-debs bind9 bind9utils
+pkgs bind bind-utils
 
 # ganglia stuff
-debs ganglia-monitor gmetad ganglia-webfrontend
+pkgs ganglia ganglia-gmond ganglia-web
 
 # ntp stuff
-debs ntp
+pkgs ntp
 
 # rsyslog stuff
-debs rsyslog
+pkgs rsyslog
 
 # ipmi stuff
-debs ipmitool
+pkgs OpenIPMI-tools
 
 # network stuff
-debs bridge-utils vlan ifenslave-2.6 dhcp3-server tftpd-hpa nfs-common portmap nfs-kernel-server
+pkgs bridge-utils vconfig dhcp tftp-server nfs-utils portmap 
