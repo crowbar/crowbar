@@ -1,0 +1,83 @@
+# List of packages that we need to prepopulate the openstack .ISO with.
+# repository <url> 
+# ppas <personal package archives> A list of PPAs to grab packages from.
+# debs <package list> = deb pacakges to prefetch
+# gems <package list> = gems to prefetch
+
+# Base repository for Chef and friends
+repository rpm -Uvh http://rbel.frameos.org/rbel5
+
+# Base repository for EPEL on RHEL5, we will need this.
+repository rpm -Uvh http://ftp.cse.buffalo.edu/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
+# base Chef packages
+pkgs rubygem-chef-server ruby-devel curl-devel
+
+# base gems we will need
+gems activesupport-3.0.8 haml-3.1.1  i18n-0.6.0  json-1.5.2  net-http-digest_auth-1.1.1  patron-0.4.11  sass-3.1.2  simple-navigation-3.3.0  syslogger-1.2.4 passenger
+
+# additional debs we will need
+# apache stuff
+
+rpms httpd
+
+debs apache2 libapache2-mod-wsgi libapache2-mod-php5 apache2-prefork-dev libopkele-dev libopkele3 libapache2-mod-python libapache2-svn libapache2-mod-fcgid libapache2-mod-passenger
+
+# apt-cacher stuff
+debs apt-cacher
+
+# mysql stuff
+debs libmysqlclient-dev mysql-client libmysql-ruby mysql-server
+
+# openssh stuff
+debs openssh-client openssh-server
+
+# openldap stuff
+debs ldap-utils db4.8-util slapd libnss-ldap libpam-ldap
+
+# runit stuff
+debs runit
+
+# sudo stuff
+debs sudo
+
+# rabbitmq stuff
+debs rabbitmq-server
+
+# minicom stuff
+debs minicom
+
+# rails stuff
+debs rails
+
+# build essential stuff
+debs build-essential binutils-doc autoconf flex bison
+
+# ruby stuff
+debs ruby1.8 ruby1.8-dev libshadow-ruby1.8
+
+# ncsd stuff
+debs nscd
+
+# nagios stuff
+debs nagios-nrpe-server nagios-plugins nagios-plugins-basic nagios-plugins-standard libjson-perl libmath-calc-units-perl libnagios-plugin-perl libnagios-object-perl libparams-validate-perl nagios3 nagios-nrpe-plugin nagios-images
+
+# glance stuff
+debs glance python-glance
+
+# bind9 stuff
+debs bind9 bind9utils
+
+# ganglia stuff
+debs ganglia-monitor gmetad ganglia-webfrontend
+
+# ntp stuff
+debs ntp
+
+# rsyslog stuff
+debs rsyslog
+
+# ipmi stuff
+debs ipmitool
+
+# network stuff
+debs bridge-utils vlan ifenslave-2.6 dhcp3-server tftpd-hpa nfs-common portmap nfs-kernel-server
