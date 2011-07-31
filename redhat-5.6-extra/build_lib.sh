@@ -29,10 +29,11 @@ fetch_os_iso() {
     die "build_crowbar.sh does not know how to automatically download $ISO"
 }
 
-in_chroot() { sudo /usr/sbin/chroot "$CHROOT" "$@"; }
+in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" "$@"; }
+chroot_install() { in_chroot /usr/bin/yum -y install "$@"; }
+chroot_fetch() { in_chroot /usr/bin/yum -y --downloadonly install "$@"; }
 
 make_redhat_chroot() (
-    
     postcmds=()
     mkdir -p "$CHROOT"
     sudo mount -t tmpfs -osize=2G none "$CHROOT"
@@ -55,14 +56,14 @@ make_redhat_chroot() (
     repo=$(mktemp /tmp/crowbar-repo-XXXXXXXX)
     cat >"$repo" <<EOF
 [redhat-base]
-name=Redhat Base Repo]
+name=Redhat Base Repo
 baseurl=http://127.0.0.1:54321/Server/
 enabled=1
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
 EOF
     sudo rm -f "$CHROOT/etc/yum.repos.d/"*
-    sudo cp "$repo" "$CHROOT/etc/yum.repos.d"
+    sudo cp "$repo" "$CHROOT/etc/yum.repos.d/crowbar-build-base.repo"
     for d in proc sys dev dev/pts; do
 	mkdir -p "$CHROOT/$d"
 	sudo mount --bind "/$d" "$CHROOT/$d"
@@ -73,22 +74,72 @@ EOF
     done
     # Work around packages we don't have, but that the yum bootstrap
     # will grab for us.
-    sudo mkdir -p "$CHROOT/usr/lib/python2.4/site-packages/urlgrabber.broke"
-    for f in "$CHROOT/usr/lib/python2.4/site-packages/urlgrabber/keepalive/"*; do
-	sudo mv "$f" "$CHROOT/usr/lib/python2.4/site-packages/urlgrabber.broke/"
+    in_chroot mkdir -p "/usr/lib/python2.4/site-packages/urlgrabber.broke"
+    for f in "$CHROOT/usr/lib/python2.4/site-packages/urlgrabber/keepalive"*; do
+	in_chroot mv "${f#$CHROOT}" \
+	    "/usr/lib/python2.4/site-packages/urlgrabber.broke/"
     done
     # fourth, have yum bootstrap everything else into usefulness
-    in_chroot /usr/bin/yum -y install yum
-
-    # last, install the yum-downloadonly plugin.
-    in_chroot /usr/bin/yum -y install yum-downloadonly
+    chroot_install yum yum-downloadonly
 )
 
 update_caches() {
-    # First, make our chroot and mount it.
-    # Second, make our chroot environment
-    
-    in_chroot /bin/bash -l
+    (   cd "$BUILD_DIR"
+	exec ruby -rwebrick -e \
+	    'WEBrick::HTTPServer.new(:BindAddress=>"127.0.0.1",:Port=>54321,:DocumentRoot=>".").start' ) &
+    webrick_pid=$!
+    make_redhat_chroot
+    # Make sure yum does not throw away our caches for any reason.
+    in_chroot /bin/sed -i -e '/keepcache/ s/0/1/' /etc/yum.conf
+    # First, copy in our current packages and fix up ownership
+    for d in "$PKG_CACHE"/*; do
+	[[ -d $d ]] || continue
+	in_chroot mkdir -p "/var/cache/yum/${d##*/}/packages"
+	in_chroot chmod 777 "/var/cache/yum/${d##*/}/packages"
+	cp -a "$d/"* "$CHROOT/var/cache/yum/${d##*/}/packages"
+    done
+    in_chroot chown -R root:root "/var/cache/yum/"
+    for repo in "${REPOS[@]}"; do
+	in_chroot $repo
+    done
+    in_chroot mkdir -p "/usr/lib/ruby/gems/1.8/cache/"
+    in_chroot chmod 777 "/usr/lib/ruby/gems/1.8/cache/"
+    cp -a "$GEM_CACHE/." "$CHROOT/usr/lib/ruby/gems/1.8/cache/."
+    # Fix up the passenger repo
+    if [[ -f $CHROOT/etc/yum.repos.d/passenger.repo ]]; then
+	in_chroot sed -i -e 's/\$releasever/5/g' /etc/yum.repos.d/passenger.repo
+    fi
+    # Second, pull down packages
+    chroot_fetch "${PKGS[@]}"
+    # Pull our updated packages back out.
+    for d in "$CHROOT/var/cache/yum/"*"/packages"; do 
+	t="${d##*yum/}"
+	t="${t%/packages}"
+	mkdir -p "$PKG_CACHE/$t"
+	cp -a "${d}/"* "$PKG_CACHE/$t" 
+    done
+    chroot_install rubygems ruby-devel make
+    debug "Fetching Gems"
+    echo "There may be build failures here, we can safely ignore them."
+    gem_re='([^0-9].*)-([0-9].*)'
+    for gem in "${GEMS[@]}"; do
+	if [[ $gem =~ $gem_re ]]; then
+	    echo "${BASH_REMATCH[*]}"
+	    gemname="${BASH_REMATCH[1]}"
+	    gemver="${BASH_REMATCH[2]}"
+	else
+	    gemname="$gem"
+	    gemver=''
+	fi
+	gemopts=(install --no-ri --no-rdoc)
+	[[ $gemver ]] && gemopts+=(--version "= ${gemver}")
+	in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
+    done
+    cp -a "$CHROOT/usr/lib/ruby/gems/1.8/cache/." "$GEM_CACHE/."
+    kill -9 $webrick_pid
+    while read dev fs type opts rest; do
+	sudo umount "$fs"
+    done < <(tac /proc/self/mounts |grep "$CHROOT")
 }
 
 copy_pkgs() {
@@ -96,32 +147,45 @@ copy_pkgs() {
     # $2 = directory to copy from
     # $3 = directory to copy to.
     mkdir -p "$3"
-    cp -t "$3" "$2"/*
+    cp -r -t "$3" "$2"/*
 }
 
 maybe_update_cache() {
     local pkgfile deb rpm pkg_type rest need_update _pwd 
     debug "Processing package lists"
-    make_redhat_chroot
-    
-    # Zero out our sources.list
-    > "$BUILD_DIR/extra/sources.list"
     # Download and stash any extra files we may need
     # First, build our list of repos, ppas, pkgs, and gems
+    REPOS=()
     for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
 	[[ -f $pkgfile ]] || continue
 	while read pkg_type rest; do
 	    case $pkg_type in
-		repository) in_chroot /bin/$rest;; 
+		repository) REPOS+=("$rest");; 
 		pkgs) PKGS+=(${rest%%#*});;
 		gems) GEMS+=(${rest%%#*});;
 	    esac
 	done <"$pkgfile"
     done
-    update_caches
-    while read dev fs type opts rest; do
-	sudo umount "$fs"
-    done < <(tac /proc/self/mounts |grep "$CHROOT")
+
+    # Check and see if we need to update
+    for rpm in "${PKGS[@]}"; do
+	[[ ! $(find "$PKG_CACHE" -name "$rpm*.rpm") ]] || continue
+	need_update=true
+	break
+    done
+
+    for gem in "${GEMS[@]}"; do
+	[[ ! $(find "$GEM_CACHE" -name "$gem*.gem") ]] || continue
+	need_update=true
+	break
+    done
+
+     if [[ $need_update = true || \
+	( ! -d $PKG_CACHE ) || $* =~ update-cache ]]; then
+	update_caches
+    else
+	return 0
+    fi
 }
 
 reindex_packages() (

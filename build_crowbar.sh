@@ -177,13 +177,8 @@ fi
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
 
     # If we were asked to update our cache, do it.
-    (   cd "$BUILD_DIR"
-	exec ruby -rwebrick -e \
-	    'WEBrick::HTTPServer.new(:BindAddress=>"127.0.0.1",:Port=>54321,:DocumentRoot=>".").start' ) &
-    webrick_pid=$!
     maybe_update_cache "$@"
-    kill -9 $webrick_pid
-
+    
     # Copy our extra pkgs, gems, and amis over
     debug "Copying pkgs, gems, and amis"
     copy_pkgs "$BUILD_DIR/pool" "$PKG_CACHE" "$BUILD_DIR/extra/pkgs"

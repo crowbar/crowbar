@@ -13,8 +13,8 @@ repository rpm -Uvh http://ftp.cse.buffalo.edu/pub/epel/5/x86_64/epel-release-5-
 # Base repository for Passenger
 repository rpm -Uvh http://passenger.stealthymonkeys.com/rhel/5/passenger-release.noarch.rpm
 
-# base Chef packages
-pkgs rubygem-chef-server ruby-devel curl-devel
+# base Chef packages 
+pkgs rubygem-chef-server ruby-devel curl-devel rubygems
 
 # base gems we will need
 gems activesupport-3.0.8 haml-3.1.1  i18n-0.6.0  json-1.5.2  net-http-digest_auth-1.1.1  patron-0.4.11  sass-3.1.2  simple-navigation-3.3.0  syslogger-1.2.4 passenger
