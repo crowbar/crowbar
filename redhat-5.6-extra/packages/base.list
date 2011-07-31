@@ -64,7 +64,7 @@ pkgs bind bind-utils
 pkgs ganglia ganglia-gmond ganglia-web
 
 # ntp stuff
-pkgs ntp
+pkgs openntpd
 
 # rsyslog stuff
 pkgs rsyslog

@@ -79,6 +79,8 @@ EOF
 	in_chroot mv "${f#$CHROOT}" \
 	    "/usr/lib/python2.4/site-packages/urlgrabber.broke/"
     done
+    # Make sure yum does not throw away our caches for any reason.
+    in_chroot /bin/sed -i -e '/keepcache/ s/0/1/' /etc/yum.conf
     # fourth, have yum bootstrap everything else into usefulness
     chroot_install yum yum-downloadonly
 )
@@ -89,8 +91,6 @@ update_caches() {
 	    'WEBrick::HTTPServer.new(:BindAddress=>"127.0.0.1",:Port=>54321,:DocumentRoot=>".").start' ) &
     webrick_pid=$!
     make_redhat_chroot
-    # Make sure yum does not throw away our caches for any reason.
-    in_chroot /bin/sed -i -e '/keepcache/ s/0/1/' /etc/yum.conf
     # First, copy in our current packages and fix up ownership
     for d in "$PKG_CACHE"/*; do
 	[[ -d $d ]] || continue
@@ -169,7 +169,10 @@ maybe_update_cache() {
 
     # Check and see if we need to update
     for rpm in "${PKGS[@]}"; do
-	[[ ! $(find "$PKG_CACHE" -name "$rpm*.rpm") ]] || continue
+	if [[ $(find "$PKG_CACHE" -name "$rpm*.rpm") || \
+	    $(find "$BUILD_DIR/Server/" -name "$rpm*.rpm") ]]; then
+	    continue
+	fi
 	need_update=true
 	break
     done
