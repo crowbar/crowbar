@@ -34,32 +34,32 @@
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 
 # Location for caches that should not be erased between runs
-CACHE_DIR="$HOME/.crowbar-build-cache"
+[[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
 
 # Location to store .iso images
-ISO_LIBRARY="$CACHE_DIR/iso"
-ISO_DEST="$PWD"
+[[ $ISO_LIBRARY ]] || ISO_LIBRARY="$CACHE_DIR/iso"
+[[ $ISO_DEST ]] || ISO_DEST="$PWD"
 
 # Location that holds temporary mount images of our.isos
 # if we need to extract them onto our target image.
-IMAGE_DIR="$CACHE_DIR/image"
+[[ $IMAGE_DIR ]] || IMAGE_DIR="$CACHE_DIR/image"
 
 # Location we will stage the new openstack iso at.
-BUILD_DIR="$CACHE_DIR/build"
+[[ $BUILD_DIR ]] || BUILD_DIR="$CACHE_DIR/build"
 
 # Directory that holds our Sledgehammer PXE tree.
-SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot"
+[[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot"
 
 # Version for ISO
-VERSION="dev"
+[[ $VERSION ]] || VERSION="dev"
 
 # Name of the openstack iso we will build
-OPENSTACK_ISO="openstack-${VERSION}.iso"
+[[ $OPENSTACK_ISO ]] || OPENSTACK_ISO="openstack-${VERSION}.iso"
 
 # Location of the Crowbar checkout we are building from.
-CROWBAR_DIR="${0%/*}"
-SLEDGEHAMMER_DIR="${CROWBAR_DIR}/../sledgehammer"
-VCS_CLEAN_CMD='git clean -f -x -d'
+[[ $CROWBAR_DIR ]] ||CROWBAR_DIR="${0%/*}"
+[[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_DIR="${CROWBAR_DIR}/../sledgehammer"
+[[ $VCS_CLEAN_CMD ]] || VCS_CLEAN_CMD='git clean -f -x -d'
 
 # Arrays holding the additional pkgs, gems, and AMI images we will populate
 # Crowbar with.
