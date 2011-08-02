@@ -103,6 +103,7 @@ sed -i "s/pod.cloud.openstack.org/$DOMAINNAME/g" /opt/dell/chef/data_bags/crowba
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart
 
+echo 'exclude = *.i386' >>/etc/yum.conf
 #
 # Install the base rpm packages
 #
@@ -110,7 +111,7 @@ echo "$(date '+%F %T %z'): Installing Chef Server..."
 log_to yum yum -y update
 
 # Install the rpm and gem packages
-yum -y install rubygem-chef-server ruby-devel curl-devel 
+yum -y install rubygem-chef-server
 
 # Install ruby gems
 echo "$(date '+%F %T %z'): Installing Gems..."
@@ -156,6 +157,8 @@ VERSION=$(cat /opt/.dell-install/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
     /opt/dell/openstack_manager/config/environments/production.rb
 
+./start-chef-server.sh
+
 # HACK AROUND CHEF-2005
 cp data_item.rb /usr/share/chef-server-api/app/controllers
 log_to svc /etc/init.d/chef-server restart
@@ -164,6 +167,7 @@ log_to svc /etc/init.d/chef-server restart
 restart_svc_loop chef-solr "Restarting chef-solr - spot one"
 
 chef_or_die "Initial chef run failed"
+yum -y install rubygem-kwalify
 echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
     die "Crowbar configuration has errors.  Please fix and rerun install."

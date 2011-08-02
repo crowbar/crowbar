@@ -81,6 +81,7 @@ EOF
     done
     # Make sure yum does not throw away our caches for any reason.
     in_chroot /bin/sed -i -e '/keepcache/ s/0/1/' /etc/yum.conf
+    in_chroot /bin/bash -c "echo 'exclude = *.i386' >>/etc/yum.conf"
     # fourth, have yum bootstrap everything else into usefulness
     chroot_install yum yum-downloadonly
 )
@@ -88,7 +89,7 @@ EOF
 update_caches() {
     (   cd "$BUILD_DIR"
 	exec ruby -rwebrick -e \
-	    'WEBrick::HTTPServer.new(:BindAddress=>"127.0.0.1",:Port=>54321,:DocumentRoot=>".").start' ) &
+	    'WEBrick::HTTPServer.new(:BindAddress=>"127.0.0.1",:Port=>54321,:DocumentRoot=>".").start' &>/dev/null ) &
     webrick_pid=$!
     make_redhat_chroot
     # First, copy in our current packages and fix up ownership
