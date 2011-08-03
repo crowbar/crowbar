@@ -118,11 +118,12 @@ log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify ruby-devel \
 
 # Install ruby gems
 echo "$(date '+%F %T %z'): Installing Gems..."
-for g in gems/*.gem; do
-    echo "install $g"
-    log_to gem gem install --local --no-ri --no-rdoc "$g"
+for ((n=0; n<2; n++)); do
+    for g in gems/*.gem; do
+	echo "install $g"
+	log_to gem gem install --local --no-ri --no-rdoc "$g"
+    done
 done
-
 
 echo "$(date '+%F %T %z'): Building Keys..."
 # Generate root's SSH pubkey
