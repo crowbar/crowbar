@@ -22,7 +22,6 @@ include_recipe "apache2::mod_auth_digest"
 include_recipe "passenger_apache2"
 include_recipe "rails"
 
-package "ipmitool"
 package "curl"
 
 group "crowbar"
@@ -55,6 +54,16 @@ cookbook_file "/root/.chef/knife.rb" do
   mode "0600"
   action :create
   source "knife.rb"
+end
+
+group "openstack"
+
+user "openstack" do
+  comment "Openstack User"
+  gid "openstack"
+  home "/home/openstack"
+  password "$1$Woys8jvS$FjbKkYYpG175iSJf.pclw/"
+  shell "/bin/bash"
 end
 
 directory "/home/openstack/.chef" do
