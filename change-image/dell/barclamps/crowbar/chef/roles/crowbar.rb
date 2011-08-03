@@ -2,9 +2,7 @@
 name "crowbar"
 description "Crowbar role - Setups the rails app"
 run_list(
-         "recipe[crowbar::local_apt_repo]",
          "recipe[utils]",
-         "recipe[apt]",
          "recipe[sudo]",
          "recipe[crowbar]"
 )

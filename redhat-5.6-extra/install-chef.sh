@@ -103,15 +103,17 @@ sed -i "s/pod.cloud.openstack.org/$DOMAINNAME/g" /opt/dell/chef/data_bags/crowba
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart
 
+# Make sure we only try to install x86_64 packages.
 echo 'exclude = *.i386' >>/etc/yum.conf
+
 #
 # Install the base rpm packages
 #
 echo "$(date '+%F %T %z'): Installing Chef Server..."
-log_to yum yum -y update
+log_to yum yum -q -y update
 
 # Install the rpm and gem packages
-yum -y install rubygem-chef-server
+log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify
 
 # Install ruby gems
 echo "$(date '+%F %T %z'): Installing Gems..."
@@ -167,18 +169,15 @@ log_to svc /etc/init.d/chef-server restart
 restart_svc_loop chef-solr "Restarting chef-solr - spot one"
 
 chef_or_die "Initial chef run failed"
-yum -y install rubygem-kwalify
 echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
     die "Crowbar configuration has errors.  Please fix and rerun install."
 
 # Run knife in a loop until it doesn't segfault.
 knifeloop() {
-    local RC=0 _v=error
-    while { log_to knife knife "$@" -l "$_v" -u chef-webui \
-	-k /etc/chef/webui.pem
+    local RC=0
+    while { log_to knife knife "$@" -u chef-webui -k /etc/chef/webui.pem
 	RC=$?
-	_v=debug
 	(($RC == 139)); }; do
 	:
     done

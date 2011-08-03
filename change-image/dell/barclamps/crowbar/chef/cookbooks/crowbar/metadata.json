@@ -46,8 +46,7 @@
     "suggestions": {
     },
     "recipes": {
-      "crowbar": "Installs crowbar",
-      "crowbar::local_apt_repo": "Makes the local node a repos to itself"
+      "crowbar": "Installs crowbar"
     },
     "maintainer_email": "crowbar@dell.com",
     "name": "crowbar",

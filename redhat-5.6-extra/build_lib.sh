@@ -33,6 +33,20 @@ in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" "$@"; }
 chroot_install() { in_chroot /usr/bin/yum -y install "$@"; }
 chroot_fetch() { in_chroot /usr/bin/yum -y --downloadonly install "$@"; }
 
+repo_num=1
+make_repo_file() {
+    # $1 = URL
+    local repo=$(mktemp /tmp/repo-$repo_num-XXXX.repo)
+    cat >"$repo" <<EOF
+[repo-$repo_num]
+name=Repo $repo_num
+baseurl=$1
+enabled=1
+gpgcheck=0
+EOF
+    sudo cp "$repo" "$CHROOT/yum.repos.d/"
+}
+
 make_redhat_chroot() (
     postcmds=()
     mkdir -p "$CHROOT"
@@ -53,17 +67,8 @@ make_redhat_chroot() (
     done
     # second, fix up the chroot to make sure we can use it
     sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
-    repo=$(mktemp /tmp/crowbar-repo-XXXXXXXX)
-    cat >"$repo" <<EOF
-[redhat-base]
-name=Redhat Base Repo
-baseurl=http://127.0.0.1:54321/Server/
-enabled=1
-gpgcheck=1
-gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
-EOF
     sudo rm -f "$CHROOT/etc/yum.repos.d/"*
-    sudo cp "$repo" "$CHROOT/etc/yum.repos.d/crowbar-build-base.repo"
+    make_repo_file "http://127.0.0.1:54321/Server/"
     for d in proc sys dev dev/pts; do
 	mkdir -p "$CHROOT/$d"
 	sudo mount --bind "/$d" "$CHROOT/$d"
@@ -101,7 +106,12 @@ update_caches() {
     done
     in_chroot chown -R root:root "/var/cache/yum/"
     for repo in "${REPOS[@]}"; do
-	in_chroot $repo
+	rtype="${repo%% *}"
+	rdest="${repo#* }"
+	case $rtype in
+	    rpm) in_chroot rpm -Uvh "$rdest";;
+	    bare) make_repo_file "$rdest";;
+	esac
     done
     in_chroot mkdir -p "/usr/lib/ruby/gems/1.8/cache/"
     in_chroot chmod 777 "/usr/lib/ruby/gems/1.8/cache/"

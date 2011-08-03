@@ -5,13 +5,13 @@
 # gems <package list> = gems to prefetch
 
 # Base repository for Chef and friends
-repository rpm -Uvh http://rbel.frameos.org/rbel5
+repository rpm http://rbel.frameos.org/rbel5
 
 # Base repository for EPEL on RHEL5, we will need this.
-repository rpm -Uvh http://ftp.cse.buffalo.edu/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
+repository rpm http://ftp.cse.buffalo.edu/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
 
 # Base repository for Passenger
-# repository rpm -Uvh http://passenger.stealthymonkeys.com/rhel/5/passenger-release.noarch.rpm
+# repository rpm http://passenger.stealthymonkeys.com/rhel/5/passenger-release.noarch.rpm
 
 # base Chef packages 
 pkgs rubygem-chef-server curl-devel rubygem-kwalify
@@ -33,7 +33,7 @@ pkgs openssh openssh-server
 pkgs openldap nss_ldap openldap-servers openldap-clients 
 
 # runit stuff
-repository rpm -Uvh http://repo.annvix.org/media/EL5/x86_64/annvix-release-1.0-2.el5.avx.x86_64.rpm
+repository rpm http://repo.annvix.org/media/EL5/x86_64/annvix-release-1.0-2.el5.avx.x86_64.rpm
 pkgs runit
 
 # sudo stuff
