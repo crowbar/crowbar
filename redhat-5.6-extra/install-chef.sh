@@ -113,7 +113,8 @@ echo "$(date '+%F %T %z'): Installing Chef Server..."
 log_to yum yum -q -y update
 
 # Install the rpm and gem packages
-log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify
+log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify ruby-devel \
+    curl-devel gcc make 
 
 # Install ruby gems
 echo "$(date '+%F %T %z'): Installing Gems..."
