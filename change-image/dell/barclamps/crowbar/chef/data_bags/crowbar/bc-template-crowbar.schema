@@ -16,7 +16,7 @@
               }
             },
             "web_port": { "type": "int", "required": true },
-            "realm": { "type": "str", "required": true },
+            "realm": { "type": "str", "required": false },
             "users": { "type": "map", "required": true, "mapping": {
                 = : { "type": "map", "required": true, "mapping": { 
                     "password": { "type": "str" },
