@@ -107,7 +107,7 @@ file "/opt/dell/openstack_manager/tmp/ip.lock" do
   action :create
 end
 
-unless node["crowbar"].nil? or node["crowbar"]["users"].nil?
+unless node["crowbar"].nil? or node["crowbar"]["users"].nil? or node["crowbar"]["realm"].nil?
   web_port = node["crowbar"]["web_port"]
   realm = node["crowbar"]["realm"]
   users = node["crowbar"]["users"]
