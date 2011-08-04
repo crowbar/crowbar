@@ -125,7 +125,7 @@ unless node["crowbar"].nil? or node["crowbar"]["users"].nil?
   end
 else
   web_port = 3000
-  realm = "Crowbar - By selecting OK are agreeing to the License Agreement"
+  realm = nil
 end
 
 bash "set permissions" do
