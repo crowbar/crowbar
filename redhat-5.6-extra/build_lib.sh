@@ -216,7 +216,7 @@ final_build_fixups() {
     # Add our kickstart files into the initrd images.
     debug "Adding our kickstarts to the initrd images."
     (cd "$BUILD_DIR/extra"; find . -name '*.ks' | \
-	cpio --create --format=newc --owner root:root 2>/dev/null | \
+	cpio --create --format=newc 2>/dev/null | \
 		gzip -9 >> "initrd.img.append"
 	cat "initrd.img.append" >> "../isolinux/initrd.img"
 	cat "initrd.img.append" >> "../images/pxeboot/initrd.img")
