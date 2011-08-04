@@ -171,7 +171,8 @@ sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
 ./start-chef-server.sh
 
 # HACK AROUND CHEF-2005
-cp data_item.rb /usr/share/chef-server-api/app/controllers
+cp -f data_item.rb \
+    /usr/lib/ruby/gems/1.8/gems/chef-server-api-0.10.2/app/controllers
 log_to svc /etc/init.d/chef-server restart
 # HACK AROUND CHEF-2005
 
