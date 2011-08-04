@@ -247,6 +247,7 @@ class BarclampController < ApplicationController
     controller = params[:controller]
     orig_id = params[:name] || params[:id]
     params[:id] = orig_id
+    answer = [ 500, "Server issue" ]
     begin
       answer = @service_object.proposal_create params
       flash[:notice] =  answer[0] != 200 ? answer[1] : t('barclamp.proposal_show.create_proposal_success')

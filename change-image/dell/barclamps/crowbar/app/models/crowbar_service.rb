@@ -96,7 +96,7 @@ class CrowbarService < ServiceObject
           rname = role.name.gsub("#{bc}-config-","")
           begin
             @logger.info("Crowbar transition: calling #{bc}:#{rname} for #{name} for #{state}")
-            service = eval("#{bc.capitalize}Service.new @logger")
+            service = eval("#{bc.camelize}Service.new @logger")
             answer = service.transition(rname, name, state)
             if answer[0] != 200
               @logger.error("Crowbar transition: finished #{bc}:#{rname} for #{name} for #{state}: FAILED #{answer[1]}")
@@ -152,7 +152,7 @@ class CrowbarService < ServiceObject
           @logger.debug("Crowbar apply_role: creating #{k}.#{id}")
 
           # Create a service to talk to.
-          service = eval("#{k.capitalize}Service.new @logger")
+          service = eval("#{k.camelize}Service.new @logger")
 
           @logger.debug("Crowbar apply_role: Calling get to see if it already exists: #{k}.#{id}")
           answer = service.proposals
