@@ -146,7 +146,7 @@ cp /root/.ssh/authorized_keys \
 
 CROWBAR_REALM=""
 # generate the machine install username and password
-if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM]]; then
+if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
 	(read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
@@ -154,7 +154,7 @@ if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM]]; then
 	md5sum - | (read key rest
 	printf "\n${CROWBAR_KEY%%:*}:${CROWBAR_REALM}:$key\n" >> \
 	    /opt/dell/openstack_manager/htdigest)
-elif [[ $CROWBAR_REALM ]]
+elif [[ $CROWBAR_REALM ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
     sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" \
 	-e "/\"realm\":/ s/null/\"$CROWBAR_REALM\"/g"
