@@ -2,7 +2,7 @@ Listen <%= @params[:web_port] %>
 <VirtualHost *:<%= @params[:web_port] %>>
     ServerName <%= @params[:server_name] %>
     DocumentRoot <%= @params[:docroot] %>
-
+    <% if @params[:realm] and @params[:realm] != '' -%>
     <Location />
     	      AuthType Digest
 	      AuthName "<%= @params[:realm] %>"
@@ -11,6 +11,7 @@ Listen <%= @params[:web_port] %>
 	      AuthUserFile /opt/dell/openstack_manager/htdigest
 	      Require valid-user
     </Location>
+    <% end -%>
 
     RailsBaseURI /
     RailsMaxPoolSize <%= node[:rails][:max_pool_size] %>
