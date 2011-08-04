@@ -156,6 +156,8 @@ if [[ ! -e /etc/crowbar.install.key ]]; then
 else
   export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
 fi
+sed -i "s/machine_password/${CROWBAR_KEY##*:}/g" \
+    /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json
 
 # Crowbar will hack up the pxeboot files appropriatly.
 # Set Version in Crowbar UI
