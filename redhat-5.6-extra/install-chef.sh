@@ -114,15 +114,17 @@ log_to yum yum -q -y update
 
 # Install the rpm and gem packages
 log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify ruby-devel \
-    curl-devel gcc make 
+    curl-devel gcc make ruby-shadow
 
 # Install ruby gems
 echo "$(date '+%F %T %z'): Installing Gems..."
-for ((n=0; n<2; n++)); do
+for ((n=0; n<3; n++)); do
     for g in gems/*.gem; do
 	echo "install $g"
 	log_to gem gem install --local --no-ri --no-rdoc "$g"
     done
+    sync
+    sleep 5
 done
 
 echo "$(date '+%F %T %z'): Building Keys..."
