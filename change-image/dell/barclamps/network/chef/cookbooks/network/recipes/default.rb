@@ -17,7 +17,7 @@ include_recipe 'utils'
 
 # Parse the contents of /etc/network/interfaces, and return a data structure
 # equivalent to the one we get from Chef.
-def local_interfaces
+def local_debian_interfaces
   res={}
   iface=''
   order = 0
@@ -50,12 +50,56 @@ def local_interfaces
       res[iface][:interface_list] = parts[1..-1]
     when "vlan_raw_device" then
       res[iface][:mode] = "vlan"
+
         res[iface][:vlan] = iface.split('.',2)[1].to_i
         res[iface][:interface_list] = Array[ parts[1] ]
     when "down" then 
       res[iface][:mode] = "team"
       res[iface][:interface_list] = parts[4..-1]
     end
+    order = order + 1
+  }
+  res
+end
+
+Redhat_keys={ :interface => "DEVICE",
+               :config => "BOOTPROTO",
+               :auto => "ONBOOT",
+               :netmask => "NETMASK",
+               :ipaddress => "IPADDR",
+               :broadcast => "BROADCAST",
+               :router => "GATEWAY" }
+
+# This handles just enough to bring up an interface with no
+# bonds, vlans, bridges, or anything else for now.
+def parse_redhat_interface(iface)
+  res = Hash.new
+  ::File.foreach(iface) {|line|
+    line = line.chomp.strip.split('#')[0] # strip comments
+    next if line.nil? or ( line.length == 0 ) # skip blank lines
+    parts = line.split('=',2)
+    k=Redhat_keys.index(parts[0])
+    next if k.nil?
+    case
+    when (k == :auto and parts[1] == "yes") then res[k] = true
+    when (k == :config and parts[1] == "none") then res[k] = "static" 
+    else
+      res[k]=parts[1]
+    end
+  }
+  res
+end 
+
+def local_redhat_interfaces
+  res = Hash.new
+  order = 0
+  ::Dir.entries("/etc/sysconfig/network-scripts").each {|entry|
+    next unless entry =~ /^ifcfg/
+    next if entry == "ifcfg-lo"
+    iface = entry.split('-',2)[1]
+    res[iface] = Hash.new
+    res[iface][:order] = order
+    res[iface]=parse_redhat_interface("/etc/sysconfig/network-scripts/#{entry}")
     order = order + 1
   }
   res
@@ -123,13 +167,22 @@ end
 
 # Make sure that the /etc/network/if-up.d/upstart file is gone
 # We manage apache2 (and others), it shouldn't
-file "/etc/network/if-up.d/upstart" do
-  action :delete
+case node[:platform]
+when "ubuntu","debian"
+  file "/etc/network/if-up.d/upstart" do
+    action :delete
+  end
 end
 
 package "bridge-utils"
-package "vlan"
-package "ifenslave-2.6"
+
+case node[:platform]
+when "ubuntu","debian"
+  package "vlan"
+  package "ifenslave-2.6"
+when "centos","redhat"
+  package "vconfig"
+end
 
 utils_line "8021q" do
   action :add
@@ -154,7 +207,12 @@ if node["network"]["mode"] == "team"
 end
 
 delay = false
-old_interfaces = local_interfaces
+old_interfaces = case node[:platform]
+                 when "debian","ubuntu"
+                   local_debian_interfaces
+                 when "centos","redhat"
+                   local_redhat_interfaces
+                 end
 new_interfaces = crowbar_interfaces
 interfaces_to_up={}
 
@@ -176,7 +234,7 @@ else
     old_interfaces[b][:order] <=> old_interfaces[a][:order]}.each {|i|
     log("Removing #{old_interfaces[i]}\n") { level :debug }
     bash "ifdown #{i} for removal" do
-      code "ifdown --force #{i}"
+      code "ifdown #{i}"
     end
   }
   
@@ -204,12 +262,12 @@ else
         # configuration without taking the link down.
         # We rely on our static network config being otherwise identical
         # to our DHCP config.
-        interfaces_to_up[i] = "ifup --force #{i}"
+        interfaces_to_up[i] = "ifup #{i}"
       else
         # We are giving it a manual config.  Ifdown the interface, and then
         # schedule it to be ifup'ed based on whether or not :auto is true.
         bash "ifdown #{i} for crowbar capture" do
-          code "ifdown --force #{i}"
+          code "ifdown #{i}"
         end
         interfaces_to_up[i] = "ifup #{i}" if new_interfaces[i][:auto]
         delay = true
@@ -219,7 +277,7 @@ else
       # from the OS.  ifdown it now, and schedule it to be ifup'ed if 
       # the new config is set to :auto.
       bash "ifdown #{i} for reconfigure" do
-        code "ifdown --force #{i}"
+        code "ifdown #{i}"
       end
       interfaces_to_up[i] = "ifup #{i}" if new_interfaces[i][:auto]
       delay = true
@@ -228,11 +286,20 @@ else
   
   # Third, rewrite /etc/network/interfaces to make sure our new interfaces
   # are brought up with the correct parameters
-  
-  template "/etc/network/interfaces" do
-    source "interfaces.erb"
-    variables :interfaces => new_interfaces.values.sort{|a,b| 
-      a[:order] <=> b[:order]
+  case node[:platform]
+  when "ubuntu","debian"
+    template "/etc/network/interfaces" do
+      source "interfaces.erb"
+      variables :interfaces => new_interfaces.values.sort{|a,b| 
+        a[:order] <=> b[:order]
+      }
+    end
+  when "centos","redhat"
+    new_interfaces.values.each {|iface|
+      template "/etc/sysconfig/network-scripts/ifcfg-#{iface[:interface]}" do
+        source "redhat-cfg.erb"
+        variables :iface => iface, :keys => Redhat_keys
+      end
     }
   end
   

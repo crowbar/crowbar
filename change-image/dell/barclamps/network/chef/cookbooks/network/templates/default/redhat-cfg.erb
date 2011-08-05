@@ -1,0 +1,13 @@
+# Managed by Crowbar.
+# Do not edit.
+<%  @iface.each {|k,v|
+      next unless @keys[k]
+      case
+      when (k == :config and v == "static") -%>
+<%= "#{@keys[k]}=none" %>
+      <% when k == :auto -%>
+<%= "#{@keys[k]}=#{if v then "yes" else "no" end}" %>
+      <% else -%>
+<%= "#{@keys[k]}=#{v}" %>
+      <% end
+} -%>
