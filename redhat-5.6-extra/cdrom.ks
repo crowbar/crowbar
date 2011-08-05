@@ -90,6 +90,9 @@ chkconfig rsyslog on
 echo '$IncludeConfig /etc/rsyslog.d/*.conf' >>/etc/rsyslog.conf
 mkdir -p /etc/rsyslog.d/
 
+# Make runlevel 3 the default
+sed -i -e '/^id/ s/5/3/' /etc/inittab
+
 # Make sure /opt is created
     mkdir -p /opt/dell/bin
     
