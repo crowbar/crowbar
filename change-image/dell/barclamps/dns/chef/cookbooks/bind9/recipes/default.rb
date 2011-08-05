@@ -15,19 +15,40 @@
 
 include_recipe "utils"
 
-package "bind9"
-package "bind9utils"
+package "bind9" do
+  case node[:platform]
+  when "centos","redhat"
+    package_name "bind"
+  end
+  action :install
+end
+package "bind9utils" do
+  case node[:platform]
+  when "centos","redhat"
+    package_name "bind-utils"
+  end
+  action :install
+end
+
+directory "/etc/bind"
 
 template "/etc/bind/named.conf.options" do
   source "named.conf.options.erb"
   variables(:forwarders => node[:dns][:forwarders])
   mode 0644
   owner "root"
-  group "bind"
+  case node[:platform]
+  when "ubuntu","debian" then group "bind"
+  when "centos","redhat" then group "named"
+  end
   notifies :restart, "service[bind9]"
 end
 
 service "bind9" do
+  case node[:platform]
+  when "centos","redhat"
+    service_name "named"
+  end
   supports :restart => true, :status => true, :reload => true
   running true
   enabled true
