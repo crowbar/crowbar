@@ -5,8 +5,7 @@ run_list(
          "recipe[utils]", 
          "recipe[dhcp]", 
          "recipe[tftpd]", 
-         "recipe[nfs-server]", 
-         "recipe[ubuntu-install]" 
+         "recipe[nfs-server]"
 )
 default_attributes()
 override_attributes()
