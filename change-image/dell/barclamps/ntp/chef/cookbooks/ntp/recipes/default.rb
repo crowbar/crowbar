@@ -13,7 +13,10 @@
 # limitations under the License.
 #
 
-package "ntp"
+package "ntp" do
+  package_name "openntpd" if node[:platform] =~ /^(centos|redhat)$/
+  action :install
+end
 
 if node["roles"].include?("ntp-client")
   unless Chef::Config[:solo]
@@ -26,27 +29,41 @@ else
   ntp_servers = node[:ntp][:external_servers]
 end
 
+user "ntp"
+
 service "ntp" do
+  service_name "ntpd" if node[:platform] =~ /^(centos|redhat)$/
   supports :restart => true, :status => true, :reload => true
   running true
   enabled true
   action [ :enable, :start ]
 end
 
-template "/etc/ntp.conf" do
-  owner "root"
-  group "root"
-  mode 0644
-  source "ntp.conf.erb"
-  variables(:ntp_servers => ntp_servers)
-  notifies :restart, "service[ntp]"
+case node[:platform]
+when "debian","ubuntu"
+  template "/etc/ntp.conf" do
+    owner "root"
+    group "root"
+    mode 0644
+    source "ntp.conf.erb"
+    variables(:ntp_servers => ntp_servers)
+    notifies :restart, "service[ntp]"
+  end
+when "redhat","centos"
+  template "/etc/ntpd.conf" do
+    owner "root"
+    group "root"
+    mode 0644
+    source "ntp.conf.erb"
+    variables(:ntp_servers => ntp_servers)
+    notifies :restart, "service[ntp]"
+  end
 end
-
 #
 # Make sure the ntpdate helper is removed to speed up network restarts
 # This script manages ntp for the client
 #
 file "/etc/network/if-up.d/ntpdate" do
   action :delete
-end
+end if ::File.exists?("/etc/network/if-up.d/ntpdate")
 
