@@ -17,7 +17,7 @@
 package "rsyslog"
 
 service "rsyslog" do
-  provider Chef::Provider::Service::Upstart
+  provider Chef::Provider::Service::Upstart if node[:platform] == "ubuntu"
   supports :restart => true, :status => true, :reload => true
   running true
   enabled true
