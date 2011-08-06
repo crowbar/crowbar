@@ -25,8 +25,6 @@
         "dns": 30,
         "logging": 40,
         "ntp": 50,
-        "nagios": 70,
-        "ganglia": 80,
         "provisioner": 1060
       },
       "instances": {
@@ -36,8 +34,6 @@
         "network": [ "default" ],
         "ntp": [ "default" ],
         "dns": [ "default" ],
-        "nagios": [ "default" ],
-        "ganglia": [ "default" ],
         "logging": [ "default" ]
       },
       "realm": null,
