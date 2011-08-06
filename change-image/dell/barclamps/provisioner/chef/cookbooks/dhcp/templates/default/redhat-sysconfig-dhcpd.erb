@@ -1,0 +1,6 @@
+# Configured by Crowbar.  
+# Do not edit.
+<% unless @interfaces.empty? -%>
+DHCPDARGS="<%= @interfaces.collect! {|i| "#{i}" }.join(" ") %>"
+<% end -%>
+
