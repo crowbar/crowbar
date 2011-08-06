@@ -28,8 +28,8 @@ trap 'rm -f "$lockfile"; exit $?' INT TERM EXIT
 echo "$$" >"$lockfile"
 ret=0
 for loglvl in debug debug; do
-    while { chef-client -l "$loglvl"; ret=$?; ((ret == 139)); }; do
-	echo "Chef-client run segfaulted, retrying."
+    while { chef-client -l "$loglvl"; ret=$?; ((ret >= 128)); }; do
+	echo "Chef-client exited with error code $ret, retrying"
 	sleep 1
     done
     (( ret == 0 )) && break
