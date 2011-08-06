@@ -13,9 +13,16 @@
 # limitations under the License.
 #
 
-package "nfs-common"
+case node[:platform]
+when "ubuntu","debian"
+  package "nfs-common"
+  package "nfs-kernel-server"
+when "centos","redhat"
+  package "nfs-utils"
+end
 package "portmap"
-package "nfs-kernel-server"
+
+
 
 service "portmap" do
   running true
@@ -23,8 +30,9 @@ service "portmap" do
   action [ :enable, :start ]
 end
 
+
 link "/updates" do
-  to "/tftpboot/ubuntu_dvd/updates"
+  to "/tftpboot/#{node[:platform]}_dvd/updates"
 end
 
 directory "/install-logs" do
@@ -34,6 +42,7 @@ directory "/install-logs" do
 end
 
 service "nfs-kernel-server" do
+  service_name "nfs" if node[:platform] =~ /^(redhat|centos)$/
   supports :restart => true, :status => true, :reload => true
   running true
   enabled true
