@@ -13,21 +13,32 @@
 # limitations under the License.
 #
 
-package "tftpd-hpa"
+case node[:platform]
+when "ubuntu", "debian"
+  package "tftpd-hpa"
+  cookbook_file "/etc/default/tftpd-hpa" do
+    owner "root"
+    group "root"
+    mode 0644
+    source "tftpd-hpa"
+    notifies :restart, "service[tftpd-hpa]"
+  end
 
-cookbook_file "/etc/default/tftpd-hpa" do
-  owner "root"
-  group "root"
-  mode 0644
-  source "tftpd-hpa"
-  notifies :restart, "service[tftpd-hpa]"
-end
-
-service "tftpd-hpa" do
-  provider Chef::Provider::Service::Upstart
-  supports :restart => true, :status => true, :reload => true
-  running true
-  enabled true
-  action [ :enable, :start ]
+  service "tftpd-hpa" do
+    provider Chef::Provider::Service::Upstart if node[:platform] == "ubuntu"
+    supports :restart => true, :status => true, :reload => true
+    running true
+    enabled true
+    action [ :enable, :start ]
+  end
+when "redhat","centos"
+  package "tftp-server"
+  bash "enable tftp from xinetd" do
+    code "sed -i -e '/disable/ s/yes/no/' /etc/xinetd.d/tftp"
+    not_if "chkconfig --list tftp |grep -q on"
+  end
+  service "xinetd" do
+    action :start
+  end
 end
 
