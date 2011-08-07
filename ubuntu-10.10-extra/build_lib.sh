@@ -236,8 +236,11 @@ reindex_packages() (
 
 final_build_fixups() {
     # Copy our isolinux and preseed files.
-    cp -r "$BUILD_DIR/extra/isolinux"/* "$BUILD_DIR/isolinux"
-    cp -r "$BUILD_DIR/extra/preseed"/* "$BUILD_DIR/preseed"
+    mv "$BUILD_DIR/extra/isolinux" "$BUILD_DIR/extra/preseed" "$BUILD_DIR"
+    # Copy our initrd images
+    (cd "$IMAGE_DIR"; find -name initrd.gz |cpio -o) | \
+	(cd "$BUILD_DIR"; cpio -i --make-directories)
+    chmod -R u+w "$BUILD_DIR"
     # Fix up the initrd
     (   cd "$CROWBAR_DIR/initrd"
 	debug "Fixing up initrd"
@@ -247,7 +250,7 @@ final_build_fixups() {
         # but a little paranoia never hurt anyone.
 	(   cd scratch;
 	    debug "Adding all nic drivers"
-	    for udeb in "$BUILD_DIR/pool/main/l/linux/"nic-*-generic-*.udeb; do
+	    for udeb in "$IMAGE_DIR/pool/main/l/linux/"nic-*-generic-*.udeb; do
 		ar x "$udeb"
 		tar xzf data.tar.gz
 		rm -rf debian-binary *.tar.gz

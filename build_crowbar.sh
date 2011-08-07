@@ -33,19 +33,23 @@
 
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 
+cleanup() {
+    # Clean up any stray mounts we may have left behind.
+    while read dev fs type opts rest; do
+	sudo umount -d -l "$fs"
+    done < <(tac /proc/self/mounts |grep "$CACHE_DIR")
+    [[ $webrick_pid && -d /proc/$webrick_pid ]] && kill -9 $webrick_pid
+    rm -rf "$IMAGE_DIR" "$BUILD_DIR"
+}
+
+trap cleanup 0 INT QUIT TERM
+
 # Location for caches that should not be erased between runs
 [[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
 
 # Location to store .iso images
 [[ $ISO_LIBRARY ]] || ISO_LIBRARY="$CACHE_DIR/iso"
 [[ $ISO_DEST ]] || ISO_DEST="$PWD"
-
-# Location that holds temporary mount images of our.isos
-# if we need to extract them onto our target image.
-[[ $IMAGE_DIR ]] || IMAGE_DIR="$CACHE_DIR/image"
-
-# Location we will stage the new openstack iso at.
-[[ $BUILD_DIR ]] || BUILD_DIR="$CACHE_DIR/build"
 
 # Directory that holds our Sledgehammer PXE tree.
 [[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot"
@@ -116,23 +120,24 @@ fi
 
     # The directory we perform a minimal install into if we need
     # to refresh our gem or pkg caches
-    [[ $CHROOT ]] || CHROOT="$CACHE_DIR/$OS_TOKEN.chroot"
+    [[ $CHROOT ]] || CHROOT="$CACHE_DIR/$OS_TOKEN/chroot"
+    [[ $BUILD_DIR ]] || \
+	BUILD_DIR="$(mktemp -d "$CACHE_DIR/$OS_TOKEN/build-XXXXX")"
+    [[ $IMAGE_DIR ]] || \
+	IMAGE_DIR="$CACHE_DIR/$OS_TOKEN/image-${BUILD_DIR##*-}"
 
     # Directories where we cache our pkgs, gems, and ami files
     [[ $PKG_CACHE ]] || PKG_CACHE="$CACHE_DIR/$OS_TOKEN/pkgs"
     [[ $GEM_CACHE ]] || GEM_CACHE="$CACHE_DIR/gems"
     [[ $AMI_CACHE ]] || AMI_CACHE="$CACHE_DIR/amis"
 
-    # directory we will mount the .iso on to extract packages.
-    [[ $IMG_MNTPT ]] || IMG_MNTPT="$IMAGE_DIR/${ISO%.iso}"
-
     # Make any directories we don't already have
     for d in "$PKG_CACHE" "$GEM_CACHE" "$ISO_LIBRARY" "$ISO_DEST" \
 	"$IMAGE_DIR" "$BUILD_DIR" "$AMI_CACHE" \
-	"$SLEDGEHAMMER_PXE_DIR" "$CHROOT"; do
+	"$SLEDGEHAMMER_PXE_DIR" "$CHROOT" "$EMPTY_DIR"; do
 	mkdir -p "$d"
     done
-
+    
     # Make sure Sledgehammer has already been built and pre-staged.
     if ! [[ -f $SLEDGEHAMMER_DIR/bin/sledgehammer-tftpboot.tar.gz || \
 	-f $SLEDGEHAMMER_PXE_DIR/initrd0.img ]]; then
@@ -153,18 +158,14 @@ fi
     [[ -f $ISO_LIBRARY/$ISO ]] || fetch_os_iso
 
     # Start with a clean slate.
-    clean_dirs "$IMG_MNTPT" "$BUILD_DIR"
+    clean_dirs "$IMAGE_DIR" "$BUILD_DIR"
 
     (cd "$CROWBAR_DIR"; $VCS_CLEAN_CMD)
-    # Copy everything off the ISO to our build directory
-    debug "Copying off $ISO"
-    sudo mount -t iso9660 -o loop "$ISO_LIBRARY/$ISO" "$IMG_MNTPT" || \
-	die "Could not mount $ISO"
-    cp -rT "$IMG_MNTPT" "$BUILD_DIR"
-    sudo umount -d "$IMG_MNTPT"
 
-    # Make everything writable again.
-    chmod -R u+w "$BUILD_DIR"
+    # Mount our ISO for the build process.
+    debug "Mounting $ISO"
+    sudo mount -t iso9660 -o loop "$ISO_LIBRARY/$ISO" "$IMAGE_DIR" || \
+	die "Could not mount $ISO"
 
     # Make additional directories we will need.
     for d in discovery extra ami updates ; do
@@ -181,7 +182,7 @@ fi
     
     # Copy our extra pkgs, gems, and amis over
     debug "Copying pkgs, gems, and amis"
-    copy_pkgs "$BUILD_DIR/pool" "$PKG_CACHE" "$BUILD_DIR/extra/pkgs"
+    copy_pkgs "$IMAGE_DIR/pool" "$PKG_CACHE" "$BUILD_DIR/extra/pkgs"
     cp -r "$GEM_CACHE" "$BUILD_DIR/extra"
     cp -r "$AMI_CACHE/." "$BUILD_DIR/ami/."
     
@@ -212,13 +213,30 @@ fi
 
     # Make our image
     debug "Creating new ISO"
+    # Find files and directories that mkisofs will complain about.
+    # Do just top-level overlapping directories for now.
+    for d in $(cat <(cd "$BUILD_DIR"; find -maxdepth 1 -type d ) \
+	           <(cd "$IMAGE_DIR"; find -maxdepth 1 -type d) | \
+	           sort |uniq -d); do
+	[[ $d = . ]] && continue
+	d=${d#./}
+	# Copy contents of the found directories into $BUILD_DIR, taking care
+	# to not clobber existing files.
+	mkdir -p "$BUILD_DIR/$d"
+	cp -rn -t "$BUILD_DIR/$d" "$IMAGE_DIR/$d"/* 
+	chmod -R u+wr "$BUILD_DIR/$d"
+	# Bind mount an empty directory on the $IMAGE_DIR instance.
+	sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/$d"
+    done
     (   cd "$BUILD_DIR"
+	rm -f isolinux/boot.cat
 	find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
 	mkdir -p $ISO_DEST
 	mkisofs -r -V "Crowbar $VERSION DVD" -cache-inodes -J -l -quiet \
 	    -b isolinux/isolinux.bin -c isolinux/boot.cat \
 	    -no-emul-boot --boot-load-size 4 -boot-info-table \
-	    -o "$ISO_DEST/$OPENSTACK_ISO" "$BUILD_DIR" ) || \
+	    -o "$ISO_DEST/$OPENSTACK_ISO" "$IMAGE_DIR" "$BUILD_DIR" ) || \
 	    die "There was a problem building our ISO."
+ 
     echo "$(date '+%F %T %z'): Finshed. Image at $ISO_DEST/$OPENSTACK_ISO"
 } 65> /tmp/.build_crowbar.lock
