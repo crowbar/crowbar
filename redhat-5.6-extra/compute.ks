@@ -35,10 +35,11 @@ OpenIPMI
 OpenIPMI-tools
 emacs-nox
 openssh
+curl
 
 %post
 
-BASEDIR="/tftpboot/redhat_dvd"
+exec > /root/post-install.log 2>&1
 
 (cd /etc/yum.repos.d && rm *)
 
@@ -56,3 +57,61 @@ name=Crowbar Extra Packages
 baseurl=http://<%= @cc_built_admin_node_ip %>:<%= @cc_install_web_port %>/redhat_dvd/extra/pkgs
 gpgcheck=0
 EOF
+
+HTTP_SERVER=$1
+IP=${HTTP_SERVER%%:*}
+HOSTNAME=$(hostname -f)
+
+key_re='crowbar\.install\.key=([^ ]+)'
+if [[ $(cat /proc/cmdline) =~ $key_re ]]; then
+    export CROWBAR_KEY="${BASH_REMATCH[1]}"
+    echo "$CROWBAR_KEY" >/etc/crowbar.install.key
+elif [[ -f /etc/crowbar.install.key ]]; then
+    export CROWBAR_KEY="$(cat /etc/crowbar.install.key)"
+fi
+
+post_state() {
+  local curlargs=(-o "/var/log/$1-$2.json" --connect-timeout 60 -s \
+      -L -X POST --data-binary "{ \"name\": \"$1\", \"state\": \"$2\" }" \
+      -H "Accept: application/json" -H "Content-Type: application/json" \
+      --max-time 240)
+  [[ $CROWBAR_KEY ]] && curlargs+=(-u "$CROWBAR_KEY" --digest)
+  curl "${curlargs[@]}" "http://$IP:3000/crowbar/crowbar/1.0/transition/default"
+}
+
+post_state $HOSTNAME "installing"
+
+rsyslog_dir="/etc/rsyslog.d"
+mkdir -p "$rsyslog_dir"
+if [ ! -f "$rsyslog_dir/10-crowbar-client.conf" ]; then
+    echo "*.* @@${IP}" > "$rsyslog_dir/10-crowbar-client.conf"
+    if ! wget -O "$rsyslog_dir/00-crowbar-debug.conf" -q http://$HTTP_SERVER/redhat_dvd/rsyslog.d/00-crowbar-debug.conf
+    then
+	rm -f "$rsyslog_dir/00-crowbar-debug.conf"
+    fi
+fi
+
+mkdir -p /root/.ssh
+chmod 700 /root/.ssh
+if ! wget -O /root/.ssh/authorized_keys.wget -q http://$HTTP_SERVER/redhat_dvd/authorized_keys; then
+    rm -f /root/.ssh/authorized_keys.wget
+else
+    chmod 644 /root/.ssh/authorized_keys
+    cat /root/.ssh/authorized_keys.wget >>/target/root/.ssh/authorized_keys
+    rm -f /root/.ssh/authorized_keys.wget
+fi
+
+wget -q http://$HTTP_SERVER/redhat_dvd/crowbar_join.sh -O- | \
+    sed -i "s/__HTTP_SERVER__/$HTTP_SERVER/" >/etc/init.d/crowbar_join.sh
+chmod +x /etc/init.d/crowbar_join.sh
+ln -s /etc/init.d/crowbar_join.sh /etc/rc3.d/S80crowbar
+ln -s /etc/init.d/crowbar_join.sh /etc/rc5.d/S80crowbar
+ln -s /etc/init.d/crowbar_join.sh /etc/rc2.d/S80crowbar
+
+sleep 30
+
+post_state $HOSTNAME "installed"
+
+# Wait for DHCP to update - this is mainly for virtual environments or really large deploys
+sleep 30
+sync
