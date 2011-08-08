@@ -114,6 +114,7 @@ d-i partman-auto/method string lvm
 # contains an old LVM configuration, the user will normally receive a
 # warning. This can be preseeded away...
 d-i partman-lvm/device_remove_lvm boolean true
+d-i partman-lvm/device_remove_lvm_span boolean true
 
 # If one of the disks that are going to be automatically partitioned
 # contains an old LVM configuration, the user will normally receive a

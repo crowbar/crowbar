@@ -1,0 +1,28 @@
+{
+  "id": "bc-template-ubuntu_install",
+  "description": "Ubuntu installation parameters",
+  "attributes": {
+    "ubuntu_install": {
+		"default_user" : "openstack",
+		"default_password" : "openstack", 
+		"use_local_security": true,
+		"use_serial_console": true 
+    }
+  },
+ "deployment": {
+	  "ubuntu_install": {
+	      "crowbar-revision": 0,
+	      "elements": {},
+	      "element_order": [
+	        [ "ubuntu_base", "ubuntu_server" ]
+	      ],
+	      "config": {
+	        "environment": "ubuntu_install-test",
+	        "mode": "full",
+	        "transitions": true,
+	        "transition_list": [ "all" ]
+	      }
+	    }
+	}
+}
+
