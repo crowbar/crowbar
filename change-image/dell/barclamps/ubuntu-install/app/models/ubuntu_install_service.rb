@@ -30,6 +30,7 @@ class UbuntuInstallService < ServiceObject
   
   
   def transition(inst, name, state)
+    return unless node["crowbar"]["hardware"]["os"] == "ubuntu" 
     @logger.debug("ubuntu_install transition: entering for #{name} for #{state}")
     @inst = inst
     @node_name = name
@@ -44,15 +45,13 @@ class UbuntuInstallService < ServiceObject
     ### To resolve that, on the admin, rather than acting in "discovered", the action is taken on a later transition ("hardware-installed") 
     if state == "hardware-installed"          
       ## make sure the ubuntu server side components are installed on the provisioner node
-      if node.role?("provisioner-server")     
+      if node.role?("provisioner-server") 
         add_role "ubuntu_install"         
       end      
     end
     
-    if state == "discovered"   
-      #      if node["crowbar"]["hardware"]["os"] =="ubuntu" 
+    if state == "discovered" and
       add_role "ubuntu_base"
-      #      end      
     end
     @logger.debug("ubuntu_install transaction: done. ")
     return [200,node.to_hash]
@@ -63,6 +62,7 @@ class UbuntuInstallService < ServiceObject
   
   
   def add_role (role_name)
+    return unless  node["crowbar"]["hardware"]["os"] == "ubuntu" 
     msg = "ubuntu_install transaction: add #{role_name} to #{@node_name}"
     @logger.debug(msg)
     db = ProposalObject.find_proposal "ubuntu_install", @inst

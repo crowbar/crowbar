@@ -13,8 +13,15 @@
 # limitations under the License
 #
 
-machine_install_key = ::File.read("/etc/crowbar.install.key").chomp.strip
-serial_console = node[:provisioner][:use_serial_console] ? "console=tty0 console=ttyS1,115200n8" : ""
+
+discovery_append_line = "append initrd=initrd0.img root=/sledgehammer.iso rootfstype=iso9660 rootflags=loop"
+if node[:provisioner][:use_serial_console]
+  discovery_append_line += " console=tty0 console=ttyS1,115200n8"
+end
+if ::File.exists?("/etc/crowbar.install.key")
+  discovery_append_line += ::File.read("/etc/crowbar.install.key").chomp.strip
+end
+
 dvd = "#{node[:platform]}_dvd"
 #
 # Setup links from centos image to our other two names
@@ -53,7 +60,7 @@ end
       owner "root"
       group "root"
       source "default.erb"
-      variables(:append_line => "append initrd=initrd0.img #{serial_console} root=/sledgehammer.iso rootfstype=iso9660 rootflags=loop crowbar.install.key=#{machine_install_key}",
+      variables(:append_line => discovery_append_line,
                 :install_name => image,  
                 :kernel => "vmlinuz0")
     end
