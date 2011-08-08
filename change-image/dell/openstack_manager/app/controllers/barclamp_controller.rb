@@ -244,12 +244,15 @@ class BarclampController < ApplicationController
 
   add_help(:proposal_create,[:name],[:put])
   def proposal_create
+    Rails.logger.fatal "Proposal Create starting. Params #{params.to_s}"    
     controller = params[:controller]
     orig_id = params[:name] || params[:id]
     params[:id] = orig_id
     answer = [ 500, "Server issue" ]
     begin
+      Rails.logger.info "asking for proposal of: #{params}"
       answer = @service_object.proposal_create params
+      Rails.logger.info "proposal is: #{answer}"
       flash[:notice] =  answer[0] != 200 ? answer[1] : t('barclamp.proposal_show.create_proposal_success')
     rescue Exception => e
       flash[:notice] = e.message

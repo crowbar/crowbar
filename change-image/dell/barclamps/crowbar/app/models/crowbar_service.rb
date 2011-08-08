@@ -95,8 +95,9 @@ class CrowbarService < ServiceObject
           }
           rname = role.name.gsub("#{bc}-config-","")
           begin
-            @logger.info("Crowbar transition: calling #{bc}:#{rname} for #{name} for #{state}")
-            service = eval("#{bc.camelize}Service.new @logger")
+            svc_name = "#{bc.camelize}Service"
+            @logger.info("Crowbar transition: calling #{bc}:#{rname} for #{name} for #{state} - svc: #{svc_name}")            
+            service = eval("#{svc_name}.new @logger")
             answer = service.transition(rname, name, state)
             if answer[0] != 200
               @logger.error("Crowbar transition: finished #{bc}:#{rname} for #{name} for #{state}: FAILED #{answer[1]}")

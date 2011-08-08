@@ -110,7 +110,7 @@ class ServiceObject
         remove_pending_elements(bc, inst, prop["deployment"][bc]["elements"])
       end
     rescue Exception => e
-      @logger.error("Error dequeuing proposal for #{bc}:#{inst}: #{e.message}")
+      @logger.error("Error dequeuing proposal for #{bc}:#{inst}: #{e.message} #{e.backtrace}")
       @logger.debug("dequeue proposal: exit #{inst} #{bc}: error")
       return false
     ensure
@@ -419,13 +419,15 @@ class ServiceObject
     path = "/opt/dell/chef/data_bags/crowbar"
     path = "schema" unless CHEF_ONLINE
     validator = CrowbarValidator.new("#{path}/bc-template-#{@bc_name}.schema")
-
+    Rails.logger.info "validating proposal #{@bc_name}"
+    
     errors = validator.validate(proposal)
     if errors && !errors.empty?
       strerrors = ""
       errors.each do |e|
         strerrors += "#{e.message}\n"
       end
+      Rails.logger.info "validation errors in proposal #{@bc_name}"
       raise Chef::Exceptions::ValidationFailed.new(strerrors)
     end
   end
@@ -441,7 +443,7 @@ class ServiceObject
 
       prop = ProposalObject.new data_bag_item
       prop.save
-
+      Rails.logger.info "saved proposal"
       [200, {}]
     rescue Net::HTTPServerException => e
       [e.response.code, {}]
@@ -646,19 +648,28 @@ class ServiceObject
   end
 
   def add_role_to_instance_and_node(barclamp, instance, name, prop, role, newrole)
-    node = NodeObject.find_node_by_name name
-    return false if node.nil?
+    node = NodeObject.find_node_by_name name    
+    if node.nil?
+      @logger.debug("ARTOI: couldn't find node #{name}. bailing")
+      return false 
+    end
 
     prop["deployment"][barclamp]["elements"][newrole] = [] if prop["deployment"][barclamp]["elements"][newrole].nil?
     unless prop["deployment"][barclamp]["elements"][newrole].include?(node.name)
+      @logger.debug("ARTOI: updating proposal with node #{node.name}, role #{newrole} for deployment of #{barclamp}")
       prop["deployment"][barclamp]["elements"][newrole] << node.name
       prop.save
+    else
+      @logger.debug("ARTOI: node #{node.name} already in proposal: role #{newrole} for #{barclamp}")
     end
 
     role.override_attributes[barclamp]["elements"][newrole] = [] if role.override_attributes[barclamp]["elements"][newrole].nil?
     unless role.override_attributes[barclamp]["elements"][newrole].include?(node.name)
+      @logger.debug("ARTOI: updating role #{role.name} for node #{node.name} for barclamp: #{barclamp}/#{newrole}")
       role.override_attributes[barclamp]["elements"][newrole] << node.name
       role.save
+    else
+      @logger.debug("ARTOI: role #{role.name} already has node #{node.name} for barclamp: #{barclamp}/#{newrole}")
     end
 
     save_it = false
@@ -672,7 +683,10 @@ class ServiceObject
       save_it = true
     end
 
-    node.save if save_it
+    if save_it
+      @logger.debug("saving node")
+      node.save 
+    end
     true
   end
 
