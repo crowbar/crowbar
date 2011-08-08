@@ -51,7 +51,7 @@ make_redhat_chroot() (
     postcmds=()
     mkdir -p "$CHROOT"
     sudo mount -t tmpfs -osize=2G none "$CHROOT"
-    cd "$BUILD_DIR/Server"
+    cd "$IMAGE_DIR/Server"
     # first, extract our core files into the chroot.
     for pkg in "${OS_BASIC_PACKAGES[@]}"; do
 	for f in "$pkg"-[0-9]*+(noarch|x86_64).rpm; do
@@ -92,7 +92,7 @@ make_redhat_chroot() (
 )
 
 update_caches() {
-    (   cd "$BUILD_DIR"
+    (   cd "$IMAGE_DIR"
 	exec ruby -rwebrick -e \
 	    'WEBrick::HTTPServer.new(:BindAddress=>"127.0.0.1",:Port=>54321,:DocumentRoot=>".").start' &>/dev/null ) &
     webrick_pid=$!
@@ -180,8 +180,7 @@ maybe_update_cache() {
 
     # Check and see if we need to update
     for rpm in "${PKGS[@]}"; do
-	if [[ $(find "$PKG_CACHE" -name "$rpm*.rpm") || \
-	    $(find "$BUILD_DIR/Server/" -name "$rpm*.rpm") ]]; then
+	if [[ $(find "$PKG_CACHE" "$IMAGE_DIR/Server/" -name "$rpm*.rpm") ]]; then
 	    continue
 	fi
 	need_update=true
@@ -212,9 +211,12 @@ reindex_packages() (
 final_build_fixups() {
     # Copy our isolinux and preseed files.
     debug "Updating the isolinux boot information"
-    cp -r "$BUILD_DIR/extra/isolinux"/* "$BUILD_DIR/isolinux"
+    mv "$BUILD_DIR/extra/isolinux" "$BUILD_DIR"
     # Add our kickstart files into the initrd images.
     debug "Adding our kickstarts to the initrd images."
+    (cd "$IMAGE_DIR"; find -name initrd.img |cpio -o) | \
+	(cd "$BUILD_DIR"; cpio -i --make-directories)
+    chmod -R u+rw "$BUILD_DIR"
     (cd "$BUILD_DIR/extra"; find . -name '*.ks' | \
 	cpio --create --format=newc 2>/dev/null | \
 		gzip -9 > "initrd.img.append"
