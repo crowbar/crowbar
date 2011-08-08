@@ -18,11 +18,9 @@
 ## temporary workaround for swift-account package issue present in 1.3
 ## rather than apt-get install (which fails)
 execute "get swift-account" do
-  command "apt-get install --allow-unauthenticated -d swift-account" # This will
+  command "apt-get install --allow-unauthenticated -d swift-account" # This will fail, but it gets the image local
+#  returns 100 
 end
-
-# This appears to have been a hack added to accomidate the fact that we 
-# were running RC code.  Release code no longer throws an error.
-#execute "force install" do
-#  command 'dpkg --force-overwrite -i "/var/cache/apt/archives/swift-account_1.3-rc+bzr266-0ubuntu0ppa1~maverick1_all.deb"' 
-#end
+execute "force install" do
+  command 'dpkg --force-overwrite -i "/var/cache/apt/archives/swift-account_1.3-rc+bzr266-0ubuntu0ppa1~maverick1_all.deb"' 
+end
