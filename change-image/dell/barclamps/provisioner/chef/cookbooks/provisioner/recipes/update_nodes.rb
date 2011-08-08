@@ -13,8 +13,6 @@
 # limitations under the License.
 #
 
-
-
 states = node["provisioner"]["dhcp"]["state_machine"]
 nodes = search(:node, "crowbar_usedhcp:true")
 

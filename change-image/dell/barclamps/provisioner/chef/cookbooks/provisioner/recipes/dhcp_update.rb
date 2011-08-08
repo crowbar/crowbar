@@ -6,6 +6,7 @@ admin_net = node[:network][:networks]["admin"]
 dhcp_start = admin_net[:ranges]["dhcp"]["start"]
 dhcp_end = admin_net[:ranges]["dhcp"]["end"]
 lease_time = node[:provisioner][:dhcp]["lease-time"]
+dvd = "#{node[:platform]}_dvd"
 
 dhcp_groups = {"nova_install" => 2, "hwinstall" => 1, "update" => 3, "execute" => 4}
 dhcp_groups.each do |group, dhcp_state|
@@ -13,7 +14,7 @@ dhcp_groups.each do |group, dhcp_state|
     action :add
     options [ "option domain-name \"#{domain_name}\"",
               "option dhcp-client-state #{dhcp_state}",
-              "filename \"/ubuntu_dvd/#{group}/pxelinux.0\"" ]
+              "filename \"/#{dvd}/#{group}/pxelinux.0\"" ]
   end
 end
 
@@ -28,5 +29,5 @@ dhcp_subnet admin_net["subnet"] do
             "range #{dhcp_start} #{dhcp_end}",
             "default-lease-time #{lease_time}",
             "max-lease-time #{lease_time}",
-            'filename "/ubuntu_dvd/discovery/pxelinux.0"' ]
+            'filename "/#{dvd}/discovery/pxelinux.0"' ]
 end
