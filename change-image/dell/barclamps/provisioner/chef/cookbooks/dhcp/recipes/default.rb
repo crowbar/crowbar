@@ -58,6 +58,7 @@ when "ubuntu","debian"
     mode 0644
     source "dhcpd.conf.erb"
     variables(:options => node[:dhcp][:options])
+    notifies :restart, "service[dhcp3-server]"
   end
 
   template "/etc/default/dhcp3-server" do
@@ -66,6 +67,7 @@ when "ubuntu","debian"
     mode 0644
     source "dhcp3-server.erb"
     variables(:interfaces => intfs)
+    notifies :restart, "service[dhcp3-server]"
   end
 when "redhat","centos"
   template "/etc/dhcpd.conf" do
@@ -74,6 +76,7 @@ when "redhat","centos"
     mode 0644
     source "dhcpd.conf.erb"
     variables(:options => node[:dhcp][:options])
+    notifies :restart, "service[dhcp3-server]"
   end
 
   template "/etc/sysconfig/dhcpd" do
@@ -82,6 +85,7 @@ when "redhat","centos"
     mode 0644
     source "redhat-sysconfig-dhcpd.erb"
     variables(:interfaces => intfs)
+    notifies :restart, "service[dhcp3-server]"
   end
 end
 
