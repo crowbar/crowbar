@@ -44,6 +44,16 @@ template "/etc/bind/named.conf.options" do
   notifies :restart, "service[bind9]"
 end
 
+case node[:platform]
+when "redhat","centos"
+  template "/etc/sysconfig/named" do
+    source "redhat-sysconfig-named.erb"
+    mode 0644
+    owner "root"
+    variables :options => { "OPTIONS" => "-c /etc/bind/named.conf.local" }
+  end
+end
+
 service "bind9" do
   case node[:platform]
   when "centos","redhat"
@@ -83,7 +93,7 @@ bash "build-domain-file" do
       echo -n "$line "
     done`
 
-    /opt/dell/bin/h2n -d #{node[:dns][:domain]} -u #{node[:dns][:contact]} $NET_ARGS -H /etc/bind/hosts -h localhost +c named.conf.local -q
+    /opt/dell/bin/h2n -d #{node[:dns][:domain]} -u #{node[:dns][:contact]} $NET_ARGS -H /etc/bind/hosts -h localhost +c named.conf.local
     rm -f boot.cacheonly conf.cacheonly db.127.0.0 named.boot dns.hosts
     sed -i 's/"db/"\\/etc\\/bind\\/db/' named.conf.local
     grep zone named.conf.local | grep -v "zone \\".\\"" | grep -v "0.0.127" > named.conf.new
@@ -92,7 +102,7 @@ bash "build-domain-file" do
 
     rm -rf /tmp/tmp.$$
 EOH
-  action :nothing
+  only_if "[[ /etc/bind/netargs -nt /etc/bind/named.conf.local || /etc/bind/hosts -nt /etc/bind/named.conf.local ]]"
   notifies :restart, resources(:service => "bind9"), :immediately
 end
 
