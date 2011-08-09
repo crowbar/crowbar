@@ -1,0 +1,6 @@
+# Config file for openntpd
+# Managed by Crowbar.  Do not edit
+listen on *
+<% @ntp_servers.each {|s| -%>
+server <%=s%>
+<% } -%>

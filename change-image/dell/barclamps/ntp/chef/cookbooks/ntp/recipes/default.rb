@@ -30,15 +30,6 @@ else
 end
 
 user "ntp"
-
-service "ntp" do
-  service_name "ntpd" if node[:platform] =~ /^(centos|redhat)$/
-  supports :restart => true, :status => true, :reload => true
-  running true
-  enabled true
-  action [ :enable, :start ]
-end
-
 case node[:platform]
 when "debian","ubuntu"
   template "/etc/ntp.conf" do
@@ -54,7 +45,7 @@ when "redhat","centos"
     owner "root"
     group "root"
     mode 0644
-    source "ntp.conf.erb"
+    source "openntpd.conf.erb"
     variables(:ntp_servers => ntp_servers)
     notifies :restart, "service[ntp]"
   end
@@ -66,4 +57,12 @@ end
 file "/etc/network/if-up.d/ntpdate" do
   action :delete
 end if ::File.exists?("/etc/network/if-up.d/ntpdate")
+
+service "ntp" do
+  service_name "ntpd" if node[:platform] =~ /^(centos|redhat)$/
+  supports :restart => true, :status => true, :reload => true
+  running true
+  enabled true
+  action [ :enable, :start ]
+end
 
