@@ -44,16 +44,17 @@ class UbuntuInstallService < ServiceObject
     ### To resolve that, on the admin, rather than acting in "discovered", the action is taken on a later transition ("hardware-installed") 
     if state == "hardware-installed"          
       ## make sure the ubuntu server side components are installed on the provisioner node
-      if node.role?("provisioner-server")     
+      if node.role?("provisioner-server") and File.exists?("/tftp/ubuntu_dvd")     
         add_role "ubuntu_install"         
-      end      
+      end
+
+      if node["crowbar"]["hardware"]["os"] =="ubuntu_install" 
+        ## only add target OS stuff after hardware was installed, since that takes place on the discovery image 
+        ## (whcih is Centos, and does not like apt conf to be applied to it)
+        add_role "ubuntu_base"
+      end            
     end
     
-    if state == "discovered"   
-      #      if node["crowbar"]["hardware"]["os"] =="ubuntu" 
-      add_role "ubuntu_base"
-      #      end      
-    end
     @logger.debug("ubuntu_install transaction: done. ")
     return [200,node.to_hash]
   rescue    

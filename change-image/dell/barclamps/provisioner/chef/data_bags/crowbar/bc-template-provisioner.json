@@ -14,7 +14,7 @@
           "web_app_state":  "dhcp_state",
           "discovered": "hwinstall",
           "hardare-installing": "hwinstall",
-          "hardware-installed": "nova_install",
+          "hardware-installed": "ubuntu_install",
           "hardare-updating": "hwinstall",
           "hardware-updated": "execute",
           "installed": "execute",

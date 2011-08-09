@@ -225,6 +225,9 @@ class DeployerService < ServiceObject
         end 
         break if done
       end
+      
+      os_map = role.default_attributes["deployer"]["os_map"]
+      node.crowbar["crowbar"]["hardware"]["os"] = os_map[0]["install_os"] 
       save_it = true
     end
 

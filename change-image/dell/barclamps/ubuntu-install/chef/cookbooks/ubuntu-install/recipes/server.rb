@@ -13,15 +13,30 @@
 # limitations under the License.
 #
 
+####
+# this recipe prepares the crowbar server to install Ubuntu nodes.
+# - create an ubuntu_install DHCP group to be used when nodes are in the "install" state
+# - create the relevant enties in /tftp/ubuntu_dvd (kernel config, boot image, seed files etc).  
+
 
 serial_console = node[:provisioner][:use_serial_console] ? "console=tty0 console=ttyS1,115200n8" : ""
 machine_install_key = ::File.read("/etc/crowbar.install.key").chomp.strip
 admin_ip = Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, "admin").address
+domain_name = node[:dns].nil? ? node[:domain] : (node[:dns][:domain] || node[:domain])
 web_port = node[:provisioner][:web_port]
 use_local_security = node[:provisioner][:use_local_security]
 
-image="nova_install"
-install_path = "/tftpboot/ubuntu_dvd/#{image}"
+image="ubuntu_install"
+rel_path="ubuntu_dvd/#{image}"
+install_path = "/tftpboot/#{rel_path}"
+
+dhcp_group image do
+  action :add
+  options [ "option domain-name \"#{domain_name}\"",
+              "option dhcp-client-state 2",
+              "filename \"#{rel_path}/pxelinux.0\"" ]
+end
+
 
 # Make sure the directories need to net_install are there.
 directory "#{install_path}"
