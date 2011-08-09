@@ -13,25 +13,24 @@
 # limitations under the License. 
 # 
 
-class UbuntuInstallService < ServiceObject
+class RedhatInstallService < ServiceObject
   
   def initialize(thelogger)
-    @bc_name = "ubuntu_install"
+    @bc_name = "redhat_install"
     @logger = thelogger
   end
   
   
   def create_proposal
-    @logger.info(" ubuntu_install create_proposal: entering")
+    @logger.info(" redhat_install create_proposal: entering")
     base = super
-    @logger.info("ubuntu_install create_proposal: exiting. base prop is #{base.to_hash}")
+    @logger.info("redhat_install create_proposal: exiting. base prop is #{base.to_hash}")
     base
   end
   
   
   def transition(inst, name, state)
-    return unless node["crowbar"]["hardware"]["os"] == "ubuntu" 
-    @logger.debug("ubuntu_install transition: entering for #{name} for #{state}")
+    @logger.debug("redhat_install transition: entering for #{name} for #{state}")
     @inst = inst
     @node_name = name
     @state = state
@@ -45,34 +44,33 @@ class UbuntuInstallService < ServiceObject
     ### To resolve that, on the admin, rather than acting in "discovered", the action is taken on a later transition ("hardware-installed") 
     if state == "hardware-installed"          
       ## make sure the ubuntu server side components are installed on the provisioner node
-      if node.role?("provisioner-server") and node[:platform] == "ubuntu"
-        add_role "ubuntu_install"         
+      if node.role?("provisioner-server")     
+        add_role "redhat_install"         
       end
-
-      if node["crowbar"]["hardware"]["os"] =="ubuntu_install" 
+      
+      if node["crowbar"]["hardware"]["os"] =="redhat_install" 
         ## only add target OS stuff after hardware was installed, since that takes place on the discovery image 
         ## (whcih is Centos, and does not like apt conf to be applied to it)
-        add_role "ubuntu_base"
+        add_role "redhat_base"
       end            
     end
     
-    @logger.debug("ubuntu_install transaction: done. ")
+    @logger.debug("redhat_install transaction: done. ")
     return [200,node.to_hash]
   rescue    
-    @logger.error("ubuntu_install transaction: existing for #{name} for #{state}: Failed")
+    @logger.error("redhat_install transaction: existing for #{name} for #{state}: Failed")
     return [400, "Failed to add role to node"]
   end
   
   
   def add_role (role_name)
-    return unless  node["crowbar"]["hardware"]["os"] == "ubuntu" 
-    msg = "ubuntu_install transaction: add #{role_name} to #{@node_name}"
+    msg = "redhat_install transaction: add #{role_name} to #{@node_name}"
     @logger.debug(msg)
-    db = ProposalObject.find_proposal "ubuntu_install", @inst
+    db = ProposalObject.find_proposal "redhat_install", @inst
     raise "cant find proposal " if db.nil?
-    crole = RoleObject.find_role_by_name "ubuntu_install-config-#{@inst}"
+    crole = RoleObject.find_role_by_name "redhat_install-config-#{@inst}"
     raise "cant find config-role" if crole.nil?
-    result = add_role_to_instance_and_node("ubuntu_install", @inst, @node_name, db, crole, role_name)
+    result = add_role_to_instance_and_node("redhat_install", @inst, @node_name, db, crole, role_name)
     if !result
       msg = "FAILED #{msg}"
       @logger.fatal(msg)

@@ -1,0 +1,170 @@
+#!/bin/bash
+# Copyright 2011, Dell
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+
+HTTP_SERVER="<%= @admin_ip %>:8091"
+IP=${HTTP_SERVER%:*}
+
+exec 2>>/var/log/crowbar-join.errlog
+
+export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
+set -x
+
+if [[ -f /etc/crowbar.install.key ]]; then
+    export CROWBAR_KEY="$(cat /etc/crowbar.install.key)"
+fi
+
+# Run a command and log its output.
+log_to() {
+    # $1 = install log to log to
+    # $@ = rest of args
+    local __log="/var/log/crowbar-join-$1"
+    local __timestamp="$(date '+%F %T %z')"
+    shift
+    printf "\n%s\n" "$__timestamp: Running $*" | \
+	tee -a "$__log.err" >> "$__log.log"
+    local _ret=0
+    if "$@" 2>> "$__log.err" >>"$__log.log"; then
+	_ret=0
+    else
+	_ret="$?"
+	echo "$__timestamp: $* failed."
+	echo "See $__log.log and $__log.err for more information."
+    fi
+    printf "\n$s\n--------\n"  "$(date '+%F %T %z'): Done $*" | \
+	tee -a "$__log.err" >> "$__log.log"
+    return $_ret
+}
+
+post_state() {
+  local curlargs=(-o "/var/log/$1-$2.json" --connect-timeout 60 -s \
+      -L -X POST --data-binary "{ \"name\": \"$1\", \"state\": \"$2\" }" \
+      -H "Accept: application/json" -H "Content-Type: application/json" \
+      --max-time 240)
+  [[ $CROWBAR_KEY ]] && curlargs+=(-u "$CROWBAR_KEY" --digest)
+  curl "${curlargs[@]}" "http://$IP:3000/crowbar/crowbar/1.0/transition/default"
+}
+
+# Spin while we wait for the interface to come up.
+
+echo "Waiting on our network interface to come up..."
+while ! ip addr | grep -v " lo" | grep -q "inet "
+do
+  sleep 1
+done
+
+# Get our hostname
+HOSTNAME=$(hostname -f)
+
+sync_time() {
+    # stop ntpd before we run ntpdate, and start it again afterwards.
+    service ntp stop
+    killall ntpd
+    while ! /usr/sbin/ntpdate -b $IP; do
+	echo "Waiting for NTP server"
+	sleep 1
+    done
+}
+
+# Clean up install droppings
+rm -f /update_system2.sh
+rm -f /net-post-install.sh
+
+echo "Synchronizing time (pass 1)" 
+sync_time
+
+# Mark us as readying, and get our cert.
+post_state $HOSTNAME "readying"
+final_state="ready"
+mkdir -p /etc/chef
+wget -q "http://$HTTP_SERVER/ubuntu_dvd/validation.pem" -O- > /etc/chef/validation.pem
+
+# Install Chef
+echo "Installing Chef..."
+echo "chef chef/chef_server_url string http://$IP:4000" >/tmp/debsel.conf
+
+log_to apt /usr/bin/apt-get update
+log_to apt /usr/bin/debconf-set-selections /tmp/debsel.conf
+log_to apt /usr/bin/apt-get --force-yes -y install chef
+
+log_to chef service chef-client stop
+log_to chef killall chef-client
+
+# Run Chef
+echo "Syncing time (pass 2)"
+sync_time
+
+# Until we arrange for the network to transisiton from using
+# DHCP somewhere else, the first run of chef-client will always die due to
+# the networking barclamp changing the IP address from dhcp to static.
+# We will try to pick up and run with it.
+echo "Running Chef Client  (pass 1)"
+log_to chef chef-client -l debug -V
+
+# Make sure our interfaces are as up as we can get them
+echo "Ensuring that our network interfaces are up."
+log_to ifup ifup -a
+
+# Only transition to problem state if the second run fails.
+echo "Running Chef Client (pass 2)"
+if ! log_to chef chef-client -l debug -V; then
+    log_to ifup ifup -a 
+    post_state $HOSTNAME "problem"
+    echo "Error Path"
+    echo "Syncing Time (pass 3)"
+    sync_time
+    echo "Removing Chef Cache"
+    rm -rf /var/cache/chef/*
+    echo "Checking Install Integrity"
+    log_to apt /usr/bin/apt-get -q --force-yes -y install
+    echo "Running Chef Client (pass 3) - apt/cache cleanup"
+    if ! log_to chef chef-client -l debug -V; then 
+        log_to ifup ifup -a 
+        post_state $HOSTNAME "problem"
+        echo "Error Path"
+        echo "Syncing Time (pass 4)"
+        sync_time
+        echo "Removing Chef Cache"
+        rm -rf /var/cache/chef/*
+        echo "Checking Install Integrity"
+        log_to apt /usr/bin/apt-get -q --force-yes -y install
+        echo "Checking Keys"
+        rm -f /etc/chef/client.pem
+        post_state $HOSTNAME "hardware-updated"
+        post_state $HOSTNAME "problem"
+        echo "Running Chef Client (pass 4) - password cleanup"
+        if ! log_to chef chef-client -l debug -V; then 
+            log_to ifup ifup -a
+            echo "chef-client run failed four times, giving up."
+            echo "Failed"
+            printf "Our IP address is: %s\n" "$(ip addr show dev eth0)"
+            final_state="problem"
+        fi
+    fi
+fi
+
+# Make sure our code is up to date
+log_to apt apt-get -q --force-yes -y upgrade
+
+# Transition to our final state
+post_state $HOSTNAME "$final_state"
+
+log_to time service ntp start
+# Chef client restart / start aren't implemented quite right.  So make sure we really start the chef-client fresh
+log_to chef service chef-client stop
+log_to chef service chef-client start
+
+echo "Done"
