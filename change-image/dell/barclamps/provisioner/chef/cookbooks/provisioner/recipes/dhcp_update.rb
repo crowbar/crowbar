@@ -1,4 +1,5 @@
 
+dvd = "#{node[:platform]}_dvd"
 
 domain_name = node[:dns].nil? ? node[:domain] : (node[:dns][:domain] || node[:domain])
 admin_ip = Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, "admin").address
@@ -29,5 +30,5 @@ dhcp_subnet admin_net["subnet"] do
             "range #{dhcp_start} #{dhcp_end}",
             "default-lease-time #{lease_time}",
             "max-lease-time #{lease_time}",
-            'filename "/#{dvd}/discovery/pxelinux.0"' ]
+            "filename \"/#{dvd}/discovery/pxelinux.0\"" ]
 end
