@@ -134,7 +134,7 @@ fi
     # Make any directories we don't already have
     for d in "$PKG_CACHE" "$GEM_CACHE" "$ISO_LIBRARY" "$ISO_DEST" \
 	"$IMAGE_DIR" "$BUILD_DIR" "$AMI_CACHE" \
-	"$SLEDGEHAMMER_PXE_DIR" "$CHROOT" "$EMPTY_DIR"; do
+	"$SLEDGEHAMMER_PXE_DIR" "$CHROOT"; do
 	mkdir -p "$d"
     done
     
@@ -223,7 +223,8 @@ fi
 	# Copy contents of the found directories into $BUILD_DIR, taking care
 	# to not clobber existing files.
 	mkdir -p "$BUILD_DIR/$d"
-	cp -rn -t "$BUILD_DIR/$d" "$IMAGE_DIR/$d"/* 
+	# We could also use cp -n, but rhel5 and centos5 do not understand it.
+	rsync -a --ignore-existing "$IMAGE_DIR/$d/." "$BUILD_DIR/$d/."
 	chmod -R u+wr "$BUILD_DIR/$d"
 	# Bind mount an empty directory on the $IMAGE_DIR instance.
 	sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/$d"
