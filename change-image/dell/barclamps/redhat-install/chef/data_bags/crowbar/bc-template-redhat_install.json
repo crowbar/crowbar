@@ -1,0 +1,28 @@
+{
+  "id": "bc-template-redhat_install",
+  "description": "Redhat installation parameters",
+  "attributes": {
+    "ubuntu_install": {
+		"default_user" : "openstack",
+		"default_password" : "openstack", 
+		"use_local_security": true,
+		"use_serial_console": true 
+    }
+  },
+ "deployment": {
+	  "redhat_install": {
+	      "crowbar-revision": 0,
+	      "elements": {},
+	      "element_order": [
+             [ "redhat_base", "redhat_server" ]
+	      ],
+	      "config": {
+	        "environment": "redhat_install-test",
+	        "mode": "full",
+	        "transitions": true,
+	        "transition_list": [ "all" ]
+	      }
+	    }
+	}
+}
+
