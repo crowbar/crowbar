@@ -22,7 +22,7 @@ web_port = node[:provisioner][:web_port]
 use_local_security = node[:provisioner][:use_local_security]
 
 image="rhel_install"
-rel_path= "rhel_dvd/#{image}"
+rel_path= "redhat_dvd/#{image}"
 install_path = "/tftpboot/#{rel_path}"
 
 # Make sure the directories need to net_install are there.
