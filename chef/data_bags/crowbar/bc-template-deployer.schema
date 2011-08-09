@@ -25,6 +25,13 @@
                   "raid_set": { "type": "str", "required": true }
                 } 
               } ]
+            },
+            "os_map": { "type": "seq", "required": true, "sequence": [ {
+                  "type": "map", "required": true, "mapping": {
+                    "pattern": { "type": "str", "required": true },
+                    "install_os": { "type": "str", "required": true }               		   
+                  }
+              } ]
             }
           }
         }
