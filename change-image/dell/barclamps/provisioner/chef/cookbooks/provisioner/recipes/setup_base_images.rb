@@ -13,13 +13,14 @@
 # limitations under the License
 #
 
+package "syslinux"
 
 discovery_append_line = "append initrd=initrd0.img root=/sledgehammer.iso rootfstype=iso9660 rootflags=loop"
 if node[:provisioner][:use_serial_console]
   discovery_append_line += " console=tty0 console=ttyS1,115200n8"
 end
 if ::File.exists?("/etc/crowbar.install.key")
-  discovery_append_line += ::File.read("/etc/crowbar.install.key").chomp.strip
+  discovery_append_line += " crowbar.install.key=#{::File.read("/etc/crowbar.install.key").chomp.strip}"
 end
 
 dvd = "#{node[:platform]}_dvd"
@@ -47,10 +48,9 @@ end
   directory "#{install_path}/pxelinux.cfg"
   
   # Everyone needs a pxelinux.0
-  link "#{install_path}/pxelinux.0" do
-    action :create
-    to "../isolinux/pxelinux.0"
-    not_if "test -L #{install_path}/pxelinux.0"
+  bash "Install pxelinux.0" do
+    code "cp /usr/lib/syslinux/pxelinux.0 #{install_path}"
+    not_if do ::File.exists?("#{install_path}/pxelinux.0") end
   end
   
   case 
@@ -121,4 +121,3 @@ when "ubuntu","debian"
     end  
   }
 end
-

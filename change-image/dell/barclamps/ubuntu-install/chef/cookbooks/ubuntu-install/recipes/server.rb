@@ -13,14 +13,13 @@
 # limitations under the License.
 #
 
+package "syslinux"
+
 ####
 # this recipe prepares the crowbar server to install Ubuntu nodes.
 # - create an ubuntu_install DHCP group to be used when nodes are in the "install" state
 # - create the relevant enties in /tftp/ubuntu_dvd (kernel config, boot image, seed files etc).  
 
-
-serial_console = node[:provisioner][:use_serial_console] ? "console=tty0 console=ttyS1,115200n8" : ""
-machine_install_key = ::File.read("/etc/crowbar.install.key").chomp.strip
 admin_ip = Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, "admin").address
 domain_name = node[:dns].nil? ? node[:domain] : (node[:dns][:domain] || node[:domain])
 web_port = node[:provisioner][:web_port]
@@ -29,6 +28,15 @@ use_local_security = node[:provisioner][:use_local_security]
 image="ubuntu_install"
 rel_path="ubuntu_dvd/#{image}"
 install_path = "/tftpboot/#{rel_path}"
+
+append_line="url=http://#{admin_ip}:#{web_port}/ubuntu_dvd/#{image}/net_seed debian-installer/locale=en_US.utf8 console-setup/layoutcode=us localechooser/translation/warn-light=true localechooser/translation/warn-severe=true netcfg/choose_interface=auto netcfg/get_hostname=\"redundant\" initrd=../install/netboot/ubuntu-installer/amd64/initrd.gz ramdisk_size=16384 root=/dev/ram rw quiet --"
+
+if node[:provisioner][:use_serial_console]
+  append_line = "console=tty0 console=ttyS1,115200n8 " + append_line
+end
+if ::File.exists?("/etc/crowbar.install.key")
+  append_line = "crowbar.install.key=#{::File.read().chomp.strip} " + append_line
+end
 
 dhcp_group image do
   action :add
@@ -43,20 +51,17 @@ directory "#{install_path}"
 directory "#{install_path}/pxelinux.cfg"
 
 # Everyone needs a pxelinux.0
-link "#{install_path}/pxelinux.0" do
-  action :create
-  to "../isolinux/pxelinux.0"
+bash "Install pxelinux.0" do
+  code "cp /usr/lib/syslinux/pxelinux.0 #{install_path}"
+  not_if do ::File.exists?("#{install_path}/pxelinux.0") end
 end
-
-
-append_line="append crowbar.install.key=#{machine_install_key} #{serial_console} url=http://#{admin_ip}:#{web_port}/ubuntu_dvd/#{image}/net_seed debian-installer/locale=en_US.utf8 console-setup/layoutcode=us localechooser/translation/warn-light=true localechooser/translation/warn-severe=true netcfg/choose_interface=auto netcfg/get_hostname=\"redundant\" initrd=../install/netboot/ubuntu-installer/amd64/initrd.gz ramdisk_size=16384 root=/dev/ram rw quiet --"
 
 template "#{install_path}/pxelinux.cfg/default" do
   mode 0644
   owner "root"
   group "root"
   source "default.erb"
-  variables(:append_line => append_line,
+  variables(:append_line => "append " + append_line,
             :install_name => image,  
             :kernel => "../install/netboot/ubuntu-installer/amd64/linux")
 end
