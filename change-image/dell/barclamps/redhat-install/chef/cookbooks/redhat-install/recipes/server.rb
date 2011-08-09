@@ -13,9 +13,6 @@
 # limitations under the License.
 #
 
-
-serial_console = node[:provisioner][:use_serial_console] ? "console=tty0 console=ttyS1,115200n8" : ""
-machine_install_key = ::File.read("/etc/crowbar.install.key").chomp.strip
 admin_ip = Chef::Recipe::Barclamp::Inventory.get_network_by_type(node, "admin").address
 domain_name = node[:dns].nil? ? node[:domain] : (node[:dns][:domain] || node[:domain])
 web_port = node[:provisioner][:web_port]
@@ -24,6 +21,15 @@ use_local_security = node[:provisioner][:use_local_security]
 image="rhel_install"
 rel_path= "redhat_dvd/#{image}"
 install_path = "/tftpboot/#{rel_path}"
+
+append_line="ks=http://#{admin_ip}:#{web_port}/#{rel_path}/compute.ks ksdevice=bootif initrd=../images/pxeboot/initrd.img"
+
+if node[:provisioner][:use_serial_console]
+  append_line = "console=tty0 console=ttyS1,115200n8 " + append_line
+end
+if ::File.exists?("/etc/crowbar.install.key")
+  append_line = "crowbar.install.key=#{::File.read().chomp.strip} " + append_line
+end
 
 # Make sure the directories need to net_install are there.
 directory "#{install_path}" do  
@@ -54,15 +60,12 @@ template "#{install_path}/compute.ks" do
   
 end
 
-
-append_line="append crowbar.install.key=#{machine_install_key} #{serial_console} ks=http://#{admin_ip}:#{web_port}/#{rel_path}/compute.ks ksdevice=eth0 initrd=../images/pxeboot/initrd.img ramdisk_size=16384 root=/dev/ram rw quiet --"
-
 template "#{install_path}/pxelinux.cfg/default" do
   mode 0644
   owner "root"
   group "root"
   source "default.erb"
-  variables(:append_line => append_line,
+  variables(:append_line => "append " + append_line,
             :install_name => image,  
             :kernel => "../images/pxeboot/vmlinuz")
 end
