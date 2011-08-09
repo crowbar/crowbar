@@ -13,6 +13,8 @@
 # limitations under the License.
 #
 
+package "syslinux"
+
 ####
 # this recipe prepares the crowbar server to install Ubuntu nodes.
 # - create an ubuntu_install DHCP group to be used when nodes are in the "install" state
@@ -49,9 +51,9 @@ directory "#{install_path}"
 directory "#{install_path}/pxelinux.cfg"
 
 # Everyone needs a pxelinux.0
-link "#{install_path}/pxelinux.0" do
-  action :create
-  to "../isolinux/pxelinux.0"
+bash "Install pxelinux.0" do
+  code "cp /usr/lib/syslinux/pxelinux.0 #{install_path}"
+  not_if do ::File.exists?("#{install_path}/pxelinux.0") end
 end
 
 template "#{install_path}/pxelinux.cfg/default" do
