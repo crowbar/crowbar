@@ -9,7 +9,7 @@ dhcp_end = admin_net[:ranges]["dhcp"]["end"]
 lease_time = node[:provisioner][:dhcp]["lease-time"]
 dvd = "#{node[:platform]}_dvd"
 
-dhcp_groups = {"nova_install" => 2, "hwinstall" => 1, "update" => 3, "execute" => 4}
+dhcp_groups = { "hwinstall" => 1, "update" => 3, "execute" => 4}
 dhcp_groups.each do |group, dhcp_state|
   dhcp_group group do
     action :add
