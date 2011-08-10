@@ -30,7 +30,6 @@ class UbuntuInstallService < ServiceObject
   
   
   def transition(inst, name, state)
-    return unless node["crowbar"]["hardware"]["os"] == "ubuntu" 
     @logger.debug("ubuntu_install transition: entering for #{name} for #{state}")
     @inst = inst
     @node_name = name
@@ -65,7 +64,6 @@ class UbuntuInstallService < ServiceObject
   
   
   def add_role (role_name)
-    return unless  node["crowbar"]["hardware"]["os"] == "ubuntu" 
     msg = "ubuntu_install transaction: add #{role_name} to #{@node_name}"
     @logger.debug(msg)
     db = ProposalObject.find_proposal "ubuntu_install", @inst

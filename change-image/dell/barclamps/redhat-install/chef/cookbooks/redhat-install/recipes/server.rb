@@ -18,7 +18,7 @@ domain_name = node[:dns].nil? ? node[:domain] : (node[:dns][:domain] || node[:do
 web_port = node[:provisioner][:web_port]
 use_local_security = node[:provisioner][:use_local_security]
 
-image="rhel_install"
+image="redhat_install"
 rel_path= "redhat_dvd/#{image}"
 install_path = "/tftpboot/#{rel_path}"
 
@@ -39,11 +39,10 @@ end
 directory "#{install_path}/pxelinux.cfg"
 
 # Everyone needs a pxelinux.0
-link "#{install_path}/pxelinux.0" do
-  action :create
-  to "../isolinux/pxelinux.0"
+bash "Install pxelinux.0" do
+  code "cp /usr/lib/syslinux/pxelinux.0 #{install_path}"
+  not_if do ::File.exists?("#{install_path}/pxelinux.0") end
 end
-
 
 dhcp_group image do
   action :add
@@ -56,8 +55,7 @@ template "#{install_path}/compute.ks" do
   template ="compute.ks.erb"
   variables (
   :admin_node_ip => admin_ip,
-  :install_web_port => web_port)
-  
+  :install_web_port => web_port)  
 end
 
 template "#{install_path}/pxelinux.cfg/default" do

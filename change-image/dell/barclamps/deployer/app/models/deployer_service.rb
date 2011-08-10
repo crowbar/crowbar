@@ -214,8 +214,8 @@ class DeployerService < ServiceObject
       role = RoleObject.find_role_by_name "deployer-config-#{inst}"
       done = false
       role.default_attributes["deployer"]["bios_map"].each do |match|
-        roles.each do |role|
-          if role =~ /#{match["pattern"]}/
+        roles.each do |r|
+          if r =~ /#{match["pattern"]}/
             node.crowbar["crowbar"]["hardware"] = {} if node.crowbar["crowbar"]["hardware"].nil? 
             node.crowbar["crowbar"]["hardware"]["bios_set"] = match["bios_set"] if node.crowbar["crowbar"]["hardware"]["bios_set"].nil?
             node.crowbar["crowbar"]["hardware"]["raid_set"] = match["raid_set"] if node.crowbar["crowbar"]["hardware"]["raid_set"].nil?
