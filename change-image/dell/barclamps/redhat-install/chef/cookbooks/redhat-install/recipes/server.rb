@@ -28,7 +28,7 @@ if node[:provisioner][:use_serial_console]
   append_line = "console=tty0 console=ttyS1,115200n8 " + append_line
 end
 if ::File.exists?("/etc/crowbar.install.key")
-  append_line = "crowbar.install.key=#{::File.read().chomp.strip} " + append_line
+  append_line = "crowbar.install.key=#{::File.read("/etc/crowbar.install.key").chomp.strip} " + append_line
 end
 
 # Make sure the directories need to net_install are there.
