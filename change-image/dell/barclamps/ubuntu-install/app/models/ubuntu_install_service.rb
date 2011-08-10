@@ -44,7 +44,7 @@ class UbuntuInstallService < ServiceObject
     ### To resolve that, on the admin, rather than acting in "discovered", the action is taken on a later transition ("hardware-installed") 
     if state == "hardware-installed"          
       ## make sure the ubuntu server side components are installed on the provisioner node
-      if node.role?("provisioner-server") and File.exists?("/tftp/ubuntu_dvd")     
+      if node.role?("provisioner-server") and File.exists?("/tftpboot/ubuntu_dvd")     
         add_role "ubuntu_install"         
       end
 
