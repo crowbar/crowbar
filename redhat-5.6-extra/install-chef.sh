@@ -169,9 +169,10 @@ sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
 
 # Make sure we use the right OS installer. By default we want to install
 # the same OS as the admin node.
-sed -i '/os_install/ s/os_install/redhat_install/' /opt/dell/chef/data_bags/bc-template-provisioner.json
-sed -i '/os_install/ s/os_install/redhat_install/' /opt/dell/chef/data_bags/bc-template-deployer.json
-
+for t in provisioner deployer; do
+    sed -i '/os_install/ s/os_install/redhat_install/' \
+	/opt/dell/chef/data_bags/crowbar/bc-template-${t}.json
+done
 
 ./start-chef-server.sh
 
