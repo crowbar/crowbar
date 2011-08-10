@@ -9,7 +9,7 @@
         { "pattern": "swift-.*", "bios_set": "Storage", "raid_set": "JBODOnly" },
         { "pattern": ".*", "bios_set": "Virtualization", "raid_set": "SingleRaid10" }
       ],
-	  "os_map": [ { "pattern": "*", "install_os": "ubuntu_install" } ] 	  
+	  "os_map": [ { "pattern": "*", "install_os": "os_install" } ] 	  
     }
   },
   "deployment": {
