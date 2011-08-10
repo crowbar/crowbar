@@ -32,10 +32,6 @@ pkgs openssh openssh-server
 # openldap stuff
 pkgs openldap nss_ldap openldap-servers openldap-clients 
 
-# runit stuff
-repository rpm http://repo.annvix.org/media/EL5/x86_64/annvix-release-1.0-2.el5.avx.x86_64.rpm
-pkgs runit
-
 # sudo stuff
 pkgs  sudo
 
@@ -64,7 +60,7 @@ pkgs bind bind-utils
 pkgs ganglia ganglia-gmond ganglia-web
 
 # ntp stuff
-pkgs openntpd
+pkgs ntp
 
 # rsyslog stuff
 pkgs rsyslog

@@ -14,8 +14,7 @@
 #
 
 package "ntp" do
-  package_name "openntpd" if node[:platform] =~ /^(centos|redhat)$/
-  action :install
+    action :install
 end
 
 if node["roles"].include?("ntp-client")
@@ -30,26 +29,15 @@ else
 end
 
 user "ntp"
-case node[:platform]
-when "debian","ubuntu"
-  template "/etc/ntp.conf" do
-    owner "root"
-    group "root"
-    mode 0644
-    source "ntp.conf.erb"
-    variables(:ntp_servers => ntp_servers)
-    notifies :restart, "service[ntp]"
-  end
-when "redhat","centos"
-  template "/etc/ntpd.conf" do
-    owner "root"
-    group "root"
-    mode 0644
-    source "openntpd.conf.erb"
-    variables(:ntp_servers => ntp_servers)
-    notifies :restart, "service[ntp]"
-  end
+template "/etc/ntp.conf" do
+  owner "root"
+  group "root"
+  mode 0644
+  source "ntp.conf.erb"
+  variables(:ntp_servers => ntp_servers)
+  notifies :restart, "service[ntp]"
 end
+
 #
 # Make sure the ntpdate helper is removed to speed up network restarts
 # This script manages ntp for the client
