@@ -42,7 +42,7 @@ update_caches() {
     mkdir -p "$CHROOT"
     sudo mount -t tmpfs -o size=1G none "$CHROOT" 
     sudo debootstrap "$OS_CODENAME" "$CHROOT" \
-	"file://$BUILD_DIR" || \
+	"file://$IMAGE_DIR" || \
 	die 1 "Could not bootstrap our scratch target!"
     # mount some important directories for the chroot
     for d in proc sys dev dev/pts; do
