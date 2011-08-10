@@ -37,7 +37,7 @@ cleanup() {
     # Clean up any stray mounts we may have left behind.
     while read dev fs type opts rest; do
 	sudo umount -d -l "$fs"
-    done < <(tac /proc/self/mounts |grep "$CACHE_DIR")
+    done < <(tac /proc/self/mounts |grep -e "$CACHE_DIR" -e "$IMAGE_DIR" -e "$BUILD_DIR")
     [[ $webrick_pid && -d /proc/$webrick_pid ]] && kill -9 $webrick_pid
     rm -rf "$IMAGE_DIR" "$BUILD_DIR"
 }
