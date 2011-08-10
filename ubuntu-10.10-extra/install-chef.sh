@@ -144,6 +144,12 @@ else
 fi
 # Crowbar will hack up the pxeboot files appropriatly.
 
+# Make sure we use the right OS installer. By default we want to install
+# the same OS as the admin node.
+sed -i '/os_install/ s/os_install/ubuntu_install/' /opt/dell/chef/data_bags/bc-template-provisioner.json
+sed -i '/os_install/ s/os_install/ubuntu_install/' /opt/dell/chef/data_bags/bc-template-deployer.json
+
+
 # Set Version in Crowbar UI
 VERSION=$(cat /opt/.dell-install/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
