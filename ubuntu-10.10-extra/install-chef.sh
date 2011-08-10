@@ -146,9 +146,10 @@ fi
 
 # Make sure we use the right OS installer. By default we want to install
 # the same OS as the admin node.
-sed -i '/os_install/ s/os_install/ubuntu_install/' /opt/dell/chef/data_bags/bc-template-provisioner.json
-sed -i '/os_install/ s/os_install/ubuntu_install/' /opt/dell/chef/data_bags/bc-template-deployer.json
-
+for t in provisioner deployer; do
+    sed -i '/os_install/ s/os_install/ubuntu_install/' \
+	/opt/dell/chef/data_bags/crowbar/bc-template-${t}.json
+done
 
 # Set Version in Crowbar UI
 VERSION=$(cat /opt/.dell-install/Version)
