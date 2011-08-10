@@ -44,7 +44,7 @@ class RedhatInstallService < ServiceObject
     ### To resolve that, on the admin, rather than acting in "discovered", the action is taken on a later transition ("hardware-installed") 
     if state == "hardware-installed"          
       ## make sure the ubuntu server side components are installed on the provisioner node
-      if node.role?("provisioner-server")     
+      if node.role?("provisioner-server") and File.exists?("/tftpboot/redhat_dvd")
         add_role "redhat_install"         
       end
       
