@@ -2,7 +2,7 @@
   "id": "bc-template-redhat_install",
   "description": "Redhat installation parameters",
   "attributes": {
-    "ubuntu_install": {
+    "redhat_install": {
 		"default_user" : "openstack",
 		"default_password" : "openstack", 
 		"use_local_security": true,

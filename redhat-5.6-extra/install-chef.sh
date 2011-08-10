@@ -160,13 +160,18 @@ elif [[ $CROWBAR_REALM ]]; then
 	-e "/\"realm\":/ s/null/\"$CROWBAR_REALM\"/g"
     /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json
 fi
-    
 
 # Crowbar will hack up the pxeboot files appropriatly.
 # Set Version in Crowbar UI
 VERSION=$(cat /opt/.dell-install/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
     /opt/dell/openstack_manager/config/environments/production.rb
+
+# Make sure we use the right OS installer. By default we want to install
+# the same OS as the admin node.
+sed -i '/os_install/ s/os_install/redhat_install/' /opt/dell/chef/data_bags/bc-template-provisioner.json
+sed -i '/os_install/ s/os_install/redhat_install/' /opt/dell/chef/data_bags/bc-template-deployer.json
+
 
 ./start-chef-server.sh
 
