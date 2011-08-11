@@ -89,6 +89,7 @@ DOMAINNAME=${FQDN#*.}
 # Setup hostname from config file
 echo "$(date '+%F %T %z'): Setting Hostname..."
 update_hostname.sh $FQDN
+export HOSTNAME=${FQDN%%.*}
 
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
