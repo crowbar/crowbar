@@ -683,7 +683,7 @@ run_admin_node() {
     update_status admin "Hacking up kernel parameters"
     # OK, now figure out what we need to grab by reading the
     # isolinux.cfg file.
-    kernel_re='kernel([^/]+)(/.*)$'
+    kernel_re='kernel (.+)$'
     append_re='append([^a-zA-Z/=?]+)(.*)$'
     initrd_re='initrd=([^ ]+)'
     console_re='console=([^ ]+)'
@@ -691,15 +691,26 @@ run_admin_node() {
     
     while read line; do
 	[[ ! $kernel && ( $line =~ $kernel_re ) ]] && \
-	    kernel="$LOOPDIR/${BASH_REMATCH[2]}" || :
+	    kernel="${BASH_REMATCH[1]}" || :
 	[[ ! $kernel_params && ( $line =~ $append_re ) ]] && \
 	    kernel_params=${BASH_REMATCH[2]} || :
 	[[ ! $initrd && $kernel_params && ( $kernel_params =~ $initrd_re ) ]] && {
 	    kernel_params=${kernel_params/append=${BASH_REMATCH[1]}/}
-	    initrd="$LOOPDIR/${BASH_REMATCH[1]}"
+	    initrd="${BASH_REMATCH[1]}"
 	} || :
     done < "$LOOPDIR/isolinux/isolinux.cfg"
-    
+
+    # Fix up our paths to the initrd and the kernel
+    if [[ -d "$LOOPDIR/Server" ]]; then
+        # RHEL keeps its kernel and initrd in isolinux
+	kernel="$LOOPDIR/isolinux/$kernel"
+	initrd="$LOOPDIR/isolinux/$initrd"
+    else
+	# Uubntu does not.
+	kernel="$LOOPDIR/$kernel"
+	initrd="$LOOPDIR/$initrd"
+    fi
+
     [[ $kernel && -f $kernel && $kernel_params && $initrd && -f $initrd ]] || \
 	die -1 "Could not find our kernel!"
 	# create our admin disk image
@@ -710,9 +721,14 @@ run_admin_node() {
     # makenics populates vm_nics with the appropriate information for
     # run_kvm.  This part cannot run in a subshell, because it relies
     # on getmac being able to hand out unique mac addresses.
-    kernel_params+=" crowbar.hostname=admin.pod.cloud.openstack.org crowbar.url=http://192.168.124.10:8091/config crowbar.debug.logdest=/dev/ttyS0 crowbar.use_serial_console=true"
+    kernel_params+=" crowbar.url=http://192.168.124.10:8091/config crowbar.debug.logdest=/dev/ttyS0 crowbar.use_serial_console=true"
     [[ $DISPLAY ]] || kernel_params+=" console=ttyS1,115200n81"
     [[ -r $HOME/.ssh/id_rsa.pub ]] && kernel_params+=" crowbar.authkey=$(sed 's/ /\\040/g' <"$HOME/.ssh/id_rsa.pub")"
+    if [[ $develop_mode ]]; then
+	kernel_params+=" crowbar.debug"
+    else
+	kernel_params+=" crowbar.hostname=admin.pod.cloud.openstack.org"
+    fi
     update_status admin "Performing install from ${ISO##*/}"
     # First run of the admin node.  Note that we do not actaully boot off the
     # .iso image, instead we boot the vm directly using the extracted kernel
