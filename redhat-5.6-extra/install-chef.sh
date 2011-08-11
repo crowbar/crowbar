@@ -89,6 +89,7 @@ DOMAINNAME=${FQDN#*.}
 # Setup hostname from config file
 echo "$(date '+%F %T %z'): Setting Hostname..."
 update_hostname.sh $FQDN
+export HOSTNAME=${FQDN%%.*}
 
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
@@ -179,8 +180,14 @@ done
 # HACK AROUND CHEF-2005
 cp -f data_item.rb \
     /usr/lib/ruby/gems/1.8/gems/chef-server-api-0.10.2/app/controllers
-log_to svc /etc/init.d/chef-server restart
 # HACK AROUND CHEF-2005
+## HACK Around CHEF-2413
+cp -f patches/yum.rb  /usr/lib/ruby/gems/1.8/gems/chef-0.10.2/lib/chef/provider/package/yum.rb
+## END 2413 
+
+log_to svc /etc/init.d/chef-server restart
+
+
 
 restart_svc_loop chef-solr "Restarting chef-solr - spot one"
 
