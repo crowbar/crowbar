@@ -73,7 +73,7 @@ Redhat_keys={ :interface => "DEVICE",
 # This handles just enough to bring up an interface with no
 # bonds, vlans, bridges, or anything else for now.
 def parse_redhat_interface(iface)
-  res = Hash.new
+    res = {}
   ::File.foreach(iface) {|line|
     line = line.chomp.strip.split('#')[0] # strip comments
     next if line.nil? or ( line.length == 0 ) # skip blank lines
@@ -91,16 +91,18 @@ def parse_redhat_interface(iface)
 end 
 
 def local_redhat_interfaces
-  res = Hash.new
+  res = {}
   order = 0
   ::Dir.entries("/etc/sysconfig/network-scripts").each {|entry|
     next unless entry =~ /^ifcfg/
     next if entry == "ifcfg-lo"
     iface = entry.split('-',2)[1]
     res[iface] = Hash.new
-    res[iface][:order] = order
     res[iface]=parse_redhat_interface("/etc/sysconfig/network-scripts/#{entry}")
+    res[iface][:order] = order
     order = order + 1
+    Chef::Log<<("found interface #{res.to_s} ")    
+    
   }
   res
 end
@@ -220,8 +222,8 @@ def deorder(i)
   i.reject{|k,v|k == :order or v.nil? or (v.respond_to?(:empty?) and v.empty?)}
 end
 
-log("Current interfaces:\n#{old_interfaces.inspect}") { level :debug }
-log("New interfaces:\n#{new_interfaces.inspect}\n") { level :debug }
+Chef::Log<<("Current interfaces:\n#{old_interfaces.inspect}\n")
+Chef::Log<<("New interfaces:\n#{new_interfaces.inspect}\n")
 
 if (not new_interfaces) or new_interfaces.empty?
   log("Crowbar instructed us to tear down all our interfaces!") { level :fatal }
