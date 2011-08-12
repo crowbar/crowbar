@@ -22,7 +22,8 @@ image="redhat_install"
 rel_path= "redhat_dvd/#{image}"
 install_path = "/tftpboot/#{rel_path}"
 
-append_line="ks=http://#{admin_ip}:#{web_port}/#{rel_path}/compute.ks ksdevice=bootif initrd=../images/pxeboot/initrd.img"
+admin_web="http://#{admin_ip}:#{web_port}/redhat_dvd"
+append_line="method=#{admin_web} ks=#{admin_web}/#{image}/compute.ks ksdevice=bootif initrd=../images/pxeboot/initrd.img"
 
 if node[:provisioner][:use_serial_console]
   append_line = "console=tty0 console=ttyS1,115200n8 " + append_line
