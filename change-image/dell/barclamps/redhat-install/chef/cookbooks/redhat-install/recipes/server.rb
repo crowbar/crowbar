@@ -53,6 +53,8 @@ end
 
 template "#{install_path}/compute.ks" do
   template ="compute.ks.erb"
+  user "apache"
+  group "apache"
   variables (
   :admin_node_ip => admin_ip,
   :install_web_port => web_port)  
