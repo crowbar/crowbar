@@ -58,7 +58,7 @@ template "#{install_path}/compute.ks" do
   group "apache"
   variables (
   :admin_node_ip => admin_ip,
-  :install_web_port => web_port)  
+  :web_port => web_port)  
 end
 
 template "#{install_path}/pxelinux.cfg/default" do
