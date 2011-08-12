@@ -132,16 +132,10 @@ update_caches() {
     chroot_install rubygems ruby-devel make
     debug "Fetching Gems"
     echo "There may be build failures here, we can safely ignore them."
-    gem_re='([^0-9].*)-([0-9].*)'
+
     for gem in "${GEMS[@]}"; do
-	if [[ $gem =~ $gem_re ]]; then
-	    echo "${BASH_REMATCH[*]}"
-	    gemname="${BASH_REMATCH[1]}"
-	    gemver="${BASH_REMATCH[2]}"
-	else
-	    gemname="$gem"
-	    gemver=''
-	fi
+	gemname=${gem%%-[0-9]*}
+	gemver=${gem#$gemname-}
 	gemopts=(install --no-ri --no-rdoc)
 	[[ $gemver ]] && gemopts+=(--version "= ${gemver}")
 	in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
@@ -153,12 +147,90 @@ update_caches() {
     done < <(tac /proc/self/mounts |grep "$CHROOT")
 }
 
+num_re='^[0-9]+$'
+__cmp() {
+    [[ $1 || $2 ]] || return 255 # neither 1 nor 2 or set, we are done
+    [[ $1 && ! $2 ]] && return 2 # 1 is set and 2 is not, 1 > 2
+    [[ ! $1 && $2 ]] && return 0 # 2 is set and 1 is not, 1 < 2
+    local a="$1" b="$2"
+    if [[ $a =~ $num_re && $b =~ $num_re ]]; then #both numbers, numeric cmp.
+	# make sure leading zeros do not confuse us
+	a=${a##0} b=${b##0}
+	((${a:=0} > ${b:=0})) && return 2
+	(($a < $b)) && return 0
+	return 1
+    else # string compare
+	[[ $a > $b ]] && return 2
+	[[ $a < $b ]] && return 0
+	return 1
+    fi
+}
+
+vercmp(){
+    # $1 = version string of first package
+    # $2 = version string of second package
+    local ver1=()
+    local ver2=()
+    local i=0
+    IFS='.-_ ' read -rs -a ver1 <<< "$1"
+    IFS='.-_ ' read -rs -a ver2 <<< "$2"
+    for ((i=0;;i++)); do
+	__cmp "${ver1[$i]}" "${ver2[$i]}"
+	case $? in
+	    2) return 0;;
+	    0) return 1;;
+	    255) return 1;;
+	esac
+    done
+}
+
 copy_pkgs() {
     # $1 = pool directory to build initial list of excludes against
     # $2 = directory to copy from
     # $3 = directory to copy to.
+    declare -A pool_pkgs
+    declare -A dest_pool
+    local pkgname=''
+    local pkgs_to_copy=()
     mkdir -p "$3"
-    cp -r -t "$3" "$2"/*
+    while read pkg; do
+	[[ -f $pkg && $pkg = *.rpm ]] || continue
+	[[ $pkg = *.i?86.rpm ]] && continue
+	pkgname=${pkg%%-[0-9]*}
+	pkgver=${pkg#$pkgname-}
+	pkgname="${pkgname##*/}"
+	pool_pkgs["$pkgname"]="$pkgver"
+    done < <(find "$1/Server" -name '*.rpm')
+    (   cd "$2"
+	declare -A target_dirs
+	while read f; do
+	    [[ -f $f && $f = *.rpm ]] || continue
+	    [[ $f = *.i?86.rpm ]] && continue
+	    pkgname=${f%%-[0-9]*}
+	    
+	    pkgdir=${f%/*}
+	    [[ ${target_dirs["pkgdir"]} ]] || target_dirs["$pkgdir"]=$pkgdir
+	    pkgver=${BASH_REMATCH[2]%.*.rpm}
+	    if [[ ${dest_pool["$pkgname"]} ]]; then
+		if vercmp "$pkgver" "${dest_pool["$pkgname"]}"; then
+		    pkgs_to_copy[$((${#pkgs_to_copy[@]} - 1))]="$f"
+		    dest_pool["$pkgname"]="$pkgver"
+		fi
+	    elif [[ ${pool_pkgs["${pkgname##*/}"]} ]]; then
+		if vercmp "$pkgver" "${pool_pkgs["${pkgname##*/}"]}"; then
+		    pkgs_to_copy+=("$f")
+		    dest_pool["$pkgname"]="$pkgver"
+		fi
+	    else
+		pkgs_to_copy+=("$f")
+		dest_pool["$pkgname"]="$pkgver"
+	    fi
+	done < <(find . -name '*.rpm' |sort)
+	for d in "${target_dirs[@]}"; do
+	    mkdir -p "$3/$d"
+	done
+	cp -r -t "$3" "${pkgs_to_copy[@]}"
+    )
 }
 
 maybe_update_cache() {
@@ -167,7 +239,7 @@ maybe_update_cache() {
     # Download and stash any extra files we may need
     # First, build our list of repos, ppas, pkgs, and gems
     REPOS=()
-    for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
+    for pkgfile in "$PACKAGE_LISTS/"*.list; do
 	[[ -f $pkgfile ]] || continue
 	while read pkg_type rest; do
 	    case $pkg_type in

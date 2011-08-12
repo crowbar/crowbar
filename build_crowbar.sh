@@ -131,6 +131,12 @@ fi
     [[ $GEM_CACHE ]] || GEM_CACHE="$CACHE_DIR/gems"
     [[ $AMI_CACHE ]] || AMI_CACHE="$CACHE_DIR/amis"
 
+    # Directory where we will look for our package lists
+    [[ $PACKAGE_LISTS ]] || PACKAGE_LISTS="$BUILD_DIR/extra/packages"
+
+    # Tree-ish to check out in the build-cache"
+    [[ $CACHE_REVISION ]] || CACHE_REVISION="master"
+
     # Make any directories we don't already have
     for d in "$PKG_CACHE" "$GEM_CACHE" "$ISO_LIBRARY" "$ISO_DEST" \
 	"$IMAGE_DIR" "$BUILD_DIR" "$AMI_CACHE" \
@@ -177,12 +183,15 @@ fi
     cp -r "$CROWBAR_DIR/$OS_TOKEN-extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
 
+    # Make sure we have the right branch of the cache checked out
+    (cd "$CACHE_DIR"; git checkout -f "$CACHE_REVISION")
+
     # If we were asked to update our cache, do it.
     maybe_update_cache "$@"
     
     # Copy our extra pkgs, gems, and amis over
     debug "Copying pkgs, gems, and amis"
-    copy_pkgs "$IMAGE_DIR/pool" "$PKG_CACHE" "$BUILD_DIR/extra/pkgs"
+    copy_pkgs "$IMAGE_DIR" "$PKG_CACHE" "$BUILD_DIR/extra/pkgs"
     cp -r "$GEM_CACHE" "$BUILD_DIR/extra"
     cp -r "$AMI_CACHE/." "$BUILD_DIR/ami/."
     
