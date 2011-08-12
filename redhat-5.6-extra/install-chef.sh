@@ -185,8 +185,9 @@ done
 cp -f data_item.rb \
     /usr/lib/ruby/gems/1.8/gems/chef-server-api-0.10.2/app/controllers
 # HACK AROUND CHEF-2005
-## HACK Around CHEF-2413
+## HACK Around CHEF-2413 & 2450
 cp -f patches/yum.rb  /usr/lib/ruby/gems/1.8/gems/chef-0.10.2/lib/chef/provider/package/yum.rb
+cp -f patches/run_list.rb  /usr/lib/ruby/gems/1.8/gems/chef-0.10.2/lib/chef/run_list.rb
 ## END 2413 
 
 log_to svc /etc/init.d/chef-server restart
