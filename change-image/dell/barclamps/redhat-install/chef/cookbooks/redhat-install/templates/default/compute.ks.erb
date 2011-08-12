@@ -58,7 +58,7 @@ baseurl=http://<%= @admin_node_ip %>:<%= @web_port %>/redhat_dvd/extra/pkgs
 gpgcheck=0
 EOF
 
-HTTP_SERVER=$1
+HTTP_SERVER="<%= @admin_node_ip %>:<%= @install_web_port %>"
 IP=${HTTP_SERVER%%:*}
 HOSTNAME=$(hostname -f)
 
