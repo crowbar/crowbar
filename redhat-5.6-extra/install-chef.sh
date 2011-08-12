@@ -182,7 +182,7 @@ done
 ./start-chef-server.sh
 
 # HACK AROUND CHEF-2005
-cp -f data_item.rb \
+cp -f patches/data_item.rb \
     /usr/lib/ruby/gems/1.8/gems/chef-server-api-0.10.2/app/controllers
 # HACK AROUND CHEF-2005
 ## HACK Around CHEF-2413 & 2450
