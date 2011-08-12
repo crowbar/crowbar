@@ -128,8 +128,8 @@ echo "$(date '+%F %T %z'): Installing Chef Server..."
 log_to yum yum -q -y update
 
 # Install the rpm and gem packages
-log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify ruby-devel \
-    curl-devel ruby-shadow
+log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify \
+    ruby-devel curl-devel ruby-shadow
 
 echo "$(date '+%F %T %z'): Building Keys..."
 # Generate root's SSH pubkey
@@ -146,7 +146,7 @@ sed -i -e 's/^\(GSSAPI\)/#\1/' \
 service sshd restart
 
 # and trick Chef into pushing it out to everyone.
-cp /root/.ssh/authorized_keys \
+cp -f /root/.ssh/authorized_keys \
     /opt/dell/chef/cookbooks/redhat-install/files/default/authorized_keys
 
 CROWBAR_REALM=""
