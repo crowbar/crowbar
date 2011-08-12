@@ -70,3 +70,6 @@ pkgs OpenIPMI-tools
 
 # network stuff
 pkgs bridge-utils vconfig dhcp tftp-server nfs-utils portmap 
+
+# ohai stuff
+pkgs lshw
