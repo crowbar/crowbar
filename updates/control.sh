@@ -44,7 +44,7 @@ fi
 # get validation cert
 curl -L -o /etc/chef/validation.pem \
     --connect-timeout 60 -s \
-    "http://$ADMIN_IP:8091/ubuntu_dvd/validation.pem"
+    "http://$ADMIN_IP:8091/redhat_dvd/validation.pem"
 
 parse_node_data() {
   for s in $(/updates/parse_node_data -a name -a crowbar.network.bmc.netmask -a crowbar.network.bmc.address -a crowbar.network.bmc.router -a crowbar.allocated $1) ; do
