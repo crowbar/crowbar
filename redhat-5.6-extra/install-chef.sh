@@ -107,6 +107,20 @@ log_to svc service rsyslog restart
 # Make sure we only try to install x86_64 packages.
 echo 'exclude = *.i386' >>/etc/yum.conf
 
+# This is ugly, but there does not seem to be a better way
+# to tell Chef to just look in a specific location for its gems.
+echo "$(date '+%F %T %z'): Arranging for gems to be installed"
+log_to yum yum -q -y install rubygems gcc make
+(   cd /tftpboot/redhat_dvd/extra/gems
+    gem install --local --no-ri --no-rdoc builder*.gem)
+gem generate_index
+# Of course we are rubygems.org. Anything less would be uncivilised.
+sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
+#ruby -rwebrick -e \
+#    'WEBrick::HTTPServer.new(:BindAddress=>"127.0.0.1",:Port=>80,:DocumentRoot=>".").start' &>/dev/null &
+#webrick_pid=$!
+#echo $webrick_pid >/var/run/webrick_rubygems.pid
+
 #
 # Install the base rpm packages
 #
@@ -115,18 +129,7 @@ log_to yum yum -q -y update
 
 # Install the rpm and gem packages
 log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify ruby-devel \
-    curl-devel gcc make ruby-shadow
-
-# Install ruby gems
-echo "$(date '+%F %T %z'): Installing Gems..."
-for ((n=0; n<3; n++)); do
-    for g in gems/*.gem; do
-	echo "install $g"
-	log_to gem gem install --local --no-ri --no-rdoc "$g"
-    done
-    sync
-    sleep 5
-done
+    curl-devel ruby-shadow
 
 echo "$(date '+%F %T %z'): Building Keys..."
 # Generate root's SSH pubkey
@@ -137,10 +140,11 @@ fi
 # add our own key to authorized_keys
 cat /root/.ssh/id_rsa.pub >>/root/.ssh/authorized_keys
 
-########## FIXME
-# Need to create the redhat-install area with keys or
-# use the ubuntu copies.
-#########################################################
+# Hack up sshd_config to kill delays
+sed -i -e 's/^\(GSSAPI\)/#\1/' \
+    -e 's/#\(UseDNS.*\)yes/\1no/' /etc/ssh/sshd_config
+service sshd restart
+
 # and trick Chef into pushing it out to everyone.
 cp /root/.ssh/authorized_keys \
     /opt/dell/chef/cookbooks/redhat-install/files/default/authorized_keys
@@ -293,6 +297,12 @@ do
         die "Transition to $state failed!"
     chef_or_die "Chef run for $state transition failed!"
 done
+
+# This is an incredibly dodgy workaround, but it seems to work to get
+# redhat up as an admin node
+crowbar crowbar transition "$FQDN" hardware-installed
+chef_or_die "Dodgy hack final transition failed!"
+crowbar crowbar transition "$FQDN" ready
 
 # OK, let looper_chef_client run normally now.
 rm /tmp/deploying
