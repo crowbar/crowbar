@@ -54,7 +54,7 @@ else
     rm -f /target/root/.ssh/authorized_keys.wget
 fi
 
-wget -q http://$HTTP_SERVER/ubuntu_dvd/nova_install/crowbar_join.sh -O- > /target/etc/init.d/crowbar_join.sh
+wget -q http://$HTTP_SERVER/ubuntu_dvd/ubuntu_install/crowbar_join.sh -O- > /target/etc/init.d/crowbar_join.sh
 
 sed "s/@@IP/$IP/g" > /target/update_system2.sh <<"EOF"
 #!/bin/bash

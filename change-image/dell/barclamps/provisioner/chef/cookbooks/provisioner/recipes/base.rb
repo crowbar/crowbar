@@ -13,7 +13,10 @@
 # limitations under the License.
 #
 
-package "ipmitool"
+package "ipmitool" do
+  package_name "OpenIPMI-tools" if node[:platform] =~ /^(redhat|centos)$/
+  action :install
+end
 
 directory "/root/.ssh" do
   owner "root"

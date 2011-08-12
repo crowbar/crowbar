@@ -124,6 +124,12 @@ for s in $(cat /proc/cmdline); do
 	    printf "$VAL\n" >>/root/.ssh/authorized_keys
 	    cp /root/.ssh/authorized_keys "$BASEDIR/authorized_keys"
 	    ;;
+	crowbar.debug)
+	    sed -i -e '/config.log_level/ s/^#//' \
+		-e '/config.logger.level/ s/^#//' \
+		/opt/dell/openstack_manager/config/environments/production.rb
+	    ;;
+
     esac
 done
 

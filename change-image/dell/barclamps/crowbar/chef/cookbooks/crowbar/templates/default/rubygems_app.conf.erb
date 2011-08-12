@@ -1,0 +1,13 @@
+<VirtualHost *:<%= @params[:web_port] %>>
+    ServerName <%= @params[:server_name] %>
+    DocumentRoot <%= @params[:docroot] %>
+    LogLevel info
+    ErrorLog      <%= node[:apache][:log_dir] %>/<%= @params[:name] %>_error.log
+    CustomLog     <%= node[:apache][:log_dir] %>/<%= @params[:name] %>_access.log combined
+    <Directory <%= @params[:docroot] %>>
+        Options FollowSymLinks
+        AllowOverride None
+        Order allow,deny
+        Allow from all
+    </Directory>
+</VirtualHost>

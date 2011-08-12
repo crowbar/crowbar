@@ -19,6 +19,25 @@
 
 include_recipe "apache2"
 include_recipe "apache2::mod_auth_digest"
+
+web_app "rubygems" do
+  server_name "rubygems.org"
+  docroot "/tftpboot/#{node[:platform]}_dvd/extra"
+  template "rubygems_app.conf.erb"
+  web_port 80
+end
+
+bash "force-apache-reload" do
+  code "service httpd graceful"
+end
+
+%w{rake json rails syslogger sass simple-navigation 
+   i18n haml net-http-digest_auth}.each {|g|
+  bash "force install gem #{g}" do
+    code "gem install --no-ri --no-rdoc #{g}"
+  end
+}
+
 include_recipe "passenger_apache2::mod_rails"
 include_recipe "rails"
 
