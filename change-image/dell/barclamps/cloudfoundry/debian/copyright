@@ -1,0 +1,26 @@
+This work was packaged for Debian by:
+
+    Dell Openstack Team <openstack@dell.com> on Thu, 19 May 2011 15:50:02 -0500
+
+It was downloaded from:
+
+    <http://github.com/~crowbar>
+
+Upstream Author(s):
+
+    Openstack Dell Team <openstack@dell.com>
+
+Copyright:
+
+    Copyright (C) 2011 Dell, Inc.
+
+License:
+
+GREG: Fill in Apache 2.0
+
+The Debian packaging is:
+
+    Copyright (C) 2011 Dell <openstack@dell.com>
+
+and is licensed under Apache 2.0, see above.
+
