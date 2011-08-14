@@ -92,6 +92,6 @@ end
 service "dhcp3-server" do
   service_name "dhcpd" if node[:platform] =~ /^(redhat|centos)$/
   supports :restart => true, :status => true, :reload => true
-  enabled
+  action [:enable, :start]
 end
 
