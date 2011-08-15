@@ -25,7 +25,6 @@ when "redhat","centos"
   package "dhcp"
 end
 
-
 directory "/etc/dhcp3"
 directory "/etc/dhcp3/groups.d"
 directory "/etc/dhcp3/subnets.d"
@@ -45,6 +44,12 @@ file "/etc/dhcp3/hosts.d/host_list.conf" do
   owner "root"
   group "root"
   mode 0644
+end
+
+service "dhcp3-server" do
+  service_name "dhcpd" if node[:platform] =~ /^(redhat|centos)$/
+  supports :restart => true, :status => true, :reload => true
+  action :enable
 end
 
 # This needs to be evaled.
@@ -87,11 +92,5 @@ when "redhat","centos"
     variables(:interfaces => intfs)
     notifies :restart, "service[dhcp3-server]"
   end
-end
-
-service "dhcp3-server" do
-  service_name "dhcpd" if node[:platform] =~ /^(redhat|centos)$/
-  supports :restart => true, :status => true, :reload => true
-  action [:enable, :start]
 end
 
