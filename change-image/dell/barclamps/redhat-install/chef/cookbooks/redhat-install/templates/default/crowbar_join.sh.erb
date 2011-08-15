@@ -127,9 +127,7 @@ if ! log_to chef chef-client -l debug -V; then
     sync_time
     echo "Removing Chef Cache"
     rm -rf /var/cache/chef/*
-    echo "Checking Install Integrity"
-    log_to apt /usr/bin/apt-get -q --force-yes -y install
-    echo "Running Chef Client (pass 3) - apt/cache cleanup"
+    echo "Running Chef Client (pass 3) - cache cleanup"
     if ! log_to chef chef-client -l debug -V; then 
         log_to ifup ifup -a 
         post_state $HOSTNAME "problem"
