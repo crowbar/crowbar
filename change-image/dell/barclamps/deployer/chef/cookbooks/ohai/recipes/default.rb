@@ -20,10 +20,12 @@
 Ohai::Config[:plugin_path] << node.ohai.plugin_path
 Chef::Log.info("ohai plugins will be at: #{node.ohai.plugin_path}")
 
-p = package "lshw" do
-  action :nothing
+unless ::File.exists?("/usr/sbin/lshw") or ::File.exists?("/usr/bin/lshw")
+  p = package "lshw" do
+    action :nothing
+  end
+  p.run_action(:install)
 end
-p.run_action(:install)
 
 d = directory node.ohai.plugin_path do
   owner 'root'

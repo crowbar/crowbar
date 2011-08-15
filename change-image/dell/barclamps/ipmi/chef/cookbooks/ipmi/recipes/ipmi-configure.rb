@@ -18,14 +18,16 @@
 
 include_recipe "utils"
 
-package "ipmitool" do
-  case node[:platform]
-  when "ubuntu","debian"
-    package_name "ipmitool"
-  when "redhat","centos"
-    package_name "OpenIPMI-tools"
+unless ::File.exists?("/usr/sbin/ipmitool") or ::File.exists?("/usr/bin/ipmitool")
+  package "ipmitool" do
+    case node[:platform]
+    when "ubuntu","debian"
+      package_name "ipmitool"
+    when "redhat","centos"
+      package_name "OpenIPMI-tools"
+    end
+    action :install
   end
-  action :install
 end
 
 bmc_user     = node[:ipmi][:bmc_user]
