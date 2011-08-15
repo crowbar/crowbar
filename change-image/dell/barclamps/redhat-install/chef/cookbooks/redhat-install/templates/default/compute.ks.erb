@@ -106,7 +106,7 @@ fi
 curl -s -o /etc/init.d/crowbar_join.sh \
     http://$HTTP_SERVER/redhat_dvd/redhat_install/crowbar_join.sh
 chmod +x /etc/init.d/crowbar_join.sh
-ln -s /etc/init.d/crowbar-_join.sh /etc/rc3.d/S80crowbar
+ln -s /etc/init.d/crowbar_join.sh /etc/rc3.d/S80crowbar
 ln -s /etc/init.d/crowbar_join.sh /etc/rc5.d/S80crowbar
 ln -s /etc/init.d/crowbar_join.sh /etc/rc2.d/S80crowbar
 
