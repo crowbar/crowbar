@@ -19,7 +19,7 @@ repository bare epel5-nagios3 http://repos.fedorapeople.org/repos/peter/nagios3/
 pkgs rubygem-chef-server curl-devel rubygem-kwalify ruby-ri ruby-docs syslinux
 
 # base gems we will need
-gems haml-3.1.1  i18n-0.6.0  json-1.5.2  net-http-digest_auth-1.1.1 sass-3.1.2  simple-navigation-3.3.0  syslogger-1.2.4 passenger
+gems haml-3.1.1  i18n-0.6.0  json-1.5.2  net-http-digest_auth-1.1.1 sass-3.1.2  simple-navigation-3.3.0  syslogger-1.2.4 passenger builder
 
 # additional debs we will need
 # apache stuff
