@@ -85,7 +85,8 @@ rsyslog_dir="/etc/rsyslog.d"
 mkdir -p "$rsyslog_dir"
 if [ ! -f "$rsyslog_dir/10-crowbar-client.conf" ]; then
     echo "*.* @@${IP}" > "$rsyslog_dir/10-crowbar-client.conf"
-    if ! wget -O "$rsyslog_dir/00-crowbar-debug.conf" -q http://$HTTP_SERVER/redhat_dvd/rsyslog.d/00-crowbar-debug.conf
+    if ! curl -s -o "$rsyslog_dir/00-crowbar-debug.conf" \
+	http://$HTTP_SERVER/redhat_dvd/rsyslog.d/00-crowbar-debug.conf
     then
 	rm -f "$rsyslog_dir/00-crowbar-debug.conf"
     fi
@@ -93,20 +94,24 @@ fi
 
 mkdir -p /root/.ssh
 chmod 700 /root/.ssh
-if ! wget -O /root/.ssh/authorized_keys.wget -q http://$HTTP_SERVER/redhat_dvd/authorized_keys; then
+if ! curl -s -o /root/.ssh/authorized_keys.wget \
+    http://$HTTP_SERVER/redhat_dvd/authorized_keys; then
     rm -f /root/.ssh/authorized_keys.wget
 else
     chmod 644 /root/.ssh/authorized_keys
-    cat /root/.ssh/authorized_keys.wget >>/target/root/.ssh/authorized_keys
+    cat /root/.ssh/authorized_keys.wget >>/root/.ssh/authorized_keys
     rm -f /root/.ssh/authorized_keys.wget
 fi
 
-wget -q http://$HTTP_SERVER/redhat_dvd/crowbar_join.sh -O- | \
-    sed -i "s/__HTTP_SERVER__/$HTTP_SERVER/" >/etc/init.d/crowbar_join.sh
+curl -s -o /etc/init.d/crowbar_join.sh \
+    http://$HTTP_SERVER/redhat_dvd/redhat_install/crowbar_join.sh
 chmod +x /etc/init.d/crowbar_join.sh
-ln -s /etc/init.d/crowbar_join.sh /etc/rc3.d/S80crowbar
+ln -s /etc/init.d/crowbar-_join.sh /etc/rc3.d/S80crowbar
 ln -s /etc/init.d/crowbar_join.sh /etc/rc5.d/S80crowbar
 ln -s /etc/init.d/crowbar_join.sh /etc/rc2.d/S80crowbar
+
+# boot to runlevel 3 by default
+sed -i -e '/initdefault/ s/5/3/' /etc/inittab
 
 sleep 30
 

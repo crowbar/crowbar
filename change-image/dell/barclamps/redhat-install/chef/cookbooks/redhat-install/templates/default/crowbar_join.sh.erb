@@ -90,15 +90,14 @@ sync_time
 post_state $HOSTNAME "readying"
 final_state="ready"
 mkdir -p /etc/chef
-wget -q "http://$HTTP_SERVER/ubuntu_dvd/validation.pem" -O- > /etc/chef/validation.pem
+curl -o /etc/chef/validation.pem \
+    "http://$HTTP_SERVER/redhat_dvd/validation.pem"
 
 # Install Chef
 echo "Installing Chef..."
-echo "chef chef/chef_server_url string http://$IP:4000" >/tmp/debsel.conf
 
-log_to apt /usr/bin/apt-get update
-log_to apt /usr/bin/debconf-set-selections /tmp/debsel.conf
-log_to apt /usr/bin/apt-get --force-yes -y install chef
+log_to yum yum -q -y update
+log_to yum yum -q -y install rubygem-chef
 
 log_to chef service chef-client stop
 log_to chef killall chef-client
@@ -139,8 +138,6 @@ if ! log_to chef chef-client -l debug -V; then
         sync_time
         echo "Removing Chef Cache"
         rm -rf /var/cache/chef/*
-        echo "Checking Install Integrity"
-        log_to apt /usr/bin/apt-get -q --force-yes -y install
         echo "Checking Keys"
         rm -f /etc/chef/client.pem
         post_state $HOSTNAME "hardware-updated"
@@ -156,13 +153,10 @@ if ! log_to chef chef-client -l debug -V; then
     fi
 fi
 
-# Make sure our code is up to date
-log_to apt apt-get -q --force-yes -y upgrade
-
 # Transition to our final state
 post_state $HOSTNAME "$final_state"
 
-log_to time service ntp start
+log_to time service ntpd start
 # Chef client restart / start aren't implemented quite right.  So make sure we really start the chef-client fresh
 log_to chef service chef-client stop
 log_to chef service chef-client start
