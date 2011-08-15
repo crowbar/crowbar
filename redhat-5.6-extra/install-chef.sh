@@ -147,7 +147,7 @@ service sshd restart
 
 # and trick Chef into pushing it out to everyone.
 cp -f /root/.ssh/authorized_keys \
-    /opt/dell/chef/cookbooks/redhat-install/files/default/authorized_keys
+    /opt/dell/chef/cookbooks/provisioner/files/default/authorized_keys
 
 CROWBAR_REALM=""
 # generate the machine install username and password
