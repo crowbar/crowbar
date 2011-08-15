@@ -724,10 +724,11 @@ run_admin_node() {
     kernel_params+=" crowbar.url=http://192.168.124.10:8091/config crowbar.debug.logdest=/dev/ttyS0 crowbar.use_serial_console=true"
     [[ $DISPLAY ]] || kernel_params+=" console=ttyS1,115200n81"
     [[ -r $HOME/.ssh/id_rsa.pub ]] && kernel_params+=" crowbar.authkey=$(sed 's/ /\\040/g' <"$HOME/.ssh/id_rsa.pub")"
+    if ! [[ $manual_deploy = true ]]; then
+	kernel_params+=" crowbar.hostname=admin.pod.cloud.openstack.org"
+    fi
     if [[ $develop_mode ]]; then
 	kernel_params+=" crowbar.debug"
-    else
-	kernel_params+=" crowbar.hostname=admin.pod.cloud.openstack.org"
     fi
     update_status admin "Performing install from ${ISO##*/}"
     # First run of the admin node.  Note that we do not actaully boot off the
@@ -1066,6 +1067,7 @@ run_test() {
 	    pause-after-admin) pause_after_admin=true;;
 	    admin-only) admin_only=true;;
 	    develop-mode) develop_mode=true;;
+	    manual-deploy) manual_deploy=true;;
 	    scratch) tests_to_run+=("$1") ;;
 	    *) [[ -d $FRAMEWORKDIR/${1}_test ]] || \
 		die 1 "Unknown test or option $1"
