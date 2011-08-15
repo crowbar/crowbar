@@ -302,12 +302,6 @@ do
     chef_or_die "Chef run for $state transition failed!"
 done
 
-# This is an incredibly dodgy workaround, but it seems to work to get
-# redhat up as an admin node
-crowbar crowbar transition "$FQDN" hardware-installed
-chef_or_die "Dodgy hack final transition failed!"
-crowbar crowbar transition "$FQDN" ready
-
 # OK, let looper_chef_client run normally now.
 rm /tmp/deploying
 
