@@ -18,21 +18,23 @@
 # Assumes that this is run as root already
 
 FQDN=$1
-[[ $FQDN ]] || \
-    FQDN=$(grep "cc_hostname_admin:" /etc/openstack/naming.conf | \
-           sed "s/^[ 	]*cc_hostname_admin:[ 	]*//")
-
 HOSTNAME=${FQDN%%.*}
 [[ $HOSTNAME == $FQDN ]] && HOSTNAME=""
 DOMAINNAME=${FQDN#*.}
 
-grep -v "unassigned-hostname" /etc/hosts | \
-    grep -v "redundant" /etc/hosts > /tmp/greg.out
-mv /tmp/greg.out /etc/hosts
-echo "127.0.1.1    $FQDN $HOSTNAME" >> /etc/hosts
-chown root.root /etc/hosts
+# Fix up the localhost address mapping.
+sed -i -e "s/\(127\.0\.0\.1.*\)/127.0.0.1 $FQDN $HOSTNAME localhost.localdomain localhost/" /etc/hosts
+sed -i -e "s/\(127\.0\.1\.1.*\)/127.0.1.1 $FQDN $HOSTNAME localhost.localdomain localhost/" /etc/hosts
 
+# Fix Ubuntu/Debian Hostname
 echo "$FQDN" > /etc/hostname
+
+# Fix CentOs/RedHat Hostname
+if [ -f /etc/sysconfig/network ] ; then
+  sed -i -e "s/HOSTNAME=.*/HOSTNAME=$FQDN/" /etc/sysconfig/network
+fi
+
+# Set domainname (for dns)
 echo "$DOMAINNAME" > /etc/domainname
 
 hostname $FQDN

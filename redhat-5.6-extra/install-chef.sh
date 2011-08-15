@@ -89,7 +89,7 @@ DOMAINNAME=${FQDN#*.}
 # Setup hostname from config file
 echo "$(date '+%F %T %z'): Setting Hostname..."
 update_hostname.sh $FQDN
-export HOSTNAME=${FQDN%%.*}
+source /etc/sysconfig/network
 
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
@@ -178,6 +178,9 @@ for t in provisioner deployer; do
     sed -i '/os_install/ s/os_install/redhat_install/' \
 	/opt/dell/chef/data_bags/crowbar/bc-template-${t}.json
 done
+
+# Default password in chef webui to password
+sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
 
 ./start-chef-server.sh
 
