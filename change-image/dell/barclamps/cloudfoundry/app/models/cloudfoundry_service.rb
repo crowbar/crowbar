@@ -13,7 +13,7 @@
 # limitations under the License. 
 # 
 
-class CloudFoundryService < ServiceObject
+class CloudfoundryService < ServiceObject
 
   def initialize(thelogger)
     @bc_name = "cloudfoundry"

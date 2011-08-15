@@ -13,9 +13,9 @@
 # limitations under the License. 
 # 
 
-class CloudFoundryController < BarclampController
+class CloudfoundryController < BarclampController
   def initialize
-    @service_object = CloudFoundryService.new logger
+    @service_object = CloudfoundryService.new logger
   end
 end
 

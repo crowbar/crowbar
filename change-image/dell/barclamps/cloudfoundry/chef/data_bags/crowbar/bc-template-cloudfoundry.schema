@@ -11,8 +11,8 @@
         "cloudfoundry": {
           "type": "map",
           "required": true,
-          "foo": {
-            "backing_type": { "type": "str", "required": true }
+          "mapping": {
+            "foo": { "type": "str", "required": true }
           }
         }
       }
