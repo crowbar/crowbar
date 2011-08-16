@@ -1,13 +1,13 @@
-Source: barclamp-cloudfoundry
+Source: barclamp-==BC-MODEL==
 Section: unknown
 Priority: extra
 Maintainer: Dell Openstack <openstack@dell.com>
 Build-Depends: debhelper (>= 7.0.50~)
 Standards-Version: 3.9.1
-Homepage: http://openstack.dell.com/
+Homepage: http://dell.com/openstack
 
-Package: barclamp-cloudfoundry
+Package: barclamp-==BC-MODEL==
 Architecture: all
 Depends: barclamp-crowbar
-Description: Cloud Foundry Barclamp for Crowbar
- Provides the cloudfoundry barclamp for crowbar
+Description: ==^BC-MODEL== Barclamp for Crowbar
+ Provides the ==BC-MODEL== barclamp for crowbar

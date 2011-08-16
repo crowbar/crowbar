@@ -16,11 +16,11 @@ Copyright:
 
 License:
 
-GREG: Fill in Apache 2.0
+  Apache 2.0
+  http://www.apache.org/licenses/LICENSE-2.0
 
 The Debian packaging is:
 
-    Copyright (C) 2011 Dell <openstack@dell.com>
-
-and is licensed under Apache 2.0, see above.
+  Copyright (C) 2011 Dell <openstack@dell.com>
+  and is licensed under Apache 2.0, see above.
 

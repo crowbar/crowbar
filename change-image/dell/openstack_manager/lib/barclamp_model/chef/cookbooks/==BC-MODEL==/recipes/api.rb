@@ -6,7 +6,7 @@
 
 include_recipe "#{@cookbook_name}::common"
 
-cloudfoundry_service "api"
+==BC-MODEL==_service "api"
 
-node[:cloudfoundry][:monitor][:svcs] <<["cloudfoundry-api"]
+node[:==BC-MODEL==][:monitor][:svcs] <<["==BC-MODEL==-api"]
 

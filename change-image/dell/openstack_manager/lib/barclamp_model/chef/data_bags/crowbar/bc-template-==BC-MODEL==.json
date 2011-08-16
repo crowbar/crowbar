@@ -1,20 +1,20 @@
 {
-  "id": "bc-template-cloudfoundry",
+  "id": "bc-template-==BC-MODEL==",
   "description": "Cloud Foundry service (OpenPaaS) for the cloud",
   "attributes": {
-    "cloudfoundry": {
+    "==BC-MODEL==": {
       "foo": "bar"
     }
   },
   "deployment": {
-    "cloudfoundry": {
+    "==BC-MODEL==": {
       "crowbar-revision": 0,
       "elements": {},
       "element_order": [
-        [ "cloudfoundry-server" ]
+        [ "==BC-MODEL==-server" ]
       ],
       "config": {
-        "environment": "cloudfoundry-base-config",
+        "environment": "==BC-MODEL==-base-config",
         "mode": "full",
         "transitions": false,
         "transition_list": [

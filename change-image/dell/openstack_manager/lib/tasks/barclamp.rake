@@ -17,10 +17,61 @@
 
 namespace :barclamp do
 
+  MODEL_SOURCE = File.join 'lib', 'barclamp_model'
+  MODEL_SUBSTRING_BASE = '==BC-MODEL=='
+  MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
+  MODEL_TARGET = File.join '..', 'barclamps'
   BASE_PATH = File.join '/opt', 'dell'
   BARCLAMP_PATH = File.join BASE_PATH, 'chef'
   CROWBAR_PATH = File.join BASE_PATH, 'openstack_manager'
   BIN_PATH = File.join BASE_PATH, 'bin'
+  
+  desc "Create a new barclamp"
+  task :create, [:name, :entity] do |t, args|
+    args.with_defaults(:entity => 'Dell')
+    bc = args.name
+    if bc.nil?
+      puts "You must supply a name to create a barclamp"
+    else
+      target = File.join MODEL_TARGET, bc
+      puts "Creating barclamp '#{bc}' into '#{target}' as entity '#{args.entity}'."
+      FileUtils.mkdir target
+      clone = Dir.entries(MODEL_SOURCE).find_all { |e| !e.start_with? '.'}
+      clone.each do |item|
+        bc_cloner(item, bc, args.entity, MODEL_SOURCE, target)
+      end
+    end
+  end
+  
+  def bc_cloner(item, bc, entity, source, target)
+    new_item = bc_replacer(item, bc, entity)
+    new_file = File.join target, new_item
+    new_source = File.join(source, item)
+    if File.directory? new_source
+      #puts "\tcreating directory #{new_file}."
+      FileUtils.mkdir new_file, :verbose => true
+      clone = Dir.entries(new_source).find_all { |e| !e.start_with? '.'}
+      clone.each do |recurse|
+        bc_cloner(recurse, bc, entity, new_source, new_file)
+      end
+    else
+      #need to inject into the file
+      puts "\t\tcreating file #{new_file}."
+      t = File.open(new_file, 'w')
+      File.open(new_source, 'r') do |f|
+        s = f.read
+        t.write(bc_replacer(s, bc, entity))
+      end
+      t.close
+    end
+  end
+  
+  def bc_replacer(item, bc, entity)
+    item = item.gsub(MODEL_SUBSTRING_BASE, bc)
+    item = item.gsub(MODEL_SUBSTRING_CAMEL, bc.capitalize)
+    item = item.gsub('Copyright 2011, Dell', "Copyright #{Time.now.year}, #{entity}")
+    return item
+  end
   
   desc "Install a barclamp into an active system"
   task :install, [:path] do |t, args|

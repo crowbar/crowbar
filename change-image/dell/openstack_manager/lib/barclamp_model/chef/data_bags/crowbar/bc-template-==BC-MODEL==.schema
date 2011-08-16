@@ -2,17 +2,17 @@
   "type": "map",
   "required": true,
   "mapping": {
-    "id": { "type": "str", "required": true, "pattern": "/^bc-cloudfoundry-|^bc-template-cloudfoundry$/" },
+    "id": { "type": "str", "required": true, "pattern": "/^bc-==BC-MODEL==-|^bc-template-==BC-MODEL==$/" },
     "description": { "type": "str", "required": true },
     "attributes": {
       "type": "map",
       "required": true,
       "mapping": {
-        "cloudfoundry": {
+        "==BC-MODEL==": {
           "type": "map",
           "required": true,
-          "foo": {
-            "backing_type": { "type": "str", "required": true }
+          "mapping": {
+            "foo": { "type": "str", "required": true }
           }
         }
       }
@@ -21,7 +21,7 @@
       "type": "map",
       "required": true,
       "mapping": {
-        "cloudfoundry": {
+        "==BC-MODEL==": {
           "type": "map",
           "required": true,
           "mapping": {

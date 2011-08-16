@@ -14,22 +14,22 @@
 #
 
 clean:
-	@echo "Cleaning barclamp-cloudfoundry"
+	@echo "Cleaning barclamp-==BC-MODEL=="
 
 distclean:
-	@echo "Dist-Cleaning barclamp-cloudfoundry"
+	@echo "Dist-Cleaning barclamp-==BC-MODEL=="
 
 all: clean build install
 
 build:
-	@echo "Building barclamp-cloudfoundry"
+	@echo "Building barclamp-==BC-MODEL=="
 
 install:
-	@echo "Installing barclamp-cloudfoundry"
+	@echo "Installing barclamp-==BC-MODEL=="
 	mkdir -p ${DESTDIR}/opt/crowbar/openstack_manager
 	cp -r app ${DESTDIR}/opt/crowbar/openstack_manager
-	mkdir -p ${DESTDIR}/usr/share/barclamp-cloudfoundry
-	cp -r chef ${DESTDIR}/usr/share/barclamp-cloudfoundry
+	mkdir -p ${DESTDIR}/usr/share/barclamp-==BC-MODEL==
+	cp -r chef ${DESTDIR}/usr/share/barclamp-==BC-MODEL==
 	mkdir -p ${DESTDIR}/usr/bin
 	cp -r command_line/* ${DESTDIR}/usr/bin
 

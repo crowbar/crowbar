@@ -20,14 +20,14 @@
 # if monitored by nagios, install the nrpe commands
 
 # Node addresses are dynamic and can't be set from attributes only.
-node[:cloudfoundry][:monitor][:ports]["cloudfoundry-api"] = [node[:cloudfoundry][:api_bind_host], node[:cloudfoundry][:api_bind_port]]
+node[:==BC-MODEL==][:monitor][:ports]["==BC-MODEL==-api"] = [node[:==BC-MODEL==][:api_bind_host], node[:==BC-MODEL==][:api_bind_port]]
 
-svcs = node[:cloudfoundry][:monitor][:svcs]
-ports = node[:cloudfoundry][:monitor][:ports]
-log ("will monitor cloudfoundry svcs: #{svcs.join(',')} and ports #{ports.values.join(',')}")
+svcs = node[:==BC-MODEL==][:monitor][:svcs]
+ports = node[:==BC-MODEL==][:monitor][:ports]
+log ("will monitor ==BC-MODEL== svcs: #{svcs.join(',')} and ports #{ports.values.join(',')}")
 
-template "/etc/nagios/nrpe.d/cloudfoundry_nrpe.cfg" do
-  source "cloudfoundry_nrpe.cfg.erb"
+template "/etc/nagios/nrpe.d/==BC-MODEL==_nrpe.cfg" do
+  source "==BC-MODEL==_nrpe.cfg.erb"
   mode "0644"
   group node[:nagios][:group]
   owner node[:nagios][:user]
