@@ -24,8 +24,16 @@ else
   servers = servers.map { |x| Chef::Recipe::Barclamp::Inventory.get_network_by_type(x, "admin").address }
 end
 
+# Disable syslogd in favor of rsyslog on redhat.
+case node[:platform]
+  when "redhat","centos"
+  service "syslog" do
+    action [ :stop, :disable]
+  end
+end
+
 service "rsyslog" do
-  provider Chef::Provider::Service::Upstart
+  provider Chef::Provider::Service::Upstart if node[:platform] == "ubuntu"
   supports :restart => true, :status => true, :reload => true
   running true
   enabled true
