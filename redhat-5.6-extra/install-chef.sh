@@ -185,12 +185,13 @@ sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "pass
 ./start-chef-server.sh
 
 # HACK AROUND CHEF-2005
-cp -f patches/data_item.rb \
-    /usr/lib/ruby/gems/1.8/gems/chef-server-api-0.10.2/app/controllers
+di=$(find /usr/lib/ruby/gems/1.8/gems -name data_item.rb)
+cp -f patches/data_item.rb "$di"
 # HACK AROUND CHEF-2005
 ## HACK Around CHEF-2413 & 2450
-cp -f patches/yum.rb  /usr/lib/ruby/gems/1.8/gems/chef-0.10.2/lib/chef/provider/package/yum.rb
-cp -f patches/run_list.rb  /usr/lib/ruby/gems/1.8/gems/chef-0.10.2/lib/chef/run_list.rb
+# cp -f patches/yum.rb  /usr/lib/ruby/gems/1.8/gems/chef-0.10.2/lib/chef/provider/package/yum.rb
+rl=$(find /usr/lib/ruby/gems/1.8/gems/ -name run_list.rb)
+cp -f patches/run_list.rb "$rl"
 ## END 2413 
 
 log_to svc /etc/init.d/chef-server restart

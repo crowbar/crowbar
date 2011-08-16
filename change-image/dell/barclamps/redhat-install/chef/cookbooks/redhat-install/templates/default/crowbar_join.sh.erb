@@ -93,6 +93,10 @@ mkdir -p /etc/chef
 curl -o /etc/chef/validation.pem \
     "http://$HTTP_SERVER/redhat_dvd/validation.pem"
 
+
+# Make sure that the client knows how to talk to the server
+echo "chef_server_url \"http://$IP:4000\"" >/etc/chef/client.rb
+
 # Install Chef
 echo "Installing Chef..."
 
