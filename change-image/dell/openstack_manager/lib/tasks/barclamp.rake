@@ -17,7 +17,7 @@
 
 namespace :barclamp do
 
-  BASE_PATH = '/opt/dell'
+  BASE_PATH = File.join '/opt', 'dell'
   BARCLAMP_PATH = File.join BASE_PATH, 'chef'
   CROWBAR_PATH = File.join BASE_PATH, 'openstack_manager'
   BIN_PATH = File.join BASE_PATH, 'bin'
@@ -32,12 +32,12 @@ namespace :barclamp do
       bc = nil
       File.open(version, 'r') do |f|
         s = f.readline
-        bc = s[/BARCLAMP_NAME=(.*)/,1] if bc.nil?
+        bc ||= s[/BARCLAMP_NAME=(.*)/,1].chomp!
       end
-      puts "Installing barclamp '#{bc}' from '#{path}'"
+      puts "Installing barclamp #{bc} from #{path}"
       
       # copy all the files to the target
-      FileUtils.cp_r File.join(path, 'chef', '*'), BARCLAMP_PATH, :force
+      FileUtils.cp_r File.join(path, 'chef'), BARCLAMP_PATH
       puts "\tcopied over chef parts from #{path} to #{BARCLAMP_PATH}"
       
       #upload the cookbooks
@@ -54,7 +54,7 @@ namespace :barclamp do
 
       #upload the roles
       roles = Dir.entries(File.join(path, 'chef', 'roles')).find_all { |r| r.end_with?(".rb") }
-      FileUtils.cd File.join BARLCAMP_PATH, 'roles'
+      FileUtils.cd File.join BARCLAMP_PATH, 'roles'
       roles.each do |role|
         knife_role = "knife role from file #{role}"
         system knife_role
@@ -62,9 +62,10 @@ namespace :barclamp do
       end
       
       #copy the rails parts
-      FileUtils.cp_r File.join(path, 'app', '*'), File.join(CROWBAR_PATH, 'app'), :force
-      FileUtils.cp_r File.join(path, 'public', '*'), File.join(CROWBAR_PATH, 'public'), :force
-      FileUtils.cp_r File,join(path, 'command_line', '*'), File.join(BIN_PATH), :force
+      dirs = Dir.entries(path)
+      FileUtils.cp_r File.join(path, 'app'), File.join(CROWBAR_PATH, 'app') if dirs.include?('app')
+      FileUtils.cp_r File.join(path, 'public'), File.join(CROWBAR_PATH, 'public') if dirs.include? 'public'
+      FileUtils.cp_r File.join(path, 'command_line'), File.join(BIN_PATH) if dirs.include? 'command_line'
       puts "\tcopied app & command line files"
       
       system "service apache2 reload"
