@@ -115,7 +115,7 @@ sync_time
 # the networking barclamp changing the IP address from dhcp to static.
 # We will try to pick up and run with it.
 echo "Running Chef Client  (pass 1)"
-log_to chef chef-client -l debug -V
+log_to chef chef-client -l debug
 
 # Make sure our interfaces are as up as we can get them
 echo "Ensuring that our network interfaces are up."
@@ -123,7 +123,7 @@ log_to ifup ifup -a
 
 # Only transition to problem state if the second run fails.
 echo "Running Chef Client (pass 2)"
-if ! log_to chef chef-client -l debug -V; then
+if ! log_to chef chef-client -l debug; then
     log_to ifup ifup -a 
     post_state $HOSTNAME "problem"
     echo "Error Path"
@@ -132,7 +132,7 @@ if ! log_to chef chef-client -l debug -V; then
     echo "Removing Chef Cache"
     rm -rf /var/cache/chef/*
     echo "Running Chef Client (pass 3) - cache cleanup"
-    if ! log_to chef chef-client -l debug -V; then 
+    if ! log_to chef chef-client -l debug; then 
         log_to ifup ifup -a 
         post_state $HOSTNAME "problem"
         echo "Error Path"
@@ -145,7 +145,7 @@ if ! log_to chef chef-client -l debug -V; then
         post_state $HOSTNAME "hardware-updated"
         post_state $HOSTNAME "problem"
         echo "Running Chef Client (pass 4) - password cleanup"
-        if ! log_to chef chef-client -l debug -V; then 
+        if ! log_to chef chef-client -l debug; then 
             log_to ifup ifup -a
             echo "chef-client run failed four times, giving up."
             echo "Failed"
