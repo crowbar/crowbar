@@ -40,6 +40,13 @@ cleanup() {
     done < <(tac /proc/self/mounts |grep -e "$CACHE_DIR" -e "$IMAGE_DIR" -e "$BUILD_DIR")
     [[ $webrick_pid && -d /proc/$webrick_pid ]] && kill -9 $webrick_pid
     rm -rf "$IMAGE_DIR" "$BUILD_DIR"
+    if [[ $CURRENT_BRANCH ]]; then
+	# clean up after outselves from merging branches
+	cd "$REPO_PWD"
+	git checkout -f "$CURRENT_BRANCH"
+	git branch -D "$THROWAWAY_BRANCH"
+	[[ $THROWAWAY_STASH ]] && git stash pop "$THROWAWAY_STASH"
+    fi
 }
 
 trap cleanup 0 INT QUIT TERM
@@ -86,6 +93,8 @@ clean_dirs() {
 
 OS_TO_STAGE="${1-ubuntu-10.10}"
 
+shift
+
 if ! [[ $OS_TO_STAGE && -d $CROWBAR_DIR/$OS_TO_STAGE-extra && \
     -f $CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh ]]; then
     cat <<EOF
@@ -106,6 +115,36 @@ fi
     # Make sure only one instance of the ISO build runs at a time.
     # Otherwise you can easily end up with a corrupted image.
     flock 65
+
+    while [[ $1 ]]; do
+	case $1 in
+	    -m|--merge)
+		shift
+		while [[ $1 && ! ( $1 = -* ) ]]; do
+		    BRANCH_TO_MERGE=$(git check-ref-format --branch "$1") || die "$1 is not a git branch!"
+		    shift
+		    if [[ ! $CURRENT_BRANCH ]]; then
+			CURRENT_BRANCH=$(git symbolic-ref HEAD) || die "Not on a branch we can merge with!"
+			THROWAWAY_BRANCH="build-throwaway-$$-$RANDOM"
+			REPO_PWD="$PWD"
+			if [[ ! $(git status) =~ working\ directory\ clean ]]; then
+			    THROWAWAY_STASH="stash-$$-$RANDOM"
+			    git stash "$THROWAWAY_STASH"
+			fi
+			git checkout -b "$THROWAWAY_BRANCH"
+			if [[ $THROWAWAY_STASH ]]; then
+			    git stash apply "$THROWAWAY_STASH"
+			    git commit -a -m "Applying $THROWAWAY_STASH to $THROWAWAY_BRANCH"
+			fi
+		    fi
+		    git merge "$BRANCH_TO_MERGE" || die "Merge of $BRANCH_TO_MERGE failed, fix things up and continue"
+		done
+		;;
+	    *) 	die "Unknown command line parameter $1";;
+	esac
+    done
+		    
+
 
     # Source our config file if we have one
     [[ -f $HOME/.build-crowbar.conf ]] && \
