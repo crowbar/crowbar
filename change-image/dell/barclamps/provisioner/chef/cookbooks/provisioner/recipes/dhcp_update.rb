@@ -7,7 +7,6 @@ admin_net = node[:network][:networks]["admin"]
 dhcp_start = admin_net[:ranges]["dhcp"]["start"]
 dhcp_end = admin_net[:ranges]["dhcp"]["end"]
 lease_time = node[:provisioner][:dhcp]["lease-time"]
-dvd = "#{node[:platform]}_dvd"
 
 dhcp_groups = { "hwinstall" => 1, "update" => 3, "execute" => 4}
 dhcp_groups.each do |group, dhcp_state|
