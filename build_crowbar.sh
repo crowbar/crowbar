@@ -148,6 +148,7 @@ in_repo() ( cd "$CROWBAR_DIR"; git "$@" )
 		    in_repo merge "$BRANCH_TO_MERGE" || die "Merge of $BRANCH_TO_MERGE failed, fix things up and continue"
 		done
 		;;
+	    update-cache) need_update=true;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
     done
