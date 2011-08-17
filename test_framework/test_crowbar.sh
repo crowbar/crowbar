@@ -488,7 +488,8 @@ wait_for_kvm() {
 		    update_status "$vmname" \
 			"Daemonizing node with $(($deadline - $(date +%s))) seconds left."
 		    return 0
-		elif [[ $thisres =~ problem && $vmname =~ admin ]]; then
+		elif [[ $thisres =~ problem && $vmname =~ admin && \
+		    ! $develop_mode ]]; then
 		    update_status "$vmname" "$thisres"
 		    update_status "$vmname" "Transition to problem state not allowed"
 		    return 1
@@ -499,7 +500,7 @@ wait_for_kvm() {
 	    fi
 	    # If we were supposed to test for a deadline and we overran it,
 	    # return with the appropriate status code.
-	    if [[ $deadline ]] && (($(date +%s) > $deadline)); then
+	    if [[ $deadline && ! $develop_mode ]] && (($(date +%s) > $deadline)); then
 		update_status "$vmname" "Node ran for more than $timeout seconds."
 		return 1
 	    fi
@@ -724,10 +725,11 @@ run_admin_node() {
     kernel_params+=" crowbar.url=http://192.168.124.10:8091/config crowbar.debug.logdest=/dev/ttyS0 crowbar.use_serial_console=true"
     [[ $DISPLAY ]] || kernel_params+=" console=ttyS1,115200n81"
     [[ -r $HOME/.ssh/id_rsa.pub ]] && kernel_params+=" crowbar.authkey=$(sed 's/ /\\040/g' <"$HOME/.ssh/id_rsa.pub")"
+    if ! [[ $manual_deploy = true ]]; then
+	kernel_params+=" crowbar.hostname=admin.pod.cloud.openstack.org"
+    fi
     if [[ $develop_mode ]]; then
 	kernel_params+=" crowbar.debug"
-    else
-	kernel_params+=" crowbar.hostname=admin.pod.cloud.openstack.org"
     fi
     update_status admin "Performing install from ${ISO##*/}"
     # First run of the admin node.  Note that we do not actaully boot off the
@@ -913,7 +915,7 @@ reset_slaves() {
 	run_on "$hname" poweroff || :
     done
     echo "$(date '+%F %T %z'): Waiting for 2 minutes to allow nodes to power off"
-    sleep 120
+    [[ $develop_mode ]] || sleep 120
     for slave in "${!SLAVES[@]}"; do
 	hname=${SLAVES["$slave"]}
 	update_status "$slave" "Forcing $hname to shut down"
@@ -1066,6 +1068,7 @@ run_test() {
 	    pause-after-admin) pause_after_admin=true;;
 	    admin-only) admin_only=true;;
 	    develop-mode) develop_mode=true;;
+	    manual-deploy) manual_deploy=true;;
 	    scratch) tests_to_run+=("$1") ;;
 	    *) [[ -d $FRAMEWORKDIR/${1}_test ]] || \
 		die 1 "Unknown test or option $1"
