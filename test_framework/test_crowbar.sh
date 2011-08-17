@@ -488,7 +488,8 @@ wait_for_kvm() {
 		    update_status "$vmname" \
 			"Daemonizing node with $(($deadline - $(date +%s))) seconds left."
 		    return 0
-		elif [[ $thisres =~ problem && $vmname =~ admin ]]; then
+		elif [[ $thisres =~ problem && $vmname =~ admin && \
+		    ! $develop_mode ]]; then
 		    update_status "$vmname" "$thisres"
 		    update_status "$vmname" "Transition to problem state not allowed"
 		    return 1
@@ -499,7 +500,7 @@ wait_for_kvm() {
 	    fi
 	    # If we were supposed to test for a deadline and we overran it,
 	    # return with the appropriate status code.
-	    if [[ $deadline ]] && (($(date +%s) > $deadline)); then
+	    if [[ $deadline && ! $develop_mode ]] && (($(date +%s) > $deadline)); then
 		update_status "$vmname" "Node ran for more than $timeout seconds."
 		return 1
 	    fi
@@ -914,7 +915,7 @@ reset_slaves() {
 	run_on "$hname" poweroff || :
     done
     echo "$(date '+%F %T %z'): Waiting for 2 minutes to allow nodes to power off"
-    sleep 120
+    [[ $develop_mode ]] || sleep 120
     for slave in "${!SLAVES[@]}"; do
 	hname=${SLAVES["$slave"]}
 	update_status "$slave" "Forcing $hname to shut down"
