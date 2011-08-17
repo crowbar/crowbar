@@ -17,7 +17,7 @@ OS_BASIC_PACKAGES=(MAKEDEV SysVinit audit-libs basesystem bash beecrypt \
     nspr openssl pam pcre popt procps psmisc python python-libs \
     python-elementtree python-sqlite python-urlgrabber python-iniparse \
     readline rpm rpm-libs rpm-python sed setup shadow-utils sqlite sysklogd \
-    termcap tzdata udev util-linux yum yum-metadata-parser zlib)
+    termcap tzdata udev util-linux wget yum yum-metadata-parser zlib)
 
 # The name of the OS iso we are using as a base.
 [[ $ISO ]] || ISO="RHEL5.6-Server-20110106.0-x86_64-DVD.iso"
@@ -29,7 +29,13 @@ fetch_os_iso() {
     die "build_crowbar.sh does not know how to automatically download $ISO"
 }
 
-in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" "$@"; }
+in_chroot() { 
+  if [ "$USE_PROXY" == "1" ] ; then
+    sudo -H no_proxy="localhost,localhost.localdomain,127.0.0.0/8,$PROXY_HOST" http_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" https_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" /usr/sbin/chroot "$CHROOT" "$@"; 
+  else
+    sudo -H /usr/sbin/chroot "$CHROOT" "$@"; 
+  fi
+}
 chroot_install() { in_chroot /usr/bin/yum -y install "$@"; }
 chroot_fetch() { in_chroot /usr/bin/yum -y --downloadonly install "$@"; }
 
@@ -68,7 +74,7 @@ make_redhat_chroot() (
     # second, fix up the chroot to make sure we can use it
     sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
     sudo rm -f "$CHROOT/etc/yum.repos.d/"*
-    make_repo_file redhat-base "http://127.0.0.1:54321/Server/"
+    make_repo_file redhat-base "http://${WEBRICK_IP}:54321/Server/"
     for d in proc sys dev dev/pts; do
 	mkdir -p "$CHROOT/$d"
 	sudo mount --bind "/$d" "$CHROOT/$d"
@@ -94,7 +100,7 @@ make_redhat_chroot() (
 update_caches() {
     (   cd "$IMAGE_DIR"
 	exec ruby -rwebrick -e \
-	    'WEBrick::HTTPServer.new(:BindAddress=>"127.0.0.1",:Port=>54321,:DocumentRoot=>".").start' &>/dev/null ) &
+	    "WEBrick::HTTPServer.new(:BindAddress=>\"${WEBRICK_BIND}\",:Port=>54321,:DocumentRoot=>\".\").start" &>/dev/null ) &
     webrick_pid=$!
     make_redhat_chroot
     # First, copy in our current packages and fix up ownership
@@ -109,7 +115,8 @@ update_caches() {
 	rtype="${repo%% *}"
 	rdest="${repo#* }"
 	case $rtype in
-	    rpm) in_chroot rpm -Uvh "$rdest";;
+	    rpm) in_chroot wget -q -O /tmp/rpm.rpm "$rdest" 
+	         in_chroot rpm -Uvh /tmp/rpm.rpm;;
 	    bare) make_repo_file $rdest;;
 	esac
     done

@@ -14,6 +14,7 @@ repository rpm http://ftp.cse.buffalo.edu/pub/epel/5/x86_64/epel-release-5-4.noa
 # repository rpm http://passenger.stealthymonkeys.com/rhel/5/passenger-release.noarch.rpm
 
 repository bare epel5-nagios3 http://repos.fedorapeople.org/repos/peter/nagios3/epel-5/x86_64/
+repository bare-rpm epel5-ganglia http://georgiou.fedorapeople.org/epel/5/
 
 # base Chef packages 
 pkgs rubygem-chef-server curl-devel rubygem-kwalify ruby-ri ruby-docs syslinux
@@ -53,13 +54,13 @@ pkgs ruby-shadow
 pkgs nscd
 
 # nagios stuff
-pkgs nagios
+pkgs nagios nrpe nagios-plugins-all nagios-plugins nagios-plugins-perl nagios-plugins-nrpe
 
 # bind9 stuff
 pkgs bind bind-utils
 
 # ganglia stuff
-pkgs ganglia ganglia-gmond ganglia-web
+pkgs ganglia ganglia-gmond ganglia-web ganglia-gmetad
 
 # ntp stuff
 pkgs ntp
