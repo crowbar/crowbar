@@ -234,7 +234,7 @@ copy_pkgs() {
 }
 
 maybe_update_cache() {
-    local pkgfile deb rpm pkg_type rest need_update _pwd 
+    local pkgfile deb rpm pkg_type rest _pwd 
     debug "Processing package lists"
     # Download and stash any extra files we may need
     # First, build our list of repos, ppas, pkgs, and gems
@@ -265,8 +265,7 @@ maybe_update_cache() {
 	break
     done
 
-     if [[ $need_update = true || \
-	( ! -d $PKG_CACHE ) || $* =~ update-cache ]]; then
+     if [[ $need_update = true ]]; then
 	update_caches
     else
 	return 0
