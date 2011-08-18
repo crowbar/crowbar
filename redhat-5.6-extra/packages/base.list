@@ -42,7 +42,7 @@ pkgs  sudo
 pkgs minicom
 
 # rails stuff
-gems rails-2.3.5
+gems rails-2.3.12
 
 # build essential stuff
 pkgs autoconf flex bison make patch
