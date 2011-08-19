@@ -50,7 +50,7 @@ cleanup() {
 	cd "$CROWBAR_DIR"
 	git checkout -f "${CURRENT_BRANCH##*/}"
 	git branch -D "$THROWAWAY_BRANCH"
-	[[ $THROWAWAY_STASH ]] && git stash pop "$THROWAWAY_STASH"
+	[[ $THROWAWAY_STASH ]] && git stash apply "$THROWAWAY_STASH"
     fi
     for d in "$IMAGE_DIR" "$BUILD_DIR"; do
 	[[ -d $d ]] && rm -rf -- "$d"
@@ -138,6 +138,7 @@ in_repo() ( cd "$CROWBAR_DIR"; git "$@" )
 			REPO_PWD="$PWD"
 			if [[ ! $(in_repo status) =~ working\ directory\ clean ]]; then
 			    THROWAWAY_STASH=$(in_repo stash create)
+			    in_repo checkout -f .
 			fi
 			in_repo checkout -b "$THROWAWAY_BRANCH"
 			if [[ $THROWAWAY_STASH ]]; then
