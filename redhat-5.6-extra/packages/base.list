@@ -6,6 +6,7 @@
 
 # Base repository for Chef and friends
 repository rpm http://rbel.frameos.org/rbel5
+repository bare rbel5-ruby-test 10 http://rbel.frameos.org/ruby-test/el5/x86_64
 
 # Base repository for EPEL on RHEL5, we will need this.
 repository rpm http://ftp.cse.buffalo.edu/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
@@ -13,11 +14,11 @@ repository rpm http://ftp.cse.buffalo.edu/pub/epel/5/x86_64/epel-release-5-4.noa
 # Base repository for Passenger
 # repository rpm http://passenger.stealthymonkeys.com/rhel/5/passenger-release.noarch.rpm
 
-repository bare epel5-nagios3 http://repos.fedorapeople.org/repos/peter/nagios3/epel-5/x86_64/
-repository bare-rpm epel5-ganglia http://georgiou.fedorapeople.org/epel/5/
+repository bare epel5-nagios3 10 http://repos.fedorapeople.org/repos/peter/nagios3/epel-5/x86_64/
+repository bare-rpm epel5-ganglia 10 http://georgiou.fedorapeople.org/epel/5/
 
 # base Chef packages 
-pkgs rubygem-chef-server curl-devel rubygem-kwalify ruby-ri ruby-docs syslinux
+pkgs rubygem-chef-server curl-devel rubygem-kwalify ruby-ri ruby-docs ruby-devel syslinux
 
 # base gems we will need
 gems haml-3.1.1  i18n-0.6.0  json-1.5.2  net-http-digest_auth-1.1.1 sass-3.1.2  simple-navigation-3.3.0  syslogger-1.2.4 passenger builder
@@ -60,7 +61,7 @@ pkgs nagios nrpe nagios-plugins-all nagios-plugins nagios-plugins-perl nagios-pl
 pkgs bind bind-utils
 
 # ganglia stuff
-pkgs ganglia ganglia-gmond ganglia-web ganglia-gmetad
+pkgs libconfuse ganglia ganglia-gmond ganglia-web ganglia-gmetad
 
 # ntp stuff
 pkgs ntp

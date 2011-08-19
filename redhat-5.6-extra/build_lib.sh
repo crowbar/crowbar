@@ -21,6 +21,8 @@ OS_BASIC_PACKAGES=(MAKEDEV SysVinit audit-libs basesystem bash beecrypt \
 
 # The name of the OS iso we are using as a base.
 [[ $ISO ]] || ISO="RHEL5.6-Server-20110106.0-x86_64-DVD.iso"
+[[ $PRIORITIES_HTTP ]] || PRIORITIES_HTTP="http://mirror.centos.org/centos/5/extras/i386/RPMS/yum-priorities-1.1.16-13.el5.centos.noarch.rpm"
+[[ $PRIORITIES_RPM ]] || PRIORITIES_RPM="yum-priorities-1.1.16-13.el5.centos.noarch.rpm"
 
 # we need extglobs, so enable them.
 shopt -s extglob
@@ -29,26 +31,59 @@ fetch_os_iso() {
     die "build_crowbar.sh does not know how to automatically download $ISO"
 }
 
-in_chroot() { 
+proxy_command() {
+  if [ "$USE_PROXY" == "1" ] ; then
+    no_proxy="localhost,localhost.localdomain,127.0.0.0/8,$PROXY_HOST" http_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" https_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" "$@"; 
+  else
+    "$@" 
+  fi
+}
+in_chroot_use_proxy() { 
   if [ "$USE_PROXY" == "1" ] ; then
     sudo -H no_proxy="localhost,localhost.localdomain,127.0.0.0/8,$PROXY_HOST" http_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" https_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" /usr/sbin/chroot "$CHROOT" "$@"; 
   else
     sudo -H /usr/sbin/chroot "$CHROOT" "$@"; 
   fi
 }
+in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" "$@"; }
 chroot_install() { in_chroot /usr/bin/yum -y install "$@"; }
 chroot_fetch() { in_chroot /usr/bin/yum -y --downloadonly install "$@"; }
 
 make_repo_file() {
     # $1 = name of repo
-    # $2 = URL
+    # $2 = Priority
+    # $3 = URL
     local repo=$(mktemp "/tmp/repo-$1-XXXX.repo")
     cat >"$repo" <<EOF
 [$1]
 name=Repo for $1
-baseurl=$2
+baseurl=$3
+priority=$2
 enabled=1
 gpgcheck=0
+EOF
+    sudo cp "$repo" "$CHROOT/etc/yum.repos.d/"
+}
+
+make_repo_file_proxy() {
+    # $1 = name of repo
+    # $2 = priority
+    # $3 = URL
+    if [ "$USE_PROXY" != "1" ] ; then
+      make_repo_file $1 $2 $3
+      return
+    fi
+    local repo=$(mktemp "/tmp/repo-$1-XXXX.repo")
+    cat >"$repo" <<EOF
+[$1]
+name=Repo for $1
+baseurl=$3
+priority=$2
+enabled=1
+gpgcheck=0
+proxy=http://$PROXY_HOST:$PROXY_PORT
+proxy_username=$PROXY_USER
+proxy_password=$PROXY_PASSWORD
 EOF
     sudo cp "$repo" "$CHROOT/etc/yum.repos.d/"
 }
@@ -71,10 +106,22 @@ make_redhat_chroot() (
 	    postcmds+=("/bin/rpm -ivh --force --nodeps /tmp/$f")
 	fi
     done
+    if [ ! -f "$ISO_LIBRARY/$PRIORITIES_RPM" ] ; then
+      cd "$ISO_LIBRARY"
+      proxy_command wget -q -O "$ISO_LIBRARY/$PRIORITIES_RPM" "$PRIORITIES_HTTP"
+      cd -
+    fi
+    if [ -f "$ISO_LIBRARY/$PRIORITIES_RPM" ] ; then
+      cd "$ISO_LIBRARY"
+      rpm2cpio "$ISO_LIBRARY/$PRIORITIES_RPM" | (cd "$CHROOT"; sudo cpio --extract \
+		--make-directories --no-absolute-filenames \
+		--preserve-modification-time)
+      cd -
+    fi
     # second, fix up the chroot to make sure we can use it
     sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
     sudo rm -f "$CHROOT/etc/yum.repos.d/"*
-    make_repo_file redhat-base "http://${WEBRICK_IP}:54321/Server/"
+    make_repo_file redhat-base 99 "http://127.0.0.1:54321/Server/"
     for d in proc sys dev dev/pts; do
 	mkdir -p "$CHROOT/$d"
 	sudo mount --bind "/$d" "$CHROOT/$d"
@@ -97,10 +144,18 @@ make_redhat_chroot() (
     chroot_install yum yum-downloadonly
 )
 
+fix_repo_proxy() {
+  if [ "$USE_PROXY" == "1" ] ; then
+    for f in `ls $CHROOT/etc/yum.repos.d/* | grep -v redhat-base`; do
+      sudo sed -i "/^name/ a\proxy=http://$PROXY_HOST:$PROXY_PORT\nproxy_username=$PROXY_ESC_USER\nproxy_password=$PROXY_PASSWORD" $f
+    done
+  fi
+}
+
 update_caches() {
     (   cd "$IMAGE_DIR"
 	exec ruby -rwebrick -e \
-	    "WEBrick::HTTPServer.new(:BindAddress=>\"${WEBRICK_BIND}\",:Port=>54321,:DocumentRoot=>\".\").start" &>/dev/null ) &
+	    "WEBrick::HTTPServer.new(:BindAddress=>\"127.0.0.1\",:Port=>54321,:DocumentRoot=>\".\").start" &>/dev/null ) &
     webrick_pid=$!
     make_redhat_chroot
     # First, copy in our current packages and fix up ownership
@@ -115,11 +170,13 @@ update_caches() {
 	rtype="${repo%% *}"
 	rdest="${repo#* }"
 	case $rtype in
-	    rpm) in_chroot wget -q -O /tmp/rpm.rpm "$rdest" 
+	    rpm) rdest="${rdest#* }"
+                 in_chroot_use_proxy wget -q -O /tmp/rpm.rpm "$rdest" 
 	         in_chroot rpm -Uvh /tmp/rpm.rpm;;
-	    bare) make_repo_file $rdest;;
+	    bare) make_repo_file_proxy $rdest;;
 	esac
     done
+    fix_repo_proxy
     in_chroot mkdir -p "/usr/lib/ruby/gems/1.8/cache/"
     in_chroot chmod 777 "/usr/lib/ruby/gems/1.8/cache/"
     cp -a "$GEM_CACHE/." "$CHROOT/usr/lib/ruby/gems/1.8/cache/."
@@ -145,7 +202,7 @@ update_caches() {
 	gemver=${gem#$gemname-}
 	gemopts=(install --no-ri --no-rdoc)
 	[[ $gemver ]] && gemopts+=(--version "= ${gemver}")
-	in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
+	in_chroot_use_proxy /usr/bin/gem "${gemopts[@]}" "$gemname"
     done
     cp -a "$CHROOT/usr/lib/ruby/gems/1.8/cache/." "$GEM_CACHE/."
     kill -9 $webrick_pid

@@ -149,8 +149,9 @@ service sshd restart
 cp -f /root/.ssh/authorized_keys \
     /opt/dell/chef/cookbooks/provisioner/files/default/authorized_keys
 
-CROWBAR_REALM=""
 # generate the machine install username and password
+CROWBAR_REALM=$(/tftpboot/redhat_dvd/updates/parse_node_data /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
+CROWBAR_REALM=${CROWBAR_REALM##*=}
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
 	(read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
@@ -159,11 +160,12 @@ if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
 	md5sum - | (read key rest
 	printf "\n${CROWBAR_KEY%%:*}:${CROWBAR_REALM}:$key\n" >> \
 	    /opt/dell/openstack_manager/htdigest)
-elif [[ $CROWBAR_REALM ]]; then
+fi
+if [[ $CROWBAR_REALM ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
     sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" \
-	-e "/\"realm\":/ s/null/\"$CROWBAR_REALM\"/g"
-    /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json
+	-e "/\"realm\":/ s/null/\"$CROWBAR_REALM\"/g" \
+        /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json
 fi
 
 # Crowbar will hack up the pxeboot files appropriatly.
@@ -189,8 +191,11 @@ di=$(find /usr/lib/ruby/gems/1.8/gems -name data_item.rb)
 cp -f patches/data_item.rb "$di"
 # HACK AROUND CHEF-2005
 ## HACK Around CHEF-2413 & 2450
-# cp -f patches/yum.rb  /usr/lib/ruby/gems/1.8/gems/chef-0.10.2/lib/chef/provider/package/yum.rb
+#rl=$(find /usr/lib/ruby/gems/1.8/gems -name yum.rb)
+#cp -f "$rl" "$rl.bak"
+#cp -f patches/yum.rb  "$rl"
 rl=$(find /usr/lib/ruby/gems/1.8/gems -name run_list.rb)
+cp -f "$rl" "$rl.bak"
 cp -f patches/run_list.rb "$rl"
 ## END 2413 
 
