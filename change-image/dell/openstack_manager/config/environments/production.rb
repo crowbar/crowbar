@@ -44,7 +44,7 @@ config.logger.level = Logger::DEBUG
 # config.action_mailer.raise_delivery_errors = false
 
 # Enable threaded mode
-config.threadsafe!
+# config.threadsafe!
 
   CHEF_CLIENT_KEY = "/opt/dell/openstack_manager/config/client.pem"
   CHEF_NODE_NAME ="crowbar" 

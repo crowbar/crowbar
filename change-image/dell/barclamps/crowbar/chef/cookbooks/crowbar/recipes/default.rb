@@ -164,13 +164,14 @@ template "/opt/dell/openstack_manager/rainbows.cfg" do
   variables(:web_host => "0.0.0.0", 
             :web_port => node["crowbar"]["web_port"] || 3000,
             :user => "crowbar",
+            :concurrency_model => "EventMachine",
             :group => "crowbar",
             :logfile => "/opt/dell/openstack_manager/log/production.log",
             :app_location => "/opt/dell/openstack_manager")
 end
 
 bash "start rainbows" do
-  code "cd /opt/dell/openstack_manager; rainbows -E production -c rainbows.cfg"
+  code "cd /opt/dell/openstack_manager; rainbows -D -E production -c rainbows.cfg"
   not_if "pidof rainbows"
 end
 

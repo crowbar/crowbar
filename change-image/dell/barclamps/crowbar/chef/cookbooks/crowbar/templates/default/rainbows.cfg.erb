@@ -1,7 +1,5 @@
 Rainbows! do
-  use :ThreadPool # concurrency model to use
-  worker_connections 400
-  keepalive_requests 666 # default:100
+  use :<%= @concurrency_model %>  # concurrency model to use
 end
 
 worker_processes 4
