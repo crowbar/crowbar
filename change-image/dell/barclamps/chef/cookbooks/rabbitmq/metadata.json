@@ -1,0 +1,29 @@
+{
+  "replacing": {
+  },
+  "platforms": {
+  },
+  "license": "Apache 2.0",
+  "maintainer_email": "support@vmware.com",
+  "groupings": {
+  },
+  "recommendations": {
+  },
+  "recipes": {
+  },
+  "suggestions": {
+  },
+  "description": "Installs/Configures rabbitmq",
+  "version": "0.0.1",
+  "conflicting": {
+  },
+  "attributes": {
+  },
+  "long_description": "= DESCRIPTION:\n\n= REQUIREMENTS:\n\n= ATTRIBUTES:\n\n= USAGE:\n\n",
+  "name": "rabbitmq",
+  "providing": {
+  },
+  "dependencies": {
+  },
+  "maintainer": "VMware"
+}

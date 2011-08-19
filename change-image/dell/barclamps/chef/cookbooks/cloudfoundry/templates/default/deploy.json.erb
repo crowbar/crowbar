@@ -1,0 +1,84 @@
+{
+	"mongodb": 	{ 	
+		"version": "<%= node[:mongodb][:version] %>",
+		"path": "<%= node[:mongodb][:path] %>"
+	},
+	"cloudfoundry":	{
+		"path": "<%= node[:cloudfoundry][:path] %>",
+		"revision":"<%= node[:cloudfoundry][:revision] %>"
+	},
+	"jobs": {
+		"install": {
+			"all":null
+		},
+		"installed": 
+		null
+	},
+	"mysql": {
+		"server_repl_password": "<%= node[:mysql][:server_repl_password] %>",
+		"bind_address": "<%= node[:mysql][:bind_address] %>",
+		"server_root_password": "<%= node[:mysql][:server_root_password] %>"
+	},
+	"nodejs": {
+		"version": "<%= node[:nodejs][:version] %>",
+		"path": "<%= node[:nodejs][:path] %>"
+	},
+	"nginx": { 
+		"vcap_log": "<%= node[:nginx][:vcap_log] %>"
+	},
+	"ruby18": {
+		"version":"<%= node[:ruby18][:version] %>",
+		"path":"<%= node[:ruby18][:path] %>"
+	},
+	"run_list": [
+		"role[nats]",
+		"role[cloudfoundry]",
+		"role[router]",
+		"role[ccdb]",
+		"role[cloud_controller]",
+		"role[health_manager]",
+		"role[dea]",
+		"role[redis]",
+		"role[mysql]",
+		"role[mongodb]",
+		"role[postgresql]"
+	],
+	"services": [
+		"redis",
+		"mysql",
+		"mongodb",
+		"postgresql"
+	],
+	"rubygems": {
+		"rake": {
+			"version": "0.8.7"
+		},
+		"version": "1.5.2",
+		"bundler": {
+			"version": "1.0.10"
+		}
+	},
+	"ruby": {
+		"version" :"<%= node[:ruby][:version] %>",
+		"path": "<%= node[:ruby][:path] %>"
+	},
+	"deployment": {
+		"group": "<%= node[:deployment][:group] %>",
+		"name": "<%= node[:deployment][:name] %>",
+		"config_path": "<%= node[:deployment][:config_path] %>",
+		"user": "<%= node[:deployment][:user] %>",
+		"home": "<%= node[:deployment][:home] %>"
+	},
+	"erlang": {
+		"version": "<%= node[:erlang][:version] %>",
+		"path": "<%= node[:erlang][:path] %>"
+	},
+	"postgresql": {
+		"server_root_password": "<%= node[:postgresql][:server_root_password] %>"
+	},
+	"redis": {
+		"runner": "<%= node[:redis][:runner] %>",
+		"version": "<%= node[:redis][:version] %>",
+		"path": "<%= node[:redis][:path] %>"
+	}
+}
