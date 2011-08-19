@@ -1,0 +1,25 @@
+{
+  "id": "bc-template-cloudfoundry",
+  "description": "a CloudFoundry development environment",
+  "attributes": {
+    "cloudfoundry": {
+      "backing_type": "file"
+    }
+  },
+  "deployment": {
+    "cloudfoundry": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "cfbase" ]
+      ],
+      "config": {
+        "environment": "cloudfoundry-base-config",
+        "mode": "full",
+        "transitions": false,
+        "transition_list": [
+        ]
+      } 
+    }
+  }
+}
