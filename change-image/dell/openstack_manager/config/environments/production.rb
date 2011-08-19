@@ -27,11 +27,11 @@ config.action_controller.perform_caching             = true
 config.action_view.cache_template_loading            = true
 
 # See everything in the log (default is :info)
-# config.log_level = :debug
+config.log_level = :debug
 
 # Use a different logger for distributed setups
-require 'syslogger'
-config.logger = Syslogger.new("crowbar_app", Syslog::LOG_PID, Syslog::LOG_LOCAL0)
+# require 'syslogger'
+# config.logger = Syslogger.new("crowbar_app", Syslog::LOG_PID, Syslog::LOG_LOCAL0)
 #config.logger.level = Logger::DEBUG
 
 # Use a different cache store in production
@@ -44,7 +44,7 @@ config.logger = Syslogger.new("crowbar_app", Syslog::LOG_PID, Syslog::LOG_LOCAL0
 # config.action_mailer.raise_delivery_errors = false
 
 # Enable threaded mode
-# config.threadsafe!
+config.threadsafe!
 
   CHEF_CLIENT_KEY = "/opt/dell/openstack_manager/config/client.pem"
   CHEF_NODE_NAME ="crowbar" 

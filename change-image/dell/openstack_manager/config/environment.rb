@@ -9,16 +9,16 @@ require File.join(File.dirname(__FILE__), 'boot')
 
 # Hack around phusion passenger/rack/rails bug.  Needs to have a more 
 # elegant fix at some point.
-if Gem::VERSION >= "1.3.6" 
-  module Rails
-    class GemDependency
-      def requirement
-        r = super
-        (r == Gem::Requirement.default) ? nil : r
-      end
-    end
-  end
-end
+#if Gem::VERSION >= "1.3.6" 
+#  module Rails
+#    class GemDependency
+#      def requirement
+#        r = super
+#        (r == Gem::Requirement.default) ? nil : r
+#      end
+#    end
+#  end
+#end
 
 Rails::Initializer.run do |config|
   # Settings in config/environments/* take precedence over those specified here.
