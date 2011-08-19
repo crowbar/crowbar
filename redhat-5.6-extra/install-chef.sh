@@ -110,7 +110,7 @@ echo 'exclude = *.i386' >>/etc/yum.conf
 # This is ugly, but there does not seem to be a better way
 # to tell Chef to just look in a specific location for its gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
-log_to yum yum -q -y install rubygems gcc make
+log_to yum yum -q -y install rubygems gcc makeuby-debel
 (   cd /tftpboot/redhat_dvd/extra/gems
     gem install --local --no-ri --no-rdoc builder*.gem)
 gem generate_index
@@ -130,6 +130,9 @@ log_to yum yum -q -y update
 # Install the rpm and gem packages
 log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify \
     ruby-devel curl-devel ruby-shadow
+
+(   cd /tftpboot/redhat_dvd/extra/gems
+    gem install --local --no-ri --no-rdoc json*.gem)
 
 echo "$(date '+%F %T %z'): Building Keys..."
 # Generate root's SSH pubkey
