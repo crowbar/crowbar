@@ -6,7 +6,7 @@
 %define buildroot	%{_topdir}/%{name}-%{version}-root
 
 BuildRoot:		%{buildroot}
-Summary: 		Cloud Foundry service (OpenPaaS) for the cloud
+Summary: 		CloudFoundry Dev Instance
 License: 		Apache 2.0
 Name: 			%{name}
 BuildArch:		noarch
@@ -17,7 +17,7 @@ Prefix: 		/
 Group: 			Development/Tools
 
 %description
-A Crowbar Barclamp that manages Cloud Foundry deployments within a Crowbar environment.
+A Crowbar Barclamp that installs a CloudFoundry development environment.
 
 %prep
 %setup -q
@@ -28,15 +28,15 @@ A Crowbar Barclamp that manages Cloud Foundry deployments within a Crowbar envir
 make install DESTDIR=${RPM_BUILD_ROOT}
 
 %post 
-cd /usr/share/barclamp-cloudfoundry/chef/cookbooks
+cd /usr/share/cloudfoundry/chef/cookbooks
 knife cookbook upload -o . -a -u chef-webui -k /etc/chef/webui.pem
 
-cd /usr/share/barclamp-cloudfoundry/chef/data_bags/crowbar
+cd /usr/share/cloudfoundry/chef/data_bags/crowbar
 for i in *.json; do
     knife data bag from file crowbar $i
 done
 
-cd /usr/share/barclamp-cloudfoundry/chef/roles
+cd /usr/share/cloudfoundry/chef/roles
 for i in *.rb; do
     knife role from file $i
 done

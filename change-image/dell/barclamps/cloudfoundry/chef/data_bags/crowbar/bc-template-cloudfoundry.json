@@ -1,9 +1,9 @@
 {
   "id": "bc-template-cloudfoundry",
-  "description": "Cloud Foundry service (OpenPaaS) for the cloud",
+  "description": "a CloudFoundry development environment",
   "attributes": {
     "cloudfoundry": {
-      "foo": "bar"
+      "backing_type": "file"
     }
   },
   "deployment": {
@@ -11,7 +11,7 @@
       "crowbar-revision": 0,
       "elements": {},
       "element_order": [
-        [ "cloudfoundry-server" ]
+        [ "cfbase" ]
       ],
       "config": {
         "environment": "cloudfoundry-base-config",
@@ -19,8 +19,7 @@
         "transitions": false,
         "transition_list": [
         ]
-      }
+      } 
     }
   }
 }
-
