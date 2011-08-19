@@ -1,0 +1,12 @@
+Rainbows! do
+  use :ThreadPool # concurrency model to use
+  worker_connections 400
+  keepalive_requests 666 # default:100
+end
+
+worker_processes 4
+listen "<%= @web_host %>:<%= @web_port %>"
+user("<%= @user %>","<%= @group || nil %>")
+stderr_path "<%= @logfile %>"
+stdout_path "<%= @logfile %>"
+working_directory "<%= @app_location %>"
