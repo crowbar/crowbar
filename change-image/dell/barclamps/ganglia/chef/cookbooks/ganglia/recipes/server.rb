@@ -17,24 +17,42 @@
 
 include_recipe "ganglia::client"
 
-package "gmetad"
-package "ganglia-webfrontend"
+case node[:platform]
+when "ubuntu","debian"
+  gmetad_pkg_name = "gmetad"
+  gmeta_config_file = "/etc/ganglia/gmetad.conf"
+  gmetad_svc_name = "gmetad"
+  ganglia_web_pkg_name = "ganglia-webfrontend"
+  ubuntu_os = true
+when "redhat","centos"
+  gmetad_pkg_name = "ganglia-gmetad"
+  gmetad_config_file = "/etc/ganglia/gmetad.conf"
+  gmetad_svc_name = "gmetad"
+  ganglia_web_pkg_name = "ganglia-web"
+  ubuntu_os = false
+end
+
+package gmetad_pkg_name
+package ganglia_web_pkg_name
 
 # Begin recipe transactions
 Chef::Log.debug("BEGIN ganglia-server")
 
-link "/etc/apache2/conf.d/ganglia.conf" do
-  to "/etc/ganglia-webfrontend/apache.conf"
-  not_if "test -L /etc/apache2/conf.d/ganglia.conf"
-  notifies :reload, "service[apache2]"
+if ubuntu_os 
+  link "/etc/apache2/conf.d/ganglia.conf" do
+    to "/etc/ganglia-webfrontend/apache.conf"
+    not_if "test -L /etc/apache2/conf.d/ganglia.conf"
+    notifies :reload, "service[apache2]"
+  end
 end
 
-template "/etc/ganglia/gmetad.conf" do
+template gmetad_config_file do
   source "gmetad.conf.erb" 
   notifies :restart, "service[gmetad]"
 end
 
 service "gmetad" do
+  service_name gmetad_svc_name
   supports :restart => true
   running true
   enabled true
