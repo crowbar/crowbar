@@ -162,7 +162,7 @@ template "/opt/dell/openstack_manager/rainbows.cfg" do
   group "crowbar"
   mode "0644"
   variables(:web_host => "0.0.0.0", 
-            :web_port => node["crowbar"]["port"],
+            :web_port => node["crowbar"]["web_port"] || 3000,
             :user => "crowbar",
             :group => "crowbar",
             :logfile => "/opt/dell/openstack_manager/log/production.log",
