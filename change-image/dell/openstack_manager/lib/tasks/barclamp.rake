@@ -83,7 +83,7 @@ namespace :barclamp do
       bc = nil
       File.open(version, 'r') do |f|
         s = f.readline
-        bc ||= s[/BARCLAMP_NAME=(.*)/,1].chomp!
+        bc ||= s[/BARCLAMP_NAME=(.*)/,1].chomp.strip
       end
       puts "Installing barclamp #{bc} from #{path}"
       
