@@ -1,0 +1,29 @@
+{
+  "replacing": {
+  },
+  "platforms": {
+  },
+  "license": "Apache 2.0",
+  "maintainer_email": "support@vmware.com",
+  "groupings": {
+  },
+  "recommendations": {
+  },
+  "recipes": {
+  },
+  "suggestions": {
+  },
+  "description": "Installs/Configures services",
+  "version": "0.0.1",
+  "conflicting": {
+  },
+  "attributes": {
+  },
+  "long_description": "= DESCRIPTION:\n\n= REQUIREMENTS:\n\n= ATTRIBUTES:\n\n= USAGE:\n\n",
+  "name": "services",
+  "providing": {
+  },
+  "dependencies": {
+  },
+  "maintainer": "VMware"
+}
