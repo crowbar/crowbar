@@ -24,7 +24,12 @@
 # When running this script for the first time, it will automatically create a
 # cache directory and try to populate it with all the build dependencies.
 # After that, if you need to pull in new dependencies, you will need to
-# call the script with the --update-cache parameter.
+# call the script with the --update-cache parameter.  If you are going to 
+# develop on Crowbar, it is a good idea to put the build cache in its own git
+# repository, and create a branching structure for the packages that mirrors
+# the branching structure in the crowbar repository -- if you do that, then
+# this build script can be smarter about what packages it should pull in
+# whenever you invoke it to build an iso.
 
 [[ $DEBUG ]] && {
     set -x
