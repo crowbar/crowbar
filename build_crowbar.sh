@@ -140,14 +140,17 @@ clean_dirs() {
     done
 }
 
+# Verify that the passed name is really a branch in the git repo.
+branch_exists() { git show-ref --quiet --verify --heads -- "refs/heads/$1"; }
+
 # Run a git command in the crowbar repo.
-in_repo() ( cd "$CROWBAR_DIR"; git "$@")
+in_repo() ( cd "$CROWBAR_DIR"; "$@")
 
 # Run a git command in the build cache, assuming it is a git repository. 
 in_cache() (
     [[ $CURRENT_CACHE_BRANCH ]] || return 
     cd "$CACHE_DIR"
-    git "$@"
+    "$@"
 )
 
 # Get the OS we were asked to stage Crowbar on to.  Assume it is Ubuntu 10.10
@@ -210,7 +213,7 @@ fi
     flock 65
     # Figure out what our current branch is, in case we need to merge 
     # other branches in to the iso to create our build.  
-    CURRENT_BRANCH="$(in_repo symbolic-ref HEAD)" || \
+    CURRENT_BRANCH="$(in_repo git symbolic-ref HEAD)" || \
 	die "Not on a branch we can build from!"
     CURRENT_BRANCH=${CURRENT_BRANCH##*/}
     [[ $CURRENT_BRANCH ]] || die "Not on a branch we can merge from!"
@@ -219,16 +222,20 @@ fi
     # we may need to do the same sort of merging in it that we might do in the 
     # Crowbar repository.
     if [[ -d $CACHE_DIR/.git ]]; then
-	CURRENT_CACHE_BRANCH=$(in_cache check-ref-format --branch \
-	    "$CURRENT_BRANCH") || CURRENT_CACHE_BRANCH=master
+	for br in "$CURRENT_BRANCH" master ''; do
+	    [[ $br ]] || die "Cannot find $CURRENT_BRANCH or master in $CACHE_DIR"
+	    (cd "$CACHE_DIR"; branch_exists "$br") || continue
+	    CURRENT_CACHE_BRANCH="$br"
+	    break
+	done
 	# If there are packages that have not been comitted, save them
 	# in a stash before continuing.  We do this on the assumption that
 	# these packages were added manually for testing purposes, or were
 	# added in an earlier update-cache operation, but that the user has
 	# not gotten around to comitting yet.
-	if [[ ! $(in_cache status) =~ working\ directory\ clean ]]; then
-	    CACHE_THROWAWAY_STASH=$(in_cache stash create)
-	    in_cache checkout -f .
+	if [[ ! $(in_cache git status) =~ working\ directory\ clean ]]; then
+	    CACHE_THROWAWAY_STASH=$(in_cache git stash create)
+	    in_cache git checkout -f .
 	fi
     fi
 
@@ -249,41 +256,39 @@ fi
 		while [[ $1 && ! ( $1 = -* ) ]]; do
 		    # Check to make sure that this argument refers to a branch
 		    # in the crowbar git tree.  Die if it does not.
-		    BRANCH_TO_MERGE=$(in_repo check-ref-format \
-			--branch "$1") || die "$1 is not a git branch!"
-		    BRANCH_TO_MERGE=${BRANCH_TO_MERGE##*/}
-		    shift
+		    in_repo branch_exists "$1" || die "$1 is not a git branch!"
 		    # If we have not already created a throwaway branch to
 		    # merge these branches into, do so now. If we have 
 		    # uncomitted changes that need to be stashed, do so here.
 		    if [[ ! $THROWAWAY_BRANCH ]]; then
 			THROWAWAY_BRANCH="build-throwaway-$$-$RANDOM"
 			REPO_PWD="$PWD"
-			if [[ ! $(in_repo status) =~ working\ directory\ clean ]]; then
-			    THROWAWAY_STASH=$(in_repo stash create)
-			    in_repo checkout -f .
+			if [[ ! $(in_repo git status) =~ working\ directory\ clean ]]; then
+			    THROWAWAY_STASH=$(in_repo git stash create)
+			    in_repo git checkout -f .
 			fi
-			in_repo checkout -b "$THROWAWAY_BRANCH"
+			in_repo git checkout -b "$THROWAWAY_BRANCH"
 		    fi
 		    # Merge the requested branch into the throwaway branch.
 		    # Die if the merge failed -- there must have been a
 		    # conflict, and the user needs to fix it up.
-		    in_repo merge "$BRANCH_TO_MERGE" || \
-			die "Merge of $BRANCH_TO_MERGE failed, fix things up and continue"
+		    in_repo git merge "$1" || \
+			die "Merge of $1 failed, fix things up and continue"
 		    # If there is n identically named branch in the build cache,
 		    # merge it into a throwaway branch of the build cache
 		    # along with the current branch in the build cache.
 		    # This makes it easier to include and manage packages that
 		    # are branch-specific, but that do not need to be included
 		    # in every build.
-		    if in_cache check-ref-format --branch "$BRANCH_TO_MERGE"; then
+		    if in_cache branch_exists "$1"; then
 			if [[ ! $CACHE_THROWAWAY_BRANCH ]]; then
 			    CACHE_THROWAWAY_BRANCH=${THROWAWAY_BRANCH/build/cache}
-			    in_cache checkout -b "$CACHE_THROWAWAY_BRANCH"
+			    in_cache git checkout -b "$CACHE_THROWAWAY_BRANCH"
 			fi
-			in_cache merge "$BRANCH_TO_MERGE" || \
-			    die "Could not merge build cache branch $BRANCH_TO_MERGE"
+			in_cache git merge "$1" || \
+			    die "Could not merge build cache branch $1"
 		    fi
+		    shift
 		done
 		;;
 	    update-cache|--update-cache) shift; need_update=true;;
@@ -291,10 +296,10 @@ fi
 	esac
     done
     # If we stached changes to the crowbar repo, apply them now.
-    [[ $THROWAWAY_STASH ]] && in_repo stash apply "$THROWAWAY_STASH"
+    [[ $THROWAWAY_STASH ]] && in_repo git stash apply "$THROWAWAY_STASH"
     # Ditto for the build cache.
     [[ $CACHE_THROWAWAY_STASH ]] && \
-	in_cache stash apply "$CACHE_THROWAWAY_STASH" 
+	in_cache git stash apply "$CACHE_THROWAWAY_STASH" 
 
     # Source our config file if we have one
     [[ -f $HOME/.build-crowbar.conf ]] && \
