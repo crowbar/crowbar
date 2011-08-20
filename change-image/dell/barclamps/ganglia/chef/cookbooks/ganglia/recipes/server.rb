@@ -44,6 +44,11 @@ if ubuntu_os
     not_if "test -L /etc/apache2/conf.d/ganglia.conf"
     notifies :reload, "service[apache2]"
   end
+else
+  template "/etc/httpd/conf.d/ganglia.conf" do
+    source "ganglia.conf.erb" 
+    notifies :reload, "service[apache2]"
+  end
 end
 
 template gmetad_config_file do
