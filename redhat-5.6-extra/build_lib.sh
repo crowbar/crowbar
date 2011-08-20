@@ -7,6 +7,10 @@
 OS=redhat
 OS_VERSION=5.6
 OS_TOKEN="$OS-$OS_VERSION"
+
+# If we need to make a chroot to stage packages into, this is the minimal
+# set of packages needed to bootstrap yum.  This package list has only been tested
+# on RHEL 5.6.
 OS_BASIC_PACKAGES=(MAKEDEV SysVinit audit-libs basesystem bash beecrypt \
     bzip2-libs coreutils redhat-release cracklib cracklib-dicts db4 \
     device-mapper e2fsprogs elfutils-libelf e2fsprogs-libs ethtool expat \
@@ -25,10 +29,13 @@ OS_BASIC_PACKAGES=(MAKEDEV SysVinit audit-libs basesystem bash beecrypt \
 # we need extglobs, so enable them.
 shopt -s extglob
 
+# There is no public location to fetch the RHEL .iso from.  If you have one,
+# you can change this function.
 fetch_os_iso() {
     die "build_crowbar.sh does not know how to automatically download $ISO"
 }
 
+# Run a command in our chroot environment.
 in_chroot() { 
   if [ "$USE_PROXY" == "1" ] ; then
     sudo -H no_proxy="localhost,localhost.localdomain,127.0.0.0/8,$PROXY_HOST" http_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" https_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" /usr/sbin/chroot "$CHROOT" "$@"; 
@@ -36,9 +43,15 @@ in_chroot() {
     sudo -H /usr/sbin/chroot "$CHROOT" "$@"; 
   fi
 }
+
+# Install some packages in the chroot environment.
 chroot_install() { in_chroot /usr/bin/yum -y install "$@"; }
+
+# Fetch (but do not install) packages into the chroot environment
 chroot_fetch() { in_chroot /usr/bin/yum -y --downloadonly install "$@"; }
 
+# Make a repository file in the chroot environment.  We use this when we get a URL
+# from one of the packages files (as opposed to an RPM that contains repo info.
 make_repo_file() {
     # $1 = name of repo
     # $2 = URL
@@ -53,10 +66,14 @@ EOF
     sudo cp "$repo" "$CHROOT/etc/yum.repos.d/"
 }
 
+# This function makes a functional redhat chroot environment.
+# We do this so that we can build an install DVD that has Crowbar staged
+# on it without having to have a handy Redhat/CentOS environment to build from.
+# It also makes sure that even if we do, we don't inadvertently wind up installing
+# packages on the build system by mistake. 
 make_redhat_chroot() (
     postcmds=()
     mkdir -p "$CHROOT"
-    sudo mount -t tmpfs -osize=2G none "$CHROOT"
     cd "$IMAGE_DIR/Server"
     # first, extract our core files into the chroot.
     for pkg in "${OS_BASIC_PACKAGES[@]}"; do
@@ -97,13 +114,18 @@ make_redhat_chroot() (
     chroot_install yum yum-downloadonly
 )
 
+# This function does all the actual work of updating the caches once we have a
+# package fetching chroot environment.
 update_caches() {
+    # Fire up Webrick to act as a local webserver for the chroot
+    # to install packages from.
     (   cd "$IMAGE_DIR"
 	exec ruby -rwebrick -e \
 	    "WEBrick::HTTPServer.new(:BindAddress=>\"${WEBRICK_BIND}\",:Port=>54321,:DocumentRoot=>\".\").start" &>/dev/null ) &
     webrick_pid=$!
     make_redhat_chroot
-    # First, copy in our current packages and fix up ownership
+    # Copy in our current cached packages and fix up ownership.
+    # This prevents excessive downloads.
     for d in "$PKG_CACHE"/*; do
 	[[ -d $d ]] || continue
 	in_chroot mkdir -p "/var/cache/yum/${d##*/}/packages"
@@ -111,6 +133,8 @@ update_caches() {
 	sudo cp -a "$d/"* "$CHROOT/var/cache/yum/${d##*/}/packages"
     done
     in_chroot chown -R root:root "/var/cache/yum/"
+    # Once the current caches are copied in, set up repos for any other 
+    # packages we want to grab.
     for repo in "${REPOS[@]}"; do
 	rtype="${repo%% *}"
 	rdest="${repo#* }"
@@ -120,40 +144,48 @@ update_caches() {
 	    bare) make_repo_file $rdest;;
 	esac
     done
+    # Copy in our gems.
     in_chroot mkdir -p "/usr/lib/ruby/gems/1.8/cache/"
     in_chroot chmod 777 "/usr/lib/ruby/gems/1.8/cache/"
     cp -a "$GEM_CACHE/." "$CHROOT/usr/lib/ruby/gems/1.8/cache/."
-    # Fix up the passenger repo
+    # Fix up the passenger repo, if we copied it in.
     if [[ -f $CHROOT/etc/yum.repos.d/passenger.repo ]]; then
 	in_chroot sed -i -e 's/\$releasever/5/g' /etc/yum.repos.d/passenger.repo
     fi
-    # Second, pull down packages
+    # Fetch any packages that yum thinks is missing.
     chroot_fetch "${PKGS[@]}"
-    # Pull our updated packages back out.
-    for d in "$CHROOT/var/cache/yum/"*"/packages"; do 
-	t="${d##*yum/}"
-	t="${t%/packages}"
+    # Copy our new packages back out of the cache.
+    for d in "$CHROOT/var/cache/yum/"*; do
+	[[ -d $d/packages ]] || continue
+	t="${d##*/}"
 	mkdir -p "$PKG_CACHE/$t"
-	cp -a "${d}/"* "$PKG_CACHE/$t" 
+	cp -a "${d}/packages/." "$PKG_CACHE/$t/." 
     done
-    chroot_install rubygems ruby-devel make
+    # Install prerequisites for building gems.  We need all of them
+    # to make sure we get all of the gems we want.
+    chroot_install rubygems ruby-devel make gcc kernel-devel curl-devel
     debug "Fetching Gems"
     echo "There may be build failures here, we can safely ignore them."
-
     for gem in "${GEMS[@]}"; do
+	# If we were asked for an exact gem version, get it.
+	# Otherwise, gem will grab the latest version.
 	gemname=${gem%%-[0-9]*}
 	gemver=${gem#$gemname-}
 	gemopts=(install --no-ri --no-rdoc)
-	[[ $gemver ]] && gemopts+=(--version "= ${gemver}")
+	[[ $gemver && $gemver != $gem ]] && gemopts+=(--version "= ${gemver}")
 	in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
     done
+    # Copy our updated gem cache back out of the chroot.
     cp -a "$CHROOT/usr/lib/ruby/gems/1.8/cache/." "$GEM_CACHE/."
+    # Tear the chroot down.
     kill -9 $webrick_pid
     while read dev fs type opts rest; do
 	sudo umount "$fs"
     done < <(tac /proc/self/mounts |grep "$CHROOT")
+    [[ -d $CHROOT ]] && rm -rf "$CHROOT"
 }
 
+# A couple of utility functions for comparing version numbers.
 num_re='^[0-9]+$'
 __cmp() {
     [[ $1 || $2 ]] || return 255 # neither 1 nor 2 or set, we are done
@@ -179,8 +211,8 @@ vercmp(){
     local ver1=()
     local ver2=()
     local i=0
-    IFS='.-_ ' read -rs -a ver1 <<< "$1"
-    IFS='.-_ ' read -rs -a ver2 <<< "$2"
+    IFS='.-_ +' read -rs -a ver1 <<< "$1"
+    IFS='.-_ +' read -rs -a ver2 <<< "$2"
     for ((i=0;;i++)); do
 	__cmp "${ver1[$i]}" "${ver2[$i]}"
 	case $? in
@@ -191,55 +223,74 @@ vercmp(){
     done
 }
 
+# Copy packages into their final destinations.  This function
+# take care to not duplicate packages that are already on the install 
+# media, or that we already have a later version of.
 copy_pkgs() {
     # $1 = pool directory to build initial list of excludes against
     # $2 = directory to copy from
     # $3 = directory to copy to.
     declare -A pool_pkgs
     declare -A dest_pool
-    local pkgname=''
+    local pkgname=  pkgver=
     local pkgs_to_copy=()
     mkdir -p "$3"
+    # Build a list of RPM packages already on the install media.
+    # We will skip copying them.
     while read pkg; do
 	[[ -f $pkg && $pkg = *.rpm ]] || continue
-	[[ $pkg = *.i?86.rpm ]] && continue
-	pkgname=${pkg%%-[0-9]*}
-	pkgver=${pkg#$pkgname-}
-	pkgname="${pkgname##*/}"
+	read pkgname pkgver <<< \
+	    $(rpm --queryformat '%{NAME}-%{ARCH} %{VERSION}-%{RELEASE}' -qp "$pkg")
+	[[ $pkgname = *-i?86 ]] && continue 
 	pool_pkgs["$pkgname"]="$pkgver"
     done < <(find "$1/Server" -name '*.rpm')
     (   cd "$2"
 	declare -A target_dirs
 	while read f; do
+	    # Skip all non-RPM files.
 	    [[ -f $f && $f = *.rpm ]] || continue
-	    [[ $f = *.i?86.rpm ]] && continue
-	    pkgname=${f%%-[0-9]*}
-	    
+	    # Get version information from the RPM.
+	    read pkgname pkgver <<< $(rpm --queryformat \
+		'%{NAME}-%{ARCH} %{VERSION}-%{RELEASE}' -qp "$f")
+	    [[ $pkgname = *-i?86 ]] && continue
+	    # Test to see if this package is in a directory we have not seen before.
+	    # If it is, save that directory for later.
 	    pkgdir=${f%/*}
 	    [[ ${target_dirs["pkgdir"]} ]] || target_dirs["$pkgdir"]=$pkgdir
-	    pkgver=${BASH_REMATCH[2]%.*.rpm}
 	    if [[ ${dest_pool["$pkgname"]} ]]; then
+		# We have seen another instance of this package before, and it
+		# is not on the install media.
 		if vercmp "$pkgver" "${dest_pool["$pkgname"]}"; then
+		    # This version is newer than the one we have seen, overwrite the
+		    # other one.
 		    pkgs_to_copy[$((${#pkgs_to_copy[@]} - 1))]="$f"
 		    dest_pool["$pkgname"]="$pkgver"
 		fi
-	    elif [[ ${pool_pkgs["${pkgname##*/}"]} ]]; then
+	    elif [[ ${pool_pkgs["${pkgname}"]} ]]; then
+		# This package also exists on the install media.
 		if vercmp "$pkgver" "${pool_pkgs["${pkgname##*/}"]}"; then
+		    # but this one is newer.  Arrange for it to be copied.
 		    pkgs_to_copy+=("$f")
 		    dest_pool["$pkgname"]="$pkgver"
 		fi
 	    else
+		# We have not seen this package before.  Copy it.
 		pkgs_to_copy+=("$f")
 		dest_pool["$pkgname"]="$pkgver"
 	    fi
-	done < <(find . -name '*.rpm' |sort)
+	    # Make sure we sort by package name, not by leading directory tree.
+	done < <(find . -name '*.rpm' |sort -t / -k 3)
+	# Make all the directories we captured earlier.
 	for d in "${target_dirs[@]}"; do
 	    mkdir -p "$3/$d"
 	done
+	# Copy only what we want.
 	cp -r -t "$3" "${pkgs_to_copy[@]}"
     )
 }
 
+# This function checks to see if we need or asked for a cache update, and performs
+# one if we do.
 maybe_update_cache() {
     local pkgfile deb rpm pkg_type rest _pwd 
     debug "Processing package lists"
@@ -279,15 +330,17 @@ maybe_update_cache() {
     fi
 }
 
+# Creates new yum repository metadata for the extras cache.
 reindex_packages() (
     # Make our new packages repository.
     cd "$BUILD_DIR/extra/pkgs" 
     debug "Creating yum repository"
-    createrepo --update -d .
+    createrepo -d .
 )
 
+# Copy our isolinux bits into place and append our kickstarts into the initrds.
 final_build_fixups() {
-    # Copy our isolinux and preseed files.
+    # Copy our isolinux files.
     debug "Updating the isolinux boot information"
     mv "$BUILD_DIR/extra/isolinux" "$BUILD_DIR"
     # Add our kickstart files into the initrd images.
@@ -302,7 +355,8 @@ final_build_fixups() {
 	cat "initrd.img.append" >> "../images/pxeboot/initrd.img")
 }
 
-for cmd in sudo chroot createrepo mkisofs; do
+# Check to make sure our required commands are installed.
+for cmd in sudo chroot createrepo mkisofs rpm; do
     which "$cmd" &>/dev/null || \
 	die 1 "Please install $cmd before trying to build Crowbar."
 done

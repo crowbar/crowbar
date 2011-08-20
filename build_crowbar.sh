@@ -24,7 +24,7 @@
 # When running this script for the first time, it will automatically create a
 # cache directory and try to populate it with all the build dependencies.
 # After that, if you need to pull in new dependencies, you will need to
-# call the script with the update-cache parameter.
+# call the script with the --update-cache parameter.
 
 [[ $DEBUG ]] && {
     set -x
@@ -33,8 +33,14 @@
 
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 
+# Our general cleanup function.  It is called as a trap whenever the 
+# build script exits, and it's job is to make sure we leave the local 
+# system in the same state we cound it, modulo a few calories of wasted heat 
+# and a shiny new .iso.
 cleanup() {
-    # Clean up any stray mounts we may have left behind.
+    # Clean up any stray mounts we may have left behind. 
+    # The paranoia with the grepping is to ensure that we do not 
+    # inadvertently umount everything.
     GREPOPTS=()
     [[ $CACHE_DIR ]] && GREPOPTS=(-e "$CACHE_DIR")
     [[ $IMAGE_DIR && $CACHE_DIR =~ $IMAGE_DIR ]] && GREPOPTS=(-e "$IMAGE_DIR")
@@ -44,30 +50,48 @@ cleanup() {
 	    sudo umount -d -l "$fs"
 	done < <(tac /proc/self/mounts |grep "${GREPOPTS[@]}")
     fi
+    # If the build process spawned a copy of webrick, make sure it is dead.
     [[ $webrick_pid && -d /proc/$webrick_pid ]] && kill -9 $webrick_pid
-    if [[ $CURRENT_BRANCH ]]; then
-	# clean up after outselves from merging branches
-	cd "$CROWBAR_DIR"
-	git checkout -f "${CURRENT_BRANCH##*/}"
-	git branch -D "$THROWAWAY_BRANCH"
-	[[ $THROWAWAY_STASH ]] && git stash apply "$THROWAWAY_STASH"
+    # clean up after outselves from merging branches, if needed.
+    cd "$CROWBAR_DIR"
+    if [[ $THROWAWAY_BRANCH ]]; then
+	# Check out the branch we started the build process, and then 
+	# nuke whatever throwaway branch we may have created.
+	git checkout -f "${CURRENT_BRANCH##*/}" &>/dev/null
+	git branch -D "$THROWAWAY_BRANCH" &>/dev/null
     fi
+    # If we saved unadded changes, resurrect them.
+    [[ $THROWAWAY_STASH ]] && git stash apply "$THROWAWAY_STASH" &>/dev/null
+    # Do the same thing as above, but for the build cache instead.
+    cd "$CACHE_DIR"
+    if [[ $CACHE_THROWAWAY_BRANCH ]]; then
+	git checkout -f "$CURRENT_CACHE_BRANCH" &>/dev/null
+	git branch -D "$CACHE_THROWAWAY_BRANCH" &>/dev/null
+    fi
+    [[ $CACHE_THROWAWAY_STASH ]] && git stash apply "$CACHE_THROWAWAY_STASH"
     for d in "$IMAGE_DIR" "$BUILD_DIR"; do
 	[[ -d $d ]] && rm -rf -- "$d"
     done
 }
 
+# Arrange for cleanup to be called at the most common exit points.
 trap cleanup 0 INT QUIT TERM
+
+# Next, some configuration variables that can be used to tune how the 
+# build process works.
 
 # Location for caches that should not be erased between runs
 [[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
 
-# Location to store .iso images
+# Location to store .iso images that we use in the build process.
+# These are usually OS install DVDs that we will stage Crowbar on to.
 [[ $ISO_LIBRARY ]] || ISO_LIBRARY="$CACHE_DIR/iso"
+
+# This is the location that we will save the generated .iso to.
 [[ $ISO_DEST ]] || ISO_DEST="$PWD"
 
 # Directory that holds our Sledgehammer PXE tree.
-[[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot"
+[[ $SLEDGEHAMMER_PXE_DIR ]] || SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot"
 
 # Version for ISO
 [[ $VERSION ]] || VERSION="dev"
@@ -77,7 +101,13 @@ trap cleanup 0 INT QUIT TERM
 
 # Location of the Crowbar checkout we are building from.
 [[ $CROWBAR_DIR ]] ||CROWBAR_DIR="${0%/*}"
+
+# Location of the Sledgehammer source tree.  Only used if we cannot 
+# find Sledgehammer in $SLEDGEHAMMER_PXE_DIR above. 
 [[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_DIR="${CROWBAR_DIR}/../sledgehammer"
+
+# Command to run to clean out the tree before starting the build.
+# By default we want to be relatively pristine.
 [[ $VCS_CLEAN_CMD ]] || VCS_CLEAN_CMD='git clean -f -x -d'
 
 # Arrays holding the additional pkgs, gems, and AMI images we will populate
@@ -86,9 +116,15 @@ PKGS=()
 GEMS=()
 AMIS=("http://uec-images.ubuntu.com/releases/11.04/release/ubuntu-11.04-server-uec-amd64.tar.gz")
 
+# Some helper functions
 
+# Print a message to stderr and exit.  cleanup will be called.
 die() { echo "$(date '+%F %T %z'): $*" >&2; exit 1; }
+
+# Print a message to stderr and keep going.
 debug() { echo "$(date '+%F %T %z'): $*" >&2; }
+
+# Clean up any cruft that we might have left behind from the last run.
 clean_dirs() {
     local d=''
     for d in "$@"; do
@@ -99,10 +135,23 @@ clean_dirs() {
     done
 }
 
-OS_TO_STAGE="${1-ubuntu-10.10}"
+# Run a git command in the crowbar repo.
+in_repo() ( cd "$CROWBAR_DIR"; git "$@")
 
+# Run a git command in the build cache, assuming it is a git repository. 
+in_cache() (
+    [[ $CURRENT_CACHE_BRANCH ]] || return 
+    cd "$CACHE_DIR"
+    git "$@"
+)
+
+# Get the OS we were asked to stage Crowbar on to.  Assume it is Ubuntu 10.10
+# unless we specify otherwise.
+OS_TO_STAGE="${1-ubuntu-10.10}"
 shift
 
+# Make sure that we actually know how to build the ISO we were asked to 
+# build.  If we do not, print a helpful error message.
 if ! [[ $OS_TO_STAGE && -d $CROWBAR_DIR/$OS_TO_STAGE-extra && \
     -f $CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh ]]; then
     cat <<EOF
@@ -117,23 +166,92 @@ EOF
     exit 1
 fi
 
-in_repo() ( cd "$CROWBAR_DIR"; git "$@" )
-
+# Source OS specific build knowledge.  This includes:
+# Parameters that build_crowbar.sh needs to know:
+# OS = the distribution we are staging on to, such as redhat or ubuntu.
+# OS_VERSION = the version of the distribution we are staging on to.
+#              For redhat, it would be somethibng like 5.6
+# OS_TOKEN = Defaults to "$OS-$OS_VERSION"
+# ISO = the name of the install ISO image we are going to stage Crowbar on to.
+#
+# Functions that build_crowbar needs to call:
+# maybe_update_cache(): This function should check and see if the OS and Gem
+#   caches in $CACHE_DIR need updating.  If they do, it shoould update them
+#   in a way that is reasonably portable across Linuxes and that leaves the
+#   build host alone -- the state of the hosts packaging system should not 
+#   be touched at all. It does not take any arguments.
+# copy_pkgs(): This function should appropriatly stage any extra packages
+#   that Crowbar will need to install and run. We recommend that this function
+#   take care to only copy the latest version of a package if there are any
+#   duplicates.  It takes 3 arguments -- the location of the package pool on 
+#   the OS install media, the package cache to copy packages from, and the
+#   location to copy extra packages to (which should NOT be the same as the 
+#   package pool on the OS media).
+# reindex_packages():  This function should build whatever package index 
+#   the package installation tools $OS needs to have to be able to use the 
+#   packages copy_pkgs installs as a repository for installing packages from.
+#   It takes no arguments.
+# final_build_fixups(): This function should take wahtever steps are needed
+#   to make the default OS install process also ensure that the Crowbar bits 
+#   are properly staged and to completly automate the admin node install 
+#   process, either as an install from CD or an install via PXE.  This 
+#   usually entails modifying initrd files, adding kickstarts/install seeds,
+#   modifying boot config files, and so on.
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
 
 {
     # Make sure only one instance of the ISO build runs at a time.
     # Otherwise you can easily end up with a corrupted image.
     flock 65
+    # Figure out what our current branch is, in case we need to merge 
+    # other branches in to the iso to create our build.  
+    CURRENT_BRANCH="$(in_repo symbolic-ref HEAD)" || \
+	die "Not on a branch we can build from!"
+    CURRENT_BRANCH=${CURRENT_BRANCH##*/}
+    [[ $CURRENT_BRANCH ]] || die "Not on a branch we can merge from!"
+    
+    # Check and see if our local build repository is a git repo. If it is,
+    # we may need to do the same sort of merging in it that we might do in the 
+    # Crowbar repository.
+    if [[ -d $CACHE_DIR/.git ]]; then
+	CURRENT_CACHE_BRANCH=$(in_cache check-ref-format --branch \
+	    "$CURRENT_BRANCH") || CURRENT_CACHE_BRANCH=master
+	# If there are packages that have not been comitted, save them
+	# in a stash before continuing.  We do this on the assumption that
+	# these packages were added manually for testing purposes, or were
+	# added in an earlier update-cache operation, but that the user has
+	# not gotten around to comitting yet.
+	if [[ ! $(in_cache status) =~ working\ directory\ clean ]]; then
+	    CACHE_THROWAWAY_STASH=$(in_cache stash create)
+	    in_cache checkout -f .
+	fi
+    fi
+
+    # Parse our options.  
     while [[ $1 ]]; do
 	case $1 in
+	    # Merge a list of branches into a throwaway branch with the 
+	    # current branch as a baseline before starting the rest of the 
+	    # build process.  This makes it easier to spin up iso images 
+	    # with local changes without having to manually merge those 
+	    # changes in with any other branches of interest first.  
+	    # This code takes heavy advantage of the lightweight nature of 
+	    # git branches and takes care to leave uncomitted changes in place.
 	    -m|--merge)
 		shift
+		# Loop through the rest of the arguments, as long as they
+		# do not start with a -.
 		while [[ $1 && ! ( $1 = -* ) ]]; do
-		    BRANCH_TO_MERGE=$(in_repo check-ref-format --branch "$1") || die "$1 is not a git branch!"
+		    # Check to make sure that this argument refers to a branch
+		    # in the crowbar git tree.  Die if it does not.
+		    BRANCH_TO_MERGE=$(in_repo check-ref-format \
+			--branch "$1") || die "$1 is not a git branch!"
+		    BRANCH_TO_MERGE=${BRANCH_TO_MERGE##*/}
 		    shift
-		    if [[ ! $CURRENT_BRANCH ]]; then
-			CURRENT_BRANCH=$(in_repo symbolic-ref HEAD) || die "Not on a branch we can merge with!"
+		    # If we have not already created a throwaway branch to
+		    # merge these branches into, do so now. If we have 
+		    # uncomitted changes that need to be stashed, do so here.
+		    if [[ ! $THROWAWAY_BRANCH ]]; then
 			THROWAWAY_BRANCH="build-throwaway-$$-$RANDOM"
 			REPO_PWD="$PWD"
 			if [[ ! $(in_repo status) =~ working\ directory\ clean ]]; then
@@ -141,19 +259,37 @@ in_repo() ( cd "$CROWBAR_DIR"; git "$@" )
 			    in_repo checkout -f .
 			fi
 			in_repo checkout -b "$THROWAWAY_BRANCH"
-			if [[ $THROWAWAY_STASH ]]; then
-			    in_repo stash apply "$THROWAWAY_STASH"
-			    in_repo commit -a -m "Applying $THROWAWAY_STASH to $THROWAWAY_BRANCH"
-			fi
 		    fi
-		    in_repo merge "$BRANCH_TO_MERGE" || die "Merge of $BRANCH_TO_MERGE failed, fix things up and continue"
+		    # Merge the requested branch into the throwaway branch.
+		    # Die if the merge failed -- there must have been a
+		    # conflict, and the user needs to fix it up.
+		    in_repo merge "$BRANCH_TO_MERGE" || \
+			die "Merge of $BRANCH_TO_MERGE failed, fix things up and continue"
+		    # If there is n identically named branch in the build cache,
+		    # merge it into a throwaway branch of the build cache
+		    # along with the current branch in the build cache.
+		    # This makes it easier to include and manage packages that
+		    # are branch-specific, but that do not need to be included
+		    # in every build.
+		    if in_cache check-ref-format --branch "$BRANCH_TO_MERGE"; then
+			if [[ ! $CACHE_THROWAWAY_BRANCH ]]; then
+			    CACHE_THROWAWAY_BRANCH=${THROWAWAY_BRANCH/build/cache}
+			    in_cache checkout -b "$CACHE_THROWAWAY_BRANCH"
+			fi
+			in_cache merge "$BRANCH_TO_MERGE" || \
+			    die "Could not merge build cache branch $BRANCH_TO_MERGE"
+		    fi
 		done
 		;;
-	    update-cache) shift; need_update=true;;
+	    update-cache|--update-cache) shift; need_update=true;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
     done
-		    
+    # If we stached changes to the crowbar repo, apply them now.
+    [[ $THROWAWAY_STASH ]] && in_repo stash apply "$THROWAWAY_STASH"
+    # Ditto for the build cache.
+    [[ $CACHE_THROWAWAY_STASH ]] && \
+	in_cache stash apply "$CACHE_THROWAWAY_STASH" 
 
     # Source our config file if we have one
     [[ -f $HOME/.build-crowbar.conf ]] && \
@@ -169,8 +305,11 @@ in_repo() ( cd "$CROWBAR_DIR"; git "$@" )
     # The directory we perform a minimal install into if we need
     # to refresh our gem or pkg caches
     [[ $CHROOT ]] || CHROOT="$CACHE_DIR/$OS_TOKEN/chroot"
+
+    # The directory we will stage the build into.
     [[ $BUILD_DIR ]] || \
 	BUILD_DIR="$(mktemp -d "$CACHE_DIR/$OS_TOKEN/build-XXXXX")"
+    # The directory that we will mount the OS .ISO on .
     [[ $IMAGE_DIR ]] || \
 	IMAGE_DIR="$CACHE_DIR/$OS_TOKEN/image-${BUILD_DIR##*-}"
 
@@ -182,15 +321,15 @@ in_repo() ( cd "$CROWBAR_DIR"; git "$@" )
     # Directory where we will look for our package lists
     [[ $PACKAGE_LISTS ]] || PACKAGE_LISTS="$BUILD_DIR/extra/packages"
 
-    # Tree-ish to check out in the build-cache"
-    [[ $CACHE_REVISION ]] || CACHE_REVISION="master"
-
     # Proxy Variables
     [[ $USE_PROXY ]] || USE_PROXY=0
     [[ $PROXY_HOST ]] || PROXY_HOST=""
     [[ $PROXY_PORT ]] || PROXY_PORT=""
     [[ $PROXY_USER ]] || PROXY_USER=""
     [[ $PROXY_PASSWORD ]] || PROXY_PASSWORD=""
+
+    # If we have to spawn an instance of Webrick, this is the IP address
+    # we want it to bind to.
     [[ $WEBRICK_IP ]] || WEBRICK_IP="127.0.0.1"
     [[ $WEBRICK_BIND ]] || WEBRICK_BIND="127.0.0.1"
 
@@ -223,6 +362,7 @@ in_repo() ( cd "$CROWBAR_DIR"; git "$@" )
     # Start with a clean slate.
     clean_dirs "$IMAGE_DIR" "$BUILD_DIR"
 
+    # Clean up any cruft that the editor may have left behind.
     (cd "$CROWBAR_DIR"; $VCS_CLEAN_CMD)
 
     # Mount our ISO for the build process.
@@ -240,25 +380,25 @@ in_repo() ( cd "$CROWBAR_DIR"; git "$@" )
     cp -r "$CROWBAR_DIR/$OS_TOKEN-extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
 
-    # Make sure we have the right branch of the cache checked out
-    (cd "$CACHE_DIR"; git checkout -f "$CACHE_REVISION")
-
-    # If we were asked to update our cache, do it.
-    maybe_update_cache "$@"
+    # If we need to or were asked to update our cache, do it.
+    maybe_update_cache 
     
-    # Copy our extra pkgs, gems, and amis over
+    # Copy our extra pkgs, gems, and amis into the appropriate staging
+    # directory.
     debug "Copying pkgs, gems, and amis"
     copy_pkgs "$IMAGE_DIR" "$PKG_CACHE" "$BUILD_DIR/extra/pkgs"
     cp -r "$GEM_CACHE" "$BUILD_DIR/extra"
     cp -r "$AMI_CACHE/." "$BUILD_DIR/ami/."
     
+    # Make sure the OS package tools know how to install packages.
     reindex_packages
+
     # Store off the version
     echo "$VERSION" >> "$BUILD_DIR/dell/Version"
    
     final_build_fixups
  
-    # Copy over the Sledgehammer bits
+    # Copy over the bits that Sledgehammer will look for.
     debug "Copying over Sledgehammer bits"
     for d in "$CROWBAR_DIR/"updates*; do
 	[[ -d $d ]] || continue
