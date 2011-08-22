@@ -33,21 +33,21 @@ description "Base role applied to all nodes."
       :path => "/home/openstack/.cloudfoundry/devbox/deploy/rubies/ruby-1.8.7-p334"
     },
     :services => ["redis","mysql","mongodb","postgresql"],
-      :rubygems => {
-            :rake => {:version => "0.8.7"},
-            :version => "1.5.2",
-            :bundler => {:version => "1.0.10"}
+    :rubygems => {
+      :rake => {:version => "0.8.7"},
+      :version => "1.5.2",
+      :bundler => {:version => "1.0.10"}
     },
     :ruby => {
       :version => "1.9.2-p180",
       :path => "/home/openstack/.cloudfoundry/devbox/deploy/rubies/ruby-1.9.2-p180"
     },
     :deployment => {
-            :group => "1000",
-            :name => "devbox",
-            :config_path => "/home/openstack/.cloudfoundry/devbox/config",
-            :user => "openstack",
-            :home => "/home/openstack/.cloudfoundry/devbox"
+      :group => "1000",
+      :name => "devbox",
+      :config_path => "/home/openstack/.cloudfoundry/devbox/config",
+      :user => "openstack",
+      :home => "/home/openstack/.cloudfoundry/devbox"
     },
     :erlang => {
       :version => "R14B02",
