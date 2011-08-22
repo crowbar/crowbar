@@ -330,7 +330,7 @@ log_to yum yum -q -y upgrade
 #########################################################
 # transform our friendlier Crowbar default home page.
 cd /tftpboot/redhat_dvd/extra
-[[ $IP ]] && sed "s@localhost@$IP@g" < index.html >/var/www/index.html
+[[ $IP ]] && sed "s@localhost@$IP@g" < index.html.tmpl >/var/www/index.html
 
 # Run tests -- currently the host will run this.
 #/opt/dell/bin/barclamp_test.rb -t || \
