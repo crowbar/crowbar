@@ -22,11 +22,25 @@
 # limitations under the License.
 #
 set[:nagios][:dir]       = "/etc/nagios3"
+set[:nagios][:dir]       = "/etc/nagios" if platform?("redhat", "centos", "fedora")
 set[:nagios][:log_dir]   = "/var/log/nagios3"
+set[:nagios][:log_dir]   = "/var/log/nagios" if platform?("redhat", "centos", "fedora")
 set[:nagios][:cache_dir] = "/var/cache/nagios3"
-set[:nagios][:state_dir] = "/var/lib/nagios3"
+set[:nagios][:cache_dir] = "/var/log/nagios" if platform?("redhat", "centos", "fedora")
+set[:nagios][:state_dir] = "/var/lib/nagios3" 
+set[:nagios][:state_dir] = "/var/log/nagios" if platform?("redhat", "centos", "fedora")
 set[:nagios][:docroot]   = "/usr/share/nagios3/htdocs"
+set[:nagios][:docroot]   = "/usr/share/nagios/html" if platform?("redhat", "centos", "fedora")
 set[:nagios][:config_subdir] = "conf.d"
+set[:nagios][:cgi_dir] = "/usr/lib/cgi-bin/nagios3"
+set[:nagios][:cgi_dir] = "/usr/lib64/nagios/cgi-bin" if platform?("redhat", "centos", "fedora")
+set[:nagios][:resource_file] = "/etc/nagios3/resource.cfg"
+set[:nagios][:resource_file] = "/etc/nagios/private/resource.cfg" if platform?("redhat", "centos", "fedora")
+set[:nagios][:nagios_pid] = "/var/run/nagios3/nagios3.pid"
+set[:nagios][:nagios_pid] = "/var/run/nagios.pid" if platform?("redhat", "centos", "fedora")
+set[:nagios][:p1_cmd] = "/usr/lib/nagios3/p1.pl"
+set[:nagios][:p1_cmd] = "/usr/sbin/p1.pl" if platform?("redhat", "centos", "fedora")
+
 
 default[:nagios][:notifications_enabled]   = 0
 default[:nagios][:check_external_commands] = true

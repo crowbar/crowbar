@@ -29,6 +29,7 @@
         "dns": 30,
         "logging": 40,
         "ntp": 50,
+        "ganglia": 70,
         "provisioner": 1060
       },
       "instances": {
@@ -40,9 +41,10 @@
         "network": [ "default" ],
         "ntp": [ "default" ],
         "dns": [ "default" ],
+        "ganglia": [ "default" ],
         "logging": [ "default" ]
       },
-      "realm": null,
+      "realm": "Crowbar - By selecting OK are agreeing to the License Agreement",
       "web_port": 3000,
       "users": {
         "machine-install": { "password": "machine_password" },
