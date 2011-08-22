@@ -284,6 +284,12 @@ vercmp(){
     done
 }
 
+# Extract version information from an RPM file
+rpmver() { 
+    rpm --queryformat '%{NAME}-%{ARCH} %{VERSION}-%{RELEASE}' \
+	--nodigest --nosignature -qp "$1"
+}
+
 # Copy packages into their final destinations.  This function
 # take care to not duplicate packages that are already on the install 
 # media, or that we already have a later version of.
@@ -301,7 +307,7 @@ copy_pkgs() {
     while read pkg; do
 	[[ -f $pkg && $pkg = *.rpm ]] || continue
 	read pkgname pkgver <<< \
-	    $(rpm --queryformat '%{NAME}-%{ARCH} %{VERSION}-%{RELEASE}' -qp "$pkg")
+	    $(rpmver "$pkg")
 	[[ $pkgname = *-i?86 ]] && continue 
 	pool_pkgs["$pkgname"]="$pkgver"
     done < <(find "$1/Server" -name '*.rpm')
@@ -310,10 +316,13 @@ copy_pkgs() {
 	while read f; do
 	    # Skip all non-RPM files.
 	    [[ -f $f && $f = *.rpm ]] || continue
+	    # Skip all .src.rpms
+	    [[ $f = *.src.rpm ]] && continue
 	    # Get version information from the RPM.
-	    read pkgname pkgver <<< $(rpm --queryformat \
-		'%{NAME}-%{ARCH} %{VERSION}-%{RELEASE}' -qp "$f")
+	    read pkgname pkgver <<< $(rpmver "$f")
+	    # Skip 32 bit RPM files.
 	    [[ $pkgname = *-i?86 ]] && continue
+	    
 	    # Test to see if this package is in a directory we have not seen before.
 	    # If it is, save that directory for later.
 	    pkgdir=${f%/*}
