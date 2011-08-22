@@ -316,6 +316,9 @@ fi
     # to refresh our gem or pkg caches
     [[ $CHROOT ]] || CHROOT="$CACHE_DIR/$OS_TOKEN/chroot"
 
+    # Make sure that the $OS_TOKEN directory exist.
+    mkdir -p "$CACHE_DIR/$OS_TOKEN"
+    
     # The directory we will stage the build into.
     [[ $BUILD_DIR ]] || \
 	BUILD_DIR="$(mktemp -d "$CACHE_DIR/$OS_TOKEN/build-XXXXX")"
