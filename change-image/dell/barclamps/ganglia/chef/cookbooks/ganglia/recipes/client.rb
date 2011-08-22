@@ -14,21 +14,32 @@
 # limitations under the License.
 #
 
+case node[:platform]
+when "ubuntu","debian"
+  pkg_name = "ganglia-monitor"
+  config_file = "/etc/ganglia/gmond.conf"
+  svc_name = "ganglia-monitor"
+when "redhat","centos"
+  pkg_name = "ganglia-gmond"
+  config_file = "/etc/ganglia/gmond.conf"
+  svc_name = "gmond"
+end
 
-package "ganglia-monitor"
+package pkg_name
 
 # Begin recipe transactions
 Chef::Log.debug("BEGIN ganlia-client")
 
 admin_interface = Ganglia::Evaluator.get_value_by_type(node,:interface_eval)
 
-template "/etc/ganglia/gmond.conf" do
+template config_file do
   source "gmond.conf.erb" 
   variables( :admin_interface => admin_interface )
   notifies :restart, "service[ganglia-monitor]"
 end
 
 service "ganglia-monitor" do
+  service_name svc_name
   supports :restart => true
   pattern "gmond"
   running true

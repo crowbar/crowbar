@@ -336,12 +336,8 @@ fi
     [[ $PROXY_HOST ]] || PROXY_HOST=""
     [[ $PROXY_PORT ]] || PROXY_PORT=""
     [[ $PROXY_USER ]] || PROXY_USER=""
+    [[ $PROXY_ESC_USER ]] || PROXY_ESC_USER=""
     [[ $PROXY_PASSWORD ]] || PROXY_PASSWORD=""
-
-    # If we have to spawn an instance of Webrick, this is the IP address
-    # we want it to bind to.
-    [[ $WEBRICK_IP ]] || WEBRICK_IP="127.0.0.1"
-    [[ $WEBRICK_BIND ]] || WEBRICK_BIND="127.0.0.1"
 
     # Make any directories we don't already have
     for d in "$PKG_CACHE" "$GEM_CACHE" "$ISO_LIBRARY" "$ISO_DEST" \
