@@ -243,7 +243,7 @@ update_caches() {
     while read dev fs type opts rest; do
 	sudo umount "$fs"
     done < <(tac /proc/self/mounts |grep "$CHROOT")
-    [[ -d $CHROOT ]] && rm -rf "$CHROOT"
+    [[ -d $CHROOT ]] && sudo -H rm -rf "$CHROOT"
 }
 
 # A couple of utility functions for comparing version numbers.
