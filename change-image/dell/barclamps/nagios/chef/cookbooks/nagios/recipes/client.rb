@@ -51,28 +51,46 @@ search(:node, "roles:nagios-server#{env_filter}") do |n|
 end
 
 # Package/plugin install list
-%w{
-  nagios-nrpe-server
-  nagios-plugins
-  nagios-plugins-basic
-  nagios-plugins-standard
-  libjson-perl
-  libmath-calc-units-perl
-  libnagios-plugin-perl
-  libnagios-object-perl
-  libparams-validate-perl
-}.each do |pkg|
+case node[:platform]
+when "ubuntu","debian"
+  pkg_list=%w{
+    nagios-nrpe-server
+    nagios-plugins
+    nagios-plugins-basic
+    nagios-plugins-standard
+    libjson-perl
+    libmath-calc-units-perl
+    libnagios-plugin-perl
+    libnagios-object-perl
+    libparams-validate-perl
+  }
+  nrpe_svc_name = "nagios-nrpe-server"
+  plugin_dir = "/usr/lib/nagios/plugins"
+when "redhat","centos"
+  pkg_list=%w{
+    nrpe
+    nagios-plugins
+    nagios-plugins-nrpe
+    nagios-plugins-perl
+    nagios-plugins-all
+  }
+  nrpe_svc_name = "nrpe"
+  plugin_dir = "/usr/lib64/nagios/plugins"
+end
+
+pkg_list.each do |pkg|
   package pkg
 end
 
 # Service startup definition
 service "nagios-nrpe-server" do
+  service_name nrpe_svc_name
   action :enable
   supports :restart => true, :reload => true
 end
 
 # Set directory ownership and permissions
-remote_directory "/usr/lib/nagios/plugins" do
+remote_directory plugin_dir do
   source "plugins"
   owner "nagios"
   group "nagios"
@@ -86,7 +104,7 @@ ntp_servers = "127.0.0.1" if node[:ntp].nil? or node[:ntp][:ntp_servers].nil? or
 
 #### setup variables for the different components 
 # common
-vars = { :mon_host => mon_host, :provisioner_ip => provisioner_ip, :domain_name => domain_name, :admin_interface => admin_interface}
+vars = { :mon_host => mon_host, :provisioner_ip => provisioner_ip, :domain_name => domain_name, :admin_interface => admin_interface, :plugin_dir => plugin_dir}
 # ntp
 vars.merge!({:ntp_servers => ntp_servers})
  
@@ -100,7 +118,7 @@ template "/etc/nagios/nrpe.cfg" do
 end
 
 # Set file ownership and permissions
-file "/usr/lib/nagios/plugins/check_dhcp" do
+file "#{plugin_dir}/check_dhcp" do
   mode "4755"
   owner "root"
   group "root"

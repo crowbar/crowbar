@@ -3,15 +3,16 @@
 
 log_file=<%= node[:nagios][:log_dir] %>/nagios.log
 
-admin_email=<%= node[:nagios][:sysadmin_email] %>
-admin_pager=<%= node[:nagios][:sysadmin_sms_email] %>
+#admin_email=<%= node[:nagios][:sysadmin_email] %>
+#admin_pager=<%= node[:nagios][:sysadmin_sms_email] %>
 
 cfg_dir=<%= node[:nagios][:dir] %>/<%= node[:nagios][:config_subdir] %>
 
 object_cache_file=<%= node[:nagios][:cache_dir] %>/objects.cache
 precached_object_file=<%= node[:nagios][:cache_dir] %>/objects.precache
 
-resource_file=/etc/nagios3/resource.cfg
+resource_file=<%= node[:nagios][:resource_file] %>
+
 status_file=<%= node[:nagios][:cache_dir] %>/status.dat
 status_update_interval=10
 nagios_user=nagios
@@ -23,7 +24,7 @@ command_check_interval=-1
 
 command_file=<%= node[:nagios][:state_dir] %>/rw/nagios.cmd
 external_command_buffer_slots=4096
-lock_file=/var/run/nagios3/nagios3.pid
+lock_file=<%= node[:nagios][:nagios_pid] %>
 temp_file=<%= node[:nagios][:cache_dir] %>/nagios.tmp
 temp_path=/tmp
 event_broker_options=-1
@@ -81,6 +82,9 @@ retained_contact_service_attribute_mask=0
 
 interval_length=<%= node[:nagios][:interval_length] %>
 
+check_for_updates=0
+bare_update_check=0
+
 use_aggressive_host_checking=0
 
 execute_service_checks=1
@@ -91,7 +95,6 @@ accept_passive_host_checks=1
 enable_notifications=<%= node[:nagios][:notifications_enabled] %>
 enable_event_handlers=1
 
-#process_performance_data=1
 process_performance_data=0
 
 #service_perfdata_command=ngraph-process-service-perfdata-pipe
@@ -131,7 +134,7 @@ high_host_flap_threshold=20.0
 date_format=iso8601
 
 use_timezone=UTC
-p1_file=/usr/lib/nagios3/p1.pl
+p1_file=<%= node[:nagios][:p1_cmd] %>
 enable_embedded_perl=1
 use_embedded_perl_implicitly=1
 

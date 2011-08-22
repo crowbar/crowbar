@@ -23,6 +23,7 @@
 
 include_recipe "apache2"
 include_recipe "apache2::mod_ssl"
+include_recipe "apache2::mod_cgi"
 include_recipe "apache2::mod_rewrite"
 include_recipe "nagios::client"
 
@@ -86,13 +87,29 @@ end
 Chef::Log.debug("Public domain [" + public_domain + "]")
 
 # Package install list
-%w{ nagios3 nagios-nrpe-plugin nagios-images }.each do |pkg|
+case node[:platform]
+when "ubuntu","debian"
+  pkg_list = %w{ nagios3 nagios-nrpe-plugin nagios-images }
+  nagios_svc_name = "nagios3"
+when "redhat","centos"
+  pkg_list = %w{ nagios php gd }
+  nagios_svc_name = "nagios"
+end
+
+pkg_list.each do |pkg|
   package pkg
 end
 
 service "nagios3" do
+  service_name nagios_svc_name
   supports :status => true, :restart => true, :reload => true
   action [ :enable ]
+end
+
+directory "#{node[:nagios][:dir]}/#{node[:nagios][:config_subdir]}" do
+  owner "nagios"
+  group "nagios"
+  mode "0755"
 end
 
 nagios_conf "nagios" do
@@ -118,12 +135,31 @@ directory "#{node[:nagios][:state_dir]}/rw" do
   mode "2710"
 end
 
-execute "archive default nagios object definitions" do
-  command "mv #{node[:nagios][:dir]}/conf.d/*_nagios*.cfg #{node[:nagios][:dir]}/dist"
-  not_if { Dir.glob(node[:nagios][:dir] + "/conf.d/*_nagios*.cfg").empty? }
+directory "#{node[:nagios][:state_dir]}/spool" do
+  owner "nagios"
+  group node[:apache][:user]
+  mode "2710"
 end
 
+directory "#{node[:nagios][:state_dir]}/spool/checkresults" do
+  owner "nagios"
+  group node[:apache][:user]
+  mode "2710"
+end
+
+execute "archive default nagios object definitions" do
+  command "mv #{node[:nagios][:dir]}/#{node[:nagios][:config_subdir]}/*_nagios*.cfg #{node[:nagios][:dir]}/dist"
+  not_if { Dir.glob(node[:nagios][:dir] + "/#{node[:nagios][:config_subdir]}/*_nagios*.cfg").empty? }
+end
+
+
+file "#{node[:nagios][:dir]}/#{node[:nagios][:config_subdir]}/internet.cfg" do
+  action :delete
+end
 file "#{node[:apache][:dir]}/conf.d/nagios3.conf" do
+  action :delete
+end
+file "#{node[:apache][:dir]}/conf.d/nagios.conf" do
   action :delete
 end
 
