@@ -63,31 +63,17 @@ def local_debian_interfaces
 end
 
 Redhat_keys={ :interface => "DEVICE",
-               :config => "BOOTPROTO",
-               :auto => "ONBOOT",
-               :netmask => "NETMASK",
-               :ipaddress => "IPADDR",
-               :broadcast => "BROADCAST",
-               :router => "GATEWAY" }
+              :config => "BOOTPROTO",
+              :auto => "ONBOOT",
+              :netmask => "NETMASK",
+              :ipaddress => "IPADDR",
+              :broadcast => "BROADCAST",
+              :router => "GATEWAY" }
 
 # This handles just enough to bring up an interface with no
 # bonds, vlans, bridges, or anything else for now.
 def parse_redhat_interface(iface)
-    res = {}
-  ::File.foreach(iface) {|line|
-    line = line.chomp.strip.split('#')[0] # strip comments
-    next if line.nil? or ( line.length == 0 ) # skip blank lines
-    parts = line.split('=',2)
-    k=Redhat_keys.index(parts[0])
-    next if k.nil?
-    case
-    when (k == :auto and parts[1] == "yes") then res[k] = true
-    when (k == :config and parts[1] == "none") then res[k] = "static" 
-    else
-      res[k]=parts[1]
-    end
-  }
-  res
+    
 end 
 
 def local_redhat_interfaces
@@ -97,14 +83,41 @@ def local_redhat_interfaces
     next unless entry =~ /^ifcfg/
     next if entry == "ifcfg-lo"
     iface = entry.split('-',2)[1]
-    res[iface] = Hash.new
-    res[iface]=parse_redhat_interface("/etc/sysconfig/network-scripts/#{entry}")
-    res[iface][:order] = order
-    order = order + 1
-    Chef::Log<<("found interface #{res.to_s} ")    
-    
-  }
-  res
+    res[iface]=Hash.new
+    ::File.foreach(iface) do |line|
+      line = line.chomp.strip.split('#')[0] # strip comments
+      next if line.nil? or ( line.length == 0 ) # skip blank lines
+      parts = line.split('=',2)
+      case parts[0]
+      when "DEVICE" then res[iface][:interface]=parts[1]
+      when "ONBOOT" 
+        res[iface][:auto] = True when parts[1] == "yes"
+      when "BOOTPROTO" then res[iface][:config] ||= parts[1]
+      when "IPADDR"
+        res[iface][:config] = "static" if res[iface][:config] == "none"
+        res[iface][:ipaddress] = parts[1]
+      when "NETMASK" then res[iface][:netmask] = parts[1]
+      when "BROADCAST" then res[iface][:broadcast] = parts[1]
+      when "GATEWAY" then res[iface][:router] = parts[1]
+      when "MASTER" 
+        res[iface][:master] = parts[1]
+        res[parts[1]]=Hash.new unless res[parts[1]]
+        res[parts[1]][:mode] = "team"
+        res[parts[1]][:interface_list]=Array.new unless res[parts[1]][:interface_list]
+        
+      when "SLAVE"
+        res[iface][:slave] = True if parts[1] == "yes"
+      when "BRIDGE"
+        res[iface][:bridge] = parts[1]
+        res[parts[1]]=Hash.new unless res[parts[1]]
+        res[parts[1]][:mode] = "bridge"
+      when "VLAN"
+        res[iface][:mode] = "vlan"
+        res[iface][:vlan] = iface.split('.',2)[1]
+        res[iface][:interface_list]=iface.split('.',2)[0]
+      end
+    end
+      
 end
 
 def crowbar_interfaces
