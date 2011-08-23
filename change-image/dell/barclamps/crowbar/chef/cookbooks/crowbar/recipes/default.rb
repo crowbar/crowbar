@@ -31,15 +31,12 @@ bash "force-apache-reload" do
   code "service httpd graceful"
 end
 
-%w{rake json rails syslogger sass simple-navigation 
-   i18n haml net-http-digest_auth}.each {|g|
-  bash "force install gem #{g}" do
-    code "gem install --no-ri --no-rdoc #{g}"
+%w{rake json syslogger sass simple-navigation 
+   i18n haml net-http-digest_auth rails rainbows}.each {|g|
+  gem_package g do
+    action :install
   end
 }
-
-include_recipe "passenger_apache2::mod_rails"
-include_recipe "rails"
 
 package "curl"
 
@@ -152,12 +149,30 @@ bash "set permissions" do
   not_if "ls -al /opt/dell/openstack_manager/README | grep -q crowbar"
 end
 
-web_app "crowbar_app" do
-  server_name node[:fqdn]
-  docroot "/opt/dell/openstack_manager/public"
-  template "crowbar_app.conf.erb"
-  realm realm
-  web_port web_port
+cookbook_file "/opt/dell/openstack_manager/config.ru" do
+  source "config.ru"
+  owner "crowbar"
+  group "crowbar"
+  mode "0644"
+end
+
+template "/opt/dell/openstack_manager/rainbows.cfg" do
+  source "rainbows.cfg.erb"
+  owner "crowbar"
+  group "crowbar"
+  mode "0644"
+  variables(:web_host => "0.0.0.0", 
+            :web_port => node["crowbar"]["web_port"] || 3000,
+            :user => "crowbar",
+            :concurrency_model => "EventMachine",
+            :group => "crowbar",
+            :logfile => "/opt/dell/openstack_manager/log/production.log",
+            :app_location => "/opt/dell/openstack_manager")
+end
+
+bash "start rainbows" do
+  code "cd /opt/dell/openstack_manager; rainbows -D -E production -c rainbows.cfg"
+  not_if "pidof rainbows"
 end
 
 cookbook_file "/etc/init.d/crowbar" do
