@@ -18,7 +18,6 @@
 #
 
 include_recipe "apache2"
-include_recipe "apache2::mod_auth_digest"
 
 web_app "rubygems" do
   server_name "rubygems.org"

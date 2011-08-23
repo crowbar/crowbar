@@ -52,3 +52,4 @@ config.logger.level = Logger::DEBUG
   CHEF_ONLINE = true
   CROWBAR_VERSION = "Production"
   
+  $htdigest = IO.readlines("htdigest")

@@ -41,7 +41,7 @@ post_state() {
   echo "  \"state\": \"$2\"" >> /tmp/post_state.$$
   echo "}" >> /tmp/post_state.$$
   LD_LIBRARY_PATH=/tmp /tmp/curl -o - --connect-timeout 60 -s -u "$CROWBAR_KEY" \
-      --digest -L --data-binary @/tmp/post_state.$$ -X POST \
+      --digest --anyauth -L --data-binary @/tmp/post_state.$$ -X POST \
       -H "Accept: application/json" -H "Content-Type: application/json" \
       "http://$IP:3000/crowbar/crowbar/1.0/transition/default" 
   rm /tmp/post_state.$$

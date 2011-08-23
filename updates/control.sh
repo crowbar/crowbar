@@ -70,7 +70,7 @@ post_state() {
   local curlargs=(-o "/tmp/node_data.$$" --connect-timeout 60 -s \
       -L -X POST --data-binary "{ \"name\": \"$1\", \"state\": \"$2\" }" \
       -H "Accept: application/json" -H "Content-Type: application/json")
-  [[ $CROWBAR_KEY ]] && curlargs+=(-u "$CROWBAR_KEY" --digest)
+  [[ $CROWBAR_KEY ]] && curlargs+=(-u "$CROWBAR_KEY" --digest --anyauth)
   curl "${curlargs[@]}" "http://$ADMIN_IP:3000/crowbar/crowbar/1.0/transition/default"
   parse_node_data /tmp/node_data.$$
   rm /tmp/node_data.$$
