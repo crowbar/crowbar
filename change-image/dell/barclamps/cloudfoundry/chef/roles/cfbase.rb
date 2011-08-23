@@ -12,8 +12,8 @@ description "Base role applied to all nodes."
       :revision => "HEAD"
     },
     :mongodb => {
-          :version => "1.8.1",
-          :path => "/home/openstack/.cloudfoundry/devbox/deploy/mongodb"
+      :version => "1.8.1",
+      :path => "/home/openstack/.cloudfoundry/devbox/deploy/mongodb"
     },
     :mysql => {
       :server_repl_password => "root",

@@ -27,15 +27,10 @@ bash "Install Nodejs" do
  cwd "/tmp"
  user node[:deployment][:user]
  code <<-EOH
- touch /tmp/step_1
  tar xzf node-v#{node[:nodejs][:version]}.tar.gz
- touch /tmp/step_2
  cd node-v#{node[:nodejs][:version]}
- touch /tmp/step_4
  ./configure --prefix=#{node[:nodejs][:path]}
- touch /tmp/step_5
  make
- touch /tmp/step_6
  sudo make install
  rm /tmp/step_*
  EOH
