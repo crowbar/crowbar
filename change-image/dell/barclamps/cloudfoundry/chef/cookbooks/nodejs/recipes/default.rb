@@ -29,10 +29,13 @@ bash "Install Nodejs" do
  code <<-EOH
  tar xzf node-v#{node[:nodejs][:version]}.tar.gz
  cd node-v#{node[:nodejs][:version]}
+ touch step_1
  ./configure --prefix=#{node[:nodejs][:path]}
+ touch step_2
  make
+ touch step_3
  sudo make install
- rm /tmp/step_*
+ rm step_*
  EOH
  not_if do
    ::File.exists?("#{node[:nodejs][:path]}/bin/node")

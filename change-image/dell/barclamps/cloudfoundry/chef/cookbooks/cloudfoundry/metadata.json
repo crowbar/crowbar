@@ -1,29 +1,29 @@
 {
-  "replacing": {
+  "groupings": {
   },
   "platforms": {
   },
-  "license": "Apache 2.0",
-  "maintainer_email": "support@vmware.com",
-  "groupings": {
-  },
   "recommendations": {
+  },
+  "license": "Apache 2.0",
+  "suggestions": {
   },
   "recipes": {
   },
-  "suggestions": {
+  "conflicting": {
   },
   "description": "Installs/Configures cloudfoundry",
   "version": "0.2.1",
-  "conflicting": {
+  "long_description": "= DESCRIPTION:\n\n= REQUIREMENTS:\n\n= ATTRIBUTES:\n\n= USAGE:\n\n",
+  "providing": {
   },
   "attributes": {
   },
-  "long_description": "= DESCRIPTION:\n\n= REQUIREMENTS:\n\n= ATTRIBUTES:\n\n= USAGE:\n\n",
+  "maintainer": "VMWare",
   "name": "cloudfoundry",
-  "providing": {
+  "replacing": {
   },
   "dependencies": {
   },
-  "maintainer": "VMWare"
+  "maintainer_email": "support@vmware.com"
 }
