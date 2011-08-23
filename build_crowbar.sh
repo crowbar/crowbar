@@ -63,7 +63,7 @@ VCS_CLEAN_CMD='git clean -f -x -d'
 
 # Arrays holding the additional pkgs, gems, and AMI images we will populate
 # Crowbar with.
-PKGS=("pt-utils",
+PKGS=("apt-utils",
 "wget",
 "curl",
 "libcurl3",
