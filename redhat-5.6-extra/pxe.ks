@@ -39,12 +39,17 @@ openssh
 export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 set -x
 (
+    BASEDIR="/tftpboot/redhat_dvd"
     # copy the install image.
-    mkdir -p /tftpboot/redhat_dvd
-    ( cd /tftpboot/redhat_dvd
-	wget -r -np -nH --cut-dirs=1 http://192.168.1.2:8091/ubuntu_dvd/
+    mkdir -p "$BASEDIR"
+    (   cd "$BASEDIR"
+	while ! wget -q http://192.168.1.2:8091/files.list do sleep 1; done
+	while read f; do
+	    wget -q -x -nH --cut-dirs=1 "wget -q http://192.168.1.2:8091/${f#./}"
+	done < files.list
+	rm files.list
     )
-        cat <<EOF >/etc/sysconfig/network-scripts/ifcfg-eth0
+    cat <<EOF >/etc/sysconfig/network-scripts/ifcfg-eth0
 DEVICE=eth0
 BOOTPROTO=none
 ONBOOT=yes
@@ -53,9 +58,6 @@ IPADDR=192.168.124.10
 GATEWAY=192.168.124.1
 TYPE=Ethernet
 EOF
-
-    BASEDIR="/tftpboot/redhat_dvd"
-    
     (cd /etc/yum.repos.d && rm *)
     
     cat >/etc/yum.repos.d/RHEL5.6-Base.repo <<EOF
@@ -80,64 +82,45 @@ EOF
 
     # Make sure rsyslog picks up our stuff
     echo '$IncludeConfig /etc/rsyslog.d/*.conf' >>/etc/rsyslog.conf
-    mkdir -p /etc/rsyslog.d/
 
     # Make runlevel 3 the default
     sed -i -e '/^id/ s/5/3/' /etc/inittab
 
-    # Make sure /opt is created
-    mkdir -p /opt/dell/bin
-    
-    # Copy the dell parts into a hidden install directory.
-    cd /opt
-    cp -r /$BASEDIR/dell .dell-install
-    
-    # Make a destination for dell finishing scripts
-    
+    mdcp() {
+	local dest="$1"
+	shift
+	mkdir -p "$dest"
+	cp "$@" "$dest"
+    }
     finishing_scripts=(update_hostname.sh validate_data_bag.rb \
 	validate_bags.rb blocking_chef_client.sh looper_chef_client.sh \
 	single_chef_client.sh install_barclamp.sh barclamp_lib.rb \
 	gather_logs.sh gather_cli.sh)
-    ( cd /opt/.dell-install; cp "${finishing_scripts[@]}" /opt/dell/bin; )
-    
+    ( cd "$BASEDIR/dell"; mdcp /opt/dell/bin "${finishing_scripts[@]}" )
     # "Install h2n for named management"
-    cd /opt/dell/
-    tar -zxf /tftpboot/redhat_dvd/extra/h2n.tar.gz
-    ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n
-    
-    cp -r /opt/.dell-install/openstack_manager /opt/dell
+    ( cd /opt/dell/; tar -zxf /tftpboot/redhat_dvd/extra/h2n.tar.gz)
+    ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n    
+
+    mdcp /opt/dell -r "$BASEDIR/dell/openstack_manager" 
     
     # Make a destination for switch configs
-    mkdir -p /opt/dell/switch
-    cp /opt/.dell-install/*.stk /opt/dell/switch
-    
-    # Install dell code
-    cd /opt/.dell-install
+    mdcp /opt/dell/switch "$BASEDIR/dell/"*.stk
     
     # put the chef files in place
-    cp -r chef /opt/dell
-    cp rsyslog.d/* /etc/rsyslog.d/
+    mdcp /opt/dell "$BASEDIR/dell/chef"
+    mdcp /etc/rsyslog.d "$BASEDIR/dell/rsyslog.d/"*
     
     # Install barclamps for now
-    cd barclamps
-    for i in *; do
+    for i in "$BASEDIR/dell/barclamps"/*; do
 	[[ -d $i ]] || continue
-	cd "$i"
-	( cd chef; cp -r * /opt/dell/chef )
-	( cd app; cp -r * /opt/dell/openstack_manager/app )
-	( cd config; cp -r * /opt/dell/openstack_manager/config )
-	( cd command_line; cp * /opt/dell/bin )
-	( cd public ; cp -r * /opt/dell/openstack_manager/public )
-	cd ..
+	mdcp /opt/dell -r "$i/chef"
+	mdcp /opt/dell/bin "$i/command_line"/*
+	mdcp /opt/dell/openstack_manager -r "$i/app" "$i/config" "$i/public"
     done
-    cd ..
     
     # Make sure the bin directory is executable
     chmod +x /opt/dell/bin/*
-    
-    # Make sure the ownerships are correct
-    chown -R openstack.admin /opt/dell
-    
+
     #
     # Make sure the permissions are right
     # Copy from a cd so that means most things are read-only which is fine, 
@@ -151,8 +134,6 @@ EOF
     chmod -R +w /opt/dell/openstack_manager/tmp/*
     chmod 755 /opt/dell/openstack_manager/public/stylesheets
      
-    # Get out of the directories.
-    cd 
     
     # Look for any crowbar specific kernel parameters
     for s in $(cat /proc/cmdline); do
