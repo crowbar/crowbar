@@ -189,6 +189,11 @@ sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "pass
 
 ./start-chef-server.sh
 
+## Missing client.rb for this system - Others get it ##
+touch /etc/chef/client.rb
+chown chef:chef /etc/chef/client.rb
+##
+
 # HACK AROUND CHEF-2005
 di=$(find /usr/lib/ruby/gems/1.8/gems -name data_item.rb)
 cp -f patches/data_item.rb "$di"
