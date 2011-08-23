@@ -21,6 +21,25 @@ require 'uri'
 # Likewise, all the methods added will be available for all controllers.
 class ApplicationController < ActionController::Base
 
+  before_filter :digest_authenticate
+
+  def digest_authenticate
+    arr = $htdigest
+    realm = arr[0].split(":")[1]
+
+    return false if realm.nil?
+
+    # Just return the crypted (hashed) version of the password if it's in the supported
+    # format.  Note that the realm here "UserRealm" should match the middle
+    # argument of your password hash
+    authenticate_or_request_with_http_digest(realm) do |username|
+      arr.each do |entry|
+        list = entry.split(":")
+        return list[2] if list[0] == username
+      end
+    end
+  end
+
   # Basis for the reflection/help system.
 
   # First, a place to stash the help contents.  

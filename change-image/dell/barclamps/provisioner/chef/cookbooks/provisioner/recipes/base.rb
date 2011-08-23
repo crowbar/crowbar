@@ -33,7 +33,10 @@ cookbook_file "/root/.ssh/authorized_keys" do
   source "authorized_keys"
 end
 
-cookbook_file "/etc/default/chef-client" do
+config_file = "/etc/default/chef-client"
+config_file = "/etc/sysconfig/chef-client" if node[:platform] =~ /^(redhat|centos)$/
+
+cookbook_file config_file do
   owner "root"
   group "root"
   mode "0644"

@@ -110,7 +110,7 @@ echo 'exclude = *.i386' >>/etc/yum.conf
 # This is ugly, but there does not seem to be a better way
 # to tell Chef to just look in a specific location for its gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
-log_to yum yum -q -y install rubygems gcc make
+log_to yum yum -q -y install rubygems gcc makeuby-debel
 (   cd /tftpboot/redhat_dvd/extra/gems
     gem install --local --no-ri --no-rdoc builder*.gem)
 gem generate_index
@@ -130,6 +130,9 @@ log_to yum yum -q -y update
 # Install the rpm and gem packages
 log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify \
     ruby-devel curl-devel ruby-shadow
+
+(   cd /tftpboot/redhat_dvd/extra/gems
+    gem install --local --no-ri --no-rdoc json*.gem)
 
 echo "$(date '+%F %T %z'): Building Keys..."
 # Generate root's SSH pubkey
@@ -186,6 +189,11 @@ sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "pass
 
 ./start-chef-server.sh
 
+## Missing client.rb for this system - Others get it ##
+touch /etc/chef/client.rb
+chown chef:chef /etc/chef/client.rb
+##
+
 # HACK AROUND CHEF-2005
 di=$(find /usr/lib/ruby/gems/1.8/gems -name data_item.rb)
 cp -f patches/data_item.rb "$di"
@@ -198,6 +206,9 @@ rl=$(find /usr/lib/ruby/gems/1.8/gems -name run_list.rb)
 cp -f "$rl" "$rl.bak"
 cp -f patches/run_list.rb "$rl"
 ## END 2413 
+# HACK AROUND Kwalify bug missing Gem.bin_path
+cp -f patches/kwalify /usr/bin/kwalify
+#
 
 log_to svc /etc/init.d/chef-server restart
 

@@ -1,0 +1,10 @@
+Rainbows! do
+  use :<%= @concurrency_model %>  # concurrency model to use
+end
+
+worker_processes 4
+listen "<%= @web_host %>:<%= @web_port %>"
+user("<%= @user %>","<%= @group || nil %>")
+stderr_path "<%= @logfile %>"
+stdout_path "<%= @logfile %>"
+working_directory "<%= @app_location %>"

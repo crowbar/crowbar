@@ -32,7 +32,7 @@ config.action_view.cache_template_loading            = true
 # Use a different logger for distributed setups
 require 'syslogger'
 config.logger = Syslogger.new("crowbar_app", Syslog::LOG_PID, Syslog::LOG_LOCAL0)
-#config.logger.level = Logger::DEBUG
+config.logger.level = Logger::DEBUG
 
 # Use a different cache store in production
 # config.cache_store = :mem_cache_store
@@ -52,3 +52,4 @@ config.logger = Syslogger.new("crowbar_app", Syslog::LOG_PID, Syslog::LOG_LOCAL0
   CHEF_ONLINE = true
   CROWBAR_VERSION = "Production"
   
+  $htdigest = IO.readlines("htdigest")

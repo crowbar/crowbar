@@ -27,7 +27,7 @@ post_state() {
   local curlargs=(-o "/var/log/$1-$2.json" --connect-timeout 60 -s \
       -L -X POST --data-binary "{ \"name\": \"$1\", \"state\": \"$2\" }" \
       -H "Accept: application/json" -H "Content-Type: application/json")
-  [[ $CROWBAR_KEY ]] && curlargs+=(-u "$CROWBAR_KEY" --digest)
+  [[ $CROWBAR_KEY ]] && curlargs+=(-u "$CROWBAR_KEY" --digest --anyauth)
   curl "${curlargs[@]}" "http://192.168.124.10:3000/crowbar/crowbar/1.0/transition/default"
 }
 
