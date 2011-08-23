@@ -448,7 +448,7 @@ fi
 	rm -f isolinux/boot.cat
 	find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
 	mkdir -p $ISO_DEST
-	mkisofs -r -V "$VERSION" -cache-inodes -J -l -quiet \
+	mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
 	    -b isolinux/isolinux.bin -c isolinux/boot.cat \
 	    -no-emul-boot --boot-load-size 4 -boot-info-table \
 	    -o "$ISO_DEST/$OPENSTACK_ISO" "$IMAGE_DIR" "$BUILD_DIR" ) || \
