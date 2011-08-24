@@ -98,9 +98,6 @@ trap cleanup 0 INT QUIT TERM
 # Directory that holds our Sledgehammer PXE tree.
 [[ $SLEDGEHAMMER_PXE_DIR ]] || SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot"
 
-# Name of the openstack iso we will build
-[[ $OPENSTACK_ISO ]] || OPENSTACK_ISO="openstack-${VERSION}.iso"
-
 # Location of the Crowbar checkout we are building from.
 [[ $CROWBAR_DIR ]] ||CROWBAR_DIR="${0%/*}"
 
@@ -338,8 +335,12 @@ fi
     [[ $PROXY_USER ]] || PROXY_USER=""
     [[ $PROXY_ESC_USER ]] || PROXY_ESC_USER=""
     [[ $PROXY_PASSWORD ]] || PROXY_PASSWORD=""
+
     # Version for ISO
     [[ $VERSION ]] || VERSION="$(cd "$CROWBAR_DIR"; git describe --long)-dev"
+
+    # Name of the openstack iso we will build
+    [[ $OPENSTACK_ISO ]] || OPENSTACK_ISO="openstack-${VERSION}.iso"
 
 
     # Make any directories we don't already have
