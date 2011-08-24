@@ -216,7 +216,7 @@ class NodeObject < ChefObject
   end
   
   def asset_tag
-    @node["dmi"]["chassis"]["serial_number"]  
+    @node["dmi"]["chassis"]["serial_number"] rescue nil
   end
   
   def number_of_drives
