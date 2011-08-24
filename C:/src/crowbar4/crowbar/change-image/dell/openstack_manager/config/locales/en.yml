@@ -152,9 +152,6 @@ en:
       attributes: Attributes
       enable: Enable RAID
       debug: Enable Barclamp Debug
-    cloudfoundry_edit_attributes:
-      attributes: Attributes
-      foo: Placeholder Name
     crowbar_edit_attributes: 
       attributes: Attributes
     ganglia_edit_attributes: 
