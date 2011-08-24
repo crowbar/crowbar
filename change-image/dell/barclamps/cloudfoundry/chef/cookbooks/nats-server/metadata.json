@@ -1,0 +1,29 @@
+{
+  "groupings": {
+  },
+  "platforms": {
+  },
+  "recommendations": {
+  },
+  "license": "Apache 2.0",
+  "suggestions": {
+  },
+  "recipes": {
+  },
+  "conflicting": {
+  },
+  "description": "Installs/Configures nats",
+  "version": "0.0.1",
+  "long_description": "= DESCRIPTION:\n\n= REQUIREMENTS:\n\n= ATTRIBUTES:\n\n= USAGE:\n\n",
+  "providing": {
+  },
+  "attributes": {
+  },
+  "maintainer": "VMware",
+  "name": "nats-server",
+  "replacing": {
+  },
+  "dependencies": {
+  },
+  "maintainer_email": "support@vmware.com"
+}

@@ -63,8 +63,43 @@ VCS_CLEAN_CMD='git clean -f -x -d'
 
 # Arrays holding the additional pkgs, gems, and AMI images we will populate
 # Crowbar with.
-PKGS=()
-GEMS=()
+PKGS=("apt-utils",
+"wget",
+"curl",
+"libcurl3",
+"bison",
+"build-essential",
+"zlib1g-dev",
+"libssl-dev",
+"libreadline5-dev",
+"libxml2",
+"libxml2-dev",
+"libxslt1.1",
+"libxslt1-dev",
+"git-core",
+"sqlite3",
+"libsqlite3-ruby",
+"libsqlite3-dev",
+"unzip",
+"zip",
+"ruby-dev",
+"libmysql-ruby",
+"libmysqlclient-dev",
+"libcurl4-openssl-dev",
+"libpq-dev",
+"python-software-properties",
+"mysql-client",
+"mysql-server",
+"build-essential",
+"libssl-dev",
+"zlib1g-dev",
+"libreadline5-dev",
+"libxml2-dev",
+"libpq-dev",
+"postgresql",
+"erlang-nox",
+"libreadline5-dev")
+GEMS=("vmc", "nats", "bundler", "rake")
 AMIS=("http://uec-images.ubuntu.com/releases/11.04/release/ubuntu-11.04-server-uec-amd64.tar.gz")
 
 

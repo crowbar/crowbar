@@ -21,23 +21,23 @@ class CloudfoundryService < ServiceObject
   end
 
   def create_proposal
-    @logger.debug("Cloud Foundry create_proposal: entering")
+    @logger.debug("CF create_proposal: entering")
     base = super
 
     nodes = NodeObject.all
     nodes.delete_if { |n| n.nil? or n.admin? }
     if nodes.size >= 1
       base["deployment"]["cloudfoundry"]["elements"] = {
-        "cloudfoundry-server" => [ nodes.first[:fqdn] ]
+        "cfbase" => [ nodes.first[:fqdn] ]
       }
     end
 
-    @logger.debug("Cloud Foundry create_proposal: exiting")
+    @logger.debug("CF create_proposal: exiting")
     base
   end
 
   def apply_role_pre_chef_call(old_role, role, all_nodes)
-    @logger.debug("Cloud Foundry apply_role_pre_chef_call: entering #{all_nodes.inspect}")
+    @logger.debug("CF apply_role_pre_chef_call: entering #{all_nodes.inspect}")
     return if all_nodes.empty?
 
     # Make sure the bind hosts are in the admin network
@@ -45,13 +45,14 @@ class CloudfoundryService < ServiceObject
       node = NodeObject.find_node_by_name n
 
       admin_address = node.get_network_by_type("admin")["address"]
-      node.crowbar[:cloudfoundry] = {} if node.crowbar[:cloudfoundry].nil?
+      node.crowbar[:cloudfoundry] = {} if node.crowbar[:glance].nil?
       node.crowbar[:cloudfoundry][:api_bind_host] = admin_address
+      node.crowbar[:cloudfoundry][:registry_bind_host] = admin_address
 
       node.save
     end
-    @logger.debug("Cloud Foundry apply_role_pre_chef_call: leaving")
+    @logger.debug("CF apply_role_pre_chef_call: leaving")
   end
-
 end
+
 

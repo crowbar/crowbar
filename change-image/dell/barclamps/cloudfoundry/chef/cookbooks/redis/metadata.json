@@ -1,0 +1,32 @@
+{
+  "groupings": {
+  },
+  "platforms": {
+  },
+  "recommendations": {
+  },
+  "license": "Apache 2.0",
+  "suggestions": {
+  },
+  "recipes": {
+  },
+  "conflicting": {
+  },
+  "description": "Installs/Configures redis",
+  "version": "1.0.0",
+  "long_description": "= DESCRIPTION:\n\n= REQUIREMENTS:\n\n= ATTRIBUTES:\n\n= USAGE:\n\n",
+  "providing": {
+  },
+  "attributes": {
+  },
+  "maintainer": "VMware",
+  "name": "redis",
+  "replacing": {
+  },
+  "dependencies": {
+    "runit": [
+
+    ]
+  },
+  "maintainer_email": "support@vmware.com"
+}

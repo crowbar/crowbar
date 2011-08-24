@@ -95,3 +95,6 @@ pkgs ipmitool
 
 # network stuff
 pkgs bridge-utils vlan ifenslave-2.6 dhcp3-server tftpd-hpa nfs-common portmap nfs-kernel-server
+
+# cloudfoundry stuff
+pkgs apt-utils wget curl libcurl3 bison zlib1g-dev libssl-dev libreadline5-dev libxml2 libxml2-dev libxslt1.1 libxslt1-dev libsqlite3-ruby libsqlite3-dev unzip zip ruby-dev libmysql-ruby libmysqlclient-dev libcurl4-openssl-dev libpq-dev python-software-properties postgresql erlang-nox
