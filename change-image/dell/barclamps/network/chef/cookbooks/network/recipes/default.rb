@@ -78,7 +78,7 @@ def local_debian_interfaces
       res[iface][:interface_list].each do |i|
         res[i]=Hash.new unless res[i]
         res[i][:master]=iface
-        res[i][:slave]=True
+        res[i][:slave]=true
       end
     end
   }
@@ -92,7 +92,7 @@ def local_redhat_interfaces
     next if entry == "ifcfg-lo"
     iface = entry.split('-',2)[1]
     res[iface]=Hash.new unless res[iface]
-    ::File.foreach(iface) do |line|
+    ::File.foreach("/etc/sysconfig/network-scripts/#{entry}") do |line|
       line = line.chomp.strip.split('#')[0] # strip comments
       next if line.nil? or ( line.length == 0 ) # skip blank lines
       parts = line.split('=',2)
@@ -101,7 +101,7 @@ def local_redhat_interfaces
       case k
       when "DEVICE" then res[iface][:interface]=v
       when "ONBOOT" 
-        res[iface][:auto] = True when v == "yes"
+        res[iface][:auto] = true when v == "yes"
       when "BOOTPROTO" then res[iface][:config] ||= v
       when "IPADDR"
         res[iface][:config] = "static" if res[iface][:config] == "none"
@@ -116,7 +116,7 @@ def local_redhat_interfaces
         res[v][:interface_list]=Array.new unless res[v][:interface_list]
         res[v][:interface_list].push(iface)
       when "SLAVE"
-        res[iface][:slave] = True if v == "yes"
+        res[iface][:slave] = true if v == "yes"
       when "BRIDGE"
         res[iface][:bridge] = v
         res[v]=Hash.new unless res[v]
@@ -175,9 +175,9 @@ def crowbar_interfaces
           next if i == intf
           res[i]=Hash.new
           res[i][:interface]=i
-          res[i][:auto]=True
+          res[i][:auto]=true
           res[i][:config]="manual"
-          res[i][:slave]=True
+          res[i][:slave]=true
           res[i][:master]=intf
         end
       end

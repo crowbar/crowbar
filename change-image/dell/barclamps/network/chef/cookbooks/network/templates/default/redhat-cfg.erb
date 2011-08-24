@@ -1,13 +1,13 @@
 # Managed by Crowbar.
 # Do not edit.
-<%  @iface.keys.sort.each do |k|
-    v=iface[k]
+<%  @iface.keys.each do |k|
+    v=@iface[k]
     next unless v
     next if v.class == Array and v.empty?
     case k
     when :interface then k="DEVICE"
     when :auto then
-    	 if v == True
+    	 if v == true
        	    k="ONBOOT"
        	    v="yes"
 	 end
@@ -23,7 +23,7 @@
     when :router then k="GATEWAY"
     when :master then k="MASTER"
     when :slave
-      if v == True
+      if v == true
         k="SLAVE"
         v="yes"
       end
