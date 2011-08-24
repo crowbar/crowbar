@@ -5,8 +5,7 @@ cdrom
 key --skip
 lang en_US.UTF-8
 keyboard us
-xconfig --startxonboot
-network --device eth0 --bootproto dhcp
+text
 # crowbar
 rootpw --iscrypted $1$H6F/NLec$Fps2Ut0zY4MjJtsa1O2yk0
 firewall --disabled

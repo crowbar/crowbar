@@ -173,7 +173,7 @@ fi
 
 # Crowbar will hack up the pxeboot files appropriatly.
 # Set Version in Crowbar UI
-VERSION=$(cat /opt/.dell-install/Version)
+VERSION=$(cat /tftpboot/redhat_dvd/dell/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
     /opt/dell/openstack_manager/config/environments/production.rb
 
