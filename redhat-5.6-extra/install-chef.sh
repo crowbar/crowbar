@@ -73,7 +73,7 @@ chef_or_die() {
 # $1 = service to restart
 # $2 = status messae to print.
 restart_svc_loop() {
-    while service "$1" status | grep -qi fail
+    while service "$1" status | egrep -qi "fail|stopped"
     do
         echo "$(date '+%F %T %z'): $2..."
 	log_to svc service "$1" start
