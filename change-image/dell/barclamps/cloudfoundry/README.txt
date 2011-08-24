@@ -26,6 +26,8 @@ http://kb.dtosolutions.com/wiki/Deploying_the_cloudfoundry_barclamp
 
 * Node.js is installed in a strange place. Seems to work, though. (Please test!)
 
+* The barclamp isn't configurable. I'm using the example templates for the UI, which are an UGLY yellow and have a useless option. Please ignore.
+
 Questions should probably be directed to the crowbar listserv, which you can join at:
 https://lists.us.dell.com/mailman/listinfo/crowbar
 
