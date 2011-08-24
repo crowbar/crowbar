@@ -1,13 +1,38 @@
 # Managed by Crowbar.
 # Do not edit.
-<%  @iface.each {|k,v|
-      next unless @keys[k]
-      case
-      when (k == :config and v == "static") -%>
-<%= "#{@keys[k]}=none" %>
-      <% when k == :auto -%>
-<%= "#{@keys[k]}=#{if v then "yes" else "no" end}" %>
-      <% else -%>
-<%= "#{@keys[k]}=#{v}" %>
-      <% end
-} -%>
+<%  @iface.keys.sort.each do |k|
+    v=iface[k]
+    next unless v
+    next if v.class == Array and v.empty?
+    case k
+    when :interface then k="DEVICE"
+    when :auto then
+    	 if v == True
+       	    k="ONBOOT"
+       	    v="yes"
+	 end
+    when :config
+      	 k="BOOTPROTO"
+      	 case v
+      	 when "static","manual"
+              v = "none"
+      	 end
+    when :ipaddress then k="IPADDR"
+    when :netmask then k="NETMASK"
+    when :broadcast then k="BROADCAST"
+    when :router then k="GATEWAY"
+    when :master then k="MASTER"
+    when :slave
+      if v == True
+        k="SLAVE"
+        v="yes"
+      end
+    when :bridge
+      k="BRIDGE"
+    when :vlan
+      k="VLAN"
+      v="yes"
+    end
+    next if k.class != String -%>
+<%= "#{k}=#{v}" %>
+<% end -%>
