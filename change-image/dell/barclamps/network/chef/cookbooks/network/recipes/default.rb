@@ -20,17 +20,19 @@ include_recipe 'utils'
 # They should be torn down in reverse order. 
 def sort_interfaces(interfaces)
   seq=0
-  while i=interfaces.keys.reject{|k| interfaces[k].has_key?(:order)}.sort do
+  i=interfaces.keys.sort.reject{|k| interfaces[k].has_key?(:order)}
+  until i.empty?
     i.each do |ifname|
       iface=interfaces[ifname]
       # If this interface has children, and any of its children have not
       # been given a sequence number, skip it.
-      next if iface[:interface_list] and not iface[:interface_list].empty? and
-        iface[:interface_list].detect{|j| not interfaces[j].has_key?(:order)} 
-      iface[:order]=seq
+      next if iface[:interface_list] and not iface[:interface_list].empty? and not iface[:interface_list].all?{|j| interfaces[j].has_key?(:order)}
+      iface[:order] = seq
       seq=seq + 1
     end
+    i=interfaces.keys.sort.reject{|k| interfaces[k].has_key?(:order)}
   end
+  interfaces
 end
 
 # Parse the contents of /etc/network/interfaces, and return a data structure
@@ -82,12 +84,12 @@ def local_debian_interfaces
       end
     end
   }
-  res
+  sort_interfaces(res)
 end
 
 def local_redhat_interfaces
   res = {}
-  ::Dir.entries("/etc/sysconfig/network-scripts").each do |entry|
+  ::Dir.entries("/etc/sysconfig/network-scripts").sort.each do |entry|
     next unless entry =~ /^ifcfg/
     next if entry == "ifcfg-lo"
     iface = entry.split('-',2)[1]
@@ -102,9 +104,8 @@ def local_redhat_interfaces
       when "DEVICE" then res[iface][:interface]=v
       when "ONBOOT" 
         res[iface][:auto] = true when v == "yes"
-      when "BOOTPROTO" then res[iface][:config] ||= v
+      when "BOOTPROTO" then res[iface][:config] = v
       when "IPADDR"
-        res[iface][:config] = "static" if res[iface][:config] == "none"
         res[iface][:ipaddress] = v
       when "NETMASK" then res[iface][:netmask] = v
       when "BROADCAST" then res[iface][:broadcast] = v
@@ -129,8 +130,16 @@ def local_redhat_interfaces
         res[iface][:interface_list]=iface.split('.',2)[0]
       end
     end
+    if res[iface][:config] == "none"
+      res[iface][:config] = if res[iface][:ipaddress]
+                              "static"
+                            else
+                              "manual"
+                            end
+    end
+    res[iface][:auto] = false unless res[iface][:auto]
   end
-  res
+  sort_interfaces(res)
 end
 
 def crowbar_interfaces
@@ -168,18 +177,16 @@ def crowbar_interfaces
     # list, we must have been asked to make a team.
     elsif network["interface_list"] and not network["interface_list"].empty?
       res[intf][:interface_list] = network["interface_list"].reject{|x| x == intf}
-      unless res[intf][:interface_list]
-        # Since we are making a team out of these devices, blow away whatever
-        # config we may have had for the slaves.
-        res[intf][:interface_list].each do |i|
-          next if i == intf
-          res[i]=Hash.new
-          res[i][:interface]=i
-          res[i][:auto]=true
-          res[i][:config]="manual"
-          res[i][:slave]=true
-          res[i][:master]=intf
-        end
+      res[intf][:mode]="team"
+      # Since we are making a team out of these devices, blow away whatever
+      # config we may have had for the slaves.
+      res[intf][:interface_list].each do |i|
+        res[i]=Hash.new
+        res[i][:interface]=i
+        res[i][:auto]=false
+        res[i][:config]="manual"
+        res[i][:slave]=true
+        res[i][:master]=intf
       end
     end
     if network["address"] and network["address"] != "0.0.0.0"
@@ -192,7 +199,7 @@ def crowbar_interfaces
       res[intf][:config] = "manual"
     end
   end
-  res
+  sort_interfaces(res)
 end
 
 # Make sure that the /etc/network/if-up.d/upstart file is gone
