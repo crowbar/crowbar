@@ -57,8 +57,8 @@ update_caches() {
     # set HTTP/HTTPS proxies
     if [ "" != "$HTTP_PROXY_ADDR" ]
     then
-      sudo echo "http_proxy=$HTTP_PROXY_ADDR" >> "$CHROOT/etc/bash.bashrc"
-      sudo echo "https_proxy=$HTTP_PROXY_ADDR" >> "$CHROOT/etc/bash.bashrc"
+      sudo echo "export http_proxy=$HTTP_PROXY_ADDR" >> "$CHROOT/root/.bashrc"
+      sudo echo "export https_proxy=$HTTP_PROXY_ADDR" >> "$CHROOT/root/.bashrc"
 
       sudo mkdir -p "$CHROOT/etc/apt/apt.conf.d/"
       sudo echo "Acquire::http::proxy \"$HTTP_PROXY_ADDR\";" >> "$CHROOT/etc/apt/apt.conf.d/proxy"
