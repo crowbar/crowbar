@@ -3,8 +3,8 @@
   "description": "The roles and recipes to set up the provisioning server and a base environment for all nodes",
   "attributes": {
     "provisioner": {
-      "default_user": "openstack",
-      "default_password_hash": "$1$QF9RUAuc$y4ZKSvYo/mPQeZzpuhc0J1",
+      "default_user": "crowbar",
+      "default_password_hash": "$1$BDC3UwFr$/VqOWN1Wi6oM0jiMOjaPb.",
       "web_port": 8091,
       "use_local_security": true,
       "use_serial_console": false,

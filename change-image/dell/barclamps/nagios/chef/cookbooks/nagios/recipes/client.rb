@@ -35,7 +35,7 @@ prov_addresses = nodes.map { |n| Nagios::Evaluator.get_value_by_type(n, :admin_i
 provisioner_ip =  prov_addresses[0]
 admin_interface = Nagios::Evaluator.get_value_by_type(node, :admin_interface_eval)
 
-# Get the DNS domain name (i.e. pod.cloud.openstack.org)
+# Get the DNS domain name
 domain_name = node[:dns][:domain]
 
 # Create a list of monitoring hosts (filter duplicate ip's in the list)

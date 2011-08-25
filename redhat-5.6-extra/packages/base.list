@@ -1,4 +1,4 @@
-# List of packages that we need to prepopulate the openstack .ISO with.
+# List of packages that we need to prepopulate the crowbar .ISO with.
 # repository <url> 
 # ppas <personal package archives> A list of PPAs to grab packages from.
 # debs <package list> = deb pacakges to prefetch

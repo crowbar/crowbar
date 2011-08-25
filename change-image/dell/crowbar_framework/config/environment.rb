@@ -60,7 +60,7 @@ Rails::Initializer.run do |config|
   # config.i18n.load_path += Dir[Rails.root.join('my', 'locales', '*.{rb,yml}')]
   # config.i18n.default_locale = :de
   
-  CHEF_CLIENT_KEY = "/opt/dell/openstack_manager/config/client.pem" unless defined? CHEF_CLIENT_KEY
+  CHEF_CLIENT_KEY = "/opt/dell/crowbar_framework/config/client.pem" unless defined? CHEF_CLIENT_KEY
   CHEF_NODE_NAME ="crowbar" unless defined? CHEF_NODE_NAME
   CHEF_SERVER_URL = "http://localhost:4000" unless defined? CHEF_SERVER_URL
   CHEF_ONLINE = true unless defined? CHEF_ONLINE

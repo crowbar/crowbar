@@ -32,9 +32,9 @@ for i in *.rb; do
     knife role from file $i
 done 
 cd ../.. # now just in $1
-cd app; cp -r * /opt/dell/openstack_manager/app; cd ..
+cd app; cp -r * /opt/dell/crowbar_framework/app; cd ..
 cd command_line; cp * /opt/dell/bin; cd ..
-cp -r public /opt/dell/openstack_manager;
+cp -r public /opt/dell/crowbar_framework;
   
 if [[ -f /etc/redhat-release ]]; then
     service httpd reload

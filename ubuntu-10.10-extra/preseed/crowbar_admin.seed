@@ -198,10 +198,10 @@ d-i partman/confirm_nooverwrite boolean true
 
 # To create a normal user account.
 d-i passwd/user-fullname string Admin Account
-d-i passwd/username string openstack
+d-i passwd/username string crowbar
 # Normal user's password, either in clear text
-d-i passwd/user-password password openstack
-d-i passwd/user-password-again password openstack
+d-i passwd/user-password password crowbar
+d-i passwd/user-password-again password crowbar
 # or encrypted using an MD5 hash.
 #d-i passwd/user-password-crypted password [MD5 hash]
 # Create the first user with the specified UID instead of the default.

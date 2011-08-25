@@ -93,7 +93,7 @@ ip addr add 192.168.124.10/24 dev eth0
 
 # Replace the domainname in the default template
 DOMAINNAME=$(dnsdomainname)
-sed -i "s/pod.cloud.openstack.org/$DOMAINNAME/g" /opt/dell/chef/data_bags/crowbar/bc-template-dns.json
+sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/chef/data_bags/crowbar/bc-template-dns.json
 
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart
@@ -137,7 +137,7 @@ if [[ ! -e /etc/crowbar.install.key ]]; then
     printf "${CROWBAR_KEY%%:*}:$REALM:${CROWBAR_KEY##*:}" |md5sum - | (
 	read key rest
 	printf "\n${CROWBAR_KEY%%:*}:$REALM:$key\n" >> \
-	    /opt/dell/openstack_manager/htdigest)
+	    /opt/dell/crowbar_framework/htdigest)
     sed -i "s/machine_password/${CROWBAR_KEY##*:}/g" /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json
 else
   export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
@@ -154,7 +154,7 @@ done
 # Set Version in Crowbar UI
 VERSION=$(cat /opt/.dell-install/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
-    /opt/dell/openstack_manager/config/environments/production.rb
+    /opt/dell/crowbar_framework/config/environments/production.rb
 
 # HACK AROUND CHEF-2005
 cp data_item.rb /usr/share/chef-server-api/app/controllers

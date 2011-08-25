@@ -16,13 +16,13 @@ To build your own copy of Crowbar, consult the readme (https://github.com/dellcl
 * Build requires a component known as "sledgehammer" that is a CentOS based image for discovery. This TFTPboot image does not change often and is not part of the normal build steps. See the DellCloudEdge/crowbar-sledgehammer repo for details. 
 * Build process has been tested on Ubuntu 10.10 and CentOS
 
-With that said, from a fresh install off the openstack-dev.iso, the next steps are:
+With that said, from a fresh install off the crowbar-dev.iso, the next steps are:
 
 0: Boot using the ISO and it will setup Ubuntu 10.10 and stage Crowbar for install
-1: Log in as openstack/openstack
+1: Log in as crowbar/crowbar (Ubuntu) or root/crowbar (Redhat)
 2: sudo su - root
-3: cd /tftpboot/ubuntu_dvd/extra
-4: ./install admin.openstack.org (or whatever FQDN you want your admin node to have).
+3: cd /tftpboot/ubuntu_dvd/extra (Ubuntu) or cd /tftpboot/redhat_dvd/extra (Redhat)
+4: ./install admin.crowbar.org (or whatever FQDN you want your admin node to have).
 
 Note: if the install did not work, you can try "sudo chef-client" and that may fix issues by repeating the last part of the installation.
 

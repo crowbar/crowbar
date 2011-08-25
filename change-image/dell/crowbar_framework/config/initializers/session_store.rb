@@ -5,7 +5,7 @@
 # Make sure the secret is at least 30 characters and all random, 
 # no regular words or you'll be exposed to dictionary attacks.
 ActionController::Base.session = {
-  :key         => '_openstack_manager_session',
+  :key         => '_crowbar_framework_session',
   :secret      => 'ae66894fcee606d20eab9637a28684a8e9a12d36a91d075035e5703ed49bb26a0f9163fd0954185dea2b701cf79cefad152fb6da0075af43066b790707f52424'
 }
 

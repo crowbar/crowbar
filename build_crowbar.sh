@@ -339,8 +339,8 @@ fi
     # Version for ISO
     [[ $VERSION ]] || VERSION="$(cd "$CROWBAR_DIR"; git describe --long)-dev"
 
-    # Name of the openstack iso we will build
-    [[ $OPENSTACK_ISO ]] || OPENSTACK_ISO="openstack-${VERSION}.iso"
+    # Name of the built iso we will build
+    [[ $BUILT_ISO ]] || BUILT_ISO="crowbar-${VERSION}.iso"
 
 
     # Make any directories we don't already have
@@ -452,8 +452,8 @@ fi
 	mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
 	    -b isolinux/isolinux.bin -c isolinux/boot.cat \
 	    -no-emul-boot --boot-load-size 4 -boot-info-table \
-	    -o "$ISO_DEST/$OPENSTACK_ISO" "$IMAGE_DIR" "$BUILD_DIR" ) || \
+	    -o "$ISO_DEST/$BUILT_ISO" "$IMAGE_DIR" "$BUILD_DIR" ) || \
 	    die "There was a problem building our ISO."
  
-    echo "$(date '+%F %T %z'): Finshed. Image at $ISO_DEST/$OPENSTACK_ISO"
+    echo "$(date '+%F %T %z'): Finshed. Image at $ISO_DEST/$BUILT_ISO"
 } 65> /tmp/.build_crowbar.lock

@@ -98,9 +98,9 @@ Customization:
      PXE boot archive.  It defaults to $CACHE_DIR/tftpboot
    * VERSION
      The default version of Crowbar.  Defaults to dev.
-   * OPENSTACK_ISO
+   * BUILT_ISO
      The name of the ISO that build_crowbar.sh generates.
-     Defaults to openstack-$VERSION.iso
+     Defaults to crowbar-$VERSION.iso
    * CROWBAR_DIR
      The directory that the Crowbar source is cheched out to.
      Defaults to the directory that build_crowbar.sh is in.

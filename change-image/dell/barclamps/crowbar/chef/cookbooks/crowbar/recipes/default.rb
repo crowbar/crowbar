@@ -39,23 +39,14 @@ end
 
 package "curl"
 
-group "openstack"
-
-user "openstack" do
-  comment "Openstack User"
-  gid "openstack"
-  home "/home/openstack"
-  password "$1$Woys8jvS$FjbKkYYpG175iSJf.pclw/"
-  shell "/bin/bash"
-end
-
 group "crowbar"
 
 user "crowbar" do
-  comment "Crowbar"
+  comment "Crowbar User"
   gid "crowbar"
-  home "/home/random"
-  shell "/bin/false"
+  home "/home/crowbar"
+  password "$1$Woys8jvS$FjbKkYYpG175iSJf.pclw/"
+  shell "/bin/bash"
 end
 
 directory "/root/.chef" do
@@ -81,16 +72,16 @@ cookbook_file "/root/.chef/knife.rb" do
   source "knife.rb"
 end
 
-directory "/home/openstack/.chef" do
-  owner "openstack"
-  group "openstack"
+directory "/home/crowbar/.chef" do
+  owner "crowbar"
+  group "crowbar"
   mode "0700"
   action :create
 end
 
-cookbook_file "/home/openstack/.chef/knife.rb" do
-  owner "openstack"
-  group "openstack"
+cookbook_file "/home/crowbar/.chef/knife.rb" do
+  owner "crowbar"
+  group "crowbar"
   mode "0600"
   action :create
   source "knife.rb"
@@ -98,24 +89,24 @@ end
 
 bash "Add crowbar chef client" do
   environment ({'EDITOR' => '/bin/true'})
-  code "knife client create crowbar -a --file /opt/dell/openstack_manager/config/client.pem -u chef-validator -k /etc/chef/validation.pem"
-  not_if "knife client list -u crowbar -k /opt/dell/openstack_manager/config/client.pem"
+  code "knife client create crowbar -a --file /opt/dell/crowbar_framework/config/client.pem -u chef-validator -k /etc/chef/validation.pem"
+  not_if "knife client list -u crowbar -k /opt/dell/crowbar_framework/config/client.pem"
 end
 
-file "/opt/dell/openstack_manager/log/production.log" do
+file "/opt/dell/crowbar_framework/log/production.log" do
   owner "crowbar"
   group "crowbar"
   mode "0666"
   action :create
 end
 
-file "/opt/dell/openstack_manager/tmp/queue.lock" do
+file "/opt/dell/crowbar_framework/tmp/queue.lock" do
   owner "crowbar"
   group "crowbar"
   mode "0644"
   action :create
 end
-file "/opt/dell/openstack_manager/tmp/ip.lock" do
+file "/opt/dell/crowbar_framework/tmp/ip.lock" do
   owner "crowbar"
   group "crowbar"
   mode "0644"
@@ -131,7 +122,7 @@ unless node["crowbar"].nil? or node["crowbar"]["users"].nil? or node["crowbar"][
     h["digest"] = Digest::MD5.hexdigest("#{k}:#{realm}:#{h["password"]}") if h["digest"].nil?
   end
 
-  template "/opt/dell/openstack_manager/htdigest" do
+  template "/opt/dell/crowbar_framework/htdigest" do
     source "htdigest.erb"
     variables(:users => users, :realm => realm)
     owner "crowbar"
@@ -144,18 +135,18 @@ else
 end
 
 bash "set permissions" do
-  code "chown -R crowbar:crowbar /opt/dell/openstack_manager"
-  not_if "ls -al /opt/dell/openstack_manager/README | grep -q crowbar"
+  code "chown -R crowbar:crowbar /opt/dell/crowbar_framework"
+  not_if "ls -al /opt/dell/crowbar_framework/README | grep -q crowbar"
 end
 
-cookbook_file "/opt/dell/openstack_manager/config.ru" do
+cookbook_file "/opt/dell/crowbar_framework/config.ru" do
   source "config.ru"
   owner "crowbar"
   group "crowbar"
   mode "0644"
 end
 
-template "/opt/dell/openstack_manager/rainbows.cfg" do
+template "/opt/dell/crowbar_framework/rainbows.cfg" do
   source "rainbows.cfg.erb"
   owner "crowbar"
   group "crowbar"
@@ -165,12 +156,12 @@ template "/opt/dell/openstack_manager/rainbows.cfg" do
             :user => "crowbar",
             :concurrency_model => "EventMachine",
             :group => "crowbar",
-            :logfile => "/opt/dell/openstack_manager/log/production.log",
-            :app_location => "/opt/dell/openstack_manager")
+            :logfile => "/opt/dell/crowbar_framework/log/production.log",
+            :app_location => "/opt/dell/crowbar_framework")
 end
 
 bash "start rainbows" do
-  code "cd /opt/dell/openstack_manager; rainbows -D -E production -c rainbows.cfg"
+  code "cd /opt/dell/crowbar_framework; rainbows -D -E production -c rainbows.cfg"
   not_if "pidof rainbows"
 end
 

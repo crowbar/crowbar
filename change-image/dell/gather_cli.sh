@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-dest=/opt/dell/openstack_manager/public/crowbar-cli.tar.gz
+dest=/opt/dell/crowbar_framework/public/crowbar-cli.tar.gz
 sedopts=()
 [[ $1 ]] && sedopts+=(-e "/^@hostname/ s/127.0.0.1/$1/")
 [[ $2 ]] && sedopts+=(-e "/^@port/ s/3000/$2/")

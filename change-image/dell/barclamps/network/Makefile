@@ -26,8 +26,8 @@ build:
 
 install:
 	@echo "Installing barclamp-network"
-	mkdir -p ${DESTDIR}/opt/crowbar/openstack_manager
-	cp -r app ${DESTDIR}/opt/crowbar/openstack_manager
+	mkdir -p ${DESTDIR}/opt/crowbar/crowbar_framework
+	cp -r app ${DESTDIR}/opt/crowbar/crowbar_framework
 	mkdir -p ${DESTDIR}/usr/share/barclamp-network
 	cp -r chef ${DESTDIR}/usr/share/barclamp-network
 	mkdir -p ${DESTDIR}/usr/bin

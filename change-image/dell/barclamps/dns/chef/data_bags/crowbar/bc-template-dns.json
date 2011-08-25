@@ -3,8 +3,8 @@
   "description": "manages the DNS subsystem for the cluster",
   "attributes": {
     "dns": {
-      "domain": "pod.cloud.openstack.org",
-      "contact": "support@pod.cloud.openstack.org",
+      "domain": "pod.your.cloud.org",
+      "contact": "support@pod.your.cloud.org",
       "forwarders": [ ],
       "static": { }
     }

@@ -46,7 +46,7 @@ config.logger.level = Logger::DEBUG
 # Enable threaded mode
 # config.threadsafe!
 
-  CHEF_CLIENT_KEY = "/opt/dell/openstack_manager/config/client.pem"
+  CHEF_CLIENT_KEY = "/opt/dell/crowbar_framework/config/client.pem"
   CHEF_NODE_NAME ="crowbar" 
   CHEF_SERVER_URL = "http://localhost:4000"
   CHEF_ONLINE = true

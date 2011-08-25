@@ -26,8 +26,8 @@ build:
 
 install:
 	@echo "Installing barclamp-crowbar"
-	mkdir -p ${DESTDIR}/opt/crowbar/openstack_manager
-	cp -r app ${DESTDIR}/opt/crowbar/openstack_manager
+	mkdir -p ${DESTDIR}/opt/crowbar/crowbar_framework
+	cp -r app ${DESTDIR}/opt/crowbar/crowbar_framework
 	mkdir -p ${DESTDIR}/usr/share/barclamp-crowbar
 	cp -r chef ${DESTDIR}/usr/share/barclamp-crowbar
 	mkdir -p ${DESTDIR}/usr/bin
