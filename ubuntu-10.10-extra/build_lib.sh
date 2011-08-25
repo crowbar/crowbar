@@ -8,8 +8,13 @@ OS=ubuntu
 OS_VERSION=10.10
 OS_TOKEN="$OS-$OS_VERSION"
 OS_CODENAME=maverick
+
 # Server to download the mirror from if we need to.
 ISO_MIRROR="http://mirror.anl.gov/pub"
+
+# HTTP/HTTPS proxy  details (optional)
+# i.e. http://proxyhost:port/ ...  https://username:password@proxyhost:port/
+HTTP_PROXY_ADDR=""
 
 # The name of the OS iso we are using as a base.
 [[ $ISO ]] || ISO="ubuntu-$OS_VERSION-server-amd64.iso"
@@ -48,6 +53,18 @@ update_caches() {
     for d in proc sys dev dev/pts; do
 	bind_mount "/$d" "$CHROOT/$d"
     done
+
+    # set HTTP/HTTPS proxies
+    if [ "" != "$HTTP_PROXY_ADDR" ]
+    then
+      sudo echo "http_proxy=$HTTP_PROXY_ADDR" >> "$CHROOT/etc/bash.bashrc"
+      sudo echo "https_proxy=$HTTP_PROXY_ADDR" >> "$CHROOT/etc/bash.bashrc"
+
+      sudo mkdir -p "$CHROOT/etc/apt/apt.conf.d/"
+      sudo echo "Acquire::http::proxy \"$HTTP_PROXY_ADDR\";" >> "$CHROOT/etc/apt/apt.conf.d/proxy"
+      sudo echo "Acquire::https::proxy \"$HTTP_PROXY_ADDR\";" >> "$CHROOT/etc/apt/apt.conf.d/proxy"
+    fi
+
     # make sure the chroot can resolve hostnames
     sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
 
