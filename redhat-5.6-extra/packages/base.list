@@ -21,7 +21,8 @@ repository bare-rpm epel5-ganglia 10 http://georgiou.fedorapeople.org/epel/5/
 pkgs rubygem-chef-server curl-devel rubygem-kwalify ruby-ri ruby-docs ruby-devel syslinux
 
 # base gems we will need
-gems haml-3.1.1  i18n-0.6.0  json-1.5.2  net-http-digest_auth-1.1.1 sass-3.1.2  simple-navigation-3.3.0  syslogger-1.2.4 passenger builder
+gems haml i18n json net-http-digest_auth sass simple-navigation 
+gems syslogger builder
 
 # additional debs we will need
 # apache stuff
@@ -43,7 +44,7 @@ pkgs  sudo
 pkgs minicom
 
 # rails stuff
-gems rails-2.3.12
+gems rails-2.3.12 rainbows
 
 # build essential stuff
 pkgs autoconf flex bison make patch
