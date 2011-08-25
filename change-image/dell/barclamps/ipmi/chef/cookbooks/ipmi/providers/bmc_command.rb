@@ -54,7 +54,6 @@ EOH
       node["crowbar"]["status"]["ipmi"]["messages"] << "#{name} already set to #{value}" unless node.nil?
     end
   else
-    node["ipmi"]["bmc_enable"] = false
     node["crowbar"]["status"]["ipmi"]["messages"] << "Unsupported product found #{node[:dmi][:system][:product_name]} - skipping IPMI:#{name}" unless node.nil?
     node["crowbar"]["status"]["ipmi"]["messages"] << "bmc tool not supported - skipping IPMI:#{name}" unless node.nil? or !path.nil?
   end  

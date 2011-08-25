@@ -50,7 +50,6 @@ EOH
 
     node["crowbar"]["status"]["ipmi"]["address_set"] = true if name == "IP Address"
   else
-    node["ipmi"]["bmc_enable"] = false
     node["crowbar"]["status"]["ipmi"]["messages"] << "Unsupported product found #{node[:dmi][:system][:product_name]} - skipping IPMI:#{name}" unless node.nil?
   end  
   node.save
