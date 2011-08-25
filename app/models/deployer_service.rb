@@ -83,7 +83,7 @@ class DeployerService < ServiceObject
     # 
     @logger.debug("Deployer transition: Update the inventory crowbar structures for #{name}")
     unless node[:block_device].nil? or node[:block_device].empty?
-      node.crowbar["crowbar"] = {} if node.crowbar["crowbar].nil?
+      node.crowbar["crowbar"] = {} if node.crowbar["crowbar"].nil?
       node.crowbar["crowbar"]["disks"] = {} 
       node[:block_device].each do |disk, data|
         # XXX: Make this into a config map one day.
