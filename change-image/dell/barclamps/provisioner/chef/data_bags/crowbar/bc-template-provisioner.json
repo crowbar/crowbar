@@ -22,7 +22,7 @@
           "ready": "execute",
           "reset": "reset",
           "delete": "delete",
-          "reinstall": "nova_install"
+          "reinstall": "os_install"
         }
       }
     }
