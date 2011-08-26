@@ -57,13 +57,14 @@ update_caches() {
     # set HTTP/HTTPS proxies
     if [ "" != "$HTTP_PROXY_ADDR" ]
     then
-      sudo echo "export http_proxy=$HTTP_PROXY_ADDR" >> "$CHROOT/root/.bashrc"
-      sudo echo "export https_proxy=$HTTP_PROXY_ADDR" >> "$CHROOT/root/.bashrc"
+      echo "http_proxy=$HTTP_PROXY_ADDR" >> "$CHROOT/etc/environment"
+      echo "https_proxy=$HTTP_PROXY_ADDR" >> "$CHROOT/etc/environment"
 
-      sudo mkdir -p "$CHROOT/etc/apt/apt.conf.d/"
-      sudo echo "Acquire::http::proxy \"$HTTP_PROXY_ADDR\";" >> "$CHROOT/etc/apt/apt.conf.d/proxy"
-      sudo echo "Acquire::https::proxy \"$HTTP_PROXY_ADDR\";" >> "$CHROOT/etc/apt/apt.conf.d/proxy"
+      mkdir -p "$CHROOT/etc/apt/apt.conf.d/"
+      echo "Acquire::http::proxy \"$HTTP_PROXY_ADDR\";" >> "$CHROOT/etc/apt/apt.conf.d/proxy"
+      echo "Acquire::https::proxy \"$HTTP_PROXY_ADDR\";" >> "$CHROOT/etc/apt/apt.conf.d/proxy"
     fi
+
 
     # make sure the chroot can resolve hostnames
     sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
@@ -111,6 +112,12 @@ update_caches() {
 	    gemver=''
 	fi
 	gemopts=(install --no-ri --no-rdoc)
+       
+        if [ "" != "$HTTP_PROXY_ADDR" ]
+        then
+             gemopts+=(--http-proxy $HTTP_PROXY_ADDR)
+        fi
+
 	[[ $gemver ]] && gemopts+=(--version "= ${gemver}")
 	in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
     done
