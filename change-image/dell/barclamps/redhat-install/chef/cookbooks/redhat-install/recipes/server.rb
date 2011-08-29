@@ -53,10 +53,10 @@ dhcp_group image do
 end
 
 template "#{install_path}/compute.ks" do
-  template ="compute.ks.erb"
+  template "compute.ks.erb"
   owner "apache"
   group "apache"
-  variables (
+  variables(
   :admin_node_ip => admin_ip,
   :web_port => web_port)  
 end
