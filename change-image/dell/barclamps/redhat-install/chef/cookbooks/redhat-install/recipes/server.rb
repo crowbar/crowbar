@@ -53,7 +53,7 @@ dhcp_group image do
 end
 
 template "#{install_path}/compute.ks" do
-  template "compute.ks.erb"
+  source "compute.ks.erb"
   owner "apache"
   group "apache"
   variables(
