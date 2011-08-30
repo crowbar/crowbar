@@ -440,8 +440,9 @@ fi
 	# Copy contents of the found directories into $BUILD_DIR, taking care
 	# to not clobber existing files.
 	mkdir -p "$BUILD_DIR/$d"
+	chmod u+wr "$BUILD_DIR/$d"
 	# We could also use cp -n, but rhel5 and centos5 do not understand it.
-	rsync -a --ignore-existing "$IMAGE_DIR/$d/." "$BUILD_DIR/$d/."
+	rsync -rl --ignore-existing --inplace "$IMAGE_DIR/$d/." "$BUILD_DIR/$d/."
 	chmod -R u+wr "$BUILD_DIR/$d"
 	# Bind mount an empty directory on the $IMAGE_DIR instance.
 	sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/$d"
