@@ -15,12 +15,31 @@
 
 include_recipe 'utils'
 
+# Walk through a hash of interfaces, adding :order tags to each
+# interface that reflects the order in which they should be brought up in.
+# They should be torn down in reverse order. 
+def sort_interfaces(interfaces)
+  seq=0
+  i=interfaces.keys.sort.reject{|k| interfaces[k].has_key?(:order)}
+  until i.empty?
+    i.each do |ifname|
+      iface=interfaces[ifname]
+      # If this interface has children, and any of its children have not
+      # been given a sequence number, skip it.
+      next if iface[:interface_list] and not iface[:interface_list].empty? and not iface[:interface_list].all?{|j| interfaces[j].has_key?(:order)}
+      iface[:order] = seq
+      seq=seq + 1
+    end
+    i=interfaces.keys.sort.reject{|k| interfaces[k].has_key?(:order)}
+  end
+  interfaces
+end
+
 # Parse the contents of /etc/network/interfaces, and return a data structure
 # equivalent to the one we get from Chef.
 def local_debian_interfaces
   res={}
   iface=''
-  order = 0
   File.foreach("/etc/network/interfaces") {|line|
     line = line.chomp.strip.split('#')[0] # strip comments
     next if line.nil? or ( line.length == 0 ) # skip blank lines
@@ -40,7 +59,6 @@ def local_debian_interfaces
       res[iface][:interface] = iface
       res[iface][:interface_list] = Array.new
       res[iface][:config] = parts[3]
-      res[iface][:order] = order
     when "address" then res[iface][:ipaddress] = parts[1]
     when "netmask" then res[iface][:netmask] = parts[1]
     when "broadcast" then res[iface][:broadcast] = parts[1]
@@ -48,123 +66,140 @@ def local_debian_interfaces
     when "bridge_ports" then 
       res[iface][:mode] = "bridge"
       res[iface][:interface_list] = parts[1..-1]
+      res[iface][:interface_list].each do |i|
+        res[i]=Hash.new unless res[i]
+        res[i][:bridge]=iface
+      end
     when "vlan_raw_device" then
       res[iface][:mode] = "vlan"
-
-        res[iface][:vlan] = iface.split('.',2)[1].to_i
-        res[iface][:interface_list] = Array[ parts[1] ]
+      res[iface][:vlan] = iface.split('.',2)[1].to_i
+      res[iface][:interface_list] = Array[ parts[1] ]
     when "down" then 
       res[iface][:mode] = "team"
       res[iface][:interface_list] = parts[4..-1]
+      res[iface][:interface_list].each do |i|
+        res[i]=Hash.new unless res[i]
+        res[i][:master]=iface
+        res[i][:slave]=true
+      end
     end
-    order = order + 1
   }
-  res
+  sort_interfaces(res)
 end
-
-Redhat_keys={ :interface => "DEVICE",
-               :config => "BOOTPROTO",
-               :auto => "ONBOOT",
-               :netmask => "NETMASK",
-               :ipaddress => "IPADDR",
-               :broadcast => "BROADCAST",
-               :router => "GATEWAY" }
-
-# This handles just enough to bring up an interface with no
-# bonds, vlans, bridges, or anything else for now.
-def parse_redhat_interface(iface)
-    res = {}
-  ::File.foreach(iface) {|line|
-    line = line.chomp.strip.split('#')[0] # strip comments
-    next if line.nil? or ( line.length == 0 ) # skip blank lines
-    parts = line.split('=',2)
-    k=Redhat_keys.index(parts[0])
-    next if k.nil?
-    case
-    when (k == :auto and parts[1] == "yes") then res[k] = true
-    when (k == :config and parts[1] == "none") then res[k] = "static" 
-    else
-      res[k]=parts[1]
-    end
-  }
-  res
-end 
 
 def local_redhat_interfaces
   res = {}
-  order = 0
-  ::Dir.entries("/etc/sysconfig/network-scripts").each {|entry|
+  ::Dir.entries("/etc/sysconfig/network-scripts").sort.each do |entry|
     next unless entry =~ /^ifcfg/
     next if entry == "ifcfg-lo"
     iface = entry.split('-',2)[1]
-    res[iface] = Hash.new
-    res[iface]=parse_redhat_interface("/etc/sysconfig/network-scripts/#{entry}")
-    res[iface][:order] = order
-    order = order + 1
-    Chef::Log<<("found interface #{res.to_s} ")    
-    
-  }
-  res
+    res[iface]=Hash.new unless res[iface]
+    ::File.foreach("/etc/sysconfig/network-scripts/#{entry}") do |line|
+      line = line.chomp.strip.split('#')[0] # strip comments
+      next if line.nil? or ( line.length == 0 ) # skip blank lines
+      parts = line.split('=',2)
+      k=parts[0]
+      v=parts[1]
+      case k
+      when "DEVICE" then res[iface][:interface]=v
+      when "ONBOOT" 
+        res[iface][:auto] = true when v == "yes"
+      when "BOOTPROTO" then res[iface][:config] = v
+      when "IPADDR"
+        res[iface][:ipaddress] = v
+      when "NETMASK" then res[iface][:netmask] = v
+      when "BROADCAST" then res[iface][:broadcast] = v
+      when "GATEWAY" then res[iface][:router] = v
+      when "MASTER" 
+        res[iface][:master] = v
+        res[v]=Hash.new unless res[v]
+        res[v][:mode] = "team"
+        res[v][:interface_list]=Array.new unless res[v][:interface_list]
+        res[v][:interface_list].push(iface)
+      when "SLAVE"
+        res[iface][:slave] = true if v == "yes"
+      when "BRIDGE"
+        res[iface][:bridge] = v
+        res[v]=Hash.new unless res[v]
+        res[v][:mode] = "bridge"
+        res[v][:interface_list]=Array.new unless res[v][:interface_list]
+        res[v][:interface_list].push(iface)
+      when "VLAN"
+        res[iface][:mode] = "vlan"
+        res[iface][:vlan] = iface.split('.',2)[1]
+        res[iface][:interface_list]=iface.split('.',2)[0]
+      end
+    end
+    if res[iface][:config] == "none"
+      res[iface][:config] = if res[iface][:ipaddress]
+                              "static"
+                            else
+                              "manual"
+                            end
+    end
+    res[iface][:auto] = false unless res[iface][:auto]
+  end
+  sort_interfaces(res)
 end
 
 def crowbar_interfaces
   res = Hash.new
-  order = 0
   node["crowbar"]["network"].each do |intf, network|
     next if intf == "bmc"
-    iface = Hash.new
+    res[intf] = Hash.new unless res[intf]
+    res[intf][:interface] = intf
+    res[intf][:auto] = true
+    # Handle vlans first.
+    if network["use_vlan"]
+      res[intf][:vlan] = network["vlan"]
+      res[intf][:mode] = "vlan"
+      res[intf][:interface_list] = network["interface_list"].reject{|x| x == intf}
+    end
+    # If we were asked to make a bridge, do it second.
     if network["add_bridge"]
-      # Add base interface
-      iface[:interface] = intf
-      iface[:order] = order
-      order = order + 1
-      iface[:config] = "manual"
-      iface[:auto] = true
-      if network["use_vlan"]
-        iface[:vlan] = network["vlan"]
-        iface[:mode] = "vlan"
-        iface[:interface_list] = network["interface_list"].reject{|x| x == intf}
-      elsif network["interface_list"] and not network["interface_list"].empty?
-        iface[:interface_list] = network["interface_list"].reject{|x| x == intf}
-        iface[:mode] = "team" if iface[:interface_list] and not iface[:interface_list].empty? 
+      # We have to make up a bridge name here
+      res[intf][:bridge]=if res[intf][:vlan] 
+                           "br#{res[intf][:vlan]}"
+                         else
+                           "br#{intf}"
+                         end
+      # That base interface now has a manual config
+      res[intf][:config]="manual"
+      res[res[intf][:bridge]]=Hash.new unless res[res[intf][:bridge]]
+      intf=res[intf][:bridge]
+      network["interface_list"].each do |i|
+        res[i]=Hash.new unless res[i]
+        res[i][:bridge]=intf
+        res[intf][:interface_list]=Array.new unless res[intf][:interface_list]
+        res[intf][:interface_list].push(i)
       end
-      res[intf] = iface.dup
-      # now, build a bridge out of it.
-      iface = Hash.new
-      # Network interfaces are made of wood, right?  Or was it witches?
-      iface[:interface_list] = [ intf ]
-      # Definitly wood.
-      intf = "br#{network["vlan"]}"
-      iface[:interface] = intf
-      iface[:mode] = "bridge"
-    else
-      # Not a bridge, use normal config.
-      iface[:interface] = intf
-      if network["use_vlan"]
-        iface[:vlan] = network["vlan"]
-        iface[:mode] = "vlan"
-        iface[:interface_list] = network["interface_list"].reject{|x| x == intf}
-      elsif network["interface_list"] and not network["interface_list"].empty?
-        iface[:interface_list] = network["interface_list"].reject{|x| x == intf}
-        iface[:mode] = "team" if iface[:interface_list] and not iface[:interface_list].empty? 
+    # If we were not asked to make a bridge and have a non-empty interface
+    # list, we must have been asked to make a team.
+    elsif network["interface_list"] and not network["interface_list"].empty?
+      res[intf][:interface_list] = network["interface_list"].reject{|x| x == intf}
+      res[intf][:mode]="team"
+      # Since we are making a team out of these devices, blow away whatever
+      # config we may have had for the slaves.
+      res[intf][:interface_list].each do |i|
+        res[i]=Hash.new
+        res[i][:interface]=i
+        res[i][:auto]=false
+        res[i][:config]="manual"
+        res[i][:slave]=true
+        res[i][:master]=intf
       end
     end
-    # Common network config for all interfaces.
-    iface[:auto] = true
-    iface[:order] = order
-    order = order + 1
     if network["address"] and network["address"] != "0.0.0.0"
-      iface[:config] = "static"
-      iface[:ipaddress] = network["address"]
-      iface[:netmask] = network["netmask"]
-      iface[:broadcast] = network["broadcast"]
-      iface[:router] = network["router"]
+      res[intf][:config] = "static"
+      res[intf][:ipaddress] = network["address"]
+      res[intf][:netmask] = network["netmask"]
+      res[intf][:broadcast] = network["broadcast"]
+      res[intf][:router] = network["router"]
     else
-      iface[:config] = "manual"
+      res[intf][:config] = "manual"
     end
-    res[intf] = iface.dup
   end
-  res
+  sort_interfaces(res)
 end
 
 # Make sure that the /etc/network/if-up.d/upstart file is gone
@@ -286,8 +321,7 @@ else
     end
   }
   
-  # Third, rewrite /etc/network/interfaces to make sure our new interfaces
-  # are brought up with the correct parameters
+  # Third, rewrite the network configuration to match the new config.
   case node[:platform]
   when "ubuntu","debian"
     template "/etc/network/interfaces" do
@@ -300,7 +334,7 @@ else
     new_interfaces.values.each {|iface|
       template "/etc/sysconfig/network-scripts/ifcfg-#{iface[:interface]}" do
         source "redhat-cfg.erb"
-        variables :iface => iface, :keys => Redhat_keys
+        variables :iface => iface
       end
     }
   end
