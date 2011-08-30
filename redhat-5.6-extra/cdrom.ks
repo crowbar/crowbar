@@ -34,6 +34,7 @@ OpenIPMI
 OpenIPMI-tools
 emacs-nox
 openssh
+createrepo
 
 %post --nochroot
 export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
@@ -79,6 +80,10 @@ name=Crowbar Extra Packages
 baseurl=file://$BASEDIR/extra/pkgs
 gpgcheck=0
 EOF
+
+# Create the repo metadata we will need
+
+(cd /tftpboot/redhat_dvd/extra/pkgs; createrepo -d -q .)
 
 # We prefer rsyslog.
 yum -y install rsyslog

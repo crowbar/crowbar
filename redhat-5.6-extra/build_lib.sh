@@ -401,12 +401,8 @@ maybe_update_cache() {
 }
 
 # Creates new yum repository metadata for the extras cache.
-reindex_packages() (
-    # Make our new packages repository.
-    cd "$BUILD_DIR/extra/pkgs" 
-    debug "Creating yum repository"
-    createrepo -d .
-)
+# Empty -- we will do this as part of the post install.
+reindex_packages() { : ; }
 
 # Copy our isolinux bits into place and append our kickstarts into the initrds.
 final_build_fixups() {
