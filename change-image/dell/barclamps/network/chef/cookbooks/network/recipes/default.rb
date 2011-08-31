@@ -122,12 +122,12 @@ def local_redhat_interfaces
         res[iface][:bridge] = v
         res[v]=Hash.new unless res[v]
         res[v][:mode] = "bridge"
-        res[v][:interface_list]=Array.new unless res[v][:interface_list]
+        res[v][:interface_list]=Array.new unless res[iface][:interface_list]
         res[v][:interface_list].push(iface)
       when "VLAN"
         res[iface][:mode] = "vlan"
-        res[iface][:vlan] = iface.split('.',2)[1]
-        res[iface][:interface_list]=iface.split('.',2)[0]
+        res[iface][:vlan] = iface.split('.',2)[1].to_i
+        res[iface][:interface_list]=[iface.split('.',2)[0]]
       end
     end
     if res[iface][:config] == "none"
@@ -165,17 +165,16 @@ def crowbar_interfaces
                          end
       # That base interface now has a manual config
       res[intf][:config]="manual"
-      res[res[intf][:bridge]]=Hash.new unless res[res[intf][:bridge]]
+      base_if=intf
       intf=res[intf][:bridge]
-      network["interface_list"].each do |i|
-        res[i]=Hash.new unless res[i]
-        res[i][:bridge]=intf
-        res[intf][:interface_list]=Array.new unless res[intf][:interface_list]
-        res[intf][:interface_list].push(i)
-      end
+      res[intf]=Hash.new unless res[intf]
+      res[intf][:interface] = intf
+      res[intf][:interface_list] = [ base_if ]
+      res[intf][:auto] = true
+      res[intf][:mode]="bridge"
     # If we were not asked to make a bridge and have a non-empty interface
     # list, we must have been asked to make a team.
-    elsif network["interface_list"] and not network["interface_list"].empty?
+    elsif node["network"]["mode"] == "team" and network["interface_list"] and not network["interface_list"].empty?
       res[intf][:interface_list] = network["interface_list"].reject{|x| x == intf}
       res[intf][:mode]="team"
       # Since we are making a team out of these devices, blow away whatever
@@ -269,6 +268,7 @@ else
   # reverse order in which they appear in the current /etc/network/interfaces
   (old_interfaces.keys - new_interfaces.keys).sort{|a,b| 
     old_interfaces[b][:order] <=> old_interfaces[a][:order]}.each {|i|
+    next if i.nil? or i == ""
     log("Removing #{old_interfaces[i]}\n") { level :debug }
     bash "ifdown #{i} for removal" do
       code "ifdown #{i}"
