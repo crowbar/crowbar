@@ -46,6 +46,16 @@ file "/etc/dhcp3/hosts.d/host_list.conf" do
   mode 0644
 end
 
+bash "build omapi key" do
+  code <<-EOH
+    cd /etc/dhcp3
+    dnssec-keygen -r /dev/urandom  -a HMAC-MD5 -b 512 -n HOST omapi_key
+    KEY=`cat /etc/dhcp3/Komapi_key*.private|grep ^Key|cut -d ' ' -f2-`
+    echo $KEY > /etc/dhcp3/omapi.key
+EOH
+  not_if "test -f /etc/dhcp3/omapi.key"
+end
+
 service "dhcp3-server" do
   service_name "dhcpd" if node[:platform] =~ /^(redhat|centos)$/
   supports :restart => true, :status => true, :reload => true
