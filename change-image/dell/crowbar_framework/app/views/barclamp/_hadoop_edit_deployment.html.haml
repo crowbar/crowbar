@@ -1,0 +1,15 @@
+
+%p
+  = render :partial => "barclamp/node_selector"
+
+:javascript
+  $(document).ready(function(){
+    var constraints = { 
+      "hadoop-masternamenode": { "unique": false, "count": -1 },
+      "hadoop-secondarynamenode": { "unique": false, "count": -1 },
+      "hadoop-edgenode": { "unique": false, "count": -1 },
+      "hadoop-slavenode": { "unique": false, "count": -1 }
+    };
+    node_selector($('#drag_drop'), constraints)
+  });
+
