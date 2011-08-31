@@ -256,8 +256,8 @@ def deorder(i)
   i.reject{|k,v|k == :order or v.nil? or (v.respond_to?(:empty?) and v.empty?)}
 end
 
-Chef::Log<<("Current interfaces:\n#{old_interfaces.inspect}\n")
-Chef::Log<<("New interfaces:\n#{new_interfaces.inspect}\n")
+log("Current interfaces:\n#{old_interfaces.inspect}\n") { level :debug }
+log("New interfaces:\n#{new_interfaces.inspect}\n") { level :debug }
 
 if (not new_interfaces) or new_interfaces.empty?
   log("Crowbar instructed us to tear down all our interfaces!") { level :fatal }

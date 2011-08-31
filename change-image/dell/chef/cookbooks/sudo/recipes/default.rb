@@ -23,6 +23,7 @@ end
 
 template "/etc/sudoers" do
   source "sudoers.erb"
+  action :create
   mode 0440
   owner "root"
   group "root"
