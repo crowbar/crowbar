@@ -25,13 +25,10 @@ targetdir="/opt/dell/crowbar_framework/public/logs"
     mkdir -p "$logdir"
     mkdir -p "$targetdir"
     cd "$logdir"
-    hostname_re='"([^"]+)"'
     sshopts=(-q -o 'StrictHostKeyChecking no' 
 	-o 'UserKnownHostsFile /dev/null')
     logs=(/var/log /etc)
     for node in $(sudo -H knife node list); do
-	[[ $node =~ $hostname_re ]] || continue
-	node=${BASH_REMATCH[1]}
 	mkdir -p "${node%%.*}"
 	tarfile="${node%%.*}-${tarname}.tar.gz"
 	(   cd "${node%%.*}"
