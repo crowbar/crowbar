@@ -46,7 +46,6 @@ EOH
 
     node["crowbar"]["status"]["ipmi"]["user_set"] = true
   else
-    node["ipmi"]["bmc_enable"] = false
     node["crowbar"]["status"]["ipmi"]["messages"] << "Unsupported product found #{node[:dmi][:system][:product_name]} - skipping IPMI:User" unless node.nil?
   end  
   node.save

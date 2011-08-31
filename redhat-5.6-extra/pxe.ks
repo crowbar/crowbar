@@ -17,6 +17,7 @@ bootloader --location=mbr --driveorder=sda
 zerombr yes
 clearpart --all --drives=sda
 part /boot --fstype ext3 --size=100 --ondisk=sda
+part swap --recommended
 part pv.6 --size=0 --grow --ondisk=sda
 volgroup lv_admin --pesize=32768 pv.6
 logvol / --fstype ext3 --name=lv_root --vgname=lv_admin --size=1 --grow
@@ -116,7 +117,7 @@ finishing_scripts="
 )
 ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n    
     
-mdcp /opt/dell -r "$BASEDIR/dell/openstack_manager" 
+mdcp /opt/dell -r "$BASEDIR/dell/crowbar_framework" 
 
 # Make a destination for switch configs
 mdcp /opt/dell/switch "$BASEDIR/dell/"*.stk
@@ -132,7 +133,7 @@ for i in "$BASEDIR/dell/barclamps"/*; do
     mdcp /opt/dell/bin "$i/command_line"/*
     for d in app config public; do
 	[[ -d $i/$d ]] || continue
-	mdcp /opt/dell/openstack_manager -r "$i/$d"
+	mdcp /opt/dell/crowbar_framework -r "$i/$d"
     done
 done
     
@@ -146,11 +147,11 @@ chmod +x /opt/dell/bin/*
 #
 chmod 755 /opt/dell/chef/data_bags/crowbar
 chmod 644 /opt/dell/chef/data_bags/crowbar/*
-chmod 755 /opt/dell/openstack_manager/db
-chmod 644 /opt/dell/openstack_manager/db/*
-chmod 755 /opt/dell/openstack_manager/tmp
-chmod -R +w /opt/dell/openstack_manager/tmp/*
-chmod 755 /opt/dell/openstack_manager/public/stylesheets
+chmod 755 /opt/dell/crowbar_framework/db
+chmod 644 /opt/dell/crowbar_framework/db/*
+chmod 755 /opt/dell/crowbar_framework/tmp
+chmod -R +w /opt/dell/crowbar_framework/tmp/*
+chmod 755 /opt/dell/crowbar_framework/public/stylesheets
 chmod 755 "$BASEDIR/extra/"*.sh "$BASEDIR/extra/install"
 chmod 755 "$BASEDIR/updates/"*
     
@@ -176,7 +177,7 @@ for s in $(cat /proc/cmdline); do
 	crowbar.debug)
 	    sed -i -e '/config.log_level/ s/^#//' \
 		-e '/config.logger.level/ s/^#//' \
-		/opt/dell/openstack_manager/config/environments/production.rb
+		/opt/dell/crowbar_framework/config/environments/production.rb
 	    ;;
     esac
 done

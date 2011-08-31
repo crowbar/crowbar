@@ -18,7 +18,7 @@ require 'rubygems'
 require 'kwalify'
 require 'uri'
 
-require '/opt/dell/openstack_manager/app/models/crowbar_validator.rb'
+require '/opt/dell/crowbar_framework/app/models/crowbar_validator.rb'
 
 def validate(schema_filename, config_filename)
   ## validate schema definition

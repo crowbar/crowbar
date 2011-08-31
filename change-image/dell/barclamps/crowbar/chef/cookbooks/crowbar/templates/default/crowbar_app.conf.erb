@@ -8,7 +8,7 @@ Listen <%= @params[:web_port] %>
 	      AuthName "<%= @params[:realm] %>"
 	      AuthDigestDomain http://192.168.124.10:<%= @params[:web_port] %>/
 	      AuthDigestProvider file
-	      AuthUserFile /opt/dell/openstack_manager/htdigest
+	      AuthUserFile /opt/dell/crowbar_framework/htdigest
 	      Require valid-user
     </Location>
     <% end -%>

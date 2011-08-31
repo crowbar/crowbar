@@ -3,8 +3,8 @@
   "description": "Ubuntu installation parameters",
   "attributes": {
     "ubuntu_install": {
-		"default_user" : "openstack",
-		"default_password" : "openstack", 
+		"default_user" : "crowbar",
+		"default_password" : "crowbar", 
 		"use_local_security": true,
 		"use_serial_console": true 
     }

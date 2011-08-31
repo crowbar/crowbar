@@ -13,23 +13,9 @@
 # limitations under the License.
 #
 
-clean:
-	@echo "Cleaning barclamp-crowbar"
-
-distclean:
-	@echo "Dist-Cleaning barclamp-crowbar"
-
-all: clean build install
-
-build:
-	@echo "Building barclamp-crowbar"
-
-install:
-	@echo "Installing barclamp-crowbar"
-	mkdir -p ${DESTDIR}/opt/crowbar/crowbar_framework
-	cp -r app ${DESTDIR}/opt/crowbar/crowbar_framework
-	mkdir -p ${DESTDIR}/usr/share/barclamp-crowbar
-	cp -r chef ${DESTDIR}/usr/share/barclamp-crowbar
-	mkdir -p ${DESTDIR}/usr/bin
-	cp -r command_line/* ${DESTDIR}/usr/bin
+# Everyone needs chef-client running - redhat doesn't chkconfig this by default.
+bash "Install pxelinux.0" do
+  code "/sbin/chkconfig --level 345 chef-client on"
+  not_if "/sbin/chkconfig --list chef-client | grep -q on"
+end
 

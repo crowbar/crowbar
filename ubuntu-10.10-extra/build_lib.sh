@@ -3,7 +3,7 @@
 # using Ubuntu 10.10 as the base OS.  It includes all Ubuntu 10.10 specific
 # build routines.
 
-# OS information for the OS we are building openstack on to.
+# OS information for the OS we are building crowbar on to.
 OS=ubuntu
 OS_VERSION=10.10
 OS_TOKEN="$OS-$OS_VERSION"

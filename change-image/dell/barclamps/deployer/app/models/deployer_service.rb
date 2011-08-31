@@ -75,6 +75,41 @@ class DeployerService < ServiceObject
       return [200, node.to_hash ]
     end
 
+    save_it = false
+    #
+    # At this point, we need to create our resource maps and recommendations.
+    #
+    # This is hard coded for now.  Should be parameter driven one day.
+    # 
+    @logger.debug("Deployer transition: Update the inventory crowbar structures for #{name}")
+    unless node[:block_device].nil? or node[:block_device].empty?
+      node.crowbar["crowbar"] = {} if node.crowbar["crowbar"].nil?
+      node.crowbar["crowbar"]["disks"] = {} 
+      node[:block_device].each do |disk, data|
+        # XXX: Make this into a config map one day.
+        next if disk.start_with?("ram")
+        next if disk.start_with?("sr")
+        next if disk.start_with?("loop")
+        next if disk.start_with?("dm")
+        next if disk.start_with?("ndb")
+        next if disk.start_with?("md")
+        next if disk.start_with?("sg")
+        next if disk.start_with?("fd")
+
+        next if data[:removable] == 1 or data[:removable] == "1" # Skip cdroms
+
+        # RedHat under KVM reports drives as hdX.  Ubuntu reports them as sdX.
+        disk = disk.gsub("hd", "sd") if disk.start_with?("h") and node[:dmi][:system][:product_name] == "KVM"
+  
+        node.crowbar["crowbar"]["disks"][disk] = data
+
+        node.crowbar["crowbar"]["disks"][disk]["usage"] = "OS" if disk == "sda"
+        node.crowbar["crowbar"]["disks"][disk]["usage"] = "Storage" unless disk == "sda"
+
+        save_it = true
+      end 
+    end 
+
     # 
     # Decide on the nodes role for the cloud
     #   * This includes adding a role for node type (for bios/raid update/config)
@@ -82,7 +117,6 @@ class DeployerService < ServiceObject
     # 
     if state == "discovered"
       @logger.debug("Deployer transition: discovered state for #{name}")
-      save_it = false
 
       if !node.admin?
         @logger.debug("Deployer transition: check to see if we should rename: #{name}")
@@ -105,38 +139,6 @@ class DeployerService < ServiceObject
         node.crowbar["raid"]["enable"] = false
         save_it = true
       end
-
-      #
-      # At this point, we need to create our resource maps and recommendations.
-      #
-      # This is hard coded for now.  Should be parameter driven one day.
-      # 
-      @logger.debug("Deployer transition: Update the inventory crowbar structures for #{name}")
-      node.crowbar["crowbar"] = {} if node.crowbar["crowbar"].nil?
-      node.crowbar["crowbar"]["disks"] = {} if node.crowbar["crowbar"]["disks"].nil?
-      node[:block_device].each do |disk, data|
-        # XXX: Make this into a config map one day.
-        next if disk.start_with?("ram")
-        next if disk.start_with?("sr")
-        next if disk.start_with?("loop")
-        next if disk.start_with?("dm")
-        next if disk.start_with?("ndb")
-        next if disk.start_with?("md")
-        next if disk.start_with?("sg")
-        next if disk.start_with?("fd")
-
-        next if data[:removable] == 1 or data[:removable] == "1" # Skip cdroms
-
-        # RedHat under KVM reports drives as hdX.  Ubuntu reports them as sdX.
-        disk = disk.gsub("hd", "sd") if disk.start_with?("h") and node[:dmi][:system][:product_name] == "KVM"
-
-        node.crowbar["crowbar"]["disks"][disk] = data
-
-        node.crowbar["crowbar"]["disks"][disk]["usage"] = "OS" if disk == "sda"
-        node.crowbar["crowbar"]["disks"][disk]["usage"] = "Storage" unless disk == "sda"
-
-        save_it = true
-      end unless node[:block_device].nil? or node[:block_device].empty?
 
       node.crowbar["crowbar"]["usage"] = [] if node.crowbar["crowbar"]["usage"].nil?
       if (node.crowbar["crowbar"]["disks"].size > 1) and !node.crowbar["crowbar"]["usage"].include?("swift")
@@ -195,7 +197,6 @@ class DeployerService < ServiceObject
       return [200, node.to_hash ]
     end
 
-    save_it = false
     #
     # Once we have been allocated, we will fly through here and we will setup the raid/bios info
     #

@@ -43,7 +43,16 @@ node["crowbar"]["status"]["ipmi"]["user_set"] = false
 node["crowbar"]["status"]["ipmi"]["address_set"] = false
 node.save
 
+unsupported = [ "KVM", "Bochs", "VMWare Virtual Platform" ]
+
 if node[:ipmi][:bmc_enable]
+  if unsupported.member?(node[:dmi][:system][:product_name])
+    node["crowbar"]["status"]["ipmi"]["messages"] = [ "Unsupported platform: #{node[:dmi][:system][:product_name]} - turning off ipmi for this node" ]
+    node[:ipmi][:bmc_enable] = false
+    node.save
+    return
+  end
+
   node["crowbar"]["status"]["ipmi"]["messages"] = []
   node.save
 

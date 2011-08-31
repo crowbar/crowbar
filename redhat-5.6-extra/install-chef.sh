@@ -99,7 +99,7 @@ ip addr add 192.168.124.10/24 dev eth0
 
 # Replace the domainname in the default template
 DOMAINNAME=$(dnsdomainname)
-sed -i "s/pod.cloud.openstack.org/$DOMAINNAME/g" /opt/dell/chef/data_bags/crowbar/bc-template-dns.json
+sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/chef/data_bags/crowbar/bc-template-dns.json
 
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart
@@ -162,7 +162,7 @@ if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
     printf "${CROWBAR_KEY%%:*}:${CROWBAR_REALM}:${CROWBAR_KEY##*:}" | \
 	md5sum - | (read key rest
 	printf "\n${CROWBAR_KEY%%:*}:${CROWBAR_REALM}:$key\n" >> \
-	    /opt/dell/openstack_manager/htdigest)
+	    /opt/dell/crowbar_framework/htdigest)
 fi
 if [[ $CROWBAR_REALM ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
@@ -175,7 +175,7 @@ fi
 # Set Version in Crowbar UI
 VERSION=$(cat /tftpboot/redhat_dvd/dell/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
-    /opt/dell/openstack_manager/config/environments/production.rb
+    /opt/dell/crowbar_framework/config/environments/production.rb
 
 # Make sure we use the right OS installer. By default we want to install
 # the same OS as the admin node.

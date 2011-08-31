@@ -15,7 +15,7 @@
 #
 
 #
-# This script is called by the other install scripts to layout the openstack
+# This script is called by the other install scripts to layout the crowbar
 # software + dell pieces.
 #
 # Requires:
@@ -51,7 +51,7 @@ cd /opt/dell/
 tar -zxf /tftpboot/ubuntu_dvd/extra/h2n.tar.gz
 ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n
 
-cp -r /opt/.dell-install/openstack_manager /opt/dell
+cp -r /opt/.dell-install/crowbar_framework /opt/dell
 
 # Make a destination for switch configs
 mkdir -p /opt/dell/switch
@@ -70,10 +70,10 @@ for i in *; do
     [[ -d $i ]] || continue
     cd "$i"
     ( cd chef; cp -r * /opt/dell/chef )
-    ( cd app; cp -r * /opt/dell/openstack_manager/app )
-    ( cd config; cp -r * /opt/dell/openstack_manager/config )
+    ( cd app; cp -r * /opt/dell/crowbar_framework/app )
+    ( cd config; cp -r * /opt/dell/crowbar_framework/config )
     ( cd command_line; cp * /opt/dell/bin )
-    ( cd public ; cp -r * /opt/dell/openstack_manager/public )
+    ( cd public ; cp -r * /opt/dell/crowbar_framework/public )
     cd ..
 done
 cd ..
@@ -89,7 +89,7 @@ update-rc.d apparmor disable
 cp apt.conf sources.list /etc/apt
 
 # Make sure the ownerships are correct
-chown -R openstack.admin /opt/dell
+chown -R crowbar.admin /opt/dell
 
 #
 # Make sure the permissions are right
@@ -97,11 +97,11 @@ chown -R openstack.admin /opt/dell
 #
 chmod 755 /opt/dell/chef/data_bags/crowbar
 chmod 644 /opt/dell/chef/data_bags/crowbar/*
-chmod 755 /opt/dell/openstack_manager/db
-chmod 644 /opt/dell/openstack_manager/db/*
-chmod 755 /opt/dell/openstack_manager/tmp
-chmod -R +w /opt/dell/openstack_manager/tmp/*
-chmod 755 /opt/dell/openstack_manager/public/stylesheets
+chmod 755 /opt/dell/crowbar_framework/db
+chmod 644 /opt/dell/crowbar_framework/db/*
+chmod 755 /opt/dell/crowbar_framework/tmp
+chmod -R +w /opt/dell/crowbar_framework/tmp/*
+chmod 755 /opt/dell/crowbar_framework/public/stylesheets
 
 # Get out of the directories.
 cd 
@@ -127,7 +127,7 @@ for s in $(cat /proc/cmdline); do
 	crowbar.debug)
 	    sed -i -e '/config.log_level/ s/^#//' \
 		-e '/config.logger.level/ s/^#//' \
-		/opt/dell/openstack_manager/config/environments/production.rb
+		/opt/dell/crowbar_framework/config/environments/production.rb
 	    ;;
 
     esac

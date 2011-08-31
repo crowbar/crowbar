@@ -3,7 +3,7 @@
 # RHEL 5.6
 
 
-# OS information for the OS we are building openstack on to.
+# OS information for the OS we are building crowbar on to.
 OS=redhat
 OS_VERSION=5.6
 OS_TOKEN="$OS-$OS_VERSION"

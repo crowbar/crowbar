@@ -275,7 +275,7 @@ YYYYMMDD-HHMMSS-five_random_characters
  \- (repeat for the rest of the nodes in the cluster that are up)
 
 The tarfile for each node contains all of /etc and /var/log.  The tarfile for
-the admin node also contains /opt/dell/openstack_manager/db (which is a dump 
+the admin node also contains /opt/dell/crowbar_framework/db (which is a dump 
 of the Crowbar-specific parts of the Chef database), and /install-logs (which
 contains a capture of the logs the rest of the machines create in discovery
 phase).

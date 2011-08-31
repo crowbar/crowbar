@@ -16,6 +16,7 @@ bootloader --location=mbr --driveorder=sda
 zerombr yes
 clearpart --all --drives=sda
 part /boot --fstype ext3 --size=100 --ondisk=sda
+part swap --recommended
 part pv.6 --size=0 --grow --ondisk=sda
 volgroup lv_admin --pesize=32768 pv.6
 logvol / --fstype ext3 --name=lv_root --vgname=lv_admin --size=1 --grow
@@ -116,7 +117,7 @@ sed -i -e '/^id/ s/5/3/' /etc/inittab
     tar -zxf /tftpboot/redhat_dvd/extra/h2n.tar.gz
     ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n
     
-    cp -r /opt/.dell-install/openstack_manager /opt/dell
+    cp -r /opt/.dell-install/crowbar_framework /opt/dell
     
 # Make a destination for switch configs
     mkdir -p /opt/dell/switch
@@ -135,10 +136,10 @@ sed -i -e '/^id/ s/5/3/' /etc/inittab
 	[[ -d $i ]] || continue
 	cd "$i"
 	( cd chef; cp -r * /opt/dell/chef )
-	( cd app; cp -r * /opt/dell/openstack_manager/app )
-	( cd config; cp -r * /opt/dell/openstack_manager/config )
+	( cd app; cp -r * /opt/dell/crowbar_framework/app )
+	( cd config; cp -r * /opt/dell/crowbar_framework/config )
 	( cd command_line; cp * /opt/dell/bin )
-	( cd public ; cp -r * /opt/dell/openstack_manager/public )
+	( cd public ; cp -r * /opt/dell/crowbar_framework/public )
 	cd ..
     done
     cd ..
@@ -147,7 +148,7 @@ sed -i -e '/^id/ s/5/3/' /etc/inittab
     chmod +x /opt/dell/bin/*
     
 # Make sure the ownerships are correct
-    chown -R openstack.admin /opt/dell
+    chown -R crowbar.admin /opt/dell
     
 #
 # Make sure the permissions are right
@@ -155,11 +156,11 @@ sed -i -e '/^id/ s/5/3/' /etc/inittab
 #
     chmod 755 /opt/dell/chef/data_bags/crowbar
     chmod 644 /opt/dell/chef/data_bags/crowbar/*
-    chmod 755 /opt/dell/openstack_manager/db
-    chmod 644 /opt/dell/openstack_manager/db/*
-    chmod 755 /opt/dell/openstack_manager/tmp
-    chmod -R +w /opt/dell/openstack_manager/tmp/*
-    chmod 755 /opt/dell/openstack_manager/public/stylesheets
+    chmod 755 /opt/dell/crowbar_framework/db
+    chmod 644 /opt/dell/crowbar_framework/db/*
+    chmod 755 /opt/dell/crowbar_framework/tmp
+    chmod -R +w /opt/dell/crowbar_framework/tmp/*
+    chmod 755 /opt/dell/crowbar_framework/public/stylesheets
     
 # Get out of the directories.
     cd 
@@ -185,7 +186,7 @@ sed -i -e '/^id/ s/5/3/' /etc/inittab
 	    crowbar.debug)
 		sed -i -e '/config.log_level/ s/^#//' \
 		    -e '/config.logger.level/ s/^#//' \
-		    /opt/dell/openstack_manager/config/environments/production.rb
+		    /opt/dell/crowbar_framework/config/environments/production.rb
 		;;
  	esac
     done

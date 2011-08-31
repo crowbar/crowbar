@@ -19,7 +19,7 @@ if [[ -f /etc/crowbar.install.key ]]; then
 fi
 mkdir -p /tmp/crowbar-logs
 tarname="$1"
-targetdir="/opt/dell/openstack_manager/public/logs"
+targetdir="/opt/dell/crowbar_framework/public/logs"
 (   flock -s 200
     logdir=$(mktemp -d "/tmp/crowbar-logs/$tarname-XXXXX")
     mkdir -p "$logdir"
@@ -41,7 +41,7 @@ targetdir="/opt/dell/openstack_manager/public/logs"
 		for to_get in nodes proposals roles; do
 		    curl "${curlargs[@]}" "http://$node:3000/$to_get" || :
 		done
-		logs+=(/opt/dell/openstack_manager/db /opt/dell/openstack_manager/log /install-logs)
+		logs+=(/opt/dell/crowbar_framework/db /opt/dell/crowbar_framework/log /install-logs)
 	    }
 	    sudo ssh "${sshopts[@]}" "${node}" \
 	    tar czf "/tmp/$tarfile" "${logs[@]}"
