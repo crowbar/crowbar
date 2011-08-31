@@ -61,6 +61,6 @@ end
 
 execute "nfs-export" do
   command "exportfs -a"
-  action :run
+  action :nothing
 end
 
