@@ -154,6 +154,13 @@ def crowbar_interfaces
       res[intf][:vlan] = network["vlan"]
       res[intf][:mode] = "vlan"
       res[intf][:interface_list] = network["interface_list"].reject{|x| x == intf}
+      res[intf][:interface_list].each do |i|
+        unless res[i]
+          res[i] = Hash.new
+          res[i][:interface] = i
+          res[i][:auto] = true
+        end
+      end
     end
     # If we were asked to make a bridge, do it second.
     if network["add_bridge"]
@@ -216,13 +223,31 @@ case node[:platform]
 when "ubuntu","debian"
   package "vlan"
   package "ifenslave-2.6"
+
+  utils_line "8021q" do
+    action :add
+    file "/etc/modules"
+  end
+
+  if node["network"]["mode"] == "team"
+    utils_line "bonding mode=6 miimon=100" do
+      action :add
+      file "/etc/modules"
+    end
+  end
 when "centos","redhat"
   package "vconfig"
-end
 
-utils_line "8021q" do
-  action :add
-  file "/etc/modules"
+  if node["network"]["mode"] == "team"
+    utils_line "alias bond0 bonding" do
+      action :add
+      file "/etc/modules.conf"
+    end
+    utils_line "bonding mode=6 miimon=100" do
+      action :add
+      file "/etc/modules.conf"
+    end
+  end
 end
 
 bash "load 8021q module" do
@@ -231,11 +256,6 @@ bash "load 8021q module" do
 end
 
 if node["network"]["mode"] == "team"
-  utils_line "bonding mode=6 miimon=100" do
-    action :add
-    file "/etc/modules"
-  end
-  
   bash "load bonding module" do
     code "/sbin/modprobe bonding mode=6 miimon=100"
     not_if { ::File.exists?("/sys/module/bonding") }
