@@ -1,0 +1,928 @@
+
+%input#proposal_attributes{:type => "hidden", :name => "proposal_attributes", :value => @proposal.raw_data['attributes'][@proposal.barclamp].to_json}
+%p
+  %strong= t('.core_attributes')
+  = link_to "Raw", proposal_barclamp_path(:id => @proposal.name, :controller => @proposal.barclamp, :dep_raw => @dep_raw, :attr_raw => true), :style => "float: right;"
+  %div.container
+
+    %p
+      %label{ :for => :fs_checkpoint_dir }= t('.fs_checkpoint_dir')
+      %input#fs_checkpoint_dir{:type => "text", :name => "fs_checkpoint_dir", :'data-default' => "${hadoop.tmp.dir}/dfs/namesecondary", :onchange => "update_value('fs_checkpoint_dir', 'fs_checkpoint_dir', 'string')"}
+
+    %p
+      %label{ :for => :fs_checkpoint_edits_dir }= t('.fs_checkpoint_edits_dir')
+      %input#fs_checkpoint_edits_dir{:type => "text", :name => "fs_checkpoint_edits_dir", :'data-default' => "${fs.checkpoint.dir}", :onchange => "update_value('fs_checkpoint_edits_dir', 'fs_checkpoint_edits_dir', 'string')"}
+
+    %p
+      %label{ :for => :fs_checkpoint_period }= t('.fs_checkpoint_period')
+      %input#fs_checkpoint_period{:type => "text", :name => "fs_checkpoint_period", :'data-default' => "3600", :onchange => "update_value('fs_checkpoint_period', 'fs_checkpoint_period', 'string')"}
+
+    %p
+      %label{ :for => :fs_checkpoint_size }= t('.fs_checkpoint_size')
+      %input#fs_checkpoint_size{:type => "text", :name => "fs_checkpoint_size", :'data-default' => "67108864", :onchange => "update_value('fs_checkpoint_size', 'fs_checkpoint_size', 'string')"}
+
+    %p
+      %label{ :for => :fs_default_name }= t('.fs_default_name')
+      %input#fs_default_name{:type => "text", :name => "fs_default_name", :'data-default' => "file:///", :onchange => "update_value('fs_default_name', 'fs_default_name', 'string')"}
+
+    %p
+      %label{ :for => :fs_file_impl }= t('.fs_file_impl')
+      %input#fs_file_impl{:type => "text", :name => "fs_file_impl", :'data-default' => "org.apache.hadoop.fs.LocalFileSystem", :onchange => "update_value('fs_file_impl', 'fs_file_impl', 'string')"}
+
+    %p
+      %label{ :for => :fs_ftp_impl }= t('.fs_ftp_impl')
+      %input#fs_ftp_impl{:type => "text", :name => "fs_ftp_impl", :'data-default' => "org.apache.hadoop.fs.ftp.FTPFileSystem", :onchange => "update_value('fs_ftp_impl', 'fs_ftp_impl', 'string')"}
+
+    %p
+      %label{ :for => :fs_har_impl }= t('.fs_har_impl')
+      %input#fs_har_impl{:type => "text", :name => "fs_har_impl", :'data-default' => "org.apache.hadoop.fs.HarFileSystem", :onchange => "update_value('fs_har_impl', 'fs_har_impl', 'string')"}
+
+    %p
+      %label{ :for => :fs_har_impl_disable_cache }= t('.fs_har_impl_disable_cache')
+      = select_tag :fs_har_impl_disable_cache, options_for_select([['true','true'], ['false', 'false']], "true"), :onchange => "update_value('fs_har_impl_disable_cache', 'fs_har_impl_disable_cache', 'boolean')"
+
+    %p
+      %label{ :for => :fs_hdfs_impl }= t('.fs_hdfs_impl')
+      %input#fs_hdfs_impl{:type => "text", :name => "fs_hdfs_impl", :'data-default' => "org.apache.hadoop.hdfs.DistributedFileSystem", :onchange => "update_value('fs_hdfs_impl', 'fs_hdfs_impl', 'string')"}
+
+    %p
+      %label{ :for => :fs_hftp_impl }= t('.fs_hftp_impl')
+      %input#fs_hftp_impl{:type => "text", :name => "fs_hftp_impl", :'data-default' => "org.apache.hadoop.hdfs.HftpFileSystem", :onchange => "update_value('fs_hftp_impl', 'fs_hftp_impl', 'string')"}
+
+    %p
+      %label{ :for => :fs_hsftp_impl }= t('.fs_hsftp_impl')
+      %input#fs_hsftp_impl{:type => "text", :name => "fs_hsftp_impl", :'data-default' => "org.apache.hadoop.hdfs.HsftpFileSystem", :onchange => "update_value('fs_hsftp_impl', 'fs_hsftp_impl', 'string')"}
+
+    %p
+      %label{ :for => :fs_kfs_impl }= t('.fs_kfs_impl')
+      %input#fs_kfs_impl{:type => "text", :name => "fs_kfs_impl", :'data-default' => "org.apache.hadoop.fs.kfs.KosmosFileSystem", :onchange => "update_value('fs_kfs_impl', 'fs_kfs_impl', 'string')"}
+
+    %p
+      %label{ :for => :fs_ramfs_impl }= t('.fs_ramfs_impl')
+      %input#fs_ramfs_impl{:type => "text", :name => "fs_ramfs_impl", :'data-default' => "org.apache.hadoop.fs.InMemoryFileSystem", :onchange => "update_value('fs_ramfs_impl', 'fs_ramfs_impl', 'string')"}
+
+    %p
+      %label{ :for => :fs_s3_block_size }= t('.fs_s3_block_size')
+      %input#fs_s3_block_size{:type => "text", :name => "fs_s3_block_size", :'data-default' => "67108864", :onchange => "update_value('fs_s3_block_size', 'fs_s3_block_size', 'string')"}
+
+    %p
+      %label{ :for => :fs_s3_buffer_dir }= t('.fs_s3_buffer_dir')
+      %input#fs_s3_buffer_dir{:type => "text", :name => "fs_s3_buffer_dir", :'data-default' => "${hadoop.tmp.dir}/s3", :onchange => "update_value('fs_s3_buffer_dir', 'fs_s3_buffer_dir', 'string')"}
+
+    %p
+      %label{ :for => :fs_s3_impl }= t('.fs_s3_impl')
+      %input#fs_s3_impl{:type => "text", :name => "fs_s3_impl", :'data-default' => "org.apache.hadoop.fs.s3.S3FileSystem", :onchange => "update_value('fs_s3_impl', 'fs_s3_impl', 'string')"}
+
+    %p
+      %label{ :for => :fs_s3_maxRetries }= t('.fs_s3_maxRetries')
+      %input#fs_s3_maxRetries{:type => "text", :name => "fs_s3_maxRetries", :'data-default' => "4", :onchange => "update_value('fs_s3_maxRetries', 'fs_s3_maxRetries', 'string')"}
+
+    %p
+      %label{ :for => :fs_s3_sleepTimeSeconds }= t('.fs_s3_sleepTimeSeconds')
+      %input#fs_s3_sleepTimeSeconds{:type => "text", :name => "fs_s3_sleepTimeSeconds", :'data-default' => "10", :onchange => "update_value('fs_s3_sleepTimeSeconds', 'fs_s3_sleepTimeSeconds', 'string')"}
+
+    %p
+      %label{ :for => :fs_s3n_impl }= t('.fs_s3n_impl')
+      %input#fs_s3n_impl{:type => "text", :name => "fs_s3n_impl", :'data-default' => "org.apache.hadoop.fs.s3native.NativeS3FileSystem", :onchange => "update_value('fs_s3n_impl', 'fs_s3n_impl', 'string')"}
+
+    %p
+      %label{ :for => :fs_trash_interval }= t('.fs_trash_interval')
+      %input#fs_trash_interval{:type => "text", :name => "fs_trash_interval", :'data-default' => "", :onchange => "update_value('fs_trash_interval', 'fs_trash_interval', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_http_filter_initializers }= t('.hadoop_http_filter_initializers')
+      %input#hadoop_http_filter_initializers{:type => "text", :name => "hadoop_http_filter_initializers", :'data-default' => "", :onchange => "update_value('hadoop_http_filter_initializers', 'hadoop_http_filter_initializers', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_logfile_count }= t('.hadoop_logfile_count')
+      %input#hadoop_logfile_count{:type => "text", :name => "hadoop_logfile_count", :'data-default' => "10", :onchange => "update_value('hadoop_logfile_count', 'hadoop_logfile_count', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_logfile_size }= t('.hadoop_logfile_size')
+      %input#hadoop_logfile_size{:type => "text", :name => "hadoop_logfile_size", :'data-default' => "10000000", :onchange => "update_value('hadoop_logfile_size', 'hadoop_logfile_size', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_native_lib }= t('.hadoop_native_lib')
+      = select_tag :hadoop_native_lib, options_for_select([['true','true'], ['false', 'false']], "true"), :onchange => "update_value('hadoop_native_lib', 'hadoop_native_lib', 'boolean')"
+
+    %p
+      %label{ :for => :hadoop_rpc_socket_factory_class_ClientProtocol }= t('.hadoop_rpc_socket_factory_class_ClientProtocol')
+      %input#hadoop_rpc_socket_factory_class_ClientProtocol{:type => "text", :name => "hadoop_rpc_socket_factory_class_ClientProtocol", :'data-default' => "", :onchange => "update_value('hadoop_rpc_socket_factory_class_ClientProtocol', 'hadoop_rpc_socket_factory_class_ClientProtocol', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_rpc_socket_factory_class_default }= t('.hadoop_rpc_socket_factory_class_default')
+      %input#hadoop_rpc_socket_factory_class_default{:type => "text", :name => "hadoop_rpc_socket_factory_class_default", :'data-default' => "org.apache.hadoop.net.StandardSocketFactory", :onchange => "update_value('hadoop_rpc_socket_factory_class_default', 'hadoop_rpc_socket_factory_class_default', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_security_authentication }= t('.hadoop_security_authentication')
+      %input#hadoop_security_authentication{:type => "text", :name => "hadoop_security_authentication", :'data-default' => "simple", :onchange => "update_value('hadoop_security_authentication', 'hadoop_security_authentication', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_security_authorization }= t('.hadoop_security_authorization')
+      = select_tag :hadoop_security_authorization, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('hadoop_security_authorization', 'hadoop_security_authorization', 'boolean')"
+
+    %p
+      %label{ :for => :hadoop_security_group_mapping }= t('.hadoop_security_group_mapping')
+      %input#hadoop_security_group_mapping{:type => "text", :name => "hadoop_security_group_mapping", :'data-default' => "org.apache.hadoop.security.ShellBasedUnixGroupsMapping", :onchange => "update_value('hadoop_security_group_mapping', 'hadoop_security_group_mapping', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_security_uid_cache_secs }= t('.hadoop_security_uid_cache_secs')
+      %input#hadoop_security_uid_cache_secs{:type => "text", :name => "hadoop_security_uid_cache_secs", :'data-default' => "14400", :onchange => "update_value('hadoop_security_uid_cache_secs', 'hadoop_security_uid_cache_secs', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_socks_server }= t('.hadoop_socks_server')
+      %input#hadoop_socks_server{:type => "text", :name => "hadoop_socks_server", :'data-default' => "", :onchange => "update_value('hadoop_socks_server', 'hadoop_socks_server', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_tmp_dir }= t('.hadoop_tmp_dir')
+      %input#hadoop_tmp_dir{:type => "text", :name => "hadoop_tmp_dir", :'data-default' => "/tmp/hadoop-${user.name}", :onchange => "update_value('hadoop_tmp_dir', 'hadoop_tmp_dir', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_util_hash_type }= t('.hadoop_util_hash_type')
+      %input#hadoop_util_hash_type{:type => "text", :name => "hadoop_util_hash_type", :'data-default' => "murmur", :onchange => "update_value('hadoop_util_hash_type', 'hadoop_util_hash_type', 'string')"}
+
+    %p
+      %label{ :for => :io_bytes_per_checksum }= t('.io_bytes_per_checksum')
+      %input#io_bytes_per_checksum{:type => "text", :name => "io_bytes_per_checksum", :'data-default' => "512", :onchange => "update_value('io_bytes_per_checksum', 'io_bytes_per_checksum', 'string')"}
+
+    %p
+      %label{ :for => :io_compression_codecs }= t('.io_compression_codecs')
+      %input#io_compression_codecs{:type => "text", :name => "io_compression_codecs", :'data-default' => "org.apache.hadoop.io.compress.DefaultCodec,org.apache.hadoop.io.compress.GzipCodec,org.apache.hadoop.io.compress.BZip2Codec", :onchange => "update_value('io_compression_codecs', 'io_compression_codecs', 'string')"}
+
+    %p
+      %label{ :for => :io_file_buffer_size }= t('.io_file_buffer_size')
+      %input#io_file_buffer_size{:type => "text", :name => "io_file_buffer_size", :'data-default' => "4096", :onchange => "update_value('io_file_buffer_size', 'io_file_buffer_size', 'string')"}
+
+    %p
+      %label{ :for => :io_mapfile_bloom_error_rate }= t('.io_mapfile_bloom_error_rate')
+      %input#io_mapfile_bloom_error_rate{:type => "text", :name => "io_mapfile_bloom_error_rate", :'data-default' => "0.005", :onchange => "update_value('io_mapfile_bloom_error_rate', 'io_mapfile_bloom_error_rate', 'string')"}
+
+    %p
+      %label{ :for => :io_mapfile_bloom_size }= t('.io_mapfile_bloom_size')
+      %input#io_mapfile_bloom_size{:type => "text", :name => "io_mapfile_bloom_size", :'data-default' => "1048576", :onchange => "update_value('io_mapfile_bloom_size', 'io_mapfile_bloom_size', 'string')"}
+
+    %p
+      %label{ :for => :io_seqfile_compress_blocksize }= t('.io_seqfile_compress_blocksize')
+      %input#io_seqfile_compress_blocksize{:type => "text", :name => "io_seqfile_compress_blocksize", :'data-default' => "1000000", :onchange => "update_value('io_seqfile_compress_blocksize', 'io_seqfile_compress_blocksize', 'string')"}
+
+    %p
+      %label{ :for => :io_seqfile_lazydecompress }= t('.io_seqfile_lazydecompress')
+      = select_tag :io_seqfile_lazydecompress, options_for_select([['true','true'], ['false', 'false']], "true"), :onchange => "update_value('io_seqfile_lazydecompress', 'io_seqfile_lazydecompress', 'boolean')"
+
+    %p
+      %label{ :for => :io_seqfile_sorter_recordlimit }= t('.io_seqfile_sorter_recordlimit')
+      %input#io_seqfile_sorter_recordlimit{:type => "text", :name => "io_seqfile_sorter_recordlimit", :'data-default' => "1000000", :onchange => "update_value('io_seqfile_sorter_recordlimit', 'io_seqfile_sorter_recordlimit', 'string')"}
+
+    %p
+      %label{ :for => :io_serializations }= t('.io_serializations')
+      %input#io_serializations{:type => "text", :name => "io_serializations", :'data-default' => "org.apache.hadoop.io.serializer.WritableSerialization", :onchange => "update_value('io_serializations', 'io_serializations', 'string')"}
+
+    %p
+      %label{ :for => :io_skip_checksum_errors }= t('.io_skip_checksum_errors')
+      = select_tag :io_skip_checksum_errors, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('io_skip_checksum_errors', 'io_skip_checksum_errors', 'boolean')"
+
+    %p
+      %label{ :for => :ipc_client_connect_max_retries }= t('.ipc_client_connect_max_retries')
+      %input#ipc_client_connect_max_retries{:type => "text", :name => "ipc_client_connect_max_retries", :'data-default' => "10", :onchange => "update_value('ipc_client_connect_max_retries', 'ipc_client_connect_max_retries', 'string')"}
+
+    %p
+      %label{ :for => :ipc_client_connection_maxidletime }= t('.ipc_client_connection_maxidletime')
+      %input#ipc_client_connection_maxidletime{:type => "text", :name => "ipc_client_connection_maxidletime", :'data-default' => "10000", :onchange => "update_value('ipc_client_connection_maxidletime', 'ipc_client_connection_maxidletime', 'string')"}
+
+    %p
+      %label{ :for => :ipc_client_idlethreshold }= t('.ipc_client_idlethreshold')
+      %input#ipc_client_idlethreshold{:type => "text", :name => "ipc_client_idlethreshold", :'data-default' => "4000", :onchange => "update_value('ipc_client_idlethreshold', 'ipc_client_idlethreshold', 'string')"}
+
+    %p
+      %label{ :for => :ipc_client_kill_max }= t('.ipc_client_kill_max')
+      %input#ipc_client_kill_max{:type => "text", :name => "ipc_client_kill_max", :'data-default' => "10", :onchange => "update_value('ipc_client_kill_max', 'ipc_client_kill_max', 'string')"}
+
+    %p
+      %label{ :for => :ipc_client_tcpnodelay }= t('.ipc_client_tcpnodelay')
+      = select_tag :ipc_client_tcpnodelay, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('ipc_client_tcpnodelay', 'ipc_client_tcpnodelay', 'boolean')"
+
+    %p
+      %label{ :for => :ipc_server_listen_queue_size }= t('.ipc_server_listen_queue_size')
+      %input#ipc_server_listen_queue_size{:type => "text", :name => "ipc_server_listen_queue_size", :'data-default' => "128", :onchange => "update_value('ipc_server_listen_queue_size', 'ipc_server_listen_queue_size', 'string')"}
+
+    %p
+      %label{ :for => :ipc_server_tcpnodelay }= t('.ipc_server_tcpnodelay')
+      = select_tag :ipc_server_tcpnodelay, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('ipc_server_tcpnodelay', 'ipc_server_tcpnodelay', 'boolean')"
+
+    %p
+      %label{ :for => :local_cache_size }= t('.local_cache_size')
+      %input#local_cache_size{:type => "text", :name => "local_cache_size", :'data-default' => "10737418240", :onchange => "update_value('local_cache_size', 'local_cache_size', 'string')"}
+
+    %p
+      %label{ :for => :topology_node_switch_mapping_impl }= t('.topology_node_switch_mapping_impl')
+      %input#topology_node_switch_mapping_impl{:type => "text", :name => "topology_node_switch_mapping_impl", :'data-default' => "org.apache.hadoop.net.ScriptBasedMapping", :onchange => "update_value('topology_node_switch_mapping_impl', 'topology_node_switch_mapping_impl', 'string')"}
+
+    %p
+      %label{ :for => :topology_script_file_name }= t('.topology_script_file_name')
+      %input#topology_script_file_name{:type => "text", :name => "topology_script_file_name", :'data-default' => "", :onchange => "update_value('topology_script_file_name', 'topology_script_file_name', 'string')"}
+
+    %p
+      %label{ :for => :topology_script_number_args }= t('.topology_script_number_args')
+      %input#topology_script_number_args{:type => "text", :name => "topology_script_number_args", :'data-default' => "100", :onchange => "update_value('topology_script_number_args', 'topology_script_number_args', 'string')"}
+
+    %p
+      %label{ :for => :webinterface_private_actions }= t('.webinterface_private_actions')
+      = select_tag :webinterface_private_actions, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('webinterface_private_actions', 'webinterface_private_actions', 'boolean')"
+
+    %p
+    %br
+    %strong= t('.hdfs_attributes')
+
+    %p
+      %label{ :for => :dfs_access_time_precision }= t('.dfs_access_time_precision')
+      %input#dfs_access_time_precision{:type => "text", :name => "dfs_access_time_precision", :'data-default' => "3600000", :onchange => "update_value('dfs_access_time_precision', 'dfs_access_time_precision', 'string')"}
+
+    %p
+      %label{ :for => :dfs_balance_bandwidthPerSec }= t('.dfs_balance_bandwidthPerSec')
+      %input#dfs_balance_bandwidthPerSec{:type => "text", :name => "dfs_balance_bandwidthPerSec", :'data-default' => "1048576", :onchange => "update_value('dfs_balance_bandwidthPerSec', 'dfs_balance_bandwidthPerSec', 'string')"}
+
+    %p
+      %label{ :for => :dfs_block_access_key_update_interval }= t('.dfs_block_access_key_update_interval')
+      %input#dfs_block_access_key_update_interval{:type => "text", :name => "dfs_block_access_key_update_interval", :'data-default' => "600", :onchange => "update_value('dfs_block_access_key_update_interval', 'dfs_block_access_key_update_interval', 'string')"}
+
+    %p
+      %label{ :for => :dfs_block_access_token_enable }= t('.dfs_block_access_token_enable')
+      = select_tag :dfs_block_access_token_enable, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('dfs_block_access_token_enable', 'dfs_block_access_token_enable', 'boolean')"
+
+    %p
+      %label{ :for => :dfs_block_access_token_lifetime }= t('.dfs_block_access_token_lifetime')
+      %input#dfs_block_access_token_lifetime{:type => "text", :name => "dfs_block_access_token_lifetime", :'data-default' => "600", :onchange => "update_value('dfs_block_access_token_lifetime', 'dfs_block_access_token_lifetime', 'string')"}
+
+    %p
+      %label{ :for => :dfs_block_size }= t('.dfs_block_size')
+      %input#dfs_block_size{:type => "text", :name => "dfs_block_size", :'data-default' => "67108864", :onchange => "update_value('dfs_block_size', 'dfs_block_size', 'string')"}
+
+    %p
+      %label{ :for => :dfs_blockreport_initialDelay }= t('.dfs_blockreport_initialDelay')
+      %input#dfs_blockreport_initialDelay{:type => "text", :name => "dfs_blockreport_initialDelay", :'data-default' => "", :onchange => "update_value('dfs_blockreport_initialDelay', 'dfs_blockreport_initialDelay', 'string')"}
+
+    %p
+      %label{ :for => :dfs_blockreport_intervalMsec }= t('.dfs_blockreport_intervalMsec')
+      %input#dfs_blockreport_intervalMsec{:type => "text", :name => "dfs_blockreport_intervalMsec", :'data-default' => "3600000", :onchange => "update_value('dfs_blockreport_intervalMsec', 'dfs_blockreport_intervalMsec', 'string')"}
+
+    %p
+      %label{ :for => :dfs_client_block_write_retries }= t('.dfs_client_block_write_retries')
+      %input#dfs_client_block_write_retries{:type => "text", :name => "dfs_client_block_write_retries", :'data-default' => "3", :onchange => "update_value('dfs_client_block_write_retries', 'dfs_client_block_write_retries', 'string')"}
+
+    %p
+      %label{ :for => :dfs_data_dir }= t('.dfs_data_dir')
+      %input#dfs_data_dir{:type => "text", :name => "dfs_data_dir", :'data-default' => "${hadoop.tmp.dir}/dfs/data", :onchange => "update_value('dfs_data_dir', 'dfs_data_dir', 'string')"}
+
+    %p
+      %label{ :for => :dfs_datanode_address }= t('.dfs_datanode_address')
+      %input#dfs_datanode_address{:type => "text", :name => "dfs_datanode_address", :'data-default' => "0.0.0.0:50010", :onchange => "update_value('dfs_datanode_address', 'dfs_datanode_address', 'string')"}
+
+    %p
+      %label{ :for => :dfs_datanode_data_dir_perm }= t('.dfs_datanode_data_dir_perm')
+      %input#dfs_datanode_data_dir_perm{:type => "text", :name => "dfs_datanode_data_dir_perm", :'data-default' => "755", :onchange => "update_value('dfs_datanode_data_dir_perm', 'dfs_datanode_data_dir_perm', 'string')"}
+
+    %p
+      %label{ :for => :dfs_datanode_dns_interface }= t('.dfs_datanode_dns_interface')
+      %input#dfs_datanode_dns_interface{:type => "text", :name => "dfs_datanode_dns_interface", :'data-default' => "default", :onchange => "update_value('dfs_datanode_dns_interface', 'dfs_datanode_dns_interface', 'string')"}
+
+    %p
+      %label{ :for => :dfs_datanode_dns_nameserver }= t('.dfs_datanode_dns_nameserver')
+      %input#dfs_datanode_dns_nameserver{:type => "text", :name => "dfs_datanode_dns_nameserver", :'data-default' => "default", :onchange => "update_value('dfs_datanode_dns_nameserver', 'dfs_datanode_dns_nameserver', 'string')"}
+
+    %p
+      %label{ :for => :dfs_datanode_du_reserved }= t('.dfs_datanode_du_reserved')
+      %input#dfs_datanode_du_reserved{:type => "text", :name => "dfs_datanode_du_reserved", :'data-default' => "", :onchange => "update_value('dfs_datanode_du_reserved', 'dfs_datanode_du_reserved', 'string')"}
+
+    %p
+      %label{ :for => :dfs_datanode_failed_volumes_tolerated }= t('.dfs_datanode_failed_volumes_tolerated')
+      %input#dfs_datanode_failed_volumes_tolerated{:type => "text", :name => "dfs_datanode_failed_volumes_tolerated", :'data-default' => "", :onchange => "update_value('dfs_datanode_failed_volumes_tolerated', 'dfs_datanode_failed_volumes_tolerated', 'string')"}
+
+    %p
+      %label{ :for => :dfs_datanode_handler_count }= t('.dfs_datanode_handler_count')
+      %input#dfs_datanode_handler_count{:type => "text", :name => "dfs_datanode_handler_count", :'data-default' => "3", :onchange => "update_value('dfs_datanode_handler_count', 'dfs_datanode_handler_count', 'string')"}
+
+    %p
+      %label{ :for => :dfs_datanode_http_address }= t('.dfs_datanode_http_address')
+      %input#dfs_datanode_http_address{:type => "text", :name => "dfs_datanode_http_address", :'data-default' => "0.0.0.0:50075", :onchange => "update_value('dfs_datanode_http_address', 'dfs_datanode_http_address', 'string')"}
+
+    %p
+      %label{ :for => :dfs_datanode_https_address }= t('.dfs_datanode_https_address')
+      %input#dfs_datanode_https_address{:type => "text", :name => "dfs_datanode_https_address", :'data-default' => "0.0.0.0:50475", :onchange => "update_value('dfs_datanode_https_address', 'dfs_datanode_https_address', 'string')"}
+
+    %p
+      %label{ :for => :dfs_datanode_ipc_address }= t('.dfs_datanode_ipc_address')
+      %input#dfs_datanode_ipc_address{:type => "text", :name => "dfs_datanode_ipc_address", :'data-default' => "0.0.0.0:50020", :onchange => "update_value('dfs_datanode_ipc_address', 'dfs_datanode_ipc_address', 'string')"}
+
+    %p
+      %label{ :for => :dfs_default_chunk_view_size }= t('.dfs_default_chunk_view_size')
+      %input#dfs_default_chunk_view_size{:type => "text", :name => "dfs_default_chunk_view_size", :'data-default' => "32768", :onchange => "update_value('dfs_default_chunk_view_size', 'dfs_default_chunk_view_size', 'string')"}
+
+    %p
+      %label{ :for => :dfs_df_interval }= t('.dfs_df_interval')
+      %input#dfs_df_interval{:type => "text", :name => "dfs_df_interval", :'data-default' => "60000", :onchange => "update_value('dfs_df_interval', 'dfs_df_interval', 'string')"}
+
+    %p
+      %label{ :for => :dfs_heartbeat_interval }= t('.dfs_heartbeat_interval')
+      %input#dfs_heartbeat_interval{:type => "text", :name => "dfs_heartbeat_interval", :'data-default' => "3", :onchange => "update_value('dfs_heartbeat_interval', 'dfs_heartbeat_interval', 'string')"}
+
+    %p
+      %label{ :for => :dfs_hosts }= t('.dfs_hosts')
+      %input#dfs_hosts{:type => "text", :name => "dfs_hosts", :'data-default' => "", :onchange => "update_value('dfs_hosts', 'dfs_hosts', 'string')"}
+
+    %p
+      %label{ :for => :dfs_hosts_exclude }= t('.dfs_hosts_exclude')
+      %input#dfs_hosts_exclude{:type => "text", :name => "dfs_hosts_exclude", :'data-default' => "", :onchange => "update_value('dfs_hosts_exclude', 'dfs_hosts_exclude', 'string')"}
+
+    %p
+      %label{ :for => :dfs_http_address }= t('.dfs_http_address')
+      %input#dfs_http_address{:type => "text", :name => "dfs_http_address", :'data-default' => "0.0.0.0:50070", :onchange => "update_value('dfs_http_address', 'dfs_http_address', 'string')"}
+
+    %p
+      %label{ :for => :dfs_https_address }= t('.dfs_https_address')
+      %input#dfs_https_address{:type => "text", :name => "dfs_https_address", :'data-default' => "0.0.0.0:50470", :onchange => "update_value('dfs_https_address', 'dfs_https_address', 'string')"}
+
+    %p
+      %label{ :for => :dfs_https_client_keystore_resource }= t('.dfs_https_client_keystore_resource')
+      %input#dfs_https_client_keystore_resource{:type => "text", :name => "dfs_https_client_keystore_resource", :'data-default' => "ssl-client.xml", :onchange => "update_value('dfs_https_client_keystore_resource', 'dfs_https_client_keystore_resource', 'string')"}
+
+    %p
+      %label{ :for => :dfs_https_enable }= t('.dfs_https_enable')
+      = select_tag :dfs_https_enable, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('dfs_https_enable', 'dfs_https_enable', 'boolean')"
+
+    %p
+      %label{ :for => :dfs_https_need_client_auth }= t('.dfs_https_need_client_auth')
+      = select_tag :dfs_https_need_client_auth, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('dfs_https_need_client_auth', 'dfs_https_need_client_auth', 'boolean')"
+
+    %p
+      %label{ :for => :dfs_https_server_keystore_resource }= t('.dfs_https_server_keystore_resource')
+      %input#dfs_https_server_keystore_resource{:type => "text", :name => "dfs_https_server_keystore_resource", :'data-default' => "ssl-server.xml", :onchange => "update_value('dfs_https_server_keystore_resource', 'dfs_https_server_keystore_resource', 'string')"}
+
+    %p
+      %label{ :for => :dfs_max_objects }= t('.dfs_max_objects')
+      %input#dfs_max_objects{:type => "text", :name => "dfs_max_objects", :'data-default' => "", :onchange => "update_value('dfs_max_objects', 'dfs_max_objects', 'string')"}
+
+    %p
+      %label{ :for => :dfs_name_dir }= t('.dfs_name_dir')
+      %input#dfs_name_dir{:type => "text", :name => "dfs_name_dir", :'data-default' => "${hadoop.tmp.dir}/dfs/name", :onchange => "update_value('dfs_name_dir', 'dfs_name_dir', 'string')"}
+
+    %p
+      %label{ :for => :dfs_name_edits_dir }= t('.dfs_name_edits_dir')
+      %input#dfs_name_edits_dir{:type => "text", :name => "dfs_name_edits_dir", :'data-default' => "${dfs.name.dir}", :onchange => "update_value('dfs_name_edits_dir', 'dfs_name_edits_dir', 'string')"}
+
+    %p
+      %label{ :for => :dfs_namenode_decommission_interval }= t('.dfs_namenode_decommission_interval')
+      %input#dfs_namenode_decommission_interval{:type => "text", :name => "dfs_namenode_decommission_interval", :'data-default' => "30", :onchange => "update_value('dfs_namenode_decommission_interval', 'dfs_namenode_decommission_interval', 'string')"}
+
+    %p
+      %label{ :for => :dfs_namenode_decommission_nodes_per_interval }= t('.dfs_namenode_decommission_nodes_per_interval')
+      %input#dfs_namenode_decommission_nodes_per_interval{:type => "text", :name => "dfs_namenode_decommission_nodes_per_interval", :'data-default' => "5", :onchange => "update_value('dfs_namenode_decommission_nodes_per_interval', 'dfs_namenode_decommission_nodes_per_interval', 'string')"}
+
+    %p
+      %label{ :for => :dfs_namenode_delegation_key_update_interval }= t('.dfs_namenode_delegation_key_update_interval')
+      %input#dfs_namenode_delegation_key_update_interval{:type => "text", :name => "dfs_namenode_delegation_key_update_interval", :'data-default' => "86400000", :onchange => "update_value('dfs_namenode_delegation_key_update_interval', 'dfs_namenode_delegation_key_update_interval', 'string')"}
+
+    %p
+      %label{ :for => :dfs_namenode_delegation_token_max_lifetime }= t('.dfs_namenode_delegation_token_max_lifetime')
+      %input#dfs_namenode_delegation_token_max_lifetime{:type => "text", :name => "dfs_namenode_delegation_token_max_lifetime", :'data-default' => "604800000", :onchange => "update_value('dfs_namenode_delegation_token_max_lifetime', 'dfs_namenode_delegation_token_max_lifetime', 'string')"}
+
+    %p
+      %label{ :for => :dfs_namenode_delegation_token_renew_interval }= t('.dfs_namenode_delegation_token_renew_interval')
+      %input#dfs_namenode_delegation_token_renew_interval{:type => "text", :name => "dfs_namenode_delegation_token_renew_interval", :'data-default' => "86400000", :onchange => "update_value('dfs_namenode_delegation_token_renew_interval', 'dfs_namenode_delegation_token_renew_interval', 'string')"}
+
+    %p
+      %label{ :for => :dfs_namenode_handler_count }= t('.dfs_namenode_handler_count')
+      %input#dfs_namenode_handler_count{:type => "text", :name => "dfs_namenode_handler_count", :'data-default' => "10", :onchange => "update_value('dfs_namenode_handler_count', 'dfs_namenode_handler_count', 'string')"}
+
+    %p
+      %label{ :for => :dfs_namenode_logging_level }= t('.dfs_namenode_logging_level')
+      %input#dfs_namenode_logging_level{:type => "text", :name => "dfs_namenode_logging_level", :'data-default' => "info", :onchange => "update_value('dfs_namenode_logging_level', 'dfs_namenode_logging_level', 'string')"}
+
+    %p
+      %label{ :for => :dfs_permissions }= t('.dfs_permissions')
+      = select_tag :dfs_permissions, options_for_select([['true','true'], ['false', 'false']], "true"), :onchange => "update_value('dfs_permissions', 'dfs_permissions', 'boolean')"
+
+    %p
+      %label{ :for => :dfs_permissions_supergroup }= t('.dfs_permissions_supergroup')
+      %input#dfs_permissions_supergroup{:type => "text", :name => "dfs_permissions_supergroup", :'data-default' => "supergroup", :onchange => "update_value('dfs_permissions_supergroup', 'dfs_permissions_supergroup', 'string')"}
+
+    %p
+      %label{ :for => :dfs_replication }= t('.dfs_replication')
+      %input#dfs_replication{:type => "text", :name => "dfs_replication", :'data-default' => "3", :onchange => "update_value('dfs_replication', 'dfs_replication', 'string')"}
+
+    %p
+      %label{ :for => :dfs_replication_considerLoad }= t('.dfs_replication_considerLoad')
+      = select_tag :dfs_replication_considerLoad, options_for_select([['true','true'], ['false', 'false']], "true"), :onchange => "update_value('dfs_replication_considerLoad', 'dfs_replication_considerLoad', 'boolean')"
+
+    %p
+      %label{ :for => :dfs_replication_interval }= t('.dfs_replication_interval')
+      %input#dfs_replication_interval{:type => "text", :name => "dfs_replication_interval", :'data-default' => "3", :onchange => "update_value('dfs_replication_interval', 'dfs_replication_interval', 'string')"}
+
+    %p
+      %label{ :for => :dfs_replication_max }= t('.dfs_replication_max')
+      %input#dfs_replication_max{:type => "text", :name => "dfs_replication_max", :'data-default' => "512", :onchange => "update_value('dfs_replication_max', 'dfs_replication_max', 'string')"}
+
+    %p
+      %label{ :for => :dfs_replication_min }= t('.dfs_replication_min')
+      %input#dfs_replication_min{:type => "text", :name => "dfs_replication_min", :'data-default' => "1", :onchange => "update_value('dfs_replication_min', 'dfs_replication_min', 'string')"}
+
+    %p
+      %label{ :for => :dfs_safemode_extension }= t('.dfs_safemode_extension')
+      %input#dfs_safemode_extension{:type => "text", :name => "dfs_safemode_extension", :'data-default' => "30000", :onchange => "update_value('dfs_safemode_extension', 'dfs_safemode_extension', 'string')"}
+
+    %p
+      %label{ :for => :dfs_safemode_threshold_pct }= t('.dfs_safemode_threshold_pct')
+      %input#dfs_safemode_threshold_pct{:type => "text", :name => "dfs_safemode_threshold_pct", :'data-default' => "0.999f", :onchange => "update_value('dfs_safemode_threshold_pct', 'dfs_safemode_threshold_pct', 'string')"}
+
+    %p
+      %label{ :for => :dfs_secondary_http_address }= t('.dfs_secondary_http_address')
+      %input#dfs_secondary_http_address{:type => "text", :name => "dfs_secondary_http_address", :'data-default' => "0.0.0.0:50090", :onchange => "update_value('dfs_secondary_http_address', 'dfs_secondary_http_address', 'string')"}
+
+    %p
+      %label{ :for => :dfs_support_append }= t('.dfs_support_append')
+      = select_tag :dfs_support_append, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('dfs_support_append', 'dfs_support_append', 'boolean')"
+
+    %p
+      %label{ :for => :dfs_web_ugi }= t('.dfs_web_ugi')
+      %input#dfs_web_ugi{:type => "text", :name => "dfs_web_ugi", :'data-default' => "webuser,webgroup", :onchange => "update_value('dfs_web_ugi', 'dfs_web_ugi', 'string')"}
+
+    %p
+    %br
+    %strong= t('.mapred_attributes')
+
+    %p
+      %label{ :for => :hadoop_job_history_location }= t('.hadoop_job_history_location')
+      %input#hadoop_job_history_location{:type => "text", :name => "hadoop_job_history_location", :'data-default' => "", :onchange => "update_value('hadoop_job_history_location', 'hadoop_job_history_location', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_job_history_user_location }= t('.hadoop_job_history_user_location')
+      %input#hadoop_job_history_user_location{:type => "text", :name => "hadoop_job_history_user_location", :'data-default' => "", :onchange => "update_value('hadoop_job_history_user_location', 'hadoop_job_history_user_location', 'string')"}
+
+    %p
+      %label{ :for => :hadoop_rpc_socket_factory_class_JobSubmissionProtocol }= t('.hadoop_rpc_socket_factory_class_JobSubmissionProtocol')
+      %input#hadoop_rpc_socket_factory_class_JobSubmissionProtocol{:type => "text", :name => "hadoop_rpc_socket_factory_class_JobSubmissionProtocol", :'data-default' => "", :onchange => "update_value('hadoop_rpc_socket_factory_class_JobSubmissionProtocol', 'hadoop_rpc_socket_factory_class_JobSubmissionProtocol', 'string')"}
+
+    %p
+      %label{ :for => :io_map_index_skip }= t('.io_map_index_skip')
+      %input#io_map_index_skip{:type => "text", :name => "io_map_index_skip", :'data-default' => "", :onchange => "update_value('io_map_index_skip', 'io_map_index_skip', 'string')"}
+
+    %p
+      %label{ :for => :io_sort_factor }= t('.io_sort_factor')
+      %input#io_sort_factor{:type => "text", :name => "io_sort_factor", :'data-default' => "10", :onchange => "update_value('io_sort_factor', 'io_sort_factor', 'string')"}
+
+    %p
+      %label{ :for => :io_sort_mb }= t('.io_sort_mb')
+      %input#io_sort_mb{:type => "text", :name => "io_sort_mb", :'data-default' => "100", :onchange => "update_value('io_sort_mb', 'io_sort_mb', 'string')"}
+
+    %p
+      %label{ :for => :io_sort_record_percent }= t('.io_sort_record_percent')
+      %input#io_sort_record_percent{:type => "text", :name => "io_sort_record_percent", :'data-default' => "0.05", :onchange => "update_value('io_sort_record_percent', 'io_sort_record_percent', 'string')"}
+
+    %p
+      %label{ :for => :io_sort_spill_percent }= t('.io_sort_spill_percent')
+      %input#io_sort_spill_percent{:type => "text", :name => "io_sort_spill_percent", :'data-default' => "0.80", :onchange => "update_value('io_sort_spill_percent', 'io_sort_spill_percent', 'string')"}
+
+    %p
+      %label{ :for => :job_end_retry_attempts }= t('.job_end_retry_attempts')
+      %input#job_end_retry_attempts{:type => "text", :name => "job_end_retry_attempts", :'data-default' => "", :onchange => "update_value('job_end_retry_attempts', 'job_end_retry_attempts', 'string')"}
+
+    %p
+      %label{ :for => :job_end_retry_interval }= t('.job_end_retry_interval')
+      %input#job_end_retry_interval{:type => "text", :name => "job_end_retry_interval", :'data-default' => "30000", :onchange => "update_value('job_end_retry_interval', 'job_end_retry_interval', 'string')"}
+
+    %p
+      %label{ :for => :jobclient_output_filter }= t('.jobclient_output_filter')
+      %input#jobclient_output_filter{:type => "text", :name => "jobclient_output_filter", :'data-default' => "FAILED", :onchange => "update_value('jobclient_output_filter', 'jobclient_output_filter', 'string')"}
+
+    %p
+      %label{ :for => :keep_failed_task_files }= t('.keep_failed_task_files')
+      = select_tag :keep_failed_task_files, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('keep_failed_task_files', 'keep_failed_task_files', 'boolean')"
+
+    %p
+      %label{ :for => :map_sort_class }= t('.map_sort_class')
+      %input#map_sort_class{:type => "text", :name => "map_sort_class", :'data-default' => "org.apache.hadoop.util.QuickSort", :onchange => "update_value('map_sort_class', 'map_sort_class', 'string')"}
+
+    %p
+      %label{ :for => :mapred_acls_enabled }= t('.mapred_acls_enabled')
+      = select_tag :mapred_acls_enabled, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('mapred_acls_enabled', 'mapred_acls_enabled', 'boolean')"
+
+    %p
+      %label{ :for => :mapred_child_env }= t('.mapred_child_env')
+      %input#mapred_child_env{:type => "text", :name => "mapred_child_env", :'data-default' => "", :onchange => "update_value('mapred_child_env', 'mapred_child_env', 'string')"}
+
+    %p
+      %label{ :for => :mapred_child_java_opts }= t('.mapred_child_java_opts')
+      %input#mapred_child_java_opts{:type => "text", :name => "mapred_child_java_opts", :'data-default' => "-Xmx200m", :onchange => "update_value('mapred_child_java_opts', 'mapred_child_java_opts', 'string')"}
+
+    %p
+      %label{ :for => :mapred_child_tmp }= t('.mapred_child_tmp')
+      %input#mapred_child_tmp{:type => "text", :name => "mapred_child_tmp", :'data-default' => "./tmp", :onchange => "update_value('mapred_child_tmp', 'mapred_child_tmp', 'string')"}
+
+    %p
+      %label{ :for => :mapred_child_ulimit }= t('.mapred_child_ulimit')
+      %input#mapred_child_ulimit{:type => "text", :name => "mapred_child_ulimit", :'data-default' => "", :onchange => "update_value('mapred_child_ulimit', 'mapred_child_ulimit', 'string')"}
+
+    %p
+      %label{ :for => :mapred_cluster_map_memory_mb }= t('.mapred_cluster_map_memory_mb')
+      %input#mapred_cluster_map_memory_mb{:type => "text", :name => "mapred_cluster_map_memory_mb", :'data-default' => "-1", :onchange => "update_value('mapred_cluster_map_memory_mb', 'mapred_cluster_map_memory_mb', 'string')"}
+
+    %p
+      %label{ :for => :mapred_cluster_max_map_memory_mb }= t('.mapred_cluster_max_map_memory_mb')
+      %input#mapred_cluster_max_map_memory_mb{:type => "text", :name => "mapred_cluster_max_map_memory_mb", :'data-default' => "-1", :onchange => "update_value('mapred_cluster_max_map_memory_mb', 'mapred_cluster_max_map_memory_mb', 'string')"}
+
+    %p
+      %label{ :for => :mapred_cluster_max_reduce_memory_mb }= t('.mapred_cluster_max_reduce_memory_mb')
+      %input#mapred_cluster_max_reduce_memory_mb{:type => "text", :name => "mapred_cluster_max_reduce_memory_mb", :'data-default' => "-1", :onchange => "update_value('mapred_cluster_max_reduce_memory_mb', 'mapred_cluster_max_reduce_memory_mb', 'string')"}
+
+    %p
+      %label{ :for => :mapred_cluster_reduce_memory_mb }= t('.mapred_cluster_reduce_memory_mb')
+      %input#mapred_cluster_reduce_memory_mb{:type => "text", :name => "mapred_cluster_reduce_memory_mb", :'data-default' => "-1", :onchange => "update_value('mapred_cluster_reduce_memory_mb', 'mapred_cluster_reduce_memory_mb', 'string')"}
+
+    %p
+      %label{ :for => :mapred_compress_map_output }= t('.mapred_compress_map_output')
+      = select_tag :mapred_compress_map_output, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('mapred_compress_map_output', 'mapred_compress_map_output', 'boolean')"
+
+    %p
+      %label{ :for => :mapred_healthChecker_interval }= t('.mapred_healthChecker_interval')
+      %input#mapred_healthChecker_interval{:type => "text", :name => "mapred_healthChecker_interval", :'data-default' => "60000", :onchange => "update_value('mapred_healthChecker_interval', 'mapred_healthChecker_interval', 'string')"}
+
+    %p
+      %label{ :for => :mapred_healthChecker_script_args }= t('.mapred_healthChecker_script_args')
+      %input#mapred_healthChecker_script_args{:type => "text", :name => "mapred_healthChecker_script_args", :'data-default' => "", :onchange => "update_value('mapred_healthChecker_script_args', 'mapred_healthChecker_script_args', 'string')"}
+
+    %p
+      %label{ :for => :mapred_healthChecker_script_path }= t('.mapred_healthChecker_script_path')
+      %input#mapred_healthChecker_script_path{:type => "text", :name => "mapred_healthChecker_script_path", :'data-default' => "", :onchange => "update_value('mapred_healthChecker_script_path', 'mapred_healthChecker_script_path', 'string')"}
+
+    %p
+      %label{ :for => :mapred_healthChecker_script_timeout }= t('.mapred_healthChecker_script_timeout')
+      %input#mapred_healthChecker_script_timeout{:type => "text", :name => "mapred_healthChecker_script_timeout", :'data-default' => "600000", :onchange => "update_value('mapred_healthChecker_script_timeout', 'mapred_healthChecker_script_timeout', 'string')"}
+
+    %p
+      %label{ :for => :mapred_heartbeats_in_second }= t('.mapred_heartbeats_in_second')
+      %input#mapred_heartbeats_in_second{:type => "text", :name => "mapred_heartbeats_in_second", :'data-default' => "100", :onchange => "update_value('mapred_heartbeats_in_second', 'mapred_heartbeats_in_second', 'string')"}
+
+    %p
+      %label{ :for => :mapred_hosts }= t('.mapred_hosts')
+      %input#mapred_hosts{:type => "text", :name => "mapred_hosts", :'data-default' => "", :onchange => "update_value('mapred_hosts', 'mapred_hosts', 'string')"}
+
+    %p
+      %label{ :for => :mapred_hosts_exclude }= t('.mapred_hosts_exclude')
+      %input#mapred_hosts_exclude{:type => "text", :name => "mapred_hosts_exclude", :'data-default' => "", :onchange => "update_value('mapred_hosts_exclude', 'mapred_hosts_exclude', 'string')"}
+
+    %p
+      %label{ :for => :mapred_inmem_merge_threshold }= t('.mapred_inmem_merge_threshold')
+      %input#mapred_inmem_merge_threshold{:type => "text", :name => "mapred_inmem_merge_threshold", :'data-default' => "1000", :onchange => "update_value('mapred_inmem_merge_threshold', 'mapred_inmem_merge_threshold', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_map_memory_mb }= t('.mapred_job_map_memory_mb')
+      %input#mapred_job_map_memory_mb{:type => "text", :name => "mapred_job_map_memory_mb", :'data-default' => "-1", :onchange => "update_value('mapred_job_map_memory_mb', 'mapred_job_map_memory_mb', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_queue_name }= t('.mapred_job_queue_name')
+      %input#mapred_job_queue_name{:type => "text", :name => "mapred_job_queue_name", :'data-default' => "default", :onchange => "update_value('mapred_job_queue_name', 'mapred_job_queue_name', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_reduce_input_buffer_percent }= t('.mapred_job_reduce_input_buffer_percent')
+      %input#mapred_job_reduce_input_buffer_percent{:type => "text", :name => "mapred_job_reduce_input_buffer_percent", :'data-default' => "0.0", :onchange => "update_value('mapred_job_reduce_input_buffer_percent', 'mapred_job_reduce_input_buffer_percent', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_reduce_memory_mb }= t('.mapred_job_reduce_memory_mb')
+      %input#mapred_job_reduce_memory_mb{:type => "text", :name => "mapred_job_reduce_memory_mb", :'data-default' => "-1", :onchange => "update_value('mapred_job_reduce_memory_mb', 'mapred_job_reduce_memory_mb', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_reuse_jvm_num_tasks }= t('.mapred_job_reuse_jvm_num_tasks')
+      %input#mapred_job_reuse_jvm_num_tasks{:type => "text", :name => "mapred_job_reuse_jvm_num_tasks", :'data-default' => "1", :onchange => "update_value('mapred_job_reuse_jvm_num_tasks', 'mapred_job_reuse_jvm_num_tasks', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_shuffle_input_buffer_percent }= t('.mapred_job_shuffle_input_buffer_percent')
+      %input#mapred_job_shuffle_input_buffer_percent{:type => "text", :name => "mapred_job_shuffle_input_buffer_percent", :'data-default' => "0.70", :onchange => "update_value('mapred_job_shuffle_input_buffer_percent', 'mapred_job_shuffle_input_buffer_percent', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_shuffle_merge_percent }= t('.mapred_job_shuffle_merge_percent')
+      %input#mapred_job_shuffle_merge_percent{:type => "text", :name => "mapred_job_shuffle_merge_percent", :'data-default' => "0.66", :onchange => "update_value('mapred_job_shuffle_merge_percent', 'mapred_job_shuffle_merge_percent', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_tracker }= t('.mapred_job_tracker')
+      %input#mapred_job_tracker{:type => "text", :name => "mapred_job_tracker", :'data-default' => "local", :onchange => "update_value('mapred_job_tracker', 'mapred_job_tracker', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_tracker_handler_count }= t('.mapred_job_tracker_handler_count')
+      %input#mapred_job_tracker_handler_count{:type => "text", :name => "mapred_job_tracker_handler_count", :'data-default' => "10", :onchange => "update_value('mapred_job_tracker_handler_count', 'mapred_job_tracker_handler_count', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_tracker_history_completed_location }= t('.mapred_job_tracker_history_completed_location')
+      %input#mapred_job_tracker_history_completed_location{:type => "text", :name => "mapred_job_tracker_history_completed_location", :'data-default' => "", :onchange => "update_value('mapred_job_tracker_history_completed_location', 'mapred_job_tracker_history_completed_location', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_tracker_http_address }= t('.mapred_job_tracker_http_address')
+      %input#mapred_job_tracker_http_address{:type => "text", :name => "mapred_job_tracker_http_address", :'data-default' => "0.0.0.0:50030", :onchange => "update_value('mapred_job_tracker_http_address', 'mapred_job_tracker_http_address', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_tracker_jobhistory_lru_cache_size }= t('.mapred_job_tracker_jobhistory_lru_cache_size')
+      %input#mapred_job_tracker_jobhistory_lru_cache_size{:type => "text", :name => "mapred_job_tracker_jobhistory_lru_cache_size", :'data-default' => "5", :onchange => "update_value('mapred_job_tracker_jobhistory_lru_cache_size', 'mapred_job_tracker_jobhistory_lru_cache_size', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_tracker_persist_jobstatus_active }= t('.mapred_job_tracker_persist_jobstatus_active')
+      = select_tag :mapred_job_tracker_persist_jobstatus_active, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('mapred_job_tracker_persist_jobstatus_active', 'mapred_job_tracker_persist_jobstatus_active', 'boolean')"
+
+    %p
+      %label{ :for => :mapred_job_tracker_persist_jobstatus_dir }= t('.mapred_job_tracker_persist_jobstatus_dir')
+      %input#mapred_job_tracker_persist_jobstatus_dir{:type => "text", :name => "mapred_job_tracker_persist_jobstatus_dir", :'data-default' => "/jobtracker/jobsInfo", :onchange => "update_value('mapred_job_tracker_persist_jobstatus_dir', 'mapred_job_tracker_persist_jobstatus_dir', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_tracker_persist_jobstatus_hours }= t('.mapred_job_tracker_persist_jobstatus_hours')
+      %input#mapred_job_tracker_persist_jobstatus_hours{:type => "text", :name => "mapred_job_tracker_persist_jobstatus_hours", :'data-default' => "", :onchange => "update_value('mapred_job_tracker_persist_jobstatus_hours', 'mapred_job_tracker_persist_jobstatus_hours', 'string')"}
+
+    %p
+      %label{ :for => :mapred_job_tracker_retiredjobs_cache_size }= t('.mapred_job_tracker_retiredjobs_cache_size')
+      %input#mapred_job_tracker_retiredjobs_cache_size{:type => "text", :name => "mapred_job_tracker_retiredjobs_cache_size", :'data-default' => "1000", :onchange => "update_value('mapred_job_tracker_retiredjobs_cache_size', 'mapred_job_tracker_retiredjobs_cache_size', 'string')"}
+
+    %p
+      %label{ :for => :mapred_jobtracker_blacklist_fault_bucket_width }= t('.mapred_jobtracker_blacklist_fault_bucket_width')
+      %input#mapred_jobtracker_blacklist_fault_bucket_width{:type => "text", :name => "mapred_jobtracker_blacklist_fault_bucket_width", :'data-default' => "15", :onchange => "update_value('mapred_jobtracker_blacklist_fault_bucket_width', 'mapred_jobtracker_blacklist_fault_bucket_width', 'string')"}
+
+    %p
+      %label{ :for => :mapred_jobtracker_blacklist_fault_timeout_window }= t('.mapred_jobtracker_blacklist_fault_timeout_window')
+      %input#mapred_jobtracker_blacklist_fault_timeout_window{:type => "text", :name => "mapred_jobtracker_blacklist_fault_timeout_window", :'data-default' => "180", :onchange => "update_value('mapred_jobtracker_blacklist_fault_timeout_window', 'mapred_jobtracker_blacklist_fault_timeout_window', 'string')"}
+
+    %p
+      %label{ :for => :mapred_jobtracker_completeuserjobs_maximum }= t('.mapred_jobtracker_completeuserjobs_maximum')
+      %input#mapred_jobtracker_completeuserjobs_maximum{:type => "text", :name => "mapred_jobtracker_completeuserjobs_maximum", :'data-default' => "100", :onchange => "update_value('mapred_jobtracker_completeuserjobs_maximum', 'mapred_jobtracker_completeuserjobs_maximum', 'string')"}
+
+    %p
+      %label{ :for => :mapred_jobtracker_job_history_block_size }= t('.mapred_jobtracker_job_history_block_size')
+      %input#mapred_jobtracker_job_history_block_size{:type => "text", :name => "mapred_jobtracker_job_history_block_size", :'data-default' => "3145728", :onchange => "update_value('mapred_jobtracker_job_history_block_size', 'mapred_jobtracker_job_history_block_size', 'string')"}
+
+    %p
+      %label{ :for => :mapred_jobtracker_maxtasks_per_job }= t('.mapred_jobtracker_maxtasks_per_job')
+      %input#mapred_jobtracker_maxtasks_per_job{:type => "text", :name => "mapred_jobtracker_maxtasks_per_job", :'data-default' => "-1", :onchange => "update_value('mapred_jobtracker_maxtasks_per_job', 'mapred_jobtracker_maxtasks_per_job', 'string')"}
+
+    %p
+      %label{ :for => :mapred_jobtracker_restart_recover }= t('.mapred_jobtracker_restart_recover')
+      = select_tag :mapred_jobtracker_restart_recover, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('mapred_jobtracker_restart_recover', 'mapred_jobtracker_restart_recover', 'boolean')"
+
+    %p
+      %label{ :for => :mapred_jobtracker_taskScheduler }= t('.mapred_jobtracker_taskScheduler')
+      %input#mapred_jobtracker_taskScheduler{:type => "text", :name => "mapred_jobtracker_taskScheduler", :'data-default' => "org.apache.hadoop.mapred.JobQueueTaskScheduler", :onchange => "update_value('mapred_jobtracker_taskScheduler', 'mapred_jobtracker_taskScheduler', 'string')"}
+
+    %p
+      %label{ :for => :mapred_jobtracker_taskScheduler_maxRunningTasksPerJob }= t('.mapred_jobtracker_taskScheduler_maxRunningTasksPerJob')
+      %input#mapred_jobtracker_taskScheduler_maxRunningTasksPerJob{:type => "text", :name => "mapred_jobtracker_taskScheduler_maxRunningTasksPerJob", :'data-default' => "", :onchange => "update_value('mapred_jobtracker_taskScheduler_maxRunningTasksPerJob', 'mapred_jobtracker_taskScheduler_maxRunningTasksPerJob', 'string')"}
+
+    %p
+      %label{ :for => :mapred_line_input_format_linespermap }= t('.mapred_line_input_format_linespermap')
+      %input#mapred_line_input_format_linespermap{:type => "text", :name => "mapred_line_input_format_linespermap", :'data-default' => "1", :onchange => "update_value('mapred_line_input_format_linespermap', 'mapred_line_input_format_linespermap', 'string')"}
+
+    %p
+      %label{ :for => :mapred_local_dir }= t('.mapred_local_dir')
+      %input#mapred_local_dir{:type => "text", :name => "mapred_local_dir", :'data-default' => "${hadoop.tmp.dir}/mapred/local", :onchange => "update_value('mapred_local_dir', 'mapred_local_dir', 'string')"}
+
+    %p
+      %label{ :for => :mapred_local_dir_minspacekill }= t('.mapred_local_dir_minspacekill')
+      %input#mapred_local_dir_minspacekill{:type => "text", :name => "mapred_local_dir_minspacekill", :'data-default' => "", :onchange => "update_value('mapred_local_dir_minspacekill', 'mapred_local_dir_minspacekill', 'string')"}
+
+    %p
+      %label{ :for => :mapred_local_dir_minspacestart }= t('.mapred_local_dir_minspacestart')
+      %input#mapred_local_dir_minspacestart{:type => "text", :name => "mapred_local_dir_minspacestart", :'data-default' => "", :onchange => "update_value('mapred_local_dir_minspacestart', 'mapred_local_dir_minspacestart', 'string')"}
+
+    %p
+      %label{ :for => :mapred_map_max_attempts }= t('.mapred_map_max_attempts')
+      %input#mapred_map_max_attempts{:type => "text", :name => "mapred_map_max_attempts", :'data-default' => "4", :onchange => "update_value('mapred_map_max_attempts', 'mapred_map_max_attempts', 'string')"}
+
+    %p
+      %label{ :for => :mapred_map_output_compression_codec }= t('.mapred_map_output_compression_codec')
+      %input#mapred_map_output_compression_codec{:type => "text", :name => "mapred_map_output_compression_codec", :'data-default' => "org.apache.hadoop.io.compress.DefaultCodec", :onchange => "update_value('mapred_map_output_compression_codec', 'mapred_map_output_compression_codec', 'string')"}
+
+    %p
+      %label{ :for => :mapred_map_tasks }= t('.mapred_map_tasks')
+      %input#mapred_map_tasks{:type => "text", :name => "mapred_map_tasks", :'data-default' => "2", :onchange => "update_value('mapred_map_tasks', 'mapred_map_tasks', 'string')"}
+
+    %p
+      %label{ :for => :mapred_map_tasks_speculative_execution }= t('.mapred_map_tasks_speculative_execution')
+      = select_tag :mapred_map_tasks_speculative_execution, options_for_select([['true','true'], ['false', 'false']], "true"), :onchange => "update_value('mapred_map_tasks_speculative_execution', 'mapred_map_tasks_speculative_execution', 'boolean')"
+
+    %p
+      %label{ :for => :mapred_max_tracker_blacklists }= t('.mapred_max_tracker_blacklists')
+      %input#mapred_max_tracker_blacklists{:type => "text", :name => "mapred_max_tracker_blacklists", :'data-default' => "4", :onchange => "update_value('mapred_max_tracker_blacklists', 'mapred_max_tracker_blacklists', 'string')"}
+
+    %p
+      %label{ :for => :mapred_max_tracker_failures }= t('.mapred_max_tracker_failures')
+      %input#mapred_max_tracker_failures{:type => "text", :name => "mapred_max_tracker_failures", :'data-default' => "4", :onchange => "update_value('mapred_max_tracker_failures', 'mapred_max_tracker_failures', 'string')"}
+
+    %p
+      %label{ :for => :mapred_merge_recordsBeforeProgress }= t('.mapred_merge_recordsBeforeProgress')
+      %input#mapred_merge_recordsBeforeProgress{:type => "text", :name => "mapred_merge_recordsBeforeProgress", :'data-default' => "10000", :onchange => "update_value('mapred_merge_recordsBeforeProgress', 'mapred_merge_recordsBeforeProgress', 'string')"}
+
+    %p
+      %label{ :for => :mapred_min_split_size }= t('.mapred_min_split_size')
+      %input#mapred_min_split_size{:type => "text", :name => "mapred_min_split_size", :'data-default' => "", :onchange => "update_value('mapred_min_split_size', 'mapred_min_split_size', 'string')"}
+
+    %p
+      %label{ :for => :mapred_output_compress }= t('.mapred_output_compress')
+      = select_tag :mapred_output_compress, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('mapred_output_compress', 'mapred_output_compress', 'boolean')"
+
+    %p
+      %label{ :for => :mapred_output_compression_codec }= t('.mapred_output_compression_codec')
+      %input#mapred_output_compression_codec{:type => "text", :name => "mapred_output_compression_codec", :'data-default' => "org.apache.hadoop.io.compress.DefaultCodec", :onchange => "update_value('mapred_output_compression_codec', 'mapred_output_compression_codec', 'string')"}
+
+    %p
+      %label{ :for => :mapred_output_compression_type }= t('.mapred_output_compression_type')
+      %input#mapred_output_compression_type{:type => "text", :name => "mapred_output_compression_type", :'data-default' => "RECORD", :onchange => "update_value('mapred_output_compression_type', 'mapred_output_compression_type', 'string')"}
+
+    %p
+      %label{ :for => :mapred_queue_default_state }= t('.mapred_queue_default_state')
+      %input#mapred_queue_default_state{:type => "text", :name => "mapred_queue_default_state", :'data-default' => "RUNNING", :onchange => "update_value('mapred_queue_default_state', 'mapred_queue_default_state', 'string')"}
+
+    %p
+      %label{ :for => :mapred_queue_names }= t('.mapred_queue_names')
+      %input#mapred_queue_names{:type => "text", :name => "mapred_queue_names", :'data-default' => "default", :onchange => "update_value('mapred_queue_names', 'mapred_queue_names', 'string')"}
+
+    %p
+      %label{ :for => :mapred_reduce_copy_backoff }= t('.mapred_reduce_copy_backoff')
+      %input#mapred_reduce_copy_backoff{:type => "text", :name => "mapred_reduce_copy_backoff", :'data-default' => "300", :onchange => "update_value('mapred_reduce_copy_backoff', 'mapred_reduce_copy_backoff', 'string')"}
+
+    %p
+      %label{ :for => :mapred_reduce_max_attempts }= t('.mapred_reduce_max_attempts')
+      %input#mapred_reduce_max_attempts{:type => "text", :name => "mapred_reduce_max_attempts", :'data-default' => "4", :onchange => "update_value('mapred_reduce_max_attempts', 'mapred_reduce_max_attempts', 'string')"}
+
+    %p
+      %label{ :for => :mapred_reduce_parallel_copies }= t('.mapred_reduce_parallel_copies')
+      %input#mapred_reduce_parallel_copies{:type => "text", :name => "mapred_reduce_parallel_copies", :'data-default' => "5", :onchange => "update_value('mapred_reduce_parallel_copies', 'mapred_reduce_parallel_copies', 'string')"}
+
+    %p
+      %label{ :for => :mapred_reduce_slowstart_completed_maps }= t('.mapred_reduce_slowstart_completed_maps')
+      %input#mapred_reduce_slowstart_completed_maps{:type => "text", :name => "mapred_reduce_slowstart_completed_maps", :'data-default' => "0.05", :onchange => "update_value('mapred_reduce_slowstart_completed_maps', 'mapred_reduce_slowstart_completed_maps', 'string')"}
+
+    %p
+      %label{ :for => :mapred_reduce_tasks }= t('.mapred_reduce_tasks')
+      %input#mapred_reduce_tasks{:type => "text", :name => "mapred_reduce_tasks", :'data-default' => "1", :onchange => "update_value('mapred_reduce_tasks', 'mapred_reduce_tasks', 'string')"}
+
+    %p
+      %label{ :for => :mapred_reduce_tasks_speculative_execution }= t('.mapred_reduce_tasks_speculative_execution')
+      = select_tag :mapred_reduce_tasks_speculative_execution, options_for_select([['true','true'], ['false', 'false']], "true"), :onchange => "update_value('mapred_reduce_tasks_speculative_execution', 'mapred_reduce_tasks_speculative_execution', 'boolean')"
+
+    %p
+      %label{ :for => :mapred_skip_attempts_to_start_skipping }= t('.mapred_skip_attempts_to_start_skipping')
+      %input#mapred_skip_attempts_to_start_skipping{:type => "text", :name => "mapred_skip_attempts_to_start_skipping", :'data-default' => "2", :onchange => "update_value('mapred_skip_attempts_to_start_skipping', 'mapred_skip_attempts_to_start_skipping', 'string')"}
+
+    %p
+      %label{ :for => :mapred_skip_map_auto_incr_proc_count }= t('.mapred_skip_map_auto_incr_proc_count')
+      = select_tag :mapred_skip_map_auto_incr_proc_count, options_for_select([['true','true'], ['false', 'false']], "true"), :onchange => "update_value('mapred_skip_map_auto_incr_proc_count', 'mapred_skip_map_auto_incr_proc_count', 'boolean')"
+
+    %p
+      %label{ :for => :mapred_skip_map_max_skip_records }= t('.mapred_skip_map_max_skip_records')
+      %input#mapred_skip_map_max_skip_records{:type => "text", :name => "mapred_skip_map_max_skip_records", :'data-default' => "", :onchange => "update_value('mapred_skip_map_max_skip_records', 'mapred_skip_map_max_skip_records', 'string')"}
+
+    %p
+      %label{ :for => :mapred_skip_out_dir }= t('.mapred_skip_out_dir')
+      %input#mapred_skip_out_dir{:type => "text", :name => "mapred_skip_out_dir", :'data-default' => "", :onchange => "update_value('mapred_skip_out_dir', 'mapred_skip_out_dir', 'string')"}
+
+    %p
+      %label{ :for => :mapred_skip_reduce_auto_incr_proc_count }= t('.mapred_skip_reduce_auto_incr_proc_count')
+      = select_tag :mapred_skip_reduce_auto_incr_proc_count, options_for_select([['true','true'], ['false', 'false']], "true"), :onchange => "update_value('mapred_skip_reduce_auto_incr_proc_count', 'mapred_skip_reduce_auto_incr_proc_count', 'boolean')"
+
+    %p
+      %label{ :for => :mapred_skip_reduce_max_skip_groups }= t('.mapred_skip_reduce_max_skip_groups')
+      %input#mapred_skip_reduce_max_skip_groups{:type => "text", :name => "mapred_skip_reduce_max_skip_groups", :'data-default' => "", :onchange => "update_value('mapred_skip_reduce_max_skip_groups', 'mapred_skip_reduce_max_skip_groups', 'string')"}
+
+    %p
+      %label{ :for => :mapred_submit_replication }= t('.mapred_submit_replication')
+      %input#mapred_submit_replication{:type => "text", :name => "mapred_submit_replication", :'data-default' => "10", :onchange => "update_value('mapred_submit_replication', 'mapred_submit_replication', 'string')"}
+
+    %p
+      %label{ :for => :mapred_system_dir }= t('.mapred_system_dir')
+      %input#mapred_system_dir{:type => "text", :name => "mapred_system_dir", :'data-default' => "${hadoop.tmp.dir}/mapred/system", :onchange => "update_value('mapred_system_dir', 'mapred_system_dir', 'string')"}
+
+    %p
+      %label{ :for => :mapred_task_cache_levels }= t('.mapred_task_cache_levels')
+      %input#mapred_task_cache_levels{:type => "text", :name => "mapred_task_cache_levels", :'data-default' => "2", :onchange => "update_value('mapred_task_cache_levels', 'mapred_task_cache_levels', 'string')"}
+
+    %p
+      %label{ :for => :mapred_task_profile }= t('.mapred_task_profile')
+      = select_tag :mapred_task_profile, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('mapred_task_profile', 'mapred_task_profile', 'boolean')"
+
+    %p
+      %label{ :for => :mapred_task_profile_maps }= t('.mapred_task_profile_maps')
+      %input#mapred_task_profile_maps{:type => "text", :name => "mapred_task_profile_maps", :'data-default' => "0-2", :onchange => "update_value('mapred_task_profile_maps', 'mapred_task_profile_maps', 'string')"}
+
+    %p
+      %label{ :for => :mapred_task_profile_reduces }= t('.mapred_task_profile_reduces')
+      %input#mapred_task_profile_reduces{:type => "text", :name => "mapred_task_profile_reduces", :'data-default' => "0-2", :onchange => "update_value('mapred_task_profile_reduces', 'mapred_task_profile_reduces', 'string')"}
+
+    %p
+      %label{ :for => :mapred_task_timeout }= t('.mapred_task_timeout')
+      %input#mapred_task_timeout{:type => "text", :name => "mapred_task_timeout", :'data-default' => "600000", :onchange => "update_value('mapred_task_timeout', 'mapred_task_timeout', 'string')"}
+
+    %p
+      %label{ :for => :mapred_task_tracker_http_address }= t('.mapred_task_tracker_http_address')
+      %input#mapred_task_tracker_http_address{:type => "text", :name => "mapred_task_tracker_http_address", :'data-default' => "0.0.0.0:50060", :onchange => "update_value('mapred_task_tracker_http_address', 'mapred_task_tracker_http_address', 'string')"}
+
+    %p
+      %label{ :for => :mapred_task_tracker_report_address }= t('.mapred_task_tracker_report_address')
+      %input#mapred_task_tracker_report_address{:type => "text", :name => "mapred_task_tracker_report_address", :'data-default' => "127.0.0.1:0", :onchange => "update_value('mapred_task_tracker_report_address', 'mapred_task_tracker_report_address', 'string')"}
+
+    %p
+      %label{ :for => :mapred_task_tracker_task_controller }= t('.mapred_task_tracker_task_controller')
+      %input#mapred_task_tracker_task_controller{:type => "text", :name => "mapred_task_tracker_task_controller", :'data-default' => "org.apache.hadoop.mapred.DefaultTaskController", :onchange => "update_value('mapred_task_tracker_task_controller', 'mapred_task_tracker_task_controller', 'string')"}
+
+    %p
+      %label{ :for => :mapred_tasktracker_dns_interface }= t('.mapred_tasktracker_dns_interface')
+      %input#mapred_tasktracker_dns_interface{:type => "text", :name => "mapred_tasktracker_dns_interface", :'data-default' => "default", :onchange => "update_value('mapred_tasktracker_dns_interface', 'mapred_tasktracker_dns_interface', 'string')"}
+
+    %p
+      %label{ :for => :mapred_tasktracker_dns_nameserver }= t('.mapred_tasktracker_dns_nameserver')
+      %input#mapred_tasktracker_dns_nameserver{:type => "text", :name => "mapred_tasktracker_dns_nameserver", :'data-default' => "default", :onchange => "update_value('mapred_tasktracker_dns_nameserver', 'mapred_tasktracker_dns_nameserver', 'string')"}
+
+    %p
+      %label{ :for => :mapred_tasktracker_expiry_interval }= t('.mapred_tasktracker_expiry_interval')
+      %input#mapred_tasktracker_expiry_interval{:type => "text", :name => "mapred_tasktracker_expiry_interval", :'data-default' => "600000", :onchange => "update_value('mapred_tasktracker_expiry_interval', 'mapred_tasktracker_expiry_interval', 'string')"}
+
+    %p
+      %label{ :for => :mapred_tasktracker_indexcache_mb }= t('.mapred_tasktracker_indexcache_mb')
+      %input#mapred_tasktracker_indexcache_mb{:type => "text", :name => "mapred_tasktracker_indexcache_mb", :'data-default' => "10", :onchange => "update_value('mapred_tasktracker_indexcache_mb', 'mapred_tasktracker_indexcache_mb', 'string')"}
+
+    %p
+      %label{ :for => :mapred_tasktracker_map_tasks_maximum }= t('.mapred_tasktracker_map_tasks_maximum')
+      %input#mapred_tasktracker_map_tasks_maximum{:type => "text", :name => "mapred_tasktracker_map_tasks_maximum", :'data-default' => "2", :onchange => "update_value('mapred_tasktracker_map_tasks_maximum', 'mapred_tasktracker_map_tasks_maximum', 'string')"}
+
+    %p
+      %label{ :for => :mapred_tasktracker_memory_calculator_plugin }= t('.mapred_tasktracker_memory_calculator_plugin')
+      %input#mapred_tasktracker_memory_calculator_plugin{:type => "text", :name => "mapred_tasktracker_memory_calculator_plugin", :'data-default' => "", :onchange => "update_value('mapred_tasktracker_memory_calculator_plugin', 'mapred_tasktracker_memory_calculator_plugin', 'string')"}
+
+    %p
+      %label{ :for => :mapred_tasktracker_reduce_tasks_maximum }= t('.mapred_tasktracker_reduce_tasks_maximum')
+      %input#mapred_tasktracker_reduce_tasks_maximum{:type => "text", :name => "mapred_tasktracker_reduce_tasks_maximum", :'data-default' => "2", :onchange => "update_value('mapred_tasktracker_reduce_tasks_maximum', 'mapred_tasktracker_reduce_tasks_maximum', 'string')"}
+
+    %p
+      %label{ :for => :mapred_tasktracker_taskmemorymanager_monitoring_interval }= t('.mapred_tasktracker_taskmemorymanager_monitoring_interval')
+      %input#mapred_tasktracker_taskmemorymanager_monitoring_interval{:type => "text", :name => "mapred_tasktracker_taskmemorymanager_monitoring_interval", :'data-default' => "5000", :onchange => "update_value('mapred_tasktracker_taskmemorymanager_monitoring_interval', 'mapred_tasktracker_taskmemorymanager_monitoring_interval', 'string')"}
+
+    %p
+      %label{ :for => :mapred_tasktracker_tasks_sleeptime_before_sigkill }= t('.mapred_tasktracker_tasks_sleeptime_before_sigkill')
+      %input#mapred_tasktracker_tasks_sleeptime_before_sigkill{:type => "text", :name => "mapred_tasktracker_tasks_sleeptime_before_sigkill", :'data-default' => "5000", :onchange => "update_value('mapred_tasktracker_tasks_sleeptime_before_sigkill', 'mapred_tasktracker_tasks_sleeptime_before_sigkill', 'string')"}
+
+    %p
+      %label{ :for => :mapred_temp_dir }= t('.mapred_temp_dir')
+      %input#mapred_temp_dir{:type => "text", :name => "mapred_temp_dir", :'data-default' => "${hadoop.tmp.dir}/mapred/temp", :onchange => "update_value('mapred_temp_dir', 'mapred_temp_dir', 'string')"}
+
+    %p
+      %label{ :for => :mapred_user_jobconf_limit }= t('.mapred_user_jobconf_limit')
+      %input#mapred_user_jobconf_limit{:type => "text", :name => "mapred_user_jobconf_limit", :'data-default' => "5242880", :onchange => "update_value('mapred_user_jobconf_limit', 'mapred_user_jobconf_limit', 'string')"}
+
+    %p
+      %label{ :for => :mapred_userlog_limit_kb }= t('.mapred_userlog_limit_kb')
+      %input#mapred_userlog_limit_kb{:type => "text", :name => "mapred_userlog_limit_kb", :'data-default' => "", :onchange => "update_value('mapred_userlog_limit_kb', 'mapred_userlog_limit_kb', 'string')"}
+
+    %p
+      %label{ :for => :mapred_userlog_retain_hours }= t('.mapred_userlog_retain_hours')
+      %input#mapred_userlog_retain_hours{:type => "text", :name => "mapred_userlog_retain_hours", :'data-default' => "24", :onchange => "update_value('mapred_userlog_retain_hours', 'mapred_userlog_retain_hours', 'string')"}
+
+    %p
+      %label{ :for => :mapreduce_job_acl_modify_job }= t('.mapreduce_job_acl_modify_job')
+      %input#mapreduce_job_acl_modify_job{:type => "text", :name => "mapreduce_job_acl_modify_job", :'data-default' => "", :onchange => "update_value('mapreduce_job_acl_modify_job', 'mapreduce_job_acl_modify_job', 'string')"}
+
+    %p
+      %label{ :for => :mapreduce_job_acl_view_job }= t('.mapreduce_job_acl_view_job')
+      %input#mapreduce_job_acl_view_job{:type => "text", :name => "mapreduce_job_acl_view_job", :'data-default' => "", :onchange => "update_value('mapreduce_job_acl_view_job', 'mapreduce_job_acl_view_job', 'string')"}
+
+    %p
+      %label{ :for => :mapreduce_job_complete_cancel_delegation_tokens }= t('.mapreduce_job_complete_cancel_delegation_tokens')
+      = select_tag :mapreduce_job_complete_cancel_delegation_tokens, options_for_select([['true','true'], ['false', 'false']], "true"), :onchange => "update_value('mapreduce_job_complete_cancel_delegation_tokens', 'mapreduce_job_complete_cancel_delegation_tokens', 'boolean')"
+
+    %p
+      %label{ :for => :mapreduce_job_counters_limit }= t('.mapreduce_job_counters_limit')
+      %input#mapreduce_job_counters_limit{:type => "text", :name => "mapreduce_job_counters_limit", :'data-default' => "120", :onchange => "update_value('mapreduce_job_counters_limit', 'mapreduce_job_counters_limit', 'string')"}
+
+    %p
+      %label{ :for => :mapreduce_job_split_metainfo_maxsize }= t('.mapreduce_job_split_metainfo_maxsize')
+      %input#mapreduce_job_split_metainfo_maxsize{:type => "text", :name => "mapreduce_job_split_metainfo_maxsize", :'data-default' => "10000000", :onchange => "update_value('mapreduce_job_split_metainfo_maxsize', 'mapreduce_job_split_metainfo_maxsize', 'string')"}
+
+    %p
+      %label{ :for => :mapreduce_jobtracker_staging_root_dir }= t('.mapreduce_jobtracker_staging_root_dir')
+      %input#mapreduce_jobtracker_staging_root_dir{:type => "text", :name => "mapreduce_jobtracker_staging_root_dir", :'data-default' => "${hadoop.tmp.dir}/mapred/staging", :onchange => "update_value('mapreduce_jobtracker_staging_root_dir', 'mapreduce_jobtracker_staging_root_dir', 'string')"}
+
+    %p
+      %label{ :for => :mapreduce_reduce_input_limit }= t('.mapreduce_reduce_input_limit')
+      %input#mapreduce_reduce_input_limit{:type => "text", :name => "mapreduce_reduce_input_limit", :'data-default' => "-1", :onchange => "update_value('mapreduce_reduce_input_limit', 'mapreduce_reduce_input_limit', 'string')"}
+
+    %p
+      %label{ :for => :mapreduce_reduce_shuffle_connect_timeout }= t('.mapreduce_reduce_shuffle_connect_timeout')
+      %input#mapreduce_reduce_shuffle_connect_timeout{:type => "text", :name => "mapreduce_reduce_shuffle_connect_timeout", :'data-default' => "180000", :onchange => "update_value('mapreduce_reduce_shuffle_connect_timeout', 'mapreduce_reduce_shuffle_connect_timeout', 'string')"}
+
+    %p
+      %label{ :for => :mapreduce_reduce_shuffle_read_timeout }= t('.mapreduce_reduce_shuffle_read_timeout')
+      %input#mapreduce_reduce_shuffle_read_timeout{:type => "text", :name => "mapreduce_reduce_shuffle_read_timeout", :'data-default' => "180000", :onchange => "update_value('mapreduce_reduce_shuffle_read_timeout', 'mapreduce_reduce_shuffle_read_timeout', 'string')"}
+
+    %p
+      %label{ :for => :mapreduce_tasktracker_group }= t('.mapreduce_tasktracker_group')
+      %input#mapreduce_tasktracker_group{:type => "text", :name => "mapreduce_tasktracker_group", :'data-default' => "", :onchange => "update_value('mapreduce_tasktracker_group', 'mapreduce_tasktracker_group', 'string')"}
+
+    %p
+      %label{ :for => :mapreduce_tasktracker_outofband_heartbeat }= t('.mapreduce_tasktracker_outofband_heartbeat')
+      = select_tag :mapreduce_tasktracker_outofband_heartbeat, options_for_select([['true','true'], ['false', 'false']], "false"), :onchange => "update_value('mapreduce_tasktracker_outofband_heartbeat', 'mapreduce_tasktracker_outofband_heartbeat', 'boolean')"
+
+    %p
+      %label{ :for => :tasktracker_http_threads }= t('.tasktracker_http_threads')
+      %input#tasktracker_http_threads{:type => "text", :name => "tasktracker_http_threads", :'data-default' => "40", :onchange => "update_value('tasktracker_http_threads', 'tasktracker_http_threads', 'string')"}
+
+
