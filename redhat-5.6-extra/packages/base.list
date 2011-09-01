@@ -47,7 +47,7 @@ pkgs minicom
 gems rails-2.3.12 rainbows
 
 # build essential stuff
-pkgs autoconf flex bison make patch
+pkgs autoconf flex bison make patch createrepo
 
 # ruby stuff
 pkgs ruby-shadow

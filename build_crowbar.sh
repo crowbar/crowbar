@@ -82,6 +82,15 @@ cleanup() {
 # Arrange for cleanup to be called at the most common exit points.
 trap cleanup 0 INT QUIT TERM
 
+# Source our config file if we have one
+[[ -f $HOME/.build-crowbar.conf ]] && \
+    . "$HOME/.build-crowbar.conf"
+
+# Look for a local one.
+[[ -f build-crowbar.conf ]] && \
+    . "build-crowbar.conf"
+
+
 # Next, some configuration variables that can be used to tune how the 
 # build process works.
 
@@ -295,14 +304,6 @@ fi
     [[ $CACHE_THROWAWAY_STASH ]] && \
 	in_cache git stash apply "$CACHE_THROWAWAY_STASH" 
 
-    # Source our config file if we have one
-    [[ -f $HOME/.build-crowbar.conf ]] && \
-	. "$HOME/.build-crowbar.conf"
-
-    # Look for a local one.
-    [[ -f build-crowbar.conf ]] && \
-	. "build-crowbar.conf"
-
     # Finalize where we expect to find our caches and out chroot.
     # If they were set in one of the conf files, don't touch them.
 
@@ -439,8 +440,9 @@ fi
 	# Copy contents of the found directories into $BUILD_DIR, taking care
 	# to not clobber existing files.
 	mkdir -p "$BUILD_DIR/$d"
+	chmod u+wr "$BUILD_DIR/$d"
 	# We could also use cp -n, but rhel5 and centos5 do not understand it.
-	rsync -a --ignore-existing "$IMAGE_DIR/$d/." "$BUILD_DIR/$d/."
+	rsync -rl --ignore-existing --inplace "$IMAGE_DIR/$d/." "$BUILD_DIR/$d/."
 	chmod -R u+wr "$BUILD_DIR/$d"
 	# Bind mount an empty directory on the $IMAGE_DIR instance.
 	sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/$d"
