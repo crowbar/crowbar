@@ -717,7 +717,7 @@ run_admin_node() {
 	# create our admin disk image
     update_status admin "Creating disk image"
     screen -S "$SCREENNAME" -X screen -t Status "$HOME/test_framework/watch_Status.sh"
-    qemu-img create -f raw "$testdir/admin.disk" 10G &>/dev/null
+    qemu-img create -f raw "$testdir/admin.disk" 16G &>/dev/null
 
     # makenics populates vm_nics with the appropriate information for
     # run_kvm.  This part cannot run in a subshell, because it relies
@@ -819,7 +819,7 @@ create_slaves() {
 	# Clear out our status, if one is lying around.
 	>"$testdir/$nodename.status"
 	>"$testdir/$nodename.reset"
-	qemu-img create -f raw "$testdir/$nodename.disk" 6G &>/dev/null
+	qemu-img create -f raw "$testdir/$nodename.disk" 10G &>/dev/null
         # Create a second and third image for Swift testing
 	qemu-img create -f qcow2 "$testdir/$nodename-01.disk" 1G &>/dev/null
 	qemu-img create -f qcow2 "$testdir/$nodename-02.disk" 1G &>/dev/null
