@@ -206,7 +206,8 @@ include_recipe "apache2::mod_negotiation"
 include_recipe "apache2::mod_setenvif"
 include_recipe "apache2::mod_log_config" if platform?("centos", "redhat", "fedora", "suse", "arch")
 
-apache_site "default" if platform?("centos", "redhat", "fedora")
+# We don't need this.
+#apache_site "default" if platform?("centos", "redhat", "fedora")
 
 service "apache2" do
   action :start
