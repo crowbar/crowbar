@@ -52,7 +52,7 @@ f.each { |line|
       networks << logical_name
       mac_map[logical_name] = mac_addr 
       if !File.exists?("/tmp/tcpdump.#{logical_name}.out") 
-        System.background_time_command(45, true, logical_name, "ifconfig #{logical_name} up ; tcpdump -c 1 -lv -v -i #{logical_name} -a -e -s 1514 ether proto 0x88cc > /tmp/tcpdump.#{logical_name}.out")
+        System.background_time_command(45, true, logical_name, "ifconfig #{logical_name} up ; /opt/tcpdump/tcpdump -c 1 -lv -v -i #{logical_name} -a -e -s 1514 ether proto 0x88cc > /tmp/tcpdump.#{logical_name}.out")
         wait=true
       end
     end
@@ -73,7 +73,7 @@ if bus_found
   networks << logical_name
   mac_map[logical_name] = mac_addr 
   if !File.exists?("/tmp/tcpdump.#{logical_name}.out") 
-    System.background_time_command(45, true, logical_name, "ifconfig #{logical_name} up ; tcpdump -c 1 -lv -v -i #{logical_name} -a -e -s 1514 ether proto 0x88cc > /tmp/tcpdump.#{logical_name}.out")
+    System.background_time_command(45, true, logical_name, "ifconfig #{logical_name} up ; /opt/tcpdump/tcpdump -c 1 -lv -v -i #{logical_name} -a -e -s 1514 ether proto 0x88cc > /tmp/tcpdump.#{logical_name}.out")
     wait=true
   end
 end
