@@ -232,7 +232,6 @@ cleanup() {
 	echo "Logs are available at $target.tar.gz."
 	echo "(on the Web at http://10.9.244.31:3389/crowbar-test/${target##*/}/)" 
 	rm "$HOME/tested/"*.iso
-	mv "$ISO" "$HOME/tested"
 	if [[ $final_status != Passed ]]; then
 	    ret=1
 	else
@@ -337,10 +336,9 @@ find_newest_file() {
 # grab the latest iso from untested and populate testing with it.
 # This should be called with the testing lock held, and it will
 # grab the untested lock.
-populate_testing() {
+find_latest_iso() {
     flock -x 200
-    test_isos=("$HOME/crowbar"*.iso "$HOME/testing/crowbar"*.iso \
-	"$HOME/tested/crowbar"*.iso)
+    test_isos=("$HOME/crowbar"*.iso)
     find_newest_file "${test_isos[@]}" || return 1 # nothing to do.
     # If we have a sumfile, hack it up to point at the "right" .iso
     # and check to see if our .iso checks out.
@@ -357,30 +355,19 @@ populate_testing() {
     find "$HOME" -name '*.iso.*sum' -delete &>/dev/null || :
 
     for iso in "${test_isos[@]}"; do
-	# handling for .iso files already in testing
-	if [[ $iso =~ /testing/ ]]; then
-	    isodir="${iso%.iso}"
-	    # clean up any stale test directories that may be laying around.
-	    # We always want to start from a clean slate.
-	    [[ -d $isodir ]] && rm -rf "$isodir" || :
-	    # if it is not the newest iso, remove it.
-	    [[ -f $iso && $iso != $NEWEST_FILE ]] && rm "$iso" || :
-	elif [[ $iso != $NEWEST_FILE ]]; then
-	    # not the newest file, and not already in testing.  Nuke it.
-	    [[ -f $iso ]] && rm "$iso" || :
+	if [[ -f $iso && -f $NEWEST_FILE && \
+	    $iso != $NEWEST_FILE && $iso -ot $NEWEST_FILE ]]; then rm "$iso"
 	else
-	    # This is the newest file.  
-	    # Make sure we have the whole thing.    
-	    this_stat=$(stat "$NEWEST_FILE")
-	    while [[ $last_stat != $this_stat ]]; do
-		sleep 1
-		last_stat="$this_stat"
-		this_stat=$(stat "$NEWEST_FILE")
-	    done
-	    
-	    NEWEST_FILE="$HOME/testing/${NEWEST_FILE##*/}"
-	    mv "$iso" "$HOME/testing"
+	    NEWEST_FILE="$iso"
 	fi
+    done
+    # This is the newest file.  
+    # Make sure we have the whole thing.    
+    this_stat=$(stat "$NEWEST_FILE")
+    while [[ $last_stat != $this_stat ]]; do
+	sleep 1
+	last_stat="$this_stat"
+	this_stat=$(stat "$NEWEST_FILE")
     done
     echo "$NEWEST_FILE"
 } 200>"$UNTESTED_LOCK"
@@ -1043,17 +1030,6 @@ pause() { printf "\n%s\n" "${1:-Press any key to continue:}"; read -n 1; }
 run_test() {
     # If something already holds the testing lock, it is not safe to continue.
     flock -n -x 100 || die -1 "Could not grab $TESTING_LOCK in run_test"
-    cd "$HOME/testing"
-    # Try to grab the latest crowbar iso file to deploy from.
-    ISO=$(populate_testing) || \
-	die -1 "Could not populate testing directory, nothing to test."
-    # $testdir is where we will store all our disk images and logfiles.
-    testdir="${ISO%.iso}"
-    for d in image logs; do mkdir -p "$testdir/$d"; done
-    LOOPDIR="$testdir/image"
-    export LOGDIR="$testdir/logs"
-    # Make sure we clean up after ourselves no matter how we exit.
-    trap cleanup 0 INT TERM QUIT
     
     # kill any already running screen sessions
     screen_re="([0-9]+\.$SCREENNAME)"
@@ -1070,18 +1046,34 @@ run_test() {
 	    develop-mode) develop_mode=true;;
 	    manual-deploy) manual_deploy=true;;
 	    scratch) tests_to_run+=("$1") ;;
+	    use-iso) shift;
+		[[ -f $1 ]] || die "Cannot find requested ISO $1"
+		ISO="$1";;
 	    *) [[ -d $FRAMEWORKDIR/${1}_test ]] || \
 		die 1 "Unknown test or option $1"
 		tests_to_run+=("$1");;
 	esac
 	shift
     done
+
+    # Try to grab the latest crowbar iso file to deploy from.
+    [[ $ISO ]] || ISO=$(find_latest_iso) || \
+	die -1 "Could not populate testing directory, nothing to test."
+    # $testdir is where we will store all our disk images and logfiles.
+    testdir="$HOME/testing/${ISO##*/}"
+    testdir="${testdir%.iso}"
     
+    for d in image logs; do mkdir -p "$testdir/$d"; done
+    LOOPDIR="$testdir/image"
+    export LOGDIR="$testdir/logs"
+    # Make sure we clean up after ourselves no matter how we exit.
+    trap cleanup 0 INT TERM QUIT
+    cd "$HOME/testing"
     # If no test was passed, run the fake test
     [[ $tests_to_run ]] || tests_to_run+=("scratch")
     
     # make a screen session so that we can watch what we are doing if needed.
-    (cd "$testdir"; screen -d -m -S "$SCREENNAME" -t 'Initial Shell' /bin/bash)
+    screen -d -m -S "$SCREENNAME" -t 'Initial Shell' /bin/bash
     # give a hard status line
     screen -S "$SCREENNAME" -X hardstatus alwayslastline "%?%{yk}%-Lw%?%{wb}%n*%f %t%?(%u)%?%?%{yk}%+Lw%?"
     # enable logging.
