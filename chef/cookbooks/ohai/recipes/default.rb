@@ -27,6 +27,42 @@ unless ::File.exists?("/usr/sbin/lshw") or ::File.exists?("/usr/bin/lshw")
   p.run_action(:install)
 end
 
+d = directory "/opt/tcpdump" do
+  owner 'root'
+  group 'root'
+  mode 0755
+  recursive true
+  action :nothing
+end
+d.run_action(:create)
+
+f = cookbook_file "/opt/tcpdump/libpcap-1.1.1.tar.gz" do
+  source "libpcap-1.1.1.tar.gz"
+  owner 'root'
+  group 'root'
+  mode 0644
+  action :nothing
+end
+f.run_action(:create)
+
+f = cookbook_file "/opt/tcpdump/tcpdump-4.1.1.tar.gz" do
+  source "tcpdump-4.1.1.tar.gz"
+  owner 'root'
+  group 'root'
+  mode 0644
+  action :nothing
+end
+f.run_action(:create)
+
+f = cookbook_file "/opt/tcpdump/tcpdump" do
+  source "tcpdump"
+  owner 'root'
+  group 'root'
+  mode 0755
+  action :nothing
+end
+f.run_action(:create)
+
 d = directory node.ohai.plugin_path do
   owner 'root'
   group 'root'
@@ -34,7 +70,6 @@ d = directory node.ohai.plugin_path do
   recursive true
   action :nothing
 end
-
 d.run_action(:create)
 
 rd = remote_directory node.ohai.plugin_path do
@@ -44,7 +79,6 @@ rd = remote_directory node.ohai.plugin_path do
   mode 0755
   action :nothing
 end
-
 rd.run_action(:create)
 
 o = Ohai::System.new
