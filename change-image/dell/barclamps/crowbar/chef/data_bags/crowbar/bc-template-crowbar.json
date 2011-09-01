@@ -29,6 +29,7 @@
         "dns": 30,
         "logging": 40,
         "ntp": 50,
+        "nagios": 60,
         "ganglia": 70,
         "provisioner": 1060
       },
@@ -41,6 +42,7 @@
         "network": [ "default" ],
         "ntp": [ "default" ],
         "dns": [ "default" ],
+        "nagios": [ "default" ],
         "ganglia": [ "default" ],
         "logging": [ "default" ]
       },

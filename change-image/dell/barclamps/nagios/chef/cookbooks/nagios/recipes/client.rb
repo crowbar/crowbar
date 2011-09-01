@@ -66,6 +66,7 @@ when "ubuntu","debian"
   }
   nrpe_svc_name = "nagios-nrpe-server"
   plugin_dir = "/usr/lib/nagios/plugins"
+  lib64 = ""
 when "redhat","centos"
   pkg_list=%w{
     nrpe
@@ -76,6 +77,7 @@ when "redhat","centos"
   }
   nrpe_svc_name = "nrpe"
   plugin_dir = "/usr/lib64/nagios/plugins"
+  lib64 = "64"
 end
 
 pkg_list.each do |pkg|
@@ -114,7 +116,7 @@ template "/etc/nagios/nrpe.cfg" do
   group "nagios"
   mode "0644"
   variables(vars)
-  notifies :restart, resources(:service => "nagios-nrpe-server")
+  notifies :restart, resources(:service => "nagios-nrpe-server", :lib64 => lib64)
 end
 
 # Set file ownership and permissions

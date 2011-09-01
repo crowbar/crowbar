@@ -11,9 +11,9 @@
   ScriptAlias /cgi-bin/nagios <%= node[:nagios][:cgi_dir] %>
   ScriptAlias /nagios/cgi-bin <%= node[:nagios][:cgi_dir] %>
 
-  Alias /nagios3/stylesheets <%= node[:nagios][:dir] %>/stylesheets
+  Alias /nagios3/stylesheets <%= node[:nagios][:docroot] %>/stylesheets
   Alias /nagios3 <%= node[:nagios][:docroot] %>
-  Alias /nagios/stylesheets <%= node[:nagios][:dir] %>/stylesheets
+  Alias /nagios/stylesheets <%= node[:nagios][:docroot] %>/stylesheets
   Alias /nagios <%= node[:nagios][:docroot] %>
 
 <% case node[:nagios][:server_auth_method] -%>
