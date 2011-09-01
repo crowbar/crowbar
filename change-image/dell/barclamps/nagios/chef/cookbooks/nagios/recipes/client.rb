@@ -106,7 +106,7 @@ ntp_servers = "127.0.0.1" if node[:ntp].nil? or node[:ntp][:ntp_servers].nil? or
 
 #### setup variables for the different components 
 # common
-vars = { :mon_host => mon_host, :provisioner_ip => provisioner_ip, :domain_name => domain_name, :admin_interface => admin_interface, :plugin_dir => plugin_dir}
+vars = { :lib64 => lib64, :mon_host => mon_host, :provisioner_ip => provisioner_ip, :domain_name => domain_name, :admin_interface => admin_interface, :plugin_dir => plugin_dir}
 # ntp
 vars.merge!({:ntp_servers => ntp_servers})
  
@@ -116,7 +116,7 @@ template "/etc/nagios/nrpe.cfg" do
   group "nagios"
   mode "0644"
   variables(vars)
-  notifies :restart, resources(:service => "nagios-nrpe-server", :lib64 => lib64)
+  notifies :restart, resources(:service => "nagios-nrpe-server")
 end
 
 # Set file ownership and permissions
