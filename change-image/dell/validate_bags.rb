@@ -23,6 +23,8 @@ def verify_bags(base_dir)
         begin
           rc = validate(schema,bag)
         rescue Exception => e
+          puts "Error: validating #{bag} against #{schema}"
+          puts "Error: #{e.message}"
           rc = -1 
         end
         err = true if rc != 0

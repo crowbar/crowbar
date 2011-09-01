@@ -66,6 +66,7 @@ when "ubuntu","debian"
   }
   nrpe_svc_name = "nagios-nrpe-server"
   plugin_dir = "/usr/lib/nagios/plugins"
+  lib64 = ""
 when "redhat","centos"
   pkg_list=%w{
     nrpe
@@ -76,6 +77,7 @@ when "redhat","centos"
   }
   nrpe_svc_name = "nrpe"
   plugin_dir = "/usr/lib64/nagios/plugins"
+  lib64 = "64"
 end
 
 pkg_list.each do |pkg|
@@ -104,7 +106,7 @@ ntp_servers = "127.0.0.1" if node[:ntp].nil? or node[:ntp][:ntp_servers].nil? or
 
 #### setup variables for the different components 
 # common
-vars = { :mon_host => mon_host, :provisioner_ip => provisioner_ip, :domain_name => domain_name, :admin_interface => admin_interface, :plugin_dir => plugin_dir}
+vars = { :lib64 => lib64, :mon_host => mon_host, :provisioner_ip => provisioner_ip, :domain_name => domain_name, :admin_interface => admin_interface, :plugin_dir => plugin_dir}
 # ntp
 vars.merge!({:ntp_servers => ntp_servers})
  

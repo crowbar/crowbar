@@ -100,6 +100,14 @@ pkg_list.each do |pkg|
   package pkg
 end
 
+cookbook_file "/usr/sbin/nagios" do
+  source "nagios"
+  mode "0774"
+  owner "root"
+  group "root"
+  action :create
+end
+
 service "nagios3" do
   service_name nagios_svc_name
   supports :status => true, :restart => true, :reload => true

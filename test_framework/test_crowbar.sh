@@ -38,7 +38,7 @@ set -e
 # Lockfiles to ensure that we don't accidentally end up 
 # stepping on our toes.
 
-# This lock is held whenever we are copying an openstack .ISO
+# This lock is held whenever we are copying an crowbar .ISO
 # around to get it ready for testing.
 UNTESTED_LOCK="$HOME/.untested.lck"
 
@@ -339,8 +339,8 @@ find_newest_file() {
 # grab the untested lock.
 populate_testing() {
     flock -x 200
-    test_isos=("$HOME/openstack"*.iso "$HOME/testing/openstack"*.iso \
-	"$HOME/tested/openstack"*.iso)
+    test_isos=("$HOME/crowbar"*.iso "$HOME/testing/crowbar"*.iso \
+	"$HOME/tested/crowbar"*.iso)
     find_newest_file "${test_isos[@]}" || return 1 # nothing to do.
     # If we have a sumfile, hack it up to point at the "right" .iso
     # and check to see if our .iso checks out.
@@ -717,7 +717,7 @@ run_admin_node() {
 	# create our admin disk image
     update_status admin "Creating disk image"
     screen -S "$SCREENNAME" -X screen -t Status "$HOME/test_framework/watch_Status.sh"
-    qemu-img create -f raw "$testdir/admin.disk" 10G &>/dev/null
+    qemu-img create -f raw "$testdir/admin.disk" 16G &>/dev/null
 
     # makenics populates vm_nics with the appropriate information for
     # run_kvm.  This part cannot run in a subshell, because it relies
@@ -819,7 +819,7 @@ create_slaves() {
 	# Clear out our status, if one is lying around.
 	>"$testdir/$nodename.status"
 	>"$testdir/$nodename.reset"
-	qemu-img create -f raw "$testdir/$nodename.disk" 6G &>/dev/null
+	qemu-img create -f raw "$testdir/$nodename.disk" 10G &>/dev/null
         # Create a second and third image for Swift testing
 	qemu-img create -f qcow2 "$testdir/$nodename-01.disk" 1G &>/dev/null
 	qemu-img create -f qcow2 "$testdir/$nodename-02.disk" 1G &>/dev/null
@@ -1044,7 +1044,7 @@ run_test() {
     # If something already holds the testing lock, it is not safe to continue.
     flock -n -x 100 || die -1 "Could not grab $TESTING_LOCK in run_test"
     cd "$HOME/testing"
-    # Try to grab the latest openstack iso file to deploy from.
+    # Try to grab the latest crowbar iso file to deploy from.
     ISO=$(populate_testing) || \
 	die -1 "Could not populate testing directory, nothing to test."
     # $testdir is where we will store all our disk images and logfiles.
