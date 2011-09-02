@@ -2,6 +2,7 @@ Rainbows! do
   use :<%= @concurrency_model %>  # concurrency model to use
 end
 
+timeout 3600
 worker_processes 4
 listen "<%= @web_host %>:<%= @web_port %>"
 user("<%= @user %>","<%= @group || nil %>")
