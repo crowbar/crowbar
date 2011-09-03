@@ -8,10 +8,10 @@
           = text_field_tag :description, @node.description || "#{t 'created_on'} #{l(Time.now)}", :size => 60
         %li.select
           = f.label :usage, t('.usage')
-          = select_tag :usage, options_for_select([['Swift','swift'], ['Nova','nova'], ['Glance','glance']], @node.usage.first || 'nova')
+          = select_tag :usage, options_for_select([['Hadoop','hadoop']], @node.usage.first || 'hadoop')
         %li.select
           = f.label :bios, t('.bios')
-          = select_tag :bios, options_for_select([['Virtualization','Virtualization'], ['Storage','Storage']], @node.bios_set || 'Virtualization')
+          = select_tag :bios, options_for_select([['Hadoop', 'storage']], @node.bios_set || 'Hadoop')
         %li.select
           = f.label :raid, t('.raid')
           = select_tag :raid, options_for_select([['JBOD Only','JBODOnly'], ['Single RAID 10','SingleRaid10']], @node.raid_set || 'SingleRaid10')

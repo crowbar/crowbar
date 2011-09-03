@@ -119,12 +119,12 @@ log_to chef chef-client -l debug
 
 # Make sure our interfaces are as up as we can get them
 echo "Ensuring that our network interfaces are up."
-log_to ifup ifup -a
+log_to ifup /sbin/service network restart
 
 # Only transition to problem state if the second run fails.
 echo "Running Chef Client (pass 2)"
 if ! log_to chef chef-client -l debug; then
-    log_to ifup ifup -a 
+    log_to ifup /sbin/service network restart
     post_state $HOSTNAME "problem"
     echo "Error Path"
     echo "Syncing Time (pass 3)"
@@ -133,7 +133,7 @@ if ! log_to chef chef-client -l debug; then
     rm -rf /var/cache/chef/*
     echo "Running Chef Client (pass 3) - cache cleanup"
     if ! log_to chef chef-client -l debug; then 
-        log_to ifup ifup -a 
+        log_to ifup /sbin/service network restart
         post_state $HOSTNAME "problem"
         echo "Error Path"
         echo "Syncing Time (pass 4)"
@@ -146,7 +146,7 @@ if ! log_to chef chef-client -l debug; then
         post_state $HOSTNAME "problem"
         echo "Running Chef Client (pass 4) - password cleanup"
         if ! log_to chef chef-client -l debug; then 
-            log_to ifup ifup -a
+            log_to ifup /sbin/service network restart
             echo "chef-client run failed four times, giving up."
             echo "Failed"
             printf "Our IP address is: %s\n" "$(ip addr show dev eth0)"

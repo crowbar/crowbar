@@ -225,7 +225,7 @@ class ServiceObject
     end
 
     # Remove the entries from the nodes.
-    all_new_nodes.each do |n|
+    all_new_nodes.each do |n,data|
       node = NodeObject.find_node_by_name(n)
       next if node.nil?
       unless node.crowbar["crowbar"]["pending"].nil? or node.crowbar["crowbar"]["pending"]["#{bc}-#{inst}"].nil?

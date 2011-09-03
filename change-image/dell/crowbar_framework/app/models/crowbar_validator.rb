@@ -51,9 +51,9 @@ class CrowbarValidator < Kwalify::Validator
            errors << Kwalify::ValidationError.new(msg, path)
          end
       when 'FQDN'
-         subregex = /[a-zA-Z0-9_\-]{1,63}/
-         endregex = /[\-_]\z/
-         startregex = /\A[\-_]/
+         subregex = /[a-zA-Z0-9\-]{1,63}/
+         endregex = /[\-]\z/
+         startregex = /\A[\-]/
          numberregex = /\A\d+\z/
 
          if value.length > 254

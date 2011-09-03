@@ -15,6 +15,7 @@ selinux --disabled
 timezone --utc Europe/London
 bootloader --location=mbr --driveorder=sda
 zerombr yes
+ignoredisk --drives=sdb,sdc,sdd,sde,sdf,sdg,sdh,sdi,sdj,sdk,sdl,sdm,sdn,sdo,sdp,sdq,sdr,sds,sdt,sdu,sdv,sdw,sdx,sdy,sdz,hdb,hdc,hdd,hde,hdf,hdg,hdh,hdi,hdj,hdk,hdl,hdm,hdn,hdo,hdp,hdq,hdr,hds,hdt,hdu,hdv,hdw,hdx,hdy,hdz
 clearpart --all --drives=sda
 part /boot --fstype ext3 --size=100 --ondisk=sda
 part swap --recommended
@@ -37,6 +38,7 @@ OpenIPMI
 OpenIPMI-tools
 emacs-nox
 openssh
+createrepo
 
 %post
 
@@ -79,6 +81,9 @@ name=Crowbar Extra Packages
 baseurl=file://$BASEDIR/extra/pkgs
 gpgcheck=0
 EOF
+
+# Create the repo metadata we will need
+(cd /tftpboot/redhat_dvd/extra/pkgs; createrepo -d -q .)
 
 # We prefer rsyslog.
 yum -y install rsyslog

@@ -284,16 +284,23 @@ if (not new_interfaces) or new_interfaces.empty?
   log("Refusing to do so.") { level :fatal }
   raise ::RangeError.new("Not enough active network interfaces.")
 else
-  # First, tear down any interfaces that are going to be deleted in 
-  # reverse order in which they appear in the current /etc/network/interfaces
-  (old_interfaces.keys - new_interfaces.keys).sort{|a,b| 
-    old_interfaces[b][:order] <=> old_interfaces[a][:order]}.each {|i|
-    next if i.nil? or i == ""
-    log("Removing #{old_interfaces[i]}\n") { level :debug }
-    bash "ifdown #{i} for removal" do
-      code "ifdown #{i}"
+  # Third, rewrite the network configuration to match the new config.
+  case node[:platform]
+  when "ubuntu","debian"
+    template "/etc/network/interfaces" do
+      source "interfaces.erb"
+      variables :interfaces => new_interfaces.values.sort{|a,b| 
+        a[:order] <=> b[:order]
+      }
     end
-  }
+  when "centos","redhat"
+    new_interfaces.values.each {|iface|
+      template "/etc/sysconfig/network-scripts/ifcfg-#{iface[:interface]}" do
+        source "redhat-cfg.erb"
+        variables :iface => iface
+      end
+    }
+  end
   
   # Second, examine each interface that exists in both the old and the
   # new configuration to see what changed, and take appropriate action.
@@ -341,24 +348,6 @@ else
     end
   }
   
-  # Third, rewrite the network configuration to match the new config.
-  case node[:platform]
-  when "ubuntu","debian"
-    template "/etc/network/interfaces" do
-      source "interfaces.erb"
-      variables :interfaces => new_interfaces.values.sort{|a,b| 
-        a[:order] <=> b[:order]
-      }
-    end
-  when "centos","redhat"
-    new_interfaces.values.each {|iface|
-      template "/etc/sysconfig/network-scripts/ifcfg-#{iface[:interface]}" do
-        source "redhat-cfg.erb"
-        variables :iface => iface
-      end
-    }
-  end
-  
   # Fourth, bring up any new or changed interfaces
   new_interfaces.values.sort{|a,b|a[:order] <=> b[:order]}.each {|i|
     next if i[:interface] == "bmc"
@@ -379,6 +368,17 @@ else
     end
   }
   
+  # First, tear down any interfaces that are going to be deleted in 
+  # reverse order in which they appear in the current /etc/network/interfaces
+  (old_interfaces.keys - new_interfaces.keys).sort{|a,b| 
+    old_interfaces[b][:order] <=> old_interfaces[a][:order]}.each {|i|
+    next if i.nil? or i == ""
+    log("Removing #{old_interfaces[i]}\n") { level :debug }
+    bash "ifdown #{i} for removal" do
+      code "ifdown #{i}"
+    end
+  }
+
   # If we need to sleep now, do it.
   if delay
     delay_time = node["network"]["start_up_delay"]
