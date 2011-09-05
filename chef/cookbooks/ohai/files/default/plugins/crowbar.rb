@@ -39,7 +39,7 @@ filename = "/usr/sbin/lshw"
 if !File.exists?(filename)
   filename = "/usr/bin/lshw"
 end
-f = IO.popen("#{filename} -class network | egrep 'logical|bus info|-network|serial'")
+f = IO.popen("#{filename} -quiet -class network | egrep 'logical|bus info|-network|serial'")
 networks = []
 mac_map = {}
 bus_found=false
@@ -115,4 +115,15 @@ networks.each do |network|
   crowbar[:switch_config][network][:switch_port] = sw_port
   crowbar[:switch_config][network][:switch_unit] = sw_unit
 end
+
+f = IO.popen("#{filename} -quiet -short | egrep 'network'")
+f.each { |line|
+  arr = line.split(" ")
+  network = arr[1]
+  path = arr[0]
+  crowbar[:detected] = Mash.new unless crowbar[:detected]
+  crowbar[:detected][:network] = Mash.new unless crowbar[:detected][:network]
+  crowbar[:detected][:network][network] = path
+}
+f.close
 
