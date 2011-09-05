@@ -107,7 +107,7 @@ class NetworkService < ServiceObject
 
     # Save the information.
     net_info = { "interface" => conduit, "address" => address.to_s, "netmask" => netmask, "node" => name, "router" => router, "subnet" => subnet, "broadcast" => broadcast, "usage" => network, "use_vlan" => use_vlan, "vlan" => vlan, "add_bridge" => add_bridge }
-    node.crowbar["crowbar"]["network"][conduit] = net_info
+    node.crowbar["crowbar"]["network"][network] = net_info
     node.save
 
     @logger.info("Network allocate_ip: Assigned: #{name} #{network} #{range} #{net_info["address"]}")
@@ -195,7 +195,7 @@ class NetworkService < ServiceObject
 
     # Save the information.
     net_info = { "interface" => conduit, "netmask" => netmask, "node" => name, "router" => router, "subnet" => subnet, "broadcast" => broadcast, "usage" => network, "use_vlan" => use_vlan, "vlan" => vlan, "add_bridge" => add_bridge }
-    node.crowbar["crowbar"]["network"][conduit] = net_info
+    node.crowbar["crowbar"]["network"][network] = net_info
     node.save
 
     @logger.info("Network enable_interface: Assigned: #{name} #{network}")

@@ -329,6 +329,10 @@ class NodeObject < ChefObject
     answer
   end
 
+  def adapter_count 
+    interface_list.size
+  end
+
   # Switch config is actually a node set property from customer ohai.  It is really one the node and not the role
   def switch_name
     unless @node["crowbar"].nil? or @node["crowbar"]["switch_config"].nil?

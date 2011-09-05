@@ -15,6 +15,9 @@
 
 include_recipe 'utils'
 
+bond_list = []
+team_mode = node["network"]["teaming"]["mode"]
+
 # Walk through a hash of interfaces, adding :order tags to each
 # interface that reflects the order in which they should be brought up in.
 # They should be torn down in reverse order. 
@@ -142,10 +145,111 @@ def local_redhat_interfaces
   sort_interfaces(res)
 end
 
+def bus_index(bus_order, path)
+  return -1 if bus_order.nil?
+
+  dpath = path.split("/.")
+
+  index = 0
+  bus_order.each do |b|
+    subindex = 0 
+    b.split("/.")
+
+    match = true
+    b.each do |bp|
+      match = false if subindex >= dpath.size or bp != dpath[subindex]
+      break unless match
+      subindex = subindex + 1
+    end
+
+    return index if match
+    index = index + 1
+  end
+
+  -1
+end
+
+def sort_ifs(map, bus_order)
+  answer = map.sort{|a,b| 
+    aindex = bus_index(bus_order, a[1])
+    bindex = bus_index(bus_order, b[1])
+    return a[0] <=> b[0] if aindex == bindex
+    aindex <=> bindex
+  }
+  answer.map! { |x| x[0] }
+end
+
+def build_node_map
+  if_map = node["network"]["interface_map"]
+  bus_order = nil
+  if_map.each do |data|
+    bus_order = data["bus_order"] if node[:dmi][:system][:product_name] =~ /#{data["pattern"]}/
+    break if bus_order
+  end
+
+  c_map = node["network"]["conduit_map"]
+  conduits = nil
+  c_map.each do |data|
+    parts = data["pattern"].split("/")
+    the_one = true
+    the_one = false unless node["network"]["mode"] =~ /#{parts[0]}/
+    the_one = false unless node["crowbar"]["detected"]["network"].size.to_s =~ /#{parts[1]}/
+
+    found = false
+    node.roles.each do |role|
+      found = true if role =~ /#{parts[2]}/
+      break if found
+    done
+    the_one = false unless found
+
+    conduits = data["conduit_list"] if the_one
+    break if conduits
+  end
+  return {} if conduits.nil? 
+
+  if_list = node["crowbar"]["detected"]["network"]
+
+  sorted_ifs = sort_ifs(if_list, bus_order)
+  if_remap = {}
+  count = 1
+  sorted_ifs.each do |intf|
+    if_remap["1g#{count}"] = intf
+    count = count + 1
+  end
+
+  conduit.map do |x|
+    x["if_list"] = x["if_list"].map do |y|
+      if_remap[y]
+    end
+    x
+  end
+end
+
+def make_interface_name(conduit, interface_list)
+  return interface_list[0] if interface_list.size == 1
+  id = gsub(conduit, "intf")
+  answer = "bond#{id}"
+  bond_list << answer unless bond_list.member?(answer)
+  answer
+end
+
 def crowbar_interfaces
+  intf_to_if_map = build_node_map
   res = Hash.new
-  node["crowbar"]["network"].each do |intf, network|
-    next if intf == "bmc"
+  node["crowbar"]["network"].each do |netname, network|
+    next if netname == "bmc"
+
+    conduit = network["interface"]
+    if intf_to_if_map[conduit].nil?
+      log("No conduit for interface: #{conduit}") { level :fatal }
+      log("Refusing to do so.") { level :fatal }
+      raise ::RangeError.new("No conduit to interface map for #{conduit}")
+    end
+
+    c_info = intf_to_if_map[conduit]
+    interface_list = c_info["if_list"]
+    intf = make_interface_name(conduit, interface_list)
+
     res[intf] = Hash.new unless res[intf]
     res[intf][:interface] = intf
     res[intf][:auto] = true
@@ -153,7 +257,7 @@ def crowbar_interfaces
     if network["use_vlan"]
       res[intf][:vlan] = network["vlan"]
       res[intf][:mode] = "vlan"
-      res[intf][:interface_list] = network["interface_list"].reject{|x| x == intf}
+      res[intf][:interface_list] = interface_list
       res[intf][:interface_list].each do |i|
         unless res[i]
           res[i] = Hash.new
@@ -181,8 +285,8 @@ def crowbar_interfaces
       res[intf][:mode]="bridge"
     # If we were not asked to make a bridge and have a non-empty interface
     # list, we must have been asked to make a team.
-    elsif node["network"]["mode"] == "team" and network["interface_list"] and not network["interface_list"].empty?
-      res[intf][:interface_list] = network["interface_list"].reject{|x| x == intf}
+    elsif node["network"]["mode"] == "team" and interface_list and not interface_list.empty?
+      res[intf][:interface_list] = interface_list
       res[intf][:mode]="team"
       # Since we are making a team out of these devices, blow away whatever
       # config we may have had for the slaves.
@@ -230,7 +334,7 @@ when "ubuntu","debian"
   end
 
   if node["network"]["mode"] == "team"
-    utils_line "bonding mode=6 miimon=100" do
+    utils_line "bonding mode=#{team_mode} miimon=100" do
       action :add
       file "/etc/modules"
     end
@@ -239,11 +343,13 @@ when "centos","redhat"
   package "vconfig"
 
   if node["network"]["mode"] == "team"
-    utils_line "alias bond0 bonding" do
-      action :add
-      file "/etc/modules.conf"
+    bond_list.each do |bond|
+      utils_line "alias #{bond} bonding" do
+        action :add
+        file "/etc/modules.conf"
+      end
     end
-    utils_line "bonding mode=6 miimon=100" do
+    utils_line "bonding mode=#{team_mode} miimon=100" do
       action :add
       file "/etc/modules.conf"
     end
@@ -257,7 +363,7 @@ end
 
 if node["network"]["mode"] == "team"
   bash "load bonding module" do
-    code "/sbin/modprobe bonding mode=6 miimon=100"
+    code "/sbin/modprobe bonding mode=#{team_mode} miimon=100"
     not_if { ::File.exists?("/sys/module/bonding") }
   end
 end
