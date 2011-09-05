@@ -119,6 +119,13 @@ template "/etc/nagios/nrpe.cfg" do
   notifies :restart, resources(:service => "nagios-nrpe-server")
 end
 
+directory "/etc/nagios/nrpe.d" do
+  owner "nagios"
+  group "nagios"
+  mode "0755"
+  action :create
+end
+
 # Set file ownership and permissions
 file "#{plugin_dir}/check_dhcp" do
   mode "4755"
