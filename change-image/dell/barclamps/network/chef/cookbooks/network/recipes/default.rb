@@ -146,6 +146,7 @@ def local_redhat_interfaces
 end
 
 def bus_index(bus_order, path)
+  Chef::Log.fatal("GREG: bus_index: b:#{bus_order} p:#{path}")
   return -1 if bus_order.nil?
 
   dpath = path.split("/.")
@@ -170,12 +171,14 @@ def bus_index(bus_order, path)
 end
 
 def sort_ifs(map, bus_order)
+  Chef::Log.fatal("GREG: pre sort answer = #{map.inspect}")
   answer = map.sort{|a,b| 
+    Chef::Log.fatal("GREG: compare a:#{a.inspect} b:#{b.inspect}")
     aindex = bus_index(bus_order, a[1])
     bindex = bus_index(bus_order, b[1])
-    return a[0] <=> b[0] if aindex == bindex
-    aindex <=> bindex
+    aindex == bindex ? a[0] <=> b[0] : aindex <=> bindex
   }
+  Chef::Log.fatal("GREG: post sort answer = #{answer.inspect}")
   answer.map! { |x| x[0] }
 end
 
@@ -186,6 +189,7 @@ def build_node_map
     bus_order = data["bus_order"] if node[:dmi][:system][:product_name] =~ /#{data["pattern"]}/
     break if bus_order
   end
+  Chef::Log.fatal("GREG: bus_order is: #{bus_order} for #{node[:dmi][:system][:product_name]}")
 
   c_map = node["network"]["conduit_map"]
   conduits = nil
@@ -199,17 +203,21 @@ def build_node_map
     node.roles.each do |role|
       found = true if role =~ /#{parts[2]}/
       break if found
-    done
+    end
     the_one = false unless found
 
+    Chef::Log.fatal("GREG: full data conduits: #{data.inspect}") if the_one
     conduits = data["conduit_list"] if the_one
     break if conduits
   end
   return {} if conduits.nil? 
 
+  Chef::Log.fatal("GREG: using conduits: #{conduits.inspect}")
+
   if_list = node["crowbar"]["detected"]["network"]
 
   sorted_ifs = sort_ifs(if_list, bus_order)
+  Chef::Log.fatal("GREG: sorted_ifs = #{sorted_ifs.inspect}")
   if_remap = {}
   count = 1
   sorted_ifs.each do |intf|
@@ -217,12 +225,20 @@ def build_node_map
     count = count + 1
   end
 
-  conduit.map do |x|
-    x["if_list"] = x["if_list"].map do |y|
+  Chef::Log.fatal("GREG: if_remap = #{if_remap.inspect}")
+
+  ans = {}
+  conduits.each do |k,v|
+    Chef::Log.fatal("GREG: doctoring = #{v.inspect} for #{k}")
+    hash = Hash.new(v)
+    hash["if_list"] = v["if_list"].map do |y|
       if_remap[y]
     end
-    x
+    ans[k] = hash
   end
+
+  Chef::Log.fatal("GREG: return from build_node_map: #{ans.inspect}")
+  ans
 end
 
 def make_interface_name(conduit, interface_list)
@@ -234,7 +250,9 @@ def make_interface_name(conduit, interface_list)
 end
 
 def crowbar_interfaces
+  Chef::Log.fatal("GREG: starting crowbar_interfaces")
   intf_to_if_map = build_node_map
+  Chef::Log.fatal("GREG: got a map: #{intf_to_if_map.inspect}")
   res = Hash.new
   node["crowbar"]["network"].each do |netname, network|
     next if netname == "bmc"
@@ -246,8 +264,11 @@ def crowbar_interfaces
       raise ::RangeError.new("No conduit to interface map for #{conduit}")
     end
 
+    Chef::Log.fatal("GREG: c:#{conduit}")
     c_info = intf_to_if_map[conduit]
+    Chef::Log.fatal("GREG: c_i:#{c_info}")
     interface_list = c_info["if_list"]
+    Chef::Log.fatal("GREG: c:#{conduit} il: #{interface_list.inspect}")
     intf = make_interface_name(conduit, interface_list)
 
     res[intf] = Hash.new unless res[intf]
