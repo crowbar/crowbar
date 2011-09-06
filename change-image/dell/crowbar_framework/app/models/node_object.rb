@@ -336,7 +336,8 @@ class NodeObject < ChefObject
   # Switch config is actually a node set property from customer ohai.  It is really one the node and not the role
   def switch_name
     unless @node["crowbar"].nil? or @node["crowbar"]["switch_config"].nil?
-      switch_name = @node["crowbar"]["switch_config"]["eth0"]["switch_name"] || (I18n.t :undetermined)
+      intf = node.get_network_by_type("admin")["interface_list"][0]
+      switch_name = @node["crowbar"]["switch_config"][intf]["switch_name"] || (I18n.t :undetermined)
       switch_name = (I18n.t :undetermined) if switch_name == -1
       switch_name.to_s.gsub(':', '-')
     else
@@ -346,7 +347,8 @@ class NodeObject < ChefObject
   
   def switch_port
     unless @node["crowbar"].nil? or @node["crowbar"]["switch_config"].nil?
-      switch_name = @node["crowbar"]["switch_config"]["eth0"]["switch_port"] || (I18n.t :undetermined)
+      intf = node.get_network_by_type("admin")["interface_list"][0]
+      switch_name = @node["crowbar"]["switch_config"][intf]["switch_port"] || (I18n.t :undetermined)
     else
       switch_name = (I18n.t :undetermined)
     end
@@ -354,7 +356,8 @@ class NodeObject < ChefObject
   
   def location
     unless @node["crowbar"].nil? or @node["crowbar"]["switch_config"].nil?
-      location = @node["crowbar"]["switch_config"]["eth0"]["switch_port"] || (I18n.t :not_set)
+      intf = node.get_network_by_type("admin")["interface_list"][0]
+      location = @node["crowbar"]["switch_config"][intf]["switch_port"] || (I18n.t :not_set)
     else
       location = (I18n.t :not_set)
     end

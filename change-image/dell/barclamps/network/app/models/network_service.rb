@@ -106,7 +106,7 @@ class NetworkService < ServiceObject
     return [404, "No Address Available"] if !found
 
     # Save the information.
-    net_info = { "interface" => conduit, "address" => address.to_s, "netmask" => netmask, "node" => name, "router" => router, "subnet" => subnet, "broadcast" => broadcast, "usage" => network, "use_vlan" => use_vlan, "vlan" => vlan, "add_bridge" => add_bridge }
+    net_info = { "conduit" => conduit, "address" => address.to_s, "netmask" => netmask, "node" => name, "router" => router, "subnet" => subnet, "broadcast" => broadcast, "usage" => network, "use_vlan" => use_vlan, "vlan" => vlan, "add_bridge" => add_bridge }
     node.crowbar["crowbar"]["network"][network] = net_info
     node.save
 
@@ -194,7 +194,7 @@ class NetworkService < ServiceObject
     end
 
     # Save the information.
-    net_info = { "interface" => conduit, "netmask" => netmask, "node" => name, "router" => router, "subnet" => subnet, "broadcast" => broadcast, "usage" => network, "use_vlan" => use_vlan, "vlan" => vlan, "add_bridge" => add_bridge }
+    net_info = { "conduit" => conduit, "netmask" => netmask, "node" => name, "router" => router, "subnet" => subnet, "broadcast" => broadcast, "usage" => network, "use_vlan" => use_vlan, "vlan" => vlan, "add_bridge" => add_bridge }
     node.crowbar["crowbar"]["network"][network] = net_info
     node.save
 

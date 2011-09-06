@@ -11,7 +11,7 @@
   show_switch=false
   unless node[:crowbar].nil? or node[:crowbar][:switch_config].nil?
     show_switch=true
-    intf = node.get_network_by_type("admin")["interface"]
+    intf = node.get_network_by_type("admin")["interface_list"][0]
     sw_port = node.get_network_by_interface(intf)['switch_port']
     sw_unit = node.get_network_by_interface(intf)['switch_unit']
     sw_name = node.get_network_by_interface(intf)['switch_name']
