@@ -145,12 +145,12 @@ define service {
     check_command       check_http_port!8091
     use                 default-service
 }
-define service {
-    service_description DHCP Server
-    hostgroup_name      provisioner-server
-    check_command       check_dhcp
-    use                 default-service
-}
+#define service {
+#    service_description DHCP Server
+#    hostgroup_name      provisioner-server
+#    check_command       check_dhcp
+#    use                 default-service
+#}
 <% end -%>
 
 <% unless @service_hosts['nova-single-machine'].nil? -%>
