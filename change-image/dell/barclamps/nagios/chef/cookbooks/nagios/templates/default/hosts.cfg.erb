@@ -9,7 +9,7 @@ define host {
 <% if n.roles.nil? -%>
   hostgroups all
 <% else -%>
-  hostgroups <%= n.roles.to_a.join(",") %>
+  hostgroups <%= n["platform"] %>,<%= n.roles.to_a.join(",") %>
 <% end -%>
 }
 

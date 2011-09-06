@@ -100,12 +100,14 @@ define service {
     use                 default-service
 }
 
+<% if @platforms.member?("ubuntu") %>
 define service {
     service_description Check APT update state
-    hostgroup_name      all
+    hostgroup_name      ubuntu
     check_command       check_apt
     use                 default-service
 }
+<% end %>
 
 define service {
     service_description Check DNS Resolver

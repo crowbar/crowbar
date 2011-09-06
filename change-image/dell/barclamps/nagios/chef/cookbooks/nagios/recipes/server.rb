@@ -69,12 +69,19 @@ end
 
 # Build a hash of service name to the server fulfilling that role (NOT a list ) 
 role_list = Array.new
+platforms = []
 service_hosts = Hash.new
 search(:role, "*:*") do |r|
   role_list << r.name
   search(:node, "roles:#{r.name} #{env_filter}") do |n|
     next if n["state"] == "delete"
     service_hosts[r.name] = n['hostname']
+    case n[:platform]
+    when "ubuntu","debian"
+      platforms << "ubuntu" unless platforms.member?("ubuntu")
+    when "redhat","centos"
+      platforms << "redhat" unless platforms.member?("redhat")
+    end
   end
 end
 
@@ -227,7 +234,7 @@ glance_svcs = %w{glance-api glance-registry}
 end
 
 nagios_conf "services" do
-  variables :service_hosts => service_hosts
+  variables :service_hosts => service_hosts, :platforms => platforms
 end
 
 nagios_conf "contacts" do
@@ -235,11 +242,11 @@ nagios_conf "contacts" do
 end
 
 nagios_conf "hostgroups" do
-  variables :roles => role_list
+  variables :roles => role_list, :platforms => platforms
 end
 
 nagios_conf "hosts" do
-  variables :hosts => hosts
+  variables :hosts => hosts, :platforms => platforms
 end
 
 # End of recipe transactions
