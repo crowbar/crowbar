@@ -22,7 +22,7 @@ pkgs rubygem-chef-server curl-devel rubygem-kwalify ruby-ri ruby-docs ruby-devel
 
 # base gems we will need
 gems haml i18n json net-http-digest_auth sass simple-navigation 
-gems syslogger builder bluepill
+gems syslogger builder bluepill rdoc
 
 # additional debs we will need
 # apache stuff

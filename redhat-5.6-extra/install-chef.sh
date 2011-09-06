@@ -206,8 +206,9 @@ rl=$(find /usr/lib/ruby/gems/1.8/gems -name run_list.rb)
 cp -f "$rl" "$rl.bak"
 cp -f patches/run_list.rb "$rl"
 ## END 2413 
-# HACK AROUND Kwalify bug missing Gem.bin_path
+# HACK AROUND Kwalify and rake bug missing Gem.bin_path
 cp -f patches/kwalify /usr/bin/kwalify
+cp -f patches/rake /usr/bin/rake
 #
 
 log_to svc /etc/init.d/chef-server restart
