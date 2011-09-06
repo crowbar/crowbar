@@ -357,7 +357,7 @@ class NodeObject < ChefObject
     @node["network"]["interface_map"].each do |data|
       bus_order = data["bus_order"] if @node[:dmi][:system][:product_name] =~ /#{data["pattern"]}/
       break if bus_order
-    end
+    end rescue nil
     bus_order
   end
 
