@@ -354,7 +354,7 @@ class NodeObject < ChefObject
 
   def get_bus_order
     bus_order = nil
-    node["network"]["interface_map"].each do |data|
+    @node["network"]["interface_map"].each do |data|
       bus_order = data["bus_order"] if @node[:dmi][:system][:product_name] =~ /#{data["pattern"]}/
       break if bus_order
     end
