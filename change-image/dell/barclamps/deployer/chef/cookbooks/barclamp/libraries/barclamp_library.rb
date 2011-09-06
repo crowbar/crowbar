@@ -26,15 +26,6 @@ module BarclampLibrary
         answer
       end
 
-      def self.get_network_by_interface(node, intf)
-        node[:crowbar][:network].each do |net, data|
-          next if net != intf
-          intf, interface_list = Barclamp::Inventory.lookup_interface_info(node, data["conduit"])
-          return Network.new(net, data, intf, interface_list)
-        end unless node[:crowbar][:network].nil?
-        nil
-      end
-
       def self.get_network_by_type(node, type)
         node[:crowbar][:network].each do |net, data|
           next if data[:usage] != type
