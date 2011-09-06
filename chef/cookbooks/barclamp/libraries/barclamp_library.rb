@@ -91,7 +91,7 @@ module BarclampLibrary
         node["network"]["interface_map"].each do |data|
           bus_order = data["bus_order"] if node[:dmi][:system][:product_name] =~ /#{data["pattern"]}/
           break if bus_order
-        end
+        end rescue nil
         Chef::Log.fatal("GREG: bus_order is: #{bus_order} for #{node[:dmi][:system][:product_name]}")
         bus_order
       end
@@ -114,7 +114,7 @@ module BarclampLibrary
           Chef::Log.fatal("GREG: full data conduits: #{data.inspect}") if the_one
           conduits = data["conduit_list"] if the_one
           break if conduits
-        end
+        end rescue nil
         conduits
       end
 
