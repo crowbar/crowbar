@@ -147,14 +147,14 @@ end
 
 def crowbar_interfaces
   Chef::Log.fatal("GREG: starting crowbar_interfaces")
-  intf_to_if_map = Barclamp::Inventory.build_node_map
+  intf_to_if_map = Barclamp::Inventory.build_node_map(node)
   Chef::Log.fatal("GREG: got a map: #{intf_to_if_map.inspect}")
   res = Hash.new
   node["crowbar"]["network"].each do |netname, network|
     next if netname == "bmc"
 
     conduit = network["conduit"]
-    intf, interface_list = Barclamp::Inventory.lookup_interface_info(conduit, intf_to_if_map)
+    intf, interface_list = Barclamp::Inventory.lookup_interface_info(node, conduit, intf_to_if_map)
     if intf.nil?
       log("No conduit for interface: #{conduit}") { level :fatal }
       log("Refusing to do so.") { level :fatal }
