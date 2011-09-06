@@ -40,6 +40,8 @@ set[:nagios][:nagios_pid] = "/var/run/nagios3/nagios3.pid"
 set[:nagios][:nagios_pid] = "/var/run/nagios.pid" if platform?("redhat", "centos", "fedora")
 set[:nagios][:p1_cmd] = "/usr/lib/nagios3/p1.pl"
 set[:nagios][:p1_cmd] = "/usr/sbin/p1.pl" if platform?("redhat", "centos", "fedora")
+set[:nagios][:exec] = "/usr/sbin/nagios3"
+set[:nagios][:exec] = "/usr/sbin/nagios" if platform?("redhat", "centos", "fedora")
 
 
 default[:nagios][:notifications_enabled]   = 0

@@ -51,7 +51,7 @@ module BarclampLibrary
 
       def self.bus_index(bus_order, path)
         Chef::Log.fatal("GREG: bus_index: b:#{bus_order} p:#{path}")
-        return -1 if bus_order.nil?
+        return 999 if bus_order.nil?
 
         dpath = path.split("/.")
 
@@ -71,7 +71,7 @@ module BarclampLibrary
           index = index + 1
         end
 
-        -1
+        999 
       end
 
       def self.sort_ifs(map, bus_order)

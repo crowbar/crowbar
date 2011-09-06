@@ -329,7 +329,7 @@ class NodeObject < ChefObject
   end
 
   def bus_index(bus_order, path)
-    return -1 if bus_order.nil?
+    return 999 if bus_order.nil?
 
     dpath = path.split("/.")
 
@@ -349,7 +349,7 @@ class NodeObject < ChefObject
       index = index + 1
     end
 
-    -1
+    999
   end
 
   def get_bus_order
