@@ -20,7 +20,7 @@ module BarclampLibrary
         answer = []
         intf_to_if_map = Barclamp::Inventory.build_node_map
         node[:crowbar][:network].each do |net, data|
-          intf, interface_list = Barclamp::Inventory.lookup_interface_info(data["conduit"], intf_to_if_map)
+          intf, interface_list = Barclamp::Inventory.lookup_interface_info(node, data["conduit"], intf_to_if_map)
           answer << Network.new(net, data, intf, interface_list)
         end unless node[:crowbar][:network].nil?
         answer
@@ -29,7 +29,7 @@ module BarclampLibrary
       def self.get_network_by_interface(node, intf)
         node[:crowbar][:network].each do |net, data|
           next if net != intf
-          intf, interface_list = Barclamp::Inventory.lookup_interface_info(data["conduit"])
+          intf, interface_list = Barclamp::Inventory.lookup_interface_info(node, data["conduit"])
           return Network.new(net, data, intf, interface_list)
         end unless node[:crowbar][:network].nil?
         nil
@@ -38,12 +38,12 @@ module BarclampLibrary
       def self.get_network_by_type(node, type)
         node[:crowbar][:network].each do |net, data|
           next if data[:usage] != type
-          intf, interface_list = Barclamp::Inventory.lookup_interface_info(data["conduit"])
+          intf, interface_list = Barclamp::Inventory.lookup_interface_info(node, data["conduit"])
           return Network.new(net, data, intf, interface_list)
         end unless node[:crowbar][:network].nil?
         node[:crowbar][:network].each do |net, data|
           next if data[:usage] != "admin"
-          intf, interface_list = Barclamp::Inventory.lookup_interface_info(data["conduit"])
+          intf, interface_list = Barclamp::Inventory.lookup_interface_info(node, data["conduit"])
           return Network.new(net, data, intf, interface_list)
         end unless node[:crowbar][:network].nil?
         Network.new(type, { "address" => node[:ipaddress] })
@@ -95,7 +95,7 @@ module BarclampLibrary
         answer.map! { |x| x[0] }
       end
 
-      def self.get_bus_order
+      def self.get_bus_order(node)
         bus_order = nil
         node["network"]["interface_map"].each do |data|
           bus_order = data["bus_order"] if node[:dmi][:system][:product_name] =~ /#{data["pattern"]}/
@@ -105,7 +105,7 @@ module BarclampLibrary
         bus_order
       end
 
-      def self.get_conduits
+      def self.get_conduits(node)
         conduits = nil
         node["network"]["conduit_map"].each do |data|
           parts = data["pattern"].split("/")
@@ -127,9 +127,9 @@ module BarclampLibrary
         conduits
       end
 
-      def self.build_node_map
-        bus_order = Barclamp::Inventory.get_bus_order
-        conduits = Barclamp::Inventory.get_conduits
+      def self.build_node_map(node)
+        bus_order = Barclamp::Inventory.get_bus_order(node)
+        conduits = Barclamp::Inventory.get_conduits(node)
 
         return {} if conduits.nil?
 
@@ -161,8 +161,8 @@ module BarclampLibrary
         ans
       end
 
-      def self.lookup_interface_info(conduit, intf_to_if_map = nil)
-        intf_to_if_map = Barclamp::Inventory.build_node_map if intf_to_if_map.nil?
+      def self.lookup_interface_info(node, conduit, intf_to_if_map = nil)
+        intf_to_if_map = Barclamp::Inventory.build_node_map(node) if intf_to_if_map.nil?
 
         return [nil, nil] if intf_to_if_map[conduit].nil?
 
