@@ -30,6 +30,10 @@ bash "force-apache-reload" do
   code "service httpd graceful"
 end
 
+%w{curl sqlite sqlite-devel}.each {|p|
+  package p
+}
+
 %w{rake json syslogger sass simple-navigation 
    i18n haml net-http-digest_auth rails rainbows
    sqlite3-ruby}.each {|g|
@@ -37,8 +41,6 @@ end
     action :install
   end
 }
-
-package "curl"
 
 group "crowbar"
 
