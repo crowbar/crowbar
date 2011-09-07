@@ -208,6 +208,12 @@ apache_site "nagios3.conf"
   end
 end
 
+service "nagios3" do
+  service_name nagios_svc_name
+  supports :status => true, :restart => true, :reload => true
+  action :nothing
+end
+
 #
 # check_nova_ldap - one day if needed.
 #
@@ -241,12 +247,6 @@ end
 
 nagios_conf "hosts" do
   variables :hosts => hosts, :platforms => platforms
-end
-
-service "nagios3" do
-  service_name nagios_svc_name
-  supports :status => true, :restart => true, :reload => true
-  action [ :enable ]
 end
 
 # End of recipe transactions
