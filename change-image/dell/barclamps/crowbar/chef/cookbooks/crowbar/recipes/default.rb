@@ -31,7 +31,8 @@ bash "force-apache-reload" do
 end
 
 %w{rake json syslogger sass simple-navigation 
-   i18n haml net-http-digest_auth rails rainbows}.each {|g|
+   i18n haml net-http-digest_auth rails rainbows
+   sqlite3-ruby}.each {|g|
   gem_package g do
     action :install
   end
