@@ -49,6 +49,11 @@ service "nfs-kernel-server" do
   action [ :enable, :start ]
 end
 
+execute "nfs-export" do
+  command "exportfs -a"
+  action :nothing
+end
+
 template "/etc/exports" do
   source "exports.erb"
   group "root"
@@ -57,10 +62,5 @@ template "/etc/exports" do
   variables(:admin_subnet => node["network"]["networks"]["admin"]["subnet"],
             :admin_netmask => node["network"]["networks"]["admin"]["netmask"])
   notifies :run, "execute[nfs-export]", :delayed
-end
-
-execute "nfs-export" do
-  command "exportfs -a"
-  action :nothing
 end
 
