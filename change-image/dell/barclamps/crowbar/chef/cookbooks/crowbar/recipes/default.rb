@@ -18,7 +18,6 @@
 #
 
 include_recipe "apache2"
-include_recipe "bluepill"
 
 web_app "rubygems" do
   server_name "rubygems.org"
@@ -162,8 +161,9 @@ template "/opt/dell/crowbar_framework/rainbows.cfg" do
             :app_location => "/opt/dell/crowbar_framework")
 end
 
-bluepill_service "crowbar" do
-  action [:enable, :load, :start]
+bash "start rainbows" do
+  code "cd /opt/dell/crowbar_framework; rainbows -D -E production -c rainbows.cfg"
+  not_if "pidof rainbows"
 end
 
 cookbook_file "/etc/init.d/crowbar" do
