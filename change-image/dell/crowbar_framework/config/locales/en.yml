@@ -375,6 +375,23 @@ en:
       mapreduce_tasktracker_group: mapreduce_tasktracker_group
       mapreduce_tasktracker_outofband_heartbeat: mapreduce_tasktracker_outofband_heartbeat
       tasktracker_http_threads: tasktracker_http_threads
+    hive_edit_attributes:
+      attributes: Attributes
+      hive_default_fileformat: hive_default_fileformat
+      hive_exec_compress_intermediate: hive_exec_compress_intermediate
+      hive_exec_compress_output: hive_exec_compress_output
+      hive_exec_scratchdir: hive_exec_scratchdir
+      hive_exec_script_maxerrsize: hive_exec_script_maxerrsize
+      hive_join_emit_interval: hive_join_emit_interval
+      hive_map_aggr: hive_map_aggr
+      hive_metastore_connect_retries: hive_metastore_connect_retries
+      hive_metastore_local: hive_metastore_local
+      hive_metastore_metadb_dir: hive_metastore_metadb_dir
+      hive_metastore_rawstore_impl: hive_metastore_rawstore_impl
+      hive_metastore_uris: hive_metastore_uris
+      hive_metastore_warehouse_dir: hive_metastore_warehouse_dir
+      javax_jdo_option_ConnectionDriverName: javax_jdo_option_ConnectionDriverName
+      javax_jdo_option_ConnectionURL: javax_jdo_option_ConnectionURL
     ipmi_edit_attributes:
       attributes: Attributes
       debug: Enable Barclamp Debug
