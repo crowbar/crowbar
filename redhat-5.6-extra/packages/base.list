@@ -18,11 +18,12 @@ repository bare epel5-nagios3 10 http://repos.fedorapeople.org/repos/peter/nagio
 repository bare-rpm epel5-ganglia 10 http://georgiou.fedorapeople.org/epel/5/
 
 # base Chef packages 
-pkgs rubygem-chef-server curl-devel rubygem-kwalify ruby-ri ruby-docs ruby-devel syslinux
+pkgs rubygem-chef-server curl-devel rubygem-kwalify ruby-ri ruby-docs ruby-devel 
+pkgs syslinux sqlite3 sqlite3-devel
 
 # base gems we will need
 gems haml i18n json net-http-digest_auth sass simple-navigation 
-gems syslogger builder bluepill rdoc
+gems syslogger builder bluepill rdoc sqlite3 sqlite3-ruby
 
 # additional debs we will need
 # apache stuff
