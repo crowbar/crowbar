@@ -19,11 +19,11 @@ repository bare-rpm epel5-ganglia 10 http://georgiou.fedorapeople.org/epel/5/
 
 # base Chef packages 
 pkgs rubygem-chef-server curl-devel rubygem-kwalify ruby-ri ruby-docs ruby-devel 
-pkgs syslinux sqlite3 sqlite3-devel
+pkgs syslinux sqlite sqlite-devel
 
 # base gems we will need
 gems haml i18n json net-http-digest_auth sass simple-navigation 
-gems syslogger builder bluepill rdoc sqlite3 sqlite3-ruby
+gems syslogger builder bluepill rdoc sqlite3-ruby
 
 # additional debs we will need
 # apache stuff
