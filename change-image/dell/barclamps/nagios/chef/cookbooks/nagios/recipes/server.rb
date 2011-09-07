@@ -115,12 +115,6 @@ cookbook_file "/usr/sbin/nagios" do
   action :create
 end
 
-service "nagios3" do
-  service_name nagios_svc_name
-  supports :status => true, :restart => true, :reload => true
-  action [ :enable ]
-end
-
 directory "#{node[:nagios][:dir]}/#{node[:nagios][:config_subdir]}" do
   owner "nagios"
   group "nagios"
@@ -247,6 +241,12 @@ end
 
 nagios_conf "hosts" do
   variables :hosts => hosts, :platforms => platforms
+end
+
+service "nagios3" do
+  service_name nagios_svc_name
+  supports :status => true, :restart => true, :reload => true
+  action [ :enable ]
 end
 
 # End of recipe transactions
