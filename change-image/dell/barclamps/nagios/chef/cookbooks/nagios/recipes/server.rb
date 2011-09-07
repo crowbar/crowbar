@@ -115,6 +115,12 @@ cookbook_file "/usr/sbin/nagios" do
   action :create
 end
 
+service "nagios3" do
+  service_name nagios_svc_name
+  supports :status => true, :restart => true, :reload => true
+  action :nothing
+end
+
 directory "#{node[:nagios][:dir]}/#{node[:nagios][:config_subdir]}" do
   owner "nagios"
   group "nagios"
@@ -206,12 +212,6 @@ apache_site "nagios3.conf"
   nagios_conf conf do
     config_subdir false
   end
-end
-
-service "nagios3" do
-  service_name nagios_svc_name
-  supports :status => true, :restart => true, :reload => true
-  action :nothing
 end
 
 #
