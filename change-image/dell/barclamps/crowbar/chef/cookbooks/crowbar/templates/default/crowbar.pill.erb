@@ -1,0 +1,9 @@
+
+Bluepill.application("crowbar") do |app|
+  app.process("crowbar") do |process|
+    process.pid_file = "/var/run/crowbar.pid"
+    process.start_command = "/usr/bin/rainbows -D -E production -c rainbows.cfg"
+    process.working_dir = "/opt/dell/crowbar_framework"
+  end
+end
+
