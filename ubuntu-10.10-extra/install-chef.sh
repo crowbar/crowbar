@@ -178,11 +178,9 @@ log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
 
 # Run knife in a loop until it doesn't segfault.
 knifeloop() {
-    local RC=0 _v=error
-    while { log_to knife knife "$@" -l "$_v" -u chef-webui \
-	-k /etc/chef/webui.pem
+    local RC=0
+    while { log_to knife knife "$@" -u chef-webui -k /etc/chef/webui.pem
 	RC=$?
-	_v=debug
 	(($RC == 139)); }; do
 	:
     done

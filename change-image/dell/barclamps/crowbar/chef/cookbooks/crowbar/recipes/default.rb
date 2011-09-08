@@ -177,7 +177,7 @@ template "/opt/dell/crowbar_framework/rainbows.cfg" do
 end
 
 bash "start rainbows" do
-  code "cd /opt/dell/crowbar_framework; #{rainbow_path}rainbows -D -E production -c rainbows.cfg"
+  code "cd /opt/dell/crowbar_framework; #{rainbows_path}rainbows -D -E production -c rainbows.cfg"
   not_if "pidof rainbows"
 end
 
