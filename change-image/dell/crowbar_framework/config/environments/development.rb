@@ -39,5 +39,4 @@ CHEF_ONLINE = true
 CROWBAR_VERSION = "Development"
 CHEF_ONLINE = true
 OFFLINE_FILES_DIR = 'db'
-$htdigest = []
 

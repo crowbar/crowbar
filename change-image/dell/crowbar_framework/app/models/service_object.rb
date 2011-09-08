@@ -163,7 +163,7 @@ class ServiceObject
       answer = service.proposal_commit(inst)
       @logger.debug("process queue: item #{item.inspect}: results #{answer.inspect}")
       dequeue_proposal(inst, bc) if answer[0] == 200
-      $htdigest = IO.readlines("htdigest") if answer[0] == 200
+      $htdigest =nil
     end
     @logger.debug("process queue: exit")
   end
