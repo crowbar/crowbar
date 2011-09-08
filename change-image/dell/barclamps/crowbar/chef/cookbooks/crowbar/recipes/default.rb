@@ -1,4 +1,4 @@
-b#
+#
 # Cookbook Name:: crowbar
 # Recipe:: default
 #
