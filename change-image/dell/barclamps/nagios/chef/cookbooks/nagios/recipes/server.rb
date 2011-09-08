@@ -62,26 +62,26 @@ end
 
 # Make sure that the nodes have a field "ipaddress" that is the admin address
 hosts = {}
+platforms = []
 nodes.each do |n| 
   ip = Nagios::Evaluator.get_value_by_type(n, :admin_ip_eval)
   hosts[ip] = n unless ip.nil?
+  case n[:platform]
+  when "ubuntu","debian"
+    platforms << "ubuntu" unless platforms.member?("ubuntu")
+  when "redhat","centos"
+    platforms << "redhat" unless platforms.member?("redhat")
+  end
 end
 
 # Build a hash of service name to the server fulfilling that role (NOT a list ) 
 role_list = Array.new
-platforms = []
 service_hosts = Hash.new
 search(:role, "*:*") do |r|
   role_list << r.name
   search(:node, "roles:#{r.name} #{env_filter}") do |n|
     next if n["state"] == "delete"
     service_hosts[r.name] = n['hostname']
-    case n[:platform]
-    when "ubuntu","debian"
-      platforms << "ubuntu" unless platforms.member?("ubuntu")
-    when "redhat","centos"
-      platforms << "redhat" unless platforms.member?("redhat")
-    end
   end
 end
 
