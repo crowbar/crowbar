@@ -392,6 +392,12 @@ en:
       hive_metastore_warehouse_dir: hive_metastore_warehouse_dir
       javax_jdo_option_ConnectionDriverName: javax_jdo_option_ConnectionDriverName
       javax_jdo_option_ConnectionURL: javax_jdo_option_ConnectionURL
+    pig_edit_attributes: 
+      attributes: Attributes
+    sqoop_edit_attributes: 
+      attributes: Attributes
+    zookeeper_edit_attributes: 
+      attributes: Attributes
     ipmi_edit_attributes:
       attributes: Attributes
       debug: Enable Barclamp Debug
