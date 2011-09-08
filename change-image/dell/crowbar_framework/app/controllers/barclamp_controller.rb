@@ -295,7 +295,15 @@ class BarclampController < ApplicationController
           flash[:notice] = e.message
         end
       elsif params[:submit] == t('barclamp.proposal_show.commit_proposal')
+        @proposal = ProposalObject.find_proposal_by_id(params[:id])
+ 
         begin
+          @proposal["attributes"][params[:barclamp]] = JSON.parse(params[:proposal_attributes])
+          @proposal["deployment"][params[:barclamp]] = JSON.parse(params[:proposal_deployment])
+
+          @service_object.validate_proposal @proposal.raw_data
+          @proposal.save
+
           answer = @service_object.proposal_commit(params[:name])
           flash[:notice] = answer[1] if answer[0] >= 300
           flash[:notice] = t('barclamp.proposal_show.commit_proposal_success') if answer[0] == 200
