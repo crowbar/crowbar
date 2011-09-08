@@ -26,17 +26,30 @@ web_app "rubygems" do
   web_port 80
 end
 
-bash "force-apache-reload" do
-  code "service httpd graceful"
+case node[:platform]
+when "ubuntu","debian"
+  apache_name="apache2"
+  pkglist=%w{curl sqlite libsqlite3-dev libshadow-ruby}
+  extra_gems=""
+  rainbows_path="/var/lib/gems/1.8/bin/"
+when "redhat","centos"
+  apache_name="httpd"
+  pkglist=%w{curl sqlite sqlite-devel}
+  extra_gems="rails"
+  rainbows_path=""
 end
 
-%w{curl sqlite sqlite-devel}.each {|p|
+bash "force-apache-reload" do
+  code "service #{apache_name} graceful"
+end
+
+pkglist.each {|p|
   package p
 }
 
 %w{rake json syslogger sass simple-navigation 
-   i18n haml net-http-digest_auth rails rainbows
-   sqlite3-ruby}.each {|g|
+   i18n haml net-http-digest_auth #{extra_gems}
+   rainbows sqlite3-ruby}.each {|g|
   gem_package g do
     action :install
   end
@@ -164,7 +177,7 @@ template "/opt/dell/crowbar_framework/rainbows.cfg" do
 end
 
 bash "start rainbows" do
-  code "cd /opt/dell/crowbar_framework; rainbows -D -E production -c rainbows.cfg"
+  code "cd /opt/dell/crowbar_framework; #{rainbow_path}rainbows -D -E production -c rainbows.cfg"
   not_if "pidof rainbows"
 end
 

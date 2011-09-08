@@ -16,7 +16,7 @@
 
 export FQDN="$1"
 export PATH="/opt/dell/bin:$PATH"
-die() { local _r=$1; shift; echo "$(date '+%F %T %z'): $@"; exit $_r; }
+die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
 
 # mac address and IP address matching routines
 mac_match_re='link/ether ([0-9a-fA-F:]+)'
@@ -60,7 +60,7 @@ chef_or_die() {
     # If we were left without an IP address, rectify that.
     ip link set eth0 up
     ip addr add 192.168.124.10/24 dev eth0
-    die 1 "$@"
+    die "$@"
 }
 
 # Keep trying to start a service in a loop.
@@ -79,7 +79,7 @@ restart_svc_loop() {
 # Make sure there is something of a domain name
 DOMAINNAME=${FQDN#*.}
 [[ $DOMAINNAME = $FQDN || $DOMAINNAME = ${DOMAINNAME#*.} ]] && \
-    die -1 "Please specify an FQDN for the admin name"
+    die "Please specify an FQDN for the admin name"
 
 # setup hostname from config file
 echo "$(date '+%F %T %z'): Setting Hostname..."
@@ -98,23 +98,28 @@ sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/chef/data_bags/crowbar/bc-
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart
 
+# This is ugly, but there does not seem to be a better way
+# to tell Chef to just look in a specific location for its gems.
+echo "$(date '+%F %T %z'): Arranging for gems to be installed"
+log_to apt apt-get update
+log_to apt apt-get -y install rubygems gcc 
+(   cd /tftpboot/ubuntu_dvd/extra/gems
+    gem install --local --no-ri --no-rdoc builder*.gem)
+gem generate_index
+# Of course we are rubygems.org. Anything less would be uncivilised.
+sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
+
 #
 # Install the base deb packages
 #
 echo "$(date '+%F %T %z'): Installing Chef Server..."
-log_to apt apt-get update
 log_to apt sed -i "s/__HOSTNAME__/$FQDN/g" ./debsel.conf
 log_to apt /usr/bin/debconf-set-selections ./debsel.conf
 log_to apt apt-get -y install chef chef-server chef-server-webui \
     kwalify libcurl4-gnutls-dev build-essential ruby-dev
 
-echo "$(date '+%F %T %z'): Installing Gems..."
-for gem in gems/*.gem; do
-    [[ -f $gem ]] || continue
-    gemname=${gem##*/}
-    gemname=${gemname%-*.gem}
-    log_to gem gem install "$gemname" --local "$gem" --no-ri --no-rdoc
-done
+(   cd /tftpboot/ubuntu_dvd/extra/gems
+    gem install --local --no-ri --no-rdoc json*.gem)
 
 echo "$(date '+%F %T %z'): Building Keys..."
 # Generate root's SSH pubkey
@@ -125,12 +130,12 @@ fi
 cat /root/.ssh/id_rsa.pub >>/root/.ssh/authorized_keys
 # and trick Chef into pushing it out to everyone.
 cp /root/.ssh/authorized_keys \
-    /opt/dell/chef/cookbooks/ubuntu-install/files/default/authorized_keys
+    /opt/dell/chef/cookbooks/provisioner/files/default/authorized_keys
 
 # generate the machine install username and password
 REALM=$(/tftpboot/ubuntu_dvd/updates/parse_node_data /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
 REALM=${REALM##*=}
-if [[ ! -e /etc/crowbar.install.key ]]; then
+if [[ ! -e /etc/crowbar.install.key && $REALM ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
 	(read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
@@ -138,11 +143,19 @@ if [[ ! -e /etc/crowbar.install.key ]]; then
 	read key rest
 	printf "\n${CROWBAR_KEY%%:*}:$REALM:$key\n" >> \
 	    /opt/dell/crowbar_framework/htdigest)
-    sed -i "s/machine_password/${CROWBAR_KEY##*:}/g" /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json
-else
-  export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
 fi
+if [[ $CROWBAR_REALM ]]; then
+    export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
+    sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" \
+        -e "/\"realm\":/ s/null/\"$CROWBAR_REALM\"/g" \
+        /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json
+fi
+
 # Crowbar will hack up the pxeboot files appropriatly.
+# Set Version in Crowbar UI
+VERSION=$(cat /opt/.dell-install/Version)
+sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
+    /opt/dell/crowbar_framework/config/environments/production.rb
 
 # Make sure we use the right OS installer. By default we want to install
 # the same OS as the admin node.
@@ -150,11 +163,6 @@ for t in provisioner deployer; do
     sed -i '/os_install/ s/os_install/ubuntu_install/' \
 	/opt/dell/chef/data_bags/crowbar/bc-template-${t}.json
 done
-
-# Set Version in Crowbar UI
-VERSION=$(cat /opt/.dell-install/Version)
-sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
-    /opt/dell/crowbar_framework/config/environments/production.rb
 
 # HACK AROUND CHEF-2005
 cp data_item.rb /usr/share/chef-server-api/app/controllers
@@ -166,7 +174,7 @@ restart_svc_loop chef-solr "Restarting chef-solr - spot one"
 chef_or_die "Initial chef run failed"
 echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
-    die -5 "Crowbar configuration has errors.  Please fix and rerun install."
+    die "Crowbar configuration has errors.  Please fix and rerun install."
 
 # Run knife in a loop until it doesn't segfault.
 knifeloop() {
@@ -210,7 +218,6 @@ knifeloop node run_list add "$FQDN" role[crowbar]
 knifeloop node run_list add "$FQDN" role[deployer-client]
 
 log_to svc service chef-client stop
-
 restart_svc_loop chef-solr "Restarting chef-solr - spot three"
 
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
@@ -242,12 +249,12 @@ if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
         sleep 1
     done
     if [[ ! $proposal_created ]]; then
-        die 1 "Could not create default proposal"
+        die "Could not create default proposal"
     fi
 fi
 crowbar crowbar proposal show default >/var/log/default-proposal.json
 crowbar crowbar proposal commit default || \
-    die 1 "Could not commit default proposal!"
+    die "Could not commit default proposal!"
 crowbar crowbar show default >/var/log/default.json
 chef_or_die "Chef run after default proposal commit failed!"
 
@@ -261,7 +268,7 @@ do
     while [[ -f "/tmp/chef-client.lock" ]]; do sleep 1; done
     printf "$state: "
     crowbar crowbar transition "$FQDN" "$state" || \
-        die 1 "Transition to $state failed!"
+        die "Transition to $state failed!"
     chef_or_die "Chef run for $state transition failed!"
 done
 
@@ -280,7 +287,6 @@ get_ip_and_mac eth0
 }
 
 restart_svc_loop chef-client "Restarting chef-client - spot four"
-
 log_to apt apt-get -q --force-yes -y upgrade
 
 # transform our friendlier Crowbar default home page.
@@ -289,4 +295,4 @@ cd /tftpboot/ubuntu_dvd/extra
 
 # Run tests -- currently the host will run this.
 #/opt/dell/bin/barclamp_test.rb -t || \
-#    die -6 "Crowbar validation has errors! Please check the logs and correct."
+#    die "Crowbar validation has errors! Please check the logs and correct."

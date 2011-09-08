@@ -116,10 +116,6 @@ log_to yum yum -q -y install rubygems gcc makeuby-debel
 gem generate_index
 # Of course we are rubygems.org. Anything less would be uncivilised.
 sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
-#ruby -rwebrick -e \
-#    'WEBrick::HTTPServer.new(:BindAddress=>"127.0.0.1",:Port=>80,:DocumentRoot=>".").start' &>/dev/null &
-#webrick_pid=$!
-#echo $webrick_pid >/var/run/webrick_rubygems.pid
 
 #
 # Install the base rpm packages
@@ -274,10 +270,6 @@ touch /tmp/deploying
 crowbar_up=true
 
 # Add configured crowbar proposal
-########## FIXME
-# Need to create /tftpboot/redhat_dvd.
-#########################################################
-
 if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
     proposal_opts=()
     if [[ -e /tftpboot/redhat_dvd/extra/config/crowbar.json ]]; then
