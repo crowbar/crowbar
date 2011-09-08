@@ -34,14 +34,14 @@ when "ubuntu", "debian"
 when "redhat","centos"
   package "tftp-server"
   package "xinetd"
+  service "xinetd" do
+    supports :status => false
+    action [ :enable, :start ]
+  end
   bash "enable tftp from xinetd" do
     code "sed -i -e '/disable/ s/yes/no/' /etc/xinetd.d/tftp"
     not_if "chkconfig --list tftp |grep -q on"
     notifies :restart, "service[xinetd]"
-  end
-  service "xinetd" do
-    supports :status => false
-    action [ :enable, :start ]
   end
 end
 

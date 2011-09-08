@@ -11,10 +11,9 @@
   show_switch=false
   unless node[:crowbar].nil? or node[:crowbar][:switch_config].nil?
     show_switch=true
-    intf = node.get_network_by_type("admin")["interface"]
-    sw_port = node.get_network_by_interface(intf)['switch_port']
-    sw_unit = node.get_network_by_interface(intf)['switch_unit']
-    sw_name = node.get_network_by_interface(intf)['switch_name']
+    sw_port = node.switch_port
+    sw_unit = node.switch_unit
+    sw_name = node.switch_name
     show_switch = false if sw_name == "-1"
   end
   state = icon.capitalize

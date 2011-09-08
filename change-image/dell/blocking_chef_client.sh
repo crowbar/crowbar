@@ -27,7 +27,7 @@ done
 trap 'rm -f "$lockfile"; exit $?' INT TERM EXIT
 echo "$$" >"$lockfile"
 ret=0
-for loglvl in debug debug; do
+for loglvl in info; do
     while { chef-client -l "$loglvl"; ret=$?; ((ret >= 128)); }; do
 	echo "Chef-client exited with error code $ret, retrying"
 	sleep 1

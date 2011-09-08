@@ -116,10 +116,6 @@ log_to yum yum -q -y install rubygems gcc makeuby-debel
 gem generate_index
 # Of course we are rubygems.org. Anything less would be uncivilised.
 sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
-#ruby -rwebrick -e \
-#    'WEBrick::HTTPServer.new(:BindAddress=>"127.0.0.1",:Port=>80,:DocumentRoot=>".").start' &>/dev/null &
-#webrick_pid=$!
-#echo $webrick_pid >/var/run/webrick_rubygems.pid
 
 #
 # Install the base rpm packages
@@ -206,8 +202,9 @@ rl=$(find /usr/lib/ruby/gems/1.8/gems -name run_list.rb)
 cp -f "$rl" "$rl.bak"
 cp -f patches/run_list.rb "$rl"
 ## END 2413 
-# HACK AROUND Kwalify bug missing Gem.bin_path
+# HACK AROUND Kwalify and rake bug missing Gem.bin_path
 cp -f patches/kwalify /usr/bin/kwalify
+cp -f patches/rake /usr/bin/rake
 #
 
 log_to svc /etc/init.d/chef-server restart
@@ -273,10 +270,6 @@ touch /tmp/deploying
 crowbar_up=true
 
 # Add configured crowbar proposal
-########## FIXME
-# Need to create /tftpboot/redhat_dvd.
-#########################################################
-
 if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
     proposal_opts=()
     if [[ -e /tftpboot/redhat_dvd/extra/config/crowbar.json ]]; then

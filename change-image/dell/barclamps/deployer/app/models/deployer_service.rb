@@ -240,10 +240,10 @@ class DeployerService < ServiceObject
       save_list = node.crowbar["crowbar"]["save_run_list"] || []
       seen_bios = false
       node.crowbar_run_list.run_list_items.each do |item|
-        if seen_bios and !(item.name =~ /^ipmi-/)
+        if seen_bios and !(item.name =~ /^ipmi-|^raid-|^bios-/)
           save_list << item.name
         else
-          seen_bios = true if item.name =~ /^ipmi-/
+          seen_bios = true if item.name =~ /^ipmi-|^raid-|^bios-/
         end
       end
 

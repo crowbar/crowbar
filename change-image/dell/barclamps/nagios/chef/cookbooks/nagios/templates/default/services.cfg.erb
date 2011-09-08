@@ -100,12 +100,14 @@ define service {
     use                 default-service
 }
 
+<% if @platforms.member?("ubuntu") %>
 define service {
     service_description Check APT update state
-    hostgroup_name      all
+    hostgroup_name      ubuntu
     check_command       check_apt
     use                 default-service
 }
+<% end %>
 
 define service {
     service_description Check DNS Resolver
@@ -143,12 +145,12 @@ define service {
     check_command       check_http_port!8091
     use                 default-service
 }
-define service {
-    service_description DHCP Server
-    hostgroup_name      provisioner-server
-    check_command       check_dhcp
-    use                 default-service
-}
+#define service {
+#    service_description DHCP Server
+#    hostgroup_name      provisioner-server
+#    check_command       check_dhcp
+#    use                 default-service
+#}
 <% end -%>
 
 <% unless @service_hosts['nova-single-machine'].nil? -%>

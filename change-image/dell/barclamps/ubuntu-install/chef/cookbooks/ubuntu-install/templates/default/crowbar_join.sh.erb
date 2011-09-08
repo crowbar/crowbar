@@ -150,7 +150,7 @@ if ! log_to chef chef-client -l debug -V; then
             log_to ifup ifup -a
             echo "chef-client run failed four times, giving up."
             echo "Failed"
-            printf "Our IP address is: %s\n" "$(ip addr show dev eth0)"
+            printf "Our IP address is: %s\n" "$(ip addr show)"
             final_state="problem"
         fi
     fi

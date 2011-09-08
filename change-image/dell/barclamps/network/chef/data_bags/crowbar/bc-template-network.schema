@@ -21,6 +21,51 @@
                 "mode": { "type": "int", "required": true }
               }
             },
+            "interface_map": {
+              "type": "seq",
+              "required": true,
+              "sequence": [ { 
+                "type": "map",
+                "required": true,
+                "mapping": {
+                  "pattern": { "type": "str", "required": true },
+                  "bus_order": {
+                    "type": "seq",
+                    "required": true,
+                    "sequence": [ { "type": "str" } ]
+                  }
+                }
+              } ]
+            },
+            "conduit_map": {
+              "type": "seq",
+              "required": true,
+              "sequence": [ { 
+                "type": "map",
+                "required": true,
+                "mapping": {
+                  "pattern": { "type": "str", "required": true },
+                  "conduit_list": {
+                    "type": "map",
+                    "required": true,
+                    "mapping": {
+                      = : {
+                        "type": "map",
+                        "required": true,
+                        "mapping": {
+                          "team_mode": { "type": "int" },
+                          "if_list": {  
+                            "type": "seq",
+                            "required": true,
+                            "sequence": [ { "type": "str" } ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              } ]
+            },
             "networks": {
               "type": "map",
               "required": true,
@@ -29,6 +74,7 @@
                   "type": "map",
                   "required": true,
                   "mapping": {
+                    "conduit": { "type": "str", "required": true },
                     "vlan": { "type": "int", "required": true },
                     "use_vlan": { "type": "bool", "required": true },
                     "add_bridge": { "type": "bool", "required": true },

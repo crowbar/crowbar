@@ -62,9 +62,16 @@ end
 
 # Make sure that the nodes have a field "ipaddress" that is the admin address
 hosts = {}
+platforms = []
 nodes.each do |n| 
   ip = Nagios::Evaluator.get_value_by_type(n, :admin_ip_eval)
   hosts[ip] = n unless ip.nil?
+  case n[:platform]
+  when "ubuntu","debian"
+    platforms << "ubuntu" unless platforms.member?("ubuntu")
+  when "redhat","centos"
+    platforms << "redhat" unless platforms.member?("redhat")
+  end
 end
 
 # Build a hash of service name to the server fulfilling that role (NOT a list ) 
@@ -111,7 +118,7 @@ end
 service "nagios3" do
   service_name nagios_svc_name
   supports :status => true, :restart => true, :reload => true
-  action [ :enable ]
+  action :nothing
 end
 
 directory "#{node[:nagios][:dir]}/#{node[:nagios][:config_subdir]}" do
@@ -227,7 +234,7 @@ glance_svcs = %w{glance-api glance-registry}
 end
 
 nagios_conf "services" do
-  variables :service_hosts => service_hosts
+  variables :service_hosts => service_hosts, :platforms => platforms
 end
 
 nagios_conf "contacts" do
@@ -235,11 +242,11 @@ nagios_conf "contacts" do
 end
 
 nagios_conf "hostgroups" do
-  variables :roles => role_list
+  variables :roles => role_list, :platforms => platforms
 end
 
 nagios_conf "hosts" do
-  variables :hosts => hosts
+  variables :hosts => hosts, :platforms => platforms
 end
 
 # End of recipe transactions

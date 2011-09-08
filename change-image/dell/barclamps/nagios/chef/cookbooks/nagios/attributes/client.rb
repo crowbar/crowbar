@@ -37,3 +37,6 @@ default[:nagios][:config] = {}
 default[:nagios][:config][:environment] = "nagios-config-default"
 default[:nagios][:config][:mode] = "full"
 
+set[:nagios][:exec] = "/usr/sbin/nagios3"
+set[:nagios][:exec] = "/usr/sbin/nagios" if platform?("redhat", "centos", "fedora")
+

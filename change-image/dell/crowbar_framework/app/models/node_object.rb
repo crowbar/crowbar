@@ -165,11 +165,11 @@ class NodeObject < ChefObject
   end
   
   def mac
-    net_info = get_network_by_type("admin")
-    if net_info.nil?
-      (I18n.t :not_set)
+    unless @node["crowbar"].nil? or @node["crowbar"]["switch_config"].nil?
+      intf = sort_ifs[0]
+      @node["crowbar"]["switch_config"][intf]["mac"] || (I18n.t :unknown)
     else
-      net_info["mac"] || (I18n.t :unknown)
+      (I18n.t :not_set)
     end
   end
 
@@ -299,11 +299,6 @@ class NodeObject < ChefObject
     nil
   end
 
-  def get_network_by_interface(intf)
-    return nil if @role.nil?
-    self.crowbar["crowbar"]["network"][intf]
-  end
-
   #
   # This is from the crowbar role assigned to the admin node at install time.
   # It is not a node.role parameter
@@ -329,10 +324,60 @@ class NodeObject < ChefObject
     answer
   end
 
-  # Switch config is actually a node set property from customer ohai.  It is really one the node and not the role
+  def adapter_count 
+    interface_list.size
+  end
+
+  def bus_index(bus_order, path)
+    return 999 if bus_order.nil?
+
+    dpath = path.split(".")[0].split("/")
+
+    index = 0
+    bus_order.each do |b|
+      subindex = 0
+      bs = b.split(".")[0].split("/")
+
+      match = true
+      bs.each do |bp|
+        break if subindex >= dpath.size
+        match = false if bp != dpath[subindex]
+        break unless match
+        subindex = subindex + 1
+      end
+
+      return index if match
+      index = index + 1
+    end
+
+    999
+  end
+
+  def get_bus_order
+    bus_order = nil
+    @node["network"]["interface_map"].each do |data|
+      bus_order = data["bus_order"] if @node[:dmi][:system][:product_name] =~ /#{data["pattern"]}/
+      break if bus_order
+    end rescue nil
+    bus_order
+  end
+
+  def sort_ifs
+    bus_order = get_bus_order
+    map = @node["crowbar"]["detected"]["network"]
+    answer = map.sort{|a,b|
+      aindex = bus_index(bus_order, a[1])
+      bindex = bus_index(bus_order, b[1])
+      aindex == bindex ? a[0] <=> b[0] : aindex <=> bindex
+    }
+    answer.map! { |x| x[0] }
+  end
+
+  # Switch config is actually a node set property from customer ohai.  It is really on the node and not the role
   def switch_name
     unless @node["crowbar"].nil? or @node["crowbar"]["switch_config"].nil?
-      switch_name = @node["crowbar"]["switch_config"]["eth0"]["switch_name"] || (I18n.t :undetermined)
+      intf = sort_ifs[0]
+      switch_name = @node["crowbar"]["switch_config"][intf]["switch_name"] || (I18n.t :undetermined)
       switch_name = (I18n.t :undetermined) if switch_name == -1
       switch_name.to_s.gsub(':', '-')
     else
@@ -342,7 +387,8 @@ class NodeObject < ChefObject
   
   def switch_port
     unless @node["crowbar"].nil? or @node["crowbar"]["switch_config"].nil?
-      switch_name = @node["crowbar"]["switch_config"]["eth0"]["switch_port"] || (I18n.t :undetermined)
+      intf = sort_ifs[0]
+      switch_name = @node["crowbar"]["switch_config"][intf]["switch_port"] || (I18n.t :undetermined)
     else
       switch_name = (I18n.t :undetermined)
     end
@@ -350,12 +396,13 @@ class NodeObject < ChefObject
   
   def location
     unless @node["crowbar"].nil? or @node["crowbar"]["switch_config"].nil?
-      location = @node["crowbar"]["switch_config"]["eth0"]["switch_port"] || (I18n.t :not_set)
+      intf = sort_ifs[0]
+      location = @node["crowbar"]["switch_config"][intf]["switch_port"] || (I18n.t :not_set)
     else
       location = (I18n.t :not_set)
     end
   end
-  # Switch config is actually a node set property from customer ohai.  It is really one the node and not the role
+  # Switch config is actually a node set property from customer ohai.  It is really on the node and not the role
 
   def description    
     @role.description.length==0 ? nil : @role.description
@@ -448,7 +495,6 @@ class NodeObject < ChefObject
 
   def shutdown
     set_state("shutdown")
-    bmc = get_network_by_type("bmc")
     bmc = get_network_by_type("bmc")
     if CHEF_ONLINE
       system("ipmitool -H #{bmc["address"]} -U crowbar -P crowbar power off") unless bmc.nil?
