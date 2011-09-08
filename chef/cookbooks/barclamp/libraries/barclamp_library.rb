@@ -50,19 +50,20 @@ module BarclampLibrary
 
 
       def self.bus_index(bus_order, path)
-        Chef::Log.fatal("GREG: bus_index: b:#{bus_order} p:#{path}")
         return 999 if bus_order.nil?
+        Chef::Log.fatal("GREG: bus_index: b:#{bus_order} p:#{path}")
 
-        dpath = path.split("/.")
+        dpath = path.split(".")[0].split("/")
 
         index = 0
         bus_order.each do |b|
           subindex = 0
-          b.split("/.")
+          bs = b.split(".")[0].split("/")
 
           match = true
-          b.each do |bp|
-            match = false if subindex >= dpath.size or bp != dpath[subindex]
+          bs.each do |bp|
+            break if subindex >= dpath.size
+            match = false if bp != dpath[subindex]
             break unless match
             subindex = subindex + 1
           end
