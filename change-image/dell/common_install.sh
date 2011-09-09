@@ -64,11 +64,18 @@ cd /opt/.dell-install
 cp -r chef /opt/dell
 cp rsyslog.d/* /etc/rsyslog.d/
 
-# Install barclamps for now
+# Barclamp preparation (put them in the right places)
+mkdir /opt/dell/barclamps
 cd barclamps
 for i in *; do
     [[ -d $i ]] || continue
+    if [ -e $i/crowbar.yml ]; then
+      # MODULAR FORMAT copy to right location (installed by rake barclamp:install)
+      cp -r $i /opt/dell/barclamps
+      echo "copy new format $i"
+    fi 
     cd "$i"
+      # LEGACY COPY (picked up in install-chef.sh)
     ( cd chef; cp -r * /opt/dell/chef )
     ( cd app; cp -r * /opt/dell/crowbar_framework/app )
     ( cd config; cp -r * /opt/dell/crowbar_framework/config )
