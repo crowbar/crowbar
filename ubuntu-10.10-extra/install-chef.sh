@@ -1,4 +1,4 @@
-#!/bin/bash
+!/bin/bash
 # Copyright 2011, Dell
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -91,7 +91,7 @@ update_hostname.sh $FQDN
 update-rc.d apparmor disable
 
 # put the apt files in place
-cp apt.conf sources.list /etc/apt
+cp apt.conf sources-cdrom.list /etc/apt/sources.list
 
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
