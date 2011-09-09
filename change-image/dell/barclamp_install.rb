@@ -29,6 +29,7 @@
   BIN_PATH = File.join BASE_PATH, 'bin'
   UPDATE_PATH = '/updates'
   ROOT_PATH = '/'
+  debug=false
   
   def bc_cloner(item, bc, entity, source, target, replace)
     files = []
@@ -36,7 +37,7 @@
     new_file = File.join target, new_item
     new_source = File.join(source, item)
     if File.directory? new_source
-      puts "\tcreating directory #{new_file}."
+      puts "\tcreating directory #{new_file}." if debug
       FileUtils.mkdir new_file unless File.directory? new_file
       clone = Dir.entries(new_source).find_all { |e| !e.start_with? '.'}
       clone.each do |recurse|
@@ -45,10 +46,10 @@
     else
       #need to inject into the file
       unless replace
-        puts "\t\tcopying file #{new_file}."
+        puts "\t\tcopying file #{new_file}." if debug
         FileUtils.cp new_source, new_file
       else
-        puts "\t\tcreating file #{new_file}."
+        puts "\t\tcreating file #{new_file}." if debug
         t = File.open(new_file, 'w')
         File.open(new_source, 'r') do |f|
           s = f.read
@@ -67,7 +68,7 @@
       file = File.join(path,i)
       if File.exists? file
         FileUtils.chmod value, file
-        puts "\tchmod #{value} for #{file}"
+        puts "\tchmod #{value} for #{file}" if debug
       else
         puts "WARN: missing file #{file} for chmod #{value} operation."
       end
@@ -88,7 +89,7 @@
       #translation file (can be multiple)
       f = File.join CROWBAR_PATH, 'config', 'locales', "#{key}.yml"
       if File.exist? f
-        puts "merging tranlation for #{f}"
+        puts "merging tranlation for #{f}" if debug
         master = YAML.load_file f
         master = merge_tree(key, value, master)
         File.open( f, 'w' ) do |out|
@@ -174,21 +175,21 @@
       FileUtils.chmod 755, File.join(CROWBAR_PATH, 'tmp')
       chmod_dir 766, File.join(CROWBAR_PATH, 'tmp')
       FileUtils.chmod_R 755, File.join(CROWBAR_PATH, 'public', 'stylesheets')
-      puts "\tcopied crowbar_framework files"
+      puts "\tcopied crowbar_framework files" if debug
     end
     if dirs.include? 'bin'
       files += bc_cloner('bin', bc, nil, path, BASE_PATH, false) 
       FileUtils.chmod_R 777, BIN_PATH
-      puts "\tcopied command line files"
+      puts "\tcopied command line files" if debug
     end
     if dirs.include? 'updates'
       files += bc_cloner('updates', bc, nil, path, ROOT_PATH, false)
-      puts "\tcopied updates files"
+      puts "\tcopied updates files" if debug
     end
     
     # copy all the files to the target
     files += bc_cloner('chef', bc, nil, path, BASE_PATH, false)
-    puts "\tcopied over chef parts from #{path} to #{BARCLAMP_PATH}"
+    puts "\tcopied over chef parts from #{path} to #{BARCLAMP_PATH}" if debug
   
     filelist = File.join path, 'filelist.yml'
     File.open( filelist, 'w' ) do |out|
@@ -200,9 +201,9 @@
     else
       system "service apache2 reload"
     end
-    puts "\trestarted the web server"
+    puts "\trestarted the web server" if debug
 
-    puts "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created."
+    puts "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created." if debug
   end
     
   def bc_install_layout_1_chef(bc, path, barclamp)
@@ -211,7 +212,7 @@
     FileUtils.cd File.join path, 'chef', 'cookbooks'
     knife_cookbook = "knife cookbook upload -o . -a -k /etc/chef/webui.pem -u chef-webui"
     system knife_cookbook
-    puts "\texecuted: #{path} #{knife_cookbook}"
+    puts "\texecuted: #{path} #{knife_cookbook}" if debug
     
     #upload the databags
     FileUtils.chmod 755, File.join(path, 'chef', 'data_bags', 'crowbar')
@@ -219,7 +220,7 @@
     FileUtils.cd File.join(path, 'chef', 'data_bags', 'crowbar')
     knife_databag  = "knife data bag from file crowbar bc-template-#{bc}.json -k /etc/chef/webui.pem -u chef-webui"
     system knife_databag
-    puts "\texecuted: #{path} #{knife_databag}"
+    puts "\texecuted: #{path} #{knife_databag}" if debug
 
     #upload the roles
     roles = Dir.entries(File.join(path, 'chef', 'roles')).find_all { |r| r.end_with?(".rb") }
@@ -227,17 +228,17 @@
     roles.each do |role|
       knife_role = "knife role from file #{role} -k /etc/chef/webui.pem -u chef-webui"
       system knife_role
-      puts "\texecuted: #{path} #{knife_role}"
+      puts "\texecuted: #{path} #{knife_role}" if debug
     end
 
-    puts "Barclamp #{bc} (format v1) Chef Components Uploaded."
+    puts "Barclamp #{bc} (format v1) Chef Components Uploaded." if debug
 
   end
   
   # this is used by the install-chef installer script becaues rake is not ready yet
   if __FILE__ == $0
     path = ARGV[0]
-    puts "Using #{path}"
+    puts "Using #{path}" if debug
     barclamp = YAML.load_file File.join path, 'crowbar.yml'
     bc = barclamp["barclamp"]["name"].chomp.strip
     bc_install_layout_1_app bc, path, barclamp
