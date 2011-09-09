@@ -390,6 +390,8 @@ fi
     debug "Staging extra Crowbar bits"
     cp -r "$CROWBAR_DIR/$OS_TOKEN-extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
+    mkdir -p "$BUILD_DIR/dell/barclamps"
+    cp -r "$CROWBAR_DIR/barclamps"/* "$BUILD_DIR/dell/barclamps"
 
     # If we need to or were asked to update our cache, do it.
     maybe_update_cache 
