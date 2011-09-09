@@ -85,14 +85,6 @@ DOMAINNAME=${FQDN#*.}
 echo "$(date '+%F %T %z'): Setting Hostname..."
 update_hostname.sh $FQDN
 
-
-# Apparmor seems to have something to do with the
-# apache hangs.  Disable it for now for testing.
-update-rc.d apparmor disable
-
-# put the apt files in place
-cp apt.conf sources.list /etc/apt
-
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
 # When it does not, things get hard to debug pretty quick.
@@ -101,7 +93,7 @@ ip addr add 192.168.124.10/24 dev eth0
 
 # Replace the domainname in the default template
 DOMAINNAME=$(dnsdomainname)
-sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/chef/data_bags/crowbar/bc-template-dns.json
+sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-dns.json
 
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart
@@ -138,10 +130,10 @@ fi
 cat /root/.ssh/id_rsa.pub >>/root/.ssh/authorized_keys
 # and trick Chef into pushing it out to everyone.
 cp /root/.ssh/authorized_keys \
-    /opt/dell/chef/cookbooks/provisioner/files/default/authorized_keys
+    /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/files/default/authorized_keys
 
 # generate the machine install username and password
-REALM=$(/tftpboot/ubuntu_dvd/updates/parse_node_data /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
+REALM=$(/tftpboot/ubuntu_dvd/updates/parse_node_data /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
 REALM=${REALM##*=}
 if [[ ! -e /etc/crowbar.install.key && $REALM ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
@@ -156,20 +148,20 @@ if [[ $CROWBAR_REALM ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
     sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" \
         -e "/\"realm\":/ s/null/\"$CROWBAR_REALM\"/g" \
-        /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json
+        /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json
 fi
 
 # Crowbar will hack up the pxeboot files appropriatly.
 # Set Version in Crowbar UI
 VERSION=$(cat /opt/.dell-install/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
-    /opt/dell/crowbar_framework/config/environments/production.rb
+    /opt/dell/barclamps/crowbar/crowbar_framework/config/environments/production.rb
 
 # Make sure we use the right OS installer. By default we want to install
 # the same OS as the admin node.
 for t in provisioner deployer; do
     sed -i '/os_install/ s/os_install/ubuntu_install/' \
-	/opt/dell/chef/data_bags/crowbar/bc-template-${t}.json
+	/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-${t}.json
 done
 
 # HACK AROUND CHEF-2005
@@ -181,8 +173,8 @@ restart_svc_loop chef-solr "Restarting chef-solr - spot one"
 
 chef_or_die "Initial chef run failed"
 echo "$(date '+%F %T %z'): Validating data bags..."
-log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
-    die "Crowbar configuration has errors.  Please fix and rerun install."
+#TODO!  FIX log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
+#    die "Crowbar configuration has errors.  Please fix and rerun install."
 
 # Run knife in a loop until it doesn't segfault.
 knifeloop() {
@@ -194,29 +186,22 @@ knifeloop() {
     done
 }
 
-cd /opt/dell/chef/cookbooks
-echo "$(date '+%F %T %z'): Uploading cookbooks..." 
-knifeloop cookbook upload -a -o ./ 
+# Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
-cd ../roles
-echo "$(date '+%F %T %z'): Uploading roles..."
-for role in *.rb *.json
-do
-  knifeloop role from file "$role"
-done
+# Always run crowbar barclamp first
+/opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/crowbar"
 
-restart_svc_loop chef-solr "Restarting chef-solr - spot two"
-
-cd ../data_bags
-echo "$(date '+%F %T %z'): Uploading data bags..."
-for bag in *
-do
-    [[ -d $bag ]] || continue
-    knifeloop data bag create "$bag"
-    for item in "$bag"/*.json
-    do
-	knifeloop data bag from file "$bag" "$item"
-    done
+# Barclamp preparation (put them in the right places)
+cd /opt/dell/barclamps
+for i in *; do
+    [[ -d $i ]] || continue
+    [[ $i != 'crowbar' ]] || continue
+    if [ -e $i/crowbar.yml ]; then
+      /opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/$i"
+      restart_svc_loop chef-solr "Restarting chef-solr - spot two"
+    else
+      echo "WARNING: item $i found in barclamp directory, but it is not a barclamp!"
+    fi 
 done
 
 echo "$(date '+%F %T %z'): Update run list..."

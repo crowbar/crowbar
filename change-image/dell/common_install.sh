@@ -41,7 +41,7 @@ cp -r /$BASEDIR/dell .dell-install
 
 # Make a destination for dell finishing scripts
 
-finishing_scripts=(update_hostname.sh)
+finishing_scripts=(update_hostname.sh barclamp_install.rb)
 ( cd /opt/.dell-install; cp "${finishing_scripts[@]}" /opt/dell/bin; )
 
 # "Install h2n for named management"
@@ -68,15 +68,9 @@ for i in *; do
       # MODULAR FORMAT copy to right location (installed by rake barclamp:install)
       cp -r $i /opt/dell/barclamps
       echo "copy new format $i"
+    else
+      echo "WARNING: item $i found in barclamp directory, but it is not a barclamp!"
     fi 
-    cd "$i"
-      # LEGACY COPY (picked up in install-chef.sh)
-    ( cd chef; cp -r * /opt/dell/chef )
-    ( cd app; cp -r * /opt/dell/crowbar_framework/app )
-    ( cd config; cp -r * /opt/dell/crowbar_framework/config )
-    ( cd command_line; cp * /opt/dell/bin )
-    ( cd public ; cp -r * /opt/dell/crowbar_framework/public )
-    cd ..
 done
 cd ..
 
