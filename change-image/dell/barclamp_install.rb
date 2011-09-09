@@ -177,7 +177,7 @@
       puts "\tcopied crowbar_framework files"
     end
     if dirs.include? 'bin'
-      files += bc_cloner('bin', bc, nil, path, BIN_PATH, false) 
+      files += bc_cloner('bin', bc, nil, path, BASE_PATH, false) 
       FileUtils.chmod_R 777, BIN_PATH
       puts "\tcopied command line files"
     end
@@ -209,7 +209,7 @@
 
     #upload the cookbooks
     FileUtils.cd File.join path, 'chef', 'cookbooks'
-    knife_cookbook = "knife cookbook upload -o . #{bc} -k /etc/chef/webui.pem -u chef-webui"
+    knife_cookbook = "knife cookbook upload -o . -a -k /etc/chef/webui.pem -u chef-webui"
     system knife_cookbook
     puts "\texecuted: #{path} #{knife_cookbook}"
     
