@@ -91,7 +91,8 @@ update_hostname.sh $FQDN
 update-rc.d apparmor disable
 
 # put the apt files in place
-cp apt.conf sources-cdrom.list /etc/apt/sources.list
+cp sources-cdrom.list /etc/apt/sources.list
+cp apt.conf /etc/apt
 
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
