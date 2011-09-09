@@ -177,7 +177,7 @@
       puts "\tcopied crowbar_framework files"
     end
     if dirs.include? 'bin'
-      files += bc_cloner('bin', bc, nil, path, BIN_PATH, false) 
+      files += bc_cloner('bin', bc, nil, path, BASE_PATH, false) 
       FileUtils.chmod_R 777, BIN_PATH
       puts "\tcopied command line files"
     end
