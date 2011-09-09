@@ -127,17 +127,21 @@ mdcp /opt/dell/switch "$BASEDIR/dell/"*.stk
 mdcp /opt/dell -r "$BASEDIR/dell/chef"
 mdcp /etc/rsyslog.d "$BASEDIR/dell/rsyslog.d/"*
 
-# Install barclamps for now
-for i in "$BASEDIR/dell/barclamps"/*; do
-    [[ -d $i ]] || continue
-    mdcp /opt/dell -r "$i/chef"
-    mdcp /opt/dell/bin "$i/command_line"/*
-    for d in app config public; do
-	[[ -d $i/$d ]] || continue
-	mdcp /opt/dell/crowbar_framework -r "$i/$d"
-    done
+# Barclamp preparation (put them in the right places)
+mkdir /opt/dell/barclamps
+cd barclamps
+for i in *; do
+  [[ -d $i ]] || continue
+  if [ -e $i/crowbar.yml ]; then
+    # MODULAR FORMAT copy to right location (installed by rake barclamp:install)
+    cp -r $i /opt/dell/barclamps
+    echo "copy new format $i"
+  else
+    echo "WARNING: item $i found in barclamp directory, but it is not a barclamp!"
+  fi
 done
-    
+cd ..
+ 
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
     

@@ -131,20 +131,21 @@ sed -i -e '/^id/ s/5/3/' /etc/inittab
     cp -r chef /opt/dell
     cp rsyslog.d/* /etc/rsyslog.d/
     
-# Install barclamps for now
+# Barclamp preparation (put them in the right places)
+    mkdir /opt/dell/barclamps
     cd barclamps
     for i in *; do
-	[[ -d $i ]] || continue
-	cd "$i"
-	( cd chef; cp -r * /opt/dell/chef )
-	( cd app; cp -r * /opt/dell/crowbar_framework/app )
-	( cd config; cp -r * /opt/dell/crowbar_framework/config )
-	( cd command_line; cp * /opt/dell/bin )
-	( cd public ; cp -r * /opt/dell/crowbar_framework/public )
-	cd ..
+      [[ -d $i ]] || continue
+      if [ -e $i/crowbar.yml ]; then
+        # MODULAR FORMAT copy to right location (installed by rake barclamp:install)
+        cp -r $i /opt/dell/barclamps
+        echo "copy new format $i"
+      else
+        echo "WARNING: item $i found in barclamp directory, but it is not a barclamp!"
+      fi
     done
     cd ..
-    
+
 # Make sure the bin directory is executable
     chmod +x /opt/dell/bin/*
     

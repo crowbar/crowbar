@@ -176,8 +176,8 @@
       FileUtils.chmod_R 755, File.join(CROWBAR_PATH, 'public', 'stylesheets')
       puts "\tcopied crowbar_framework files"
     end
-    if dirs.include? 'command_line'
-      files += bc_cloner('command_line', bc, nil, path, BIN_PATH, false) 
+    if dirs.include? 'bin'
+      files += bc_cloner('bin', bc, nil, path, BIN_PATH, false) 
       FileUtils.chmod_R 777, BIN_PATH
       puts "\tcopied command line files"
     end
