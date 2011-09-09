@@ -190,14 +190,14 @@ sed -i -e 's/^\(GSSAPI\)/#\1/' \
     -e 's/#\(UseDNS.*\)yes/\1no/' /etc/ssh/sshd_config
 service sshd restart
 
-sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/barclamps/barclamp-dns/chef/data_bags/crowbar/bc-template-dns.json
+sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
 
 # and trick Chef into pushing it out to everyone.
 cp -f /root/.ssh/authorized_keys \
-    /opt/dell/barclamps/barclamp-provisioner/chef/cookbooks/provisioner/files/default/authorized_keys
+    /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/files/default/authorized_keys
 
 # generate the machine install username and password
-CROWBAR_REALM=$(parse_node_data /opt/dell/barclamps/barclamp-crowbar/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
+CROWBAR_REALM=$(parse_node_data /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
 CROWBAR_REALM=${CROWBAR_REALM##*=}
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
@@ -212,32 +212,32 @@ if [[ $CROWBAR_REALM ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
     sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" \
 	-e "/\"realm\":/ s/null/\"$CROWBAR_REALM\"/g" \
-        /opt/dell/barclamps/barclamp-crowbar/chef/data_bags/crowbar/bc-template-crowbar.json
+        /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json
 fi
 
 # Crowbar will hack up the pxeboot files appropriatly.
 # Set Version in Crowbar UI
 VERSION=$(cat /tftpboot/redhat_dvd/dell/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
-    /opt/dell/barclamps/barclamp-crowbar/crowbar_framework/config/environments/production.rb
+    /opt/dell/barclamps/crowbar/crowbar_framework/config/environments/production.rb
 
 # Make sure we use the right OS installer. By default we want to install
 # the same OS as the admin node.
 for t in provisioner deployer; do
     sed -i '/os_install/ s/os_install/redhat_install/' \
-	/opt/dell/barclamps/barclamp-${t}/chef/data_bags/crowbar/bc-template-${t}.json
+	/opt/dell/barclamps/${t}/chef/data_bags/crowbar/bc-template-${t}.json
 done
 
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
 # Always run crowbar barclamp first
-/opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/barclamp-crowbar"
+/opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/crowbar"
 
 # Barclamp preparation (put them in the right places)
 cd /opt/dell/barclamps
 for i in *; do
     [[ -d $i ]] || continue
-    [[ $i != 'barclamp-crowbar' ]] || continue
+    [[ $i != 'crowbar' ]] || continue
     if [ -e $i/crowbar.yml ]; then
       /opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/$i"
       restart_svc_loop chef-solr "Restarting chef-solr - spot two"

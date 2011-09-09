@@ -28,6 +28,7 @@
   CROWBAR_PATH = File.join BASE_PATH, 'crowbar_framework'
   BIN_PATH = File.join BASE_PATH, 'bin'
   UPDATE_PATH = '/updates'
+  ROOT_PATH = '/'
   
   def bc_cloner(item, bc, entity, source, target, replace)
     files = []
@@ -167,7 +168,7 @@
     #copy the rails parts (required for render BEFORE import into chef)
     dirs = Dir.entries(path)
     if dirs.include? 'crowbar_framework'
-      files += bc_cloner('crowbar_framework', bc, nil, path, CROWBAR_PATH, false) 
+      files += bc_cloner('crowbar_framework', bc, nil, path, BASE_PATH, false) 
       FileUtils.chmod 755, File.join(CROWBAR_PATH, 'db')
       chmod_dir 644, File.join(CROWBAR_PATH, 'db')
       FileUtils.chmod 755, File.join(CROWBAR_PATH, 'tmp')
@@ -181,7 +182,7 @@
       puts "\tcopied command line files"
     end
     if dirs.include? 'updates'
-      files += bc_cloner('updates', bc, nil, path, UPDATE_PATH, false)
+      files += bc_cloner('updates', bc, nil, path, ROOT_PATH, false)
       puts "\tcopied updates files"
     end
     
@@ -208,7 +209,7 @@
 
     #upload the cookbooks
     FileUtils.cd File.join path, 'chef', 'cookbooks'
-    knife_cookbook = "knife cookbook upload -o . #{bc}"
+    knife_cookbook = "knife cookbook upload -o . #{bc} -k /etc/chef/webui.pem -u chef-webui"
     system knife_cookbook
     puts "\texecuted: #{path} #{knife_cookbook}"
     
@@ -216,7 +217,7 @@
     FileUtils.chmod 755, File.join(path, 'chef', 'data_bags', 'crowbar')
     chmod_dir 644, File.join(path, 'chef', 'data_bags', 'crowbar')
     FileUtils.cd File.join(path, 'chef', 'data_bags', 'crowbar')
-    knife_databag  = "knife data bag from file crowbar bc-template-#{bc}.json"
+    knife_databag  = "knife data bag from file crowbar bc-template-#{bc}.json -k /etc/chef/webui.pem -u chef-webui"
     system knife_databag
     puts "\texecuted: #{path} #{knife_databag}"
 
@@ -224,7 +225,7 @@
     roles = Dir.entries(File.join(path, 'chef', 'roles')).find_all { |r| r.end_with?(".rb") }
     FileUtils.cd File.join path, 'chef', 'roles'
     roles.each do |role|
-      knife_role = "knife role from file #{role}"
+      knife_role = "knife role from file #{role} -k /etc/chef/webui.pem -u chef-webui"
       system knife_role
       puts "\texecuted: #{path} #{knife_role}"
     end
