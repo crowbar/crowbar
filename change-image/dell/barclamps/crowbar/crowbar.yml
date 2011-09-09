@@ -18,7 +18,7 @@
 barclamp:
   name: crowbar
   display: Crowbar
-  description: Core Components for Framework
+  description: Self-referential barclamp enabling other barclamps
   version: 0
 
 crowbar:
