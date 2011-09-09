@@ -197,6 +197,7 @@ cp -f /root/.ssh/authorized_keys \
     /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/files/default/authorized_keys
 
 # generate the machine install username and password
+mkdir -p /opt/dell/crowbar_framework
 CROWBAR_REALM=$(parse_node_data /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
 CROWBAR_REALM=${CROWBAR_REALM##*=}
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then

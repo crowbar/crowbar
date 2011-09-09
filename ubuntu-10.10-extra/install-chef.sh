@@ -158,7 +158,7 @@ cat /root/.ssh/id_rsa.pub >>/root/.ssh/authorized_keys
 # Hack up sshd_config to kill delays
 sed -i -e 's/^\(GSSAPI\)/#\1/' \
     -e 's/#\(UseDNS.*\)yes/\1no/' /etc/ssh/sshd_config
-service sshd restart
+service ssh restart
 
 # Replace the domainname in the default template
 sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
@@ -168,6 +168,7 @@ cp /root/.ssh/authorized_keys \
     /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/files/default/authorized_keys
 
 # generate the machine install username and password
+mkdir -p /opt/dell/crowbar_framework
 REALM=$(parse_node_data /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
 REALM=${REALM##*=}
 if [[ ! -e /etc/crowbar.install.key && $REALM ]]; then
