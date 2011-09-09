@@ -59,7 +59,11 @@ log_to() {
 }
 
 chef_or_die() {
-    log_to chef blocking_chef_client.sh && return
+    if [ -e /opt/dell/bin/blocking_chef_client.sh ]; then
+        log_to chef blocking_chef_client.sh && return
+    else
+        log_to chef chef-client && return
+    fi
     if [[ $crowbar_up && $FQDN ]]; then
 	crowbar crowbar transition "$FQDN" problem
     fi
@@ -67,6 +71,16 @@ chef_or_die() {
     ip link set eth0 up
     ip addr add 192.168.124.10/24 dev eth0
     die "$@"
+}
+
+# Run knife in a loop until it doesn't segfault.
+knifeloop() {
+    local RC=0
+    while { log_to knife knife "$@" -u chef-webui -k /etc/chef/webui.pem
+	RC=$?
+	(($RC == 139)); }; do
+	:
+    done
 }
 
 # Keep trying to start a service in a loop.
@@ -99,7 +113,6 @@ ip addr add 192.168.124.10/24 dev eth0
 
 # Replace the domainname in the default template
 DOMAINNAME=$(dnsdomainname)
-sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/chef/data_bags/crowbar/bc-template-dns.json
 
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart
@@ -130,56 +143,6 @@ log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify \
 (   cd /tftpboot/redhat_dvd/extra/gems
     gem install --local --no-ri --no-rdoc json*.gem)
 
-echo "$(date '+%F %T %z'): Building Keys..."
-# Generate root's SSH pubkey
-if [ ! -e /root/.ssh/id_rsa ] ; then
-  log_to keys ssh-keygen -t rsa -f /root/.ssh/id_rsa -N ""
-fi
-
-# add our own key to authorized_keys
-cat /root/.ssh/id_rsa.pub >>/root/.ssh/authorized_keys
-
-# Hack up sshd_config to kill delays
-sed -i -e 's/^\(GSSAPI\)/#\1/' \
-    -e 's/#\(UseDNS.*\)yes/\1no/' /etc/ssh/sshd_config
-service sshd restart
-
-# and trick Chef into pushing it out to everyone.
-cp -f /root/.ssh/authorized_keys \
-    /opt/dell/chef/cookbooks/provisioner/files/default/authorized_keys
-
-# generate the machine install username and password
-CROWBAR_REALM=$(/tftpboot/redhat_dvd/updates/parse_node_data /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
-CROWBAR_REALM=${CROWBAR_REALM##*=}
-if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
-    dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
-	(read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
-    export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    printf "${CROWBAR_KEY%%:*}:${CROWBAR_REALM}:${CROWBAR_KEY##*:}" | \
-	md5sum - | (read key rest
-	printf "\n${CROWBAR_KEY%%:*}:${CROWBAR_REALM}:$key\n" >> \
-	    /opt/dell/crowbar_framework/htdigest)
-fi
-if [[ $CROWBAR_REALM ]]; then
-    export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" \
-	-e "/\"realm\":/ s/null/\"$CROWBAR_REALM\"/g" \
-        /opt/dell/chef/data_bags/crowbar/bc-template-crowbar.json
-fi
-
-# Crowbar will hack up the pxeboot files appropriatly.
-# Set Version in Crowbar UI
-VERSION=$(cat /tftpboot/redhat_dvd/dell/Version)
-sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
-    /opt/dell/crowbar_framework/config/environments/production.rb
-
-# Make sure we use the right OS installer. By default we want to install
-# the same OS as the admin node.
-for t in provisioner deployer; do
-    sed -i '/os_install/ s/os_install/redhat_install/' \
-	/opt/dell/chef/data_bags/crowbar/bc-template-${t}.json
-done
-
 # Default password in chef webui to password
 sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
 
@@ -209,49 +172,83 @@ cp -f patches/rake /usr/bin/rake
 
 log_to svc /etc/init.d/chef-server restart
 
-
-
 restart_svc_loop chef-solr "Restarting chef-solr - spot one"
 
 chef_or_die "Initial chef run failed"
+
+echo "$(date '+%F %T %z'): Building Keys..."
+# Generate root's SSH pubkey
+if [ ! -e /root/.ssh/id_rsa ] ; then
+  log_to keys ssh-keygen -t rsa -f /root/.ssh/id_rsa -N ""
+fi
+
+# add our own key to authorized_keys
+cat /root/.ssh/id_rsa.pub >>/root/.ssh/authorized_keys
+
+# Hack up sshd_config to kill delays
+sed -i -e 's/^\(GSSAPI\)/#\1/' \
+    -e 's/#\(UseDNS.*\)yes/\1no/' /etc/ssh/sshd_config
+service sshd restart
+
+sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/barclamps/barclamp-dns/chef/data_bags/crowbar/bc-template-dns.json
+
+# and trick Chef into pushing it out to everyone.
+cp -f /root/.ssh/authorized_keys \
+    /opt/dell/barclamps/barclamp-provisioner/chef/cookbooks/provisioner/files/default/authorized_keys
+
+# generate the machine install username and password
+CROWBAR_REALM=$(parse_node_data /opt/dell/barclamps/barclamp-crowbar/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
+CROWBAR_REALM=${CROWBAR_REALM##*=}
+if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
+    dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
+	(read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
+    export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
+    printf "${CROWBAR_KEY%%:*}:${CROWBAR_REALM}:${CROWBAR_KEY##*:}" | \
+	md5sum - | (read key rest
+	printf "\n${CROWBAR_KEY%%:*}:${CROWBAR_REALM}:$key\n" >> \
+	    /opt/dell/crowbar_framework/htdigest)
+fi
+if [[ $CROWBAR_REALM ]]; then
+    export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
+    sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" \
+	-e "/\"realm\":/ s/null/\"$CROWBAR_REALM\"/g" \
+        /opt/dell/barclamps/barclamp-crowbar/chef/data_bags/crowbar/bc-template-crowbar.json
+fi
+
+# Crowbar will hack up the pxeboot files appropriatly.
+# Set Version in Crowbar UI
+VERSION=$(cat /tftpboot/redhat_dvd/dell/Version)
+sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
+    /opt/dell/barclamps/barclamp-crowbar/crowbar_framework/config/environments/production.rb
+
+# Make sure we use the right OS installer. By default we want to install
+# the same OS as the admin node.
+for t in provisioner deployer; do
+    sed -i '/os_install/ s/os_install/redhat_install/' \
+	/opt/dell/barclamps/barclamp-${t}/chef/data_bags/crowbar/bc-template-${t}.json
+done
+
+# Installing Barclamps (uses same library as rake commands, but before rake is ready)
+
+# Always run crowbar barclamp first
+/opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/barclamp-crowbar"
+
+# Barclamp preparation (put them in the right places)
+cd /opt/dell/barclamps
+for i in *; do
+    [[ -d $i ]] || continue
+    [[ $i != 'barclamp-crowbar' ]] || continue
+    if [ -e $i/crowbar.yml ]; then
+      /opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/$i"
+      restart_svc_loop chef-solr "Restarting chef-solr - spot two"
+    else
+      echo "WARNING: item $i found in barclamp directory, but it is not a barclamp!"
+    fi
+done
+
 echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
     die "Crowbar configuration has errors.  Please fix and rerun install."
-
-# Run knife in a loop until it doesn't segfault.
-knifeloop() {
-    local RC=0
-    while { log_to knife knife "$@" -u chef-webui -k /etc/chef/webui.pem
-	RC=$?
-	(($RC == 139)); }; do
-	:
-    done
-}
-
-cd /opt/dell/chef/cookbooks
-echo "$(date '+%F %T %z'): Uploading cookbooks..." 
-knifeloop cookbook upload -a -o ./ 
-
-cd ../roles
-echo "$(date '+%F %T %z'): Uploading roles..."
-for role in *.rb *.json
-do
-  knifeloop role from file "$role"
-done
-
-restart_svc_loop chef-solr "Restarting chef-solr - spot two"
-
-cd ../data_bags
-echo "$(date '+%F %T %z'): Uploading data bags..."
-for bag in *
-do
-    [[ -d $bag ]] || continue
-    knifeloop data bag create "$bag"
-    for item in "$bag"/*.json
-    do
-	knifeloop data bag from file "$bag" "$item"
-    done
-done
 
 echo "$(date '+%F %T %z'): Update run list..."
 knifeloop node run_list add "$FQDN" role[crowbar]
