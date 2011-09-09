@@ -103,10 +103,7 @@ mdcp() {
     cp "$@" "$dest"
 }
 
-finishing_scripts="
-    update_hostname.sh validate_data_bag.rb validate_bags.rb \
-	blocking_chef_client.sh looper_chef_client.sh single_chef_client.sh \
-	install_barclamp.sh barclamp_lib.rb gather_logs.sh gather_cli.sh"
+finishing_scripts="update_hostname.sh barclamp_install.rb parse_node_data"
 (
     cd "$BASEDIR/dell"
     mdcp /opt/dell/bin $finishing_scripts
