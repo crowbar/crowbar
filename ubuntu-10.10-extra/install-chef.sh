@@ -85,6 +85,14 @@ DOMAINNAME=${FQDN#*.}
 echo "$(date '+%F %T %z'): Setting Hostname..."
 update_hostname.sh $FQDN
 
+
+# Apparmor seems to have something to do with the
+# apache hangs.  Disable it for now for testing.
+update-rc.d apparmor disable
+
+# put the apt files in place
+cp apt.conf sources.list /etc/apt
+
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
 # When it does not, things get hard to debug pretty quick.

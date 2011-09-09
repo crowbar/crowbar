@@ -41,17 +41,13 @@ cp -r /$BASEDIR/dell .dell-install
 
 # Make a destination for dell finishing scripts
 
-finishing_scripts=(update_hostname.sh validate_data_bag.rb \
-    validate_bags.rb blocking_chef_client.sh looper_chef_client.sh single_chef_client.sh \
-    install_barclamp.sh barclamp_lib.rb gather_logs.sh gather_cli.sh)
+finishing_scripts=(update_hostname.sh)
 ( cd /opt/.dell-install; cp "${finishing_scripts[@]}" /opt/dell/bin; )
 
 # "Install h2n for named management"
 cd /opt/dell/
 tar -zxf /tftpboot/ubuntu_dvd/extra/h2n.tar.gz
 ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n
-
-cp -r /opt/.dell-install/crowbar_framework /opt/dell
 
 # Make a destination for switch configs
 mkdir -p /opt/dell/switch
@@ -60,8 +56,7 @@ cp /opt/.dell-install/*.stk /opt/dell/switch
 # Install dell code
 cd /opt/.dell-install
 
-# put the chef files in place
-cp -r chef /opt/dell
+# Set up initial syslog
 cp rsyslog.d/* /etc/rsyslog.d/
 
 # Barclamp preparation (put them in the right places)
@@ -88,27 +83,8 @@ cd ..
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
 
-# Apparmor seems to have something to do with the
-# apache hangs.  Disable it for now for testing.
-update-rc.d apparmor disable
-
-# put the apt files in place
-cp apt.conf sources.list /etc/apt
-
 # Make sure the ownerships are correct
 chown -R crowbar.admin /opt/dell
-
-#
-# Make sure the permissions are right
-# Copy from a cd so that means most things are read-only which is fine, except for these.
-#
-chmod 755 /opt/dell/chef/data_bags/crowbar
-chmod 644 /opt/dell/chef/data_bags/crowbar/*
-chmod 755 /opt/dell/crowbar_framework/db
-chmod 644 /opt/dell/crowbar_framework/db/*
-chmod 755 /opt/dell/crowbar_framework/tmp
-chmod -R +w /opt/dell/crowbar_framework/tmp/*
-chmod 755 /opt/dell/crowbar_framework/public/stylesheets
 
 # Get out of the directories.
 cd 
