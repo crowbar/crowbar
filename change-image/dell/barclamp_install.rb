@@ -209,7 +209,7 @@
 
     #upload the cookbooks
     FileUtils.cd File.join path, 'chef', 'cookbooks'
-    knife_cookbook = "knife cookbook upload -o . #{bc} -k /etc/chef/webui.pem -u chef-webui"
+    knife_cookbook = "knife cookbook upload -o . -a -k /etc/chef/webui.pem -u chef-webui"
     system knife_cookbook
     puts "\texecuted: #{path} #{knife_cookbook}"
     
