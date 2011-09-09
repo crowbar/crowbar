@@ -411,10 +411,6 @@ fi
  
     # Copy over the bits that Sledgehammer will look for.
     debug "Copying over Sledgehammer bits"
-    for d in "$CROWBAR_DIR/"updates*; do
-	[[ -d $d ]] || continue
-	cp -r "$d"/* "$BUILD_DIR/updates"
-    done
     # If we need to copy over a new Sledgehammer image, do so.
     if [[ $SLEDGEHAMMER_DIR/bin/sledgehammer-tftpboot.tar.gz -nt \
 	$SLEDGEHAMMER_PXE_DIR/initrd0.img ]]; then
