@@ -215,12 +215,21 @@
     puts "\texecuted: #{path} #{knife_cookbook}" if debug
     
     #upload the databags
-    FileUtils.chmod 755, File.join(path, 'chef', 'data_bags', 'crowbar')
-    chmod_dir 644, File.join(path, 'chef', 'data_bags', 'crowbar')
-    FileUtils.cd File.join(path, 'chef', 'data_bags', 'crowbar')
-    knife_databag  = "knife data bag from file crowbar bc-template-#{bc}.json -k /etc/chef/webui.pem -u chef-webui"
-    system knife_databag
-    puts "\texecuted: #{path} #{knife_databag}" if debug
+    Dir.entries(File.join(path, 'chef', 'data_bags')).each do |bag|
+      FileUtils.chmod 755, File.join(path, 'chef', 'data_bags', bag)
+      chmod_dir 644, File.join(path, 'chef', 'data_bags', bag)
+      FileUtils.cd File.join(path, 'chef', 'data_bags', bag)
+      knife_bag  = "knife data bag create crowbar -k /etc/chef/webui.pem -u chef-webui"
+      system knife_bag
+      puts "\texecuted: #{path} #{knife_bag}" if debug
+
+      json = Dir.entries(File.join(path, 'chef', 'roles')).find_all { |r| r.end_with?(".rb") }
+      json.each do |bag_file|
+        knife_databag  = "knife data bag from file #{bag} #{bag_file} -k /etc/chef/webui.pem -u chef-webui"
+        system knife_databag
+        puts "\texecuted: #{path} #{knife_databag}" if debug
+      end
+    end
 
     #upload the roles
     roles = Dir.entries(File.join(path, 'chef', 'roles')).find_all { |r| r.end_with?(".rb") }
