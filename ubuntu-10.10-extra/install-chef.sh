@@ -1,4 +1,4 @@
-#!/bin/bash
+!/bin/bash
 # Copyright 2011, Dell
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -84,6 +84,14 @@ DOMAINNAME=${FQDN#*.}
 # setup hostname from config file
 echo "$(date '+%F %T %z'): Setting Hostname..."
 update_hostname.sh $FQDN
+
+# Apparmor seems to have something to do with the
+# apache hangs.  Disable it for now for testing.
+update-rc.d apparmor disable
+
+# put the apt files in place
+cp sources-cdrom.list /etc/apt/sources.list
+cp apt.conf /etc/apt
 
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
