@@ -1,8 +1,0 @@
-
-# Crowbar managed, do not edit.
-
-TFTP_USERNAME="tftp"
-TFTP_DIRECTORY="/tftpboot"
-TFTP_ADDRESS="0.0.0.0:69"
-TFTP_OPTIONS="--secure"
-

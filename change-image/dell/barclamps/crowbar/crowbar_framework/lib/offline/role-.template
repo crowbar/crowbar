@@ -1,1 +1,0 @@
-{"name":"$NAME$","default_attributes":{"crowbar":{}},"_rev":"$GUID$","json_class":"Chef::Role","env_run_lists":{},"run_list":[{"name":"nagios::client","type":"recipe","version":null}],"description":"$DESCRIPTION$","chef_type":"role","override_attributes":{}}
