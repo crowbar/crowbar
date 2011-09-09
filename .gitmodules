@@ -1,0 +1,39 @@
+[submodule "barclamps/crowbar"]
+	path = barclamps/crowbar
+	url = gitolite@10.9.244.31:barclamp-crowbar
+[submodule "barclamps/deployer"]
+	path = barclamps/deployer
+	url = gitolite@10.9.244.31:barclamp-deployer
+[submodule "barclamps/dns"]
+	path = barclamps/dns
+	url = gitolite@10.9.244.31:barclamp-dns
+[submodule "barclamps/ganglia"]
+	path = barclamps/ganglia
+	url = gitolite@10.9.244.31:barclamp-ganglia
+[submodule "barclamps/ipmi"]
+	path = barclamps/ipmi
+	url = gitolite@10.9.244.31:barclamp-ipmi
+[submodule "barclamps/logging"]
+	path = barclamps/logging
+	url = gitolite@10.9.244.31:barclamp-logging
+[submodule "barclamps/nagios"]
+	path = barclamps/nagios
+	url = gitolite@10.9.244.31:barclamp-nagios
+[submodule "barclamps/network"]
+	path = barclamps/network
+	url = gitolite@10.9.244.31:barclamp-network
+[submodule "barclamps/ntp"]
+	path = barclamps/ntp
+	url = gitolite@10.9.244.31:barclamp-ntp
+[submodule "barclamps/provisioner"]
+	path = barclamps/provisioner
+	url = gitolite@10.9.244.31:barclamp-provisioner
+[submodule "barclamps/redhat-install"]
+	path = barclamps/redhat-install
+	url = gitolite@10.9.244.31:barclamp-redhat-install
+[submodule "barclamps/test"]
+	path = barclamps/test
+	url = gitolite@10.9.244.31:barclamp-test
+[submodule "barclamps/ubuntu-install"]
+	path = barclamps/ubuntu-install
+	url = gitolite@10.9.244.31:barclamp-ubuntu-install
