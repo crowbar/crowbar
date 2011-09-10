@@ -17,7 +17,6 @@
 #
 
   require File.join '/opt', 'dell', 'bin', 'barclamp_lib'
-
   
   # this is used by the install-chef installer script 
   if __FILE__ == $0
@@ -25,8 +24,14 @@
     puts "Using #{path}" if DEBUG
     barclamp = YAML.load_file File.join path, 'crowbar.yml'
     bc = barclamp["barclamp"]["name"].chomp.strip
-    bc_install_layout_1_app bc, path, barclamp
-    bc_install_layout_1_chef bc, path, barclamp
+    case barclamp["crowbar"]["layout"].to_i
+    when 1
+      bc_install_layout_1_app bc, path, barclamp
+      bc_install_layout_1_chef bc, path, barclamp
+    else
+      puts "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
+      exit -3
+    end
     #TODO add bag verify
     #err = verify_bags( base_dir)
     #exit -3 if err

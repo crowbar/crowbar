@@ -22,9 +22,9 @@
   MODEL_SOURCE = File.join '/opt', 'dell', 'barclamp_model'
   MODEL_SUBSTRING_BASE = '==BC-MODEL=='
   MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
-  MODEL_TARGET = File.join '..', 'barclamps'
   BASE_PATH = File.join '/opt', 'dell'
-  BARCLAMP_PATH = File.join BASE_PATH, 'chef'
+  MODEL_TARGET = File.join BASE_PATH, 'barclamps'
+  BARCLAMP_PATH = File.join BASE_PATH, 'barclamps'
   CROWBAR_PATH = File.join BASE_PATH, 'crowbar_framework'
   BIN_PATH = File.join BASE_PATH, 'bin'
   UPDATE_PATH = '/updates'
@@ -112,21 +112,23 @@
       # remove stuff that may be replaced
       nav = []
       nav_raw.each do |line|
-        barclamp['nav']['primary'].each { |key, value| line = nil if line.lstrip.start_with? "primary.item :#{value}" }
-        barclamp['nav']['add'].each { |key, value| line = nil if line.lstrip.start_with? "secondary.item :#{key}" }
+        barclamp['nav']['primary'].each { |key, value| line = nil if line.lstrip.start_with? "primary.item :#{value}" } unless barclamp['nav']['primary'].nil?
+        barclamp['nav']['add'].each { |key, value| line = nil if line.lstrip.start_with? "secondary.item :#{key}" } unless barclamp['nav']['add'].nil?
         nav << line unless line.nil?
       end  
       # now add new items
       new_nav = []
       nav.each do |line|
-        barclamp['nav']['primary'].each do |key, value|
-          #insert new items before
-          new_nav << "primary.item :#{value}" if installing and line.lstrip.start_with? "primary.item :#{key}" 
+        unless barclamp['nav']['primary'].nil?
+          barclamp['nav']['primary'].each do |key, value|
+            #insert new items before
+            new_nav << "primary.item :#{value}" if installing and line.lstrip.start_with? "primary.item :#{key}" 
+          end
         end
         # add the line
         new_nav << line
         # add subitems under barclamps
-        if installing and line.lstrip.start_with? "primary.item :barclamps" 
+        if installing and line.lstrip.start_with? "primary.item :barclamps" and !barclamp['nav']['add'].nil?
           barclamp['nav']['add'].each do |key, value|
             new_nav << "secondary.item :#{key}, t('nav.#{key}'), #{value}" unless value.nil?
           end
@@ -200,12 +202,12 @@
     # copy all the files to the target
     if dirs.include? 'chef'
       files += bc_cloner('chef', bc, nil, path, BASE_PATH, false)
-      puts "\tcopied over chef parts from #{path} to #{BARCLAMP_PATH}" if DEBUG
+      puts "\tcopied over chef parts from #{path} to #{BASE_PATH}" if DEBUG
     end
   
-    filelist = File.join path, 'filelist.yml'
+    filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
     File.open( filelist, 'w' ) do |out|
-      YAML.dump( {"files" => files }, out )
+      files.each { |line| out.puts line } 
     end
 
     puts "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created." if DEBUG
