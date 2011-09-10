@@ -103,7 +103,7 @@ mdcp() {
     cp "$@" "$dest"
 }
 
-finishing_scripts="update_hostname.sh barclamp_install.rb parse_node_data"
+finishing_scripts="update_hostname.sh barclamp_install.rb barclamp_create.rb barclamp_inst_lib.rb parse_node_data"
 (
     cd "$BASEDIR/dell"
     mdcp /opt/dell/bin $finishing_scripts
@@ -141,23 +141,10 @@ cd ..
  
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
-    
-#
-# Make sure the permissions are right
-# Copy from a cd so that means most things are read-only which is fine, 
-# except for these.
-#
-chmod 755 /opt/dell/chef/data_bags/crowbar
-chmod 644 /opt/dell/chef/data_bags/crowbar/*
-chmod 755 /opt/dell/crowbar_framework/db
-chmod 644 /opt/dell/crowbar_framework/db/*
-chmod 755 /opt/dell/crowbar_framework/tmp
-chmod -R +w /opt/dell/crowbar_framework/tmp/*
-chmod 755 /opt/dell/crowbar_framework/public/stylesheets
-chmod 755 "$BASEDIR/extra/"*.sh "$BASEDIR/extra/install"
-chmod 755 "$BASEDIR/updates/"*
-    
-    
+
+# This directory is the model to help users create new barclamps
+cp -r barclamp_model /opt/dell
+
 # Look for any crowbar specific kernel parameters
 for s in $(cat /proc/cmdline); do
     VAL=${s#*=} # everything after the first =
