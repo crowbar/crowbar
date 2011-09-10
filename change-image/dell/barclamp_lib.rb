@@ -16,21 +16,20 @@
 # Author: RobHirschfeld
 #
 
-<<<<<<< HEAD
   require 'yaml'
   require 'fileutils'
 
-  MODEL_SOURCE = File.join 'lib', 'barclamp_model'
+  MODEL_SOURCE = File.join '/opt', 'dell', 'barclamp_model'
   MODEL_SUBSTRING_BASE = '==BC-MODEL=='
   MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
-  MODEL_TARGET = File.join '..', 'barclamps'
   BASE_PATH = File.join '/opt', 'dell'
-  BARCLAMP_PATH = File.join BASE_PATH, 'chef'
+  MODEL_TARGET = File.join BASE_PATH, 'barclamps'
+  BARCLAMP_PATH = File.join BASE_PATH, 'barclamps'
   CROWBAR_PATH = File.join BASE_PATH, 'crowbar_framework'
   BIN_PATH = File.join BASE_PATH, 'bin'
   UPDATE_PATH = '/updates'
   ROOT_PATH = '/'
-  DEBUG=false
+  DEBUG=true
   
   def bc_cloner(item, bc, entity, source, target, replace)
     files = []
@@ -105,26 +104,38 @@
   def merge_nav(barclamp, installing)
     unless barclamp['nav'].nil?
       # get raw file
-      nav_file = File.join 'config', 'navigation.rb'  #assume that we're in the app dir
-      nav = []
+      nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'  
+      nav_raw = []
       File.open(nav_file, 'r') do |f|
-        nav << f.eachline { |line| nav.push line }
+        f.each { |line| nav_raw << line }
       end
-      add = barclamp['nav']['add']
-      # we only write the updated file if we are adding to it
-      unless add.nil?
-        File.open( nav_file, 'w') do |out|
-          nav.each do |line|
-            # remove the old menu item (works for install or uninstall)
-            out.puts line unless line.lstrip.starts_with? "secondary.item :#{key}"
-            # if you are installing, add the item under the barclamp menu.
-            if installing and line.lstrip.starts_with? "primary.item :barclamps"
-              add.each do |key, value|
-                out.puts "secondary.item :#{key}, t('nav.#{key}'), #{value}" unless value.nil?
-              end
-            end
+      # remove stuff that may be replaced
+      nav = []
+      nav_raw.each do |line|
+        barclamp['nav']['primary'].each { |key, value| line = nil if line.lstrip.start_with? "primary.item :#{value}" } unless barclamp['nav']['primary'].nil?
+        barclamp['nav']['add'].each { |key, value| line = nil if line.lstrip.start_with? "secondary.item :#{key}" } unless barclamp['nav']['add'].nil?
+        nav << line unless line.nil?
+      end  
+      # now add new items
+      new_nav = []
+      nav.each do |line|
+        unless barclamp['nav']['primary'].nil?
+          barclamp['nav']['primary'].each do |key, value|
+            #insert new items before
+            new_nav << "primary.item :#{value}" if installing and line.lstrip.start_with? "primary.item :#{key}" 
           end
         end
+        # add the line
+        new_nav << line
+        # add subitems under barclamps
+        if installing and line.lstrip.start_with? "primary.item :barclamps" and !barclamp['nav']['add'].nil?
+          barclamp['nav']['add'].each do |key, value|
+            new_nav << "secondary.item :#{key}, t('nav.#{key}'), #{value}" unless value.nil?
+          end
+        end
+      end
+      File.open( nav_file, 'w') do |out|
+        new_nav.each { |l| out.puts l }
       end
     end
   end
@@ -191,12 +202,12 @@
     # copy all the files to the target
     if dirs.include? 'chef'
       files += bc_cloner('chef', bc, nil, path, BASE_PATH, false)
-      puts "\tcopied over chef parts from #{path} to #{BARCLAMP_PATH}" if DEBUG
+      puts "\tcopied over chef parts from #{path} to #{BASE_PATH}" if DEBUG
     end
   
-    filelist = File.join path, 'filelist.yml'
+    filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
     File.open( filelist, 'w' ) do |out|
-      YAML.dump( {"files" => files }, out )
+      files.each { |line| out.puts line } 
     end
 
     puts "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created." if DEBUG
@@ -239,30 +250,5 @@
 
     puts "Barclamp #{bc} (format v1) Chef Components Uploaded." if DEBUG
 
-  end
-  
-  # this is used by the install-chef installer script becaues rake is not ready yet
-=======
-  require File.join '/opt', 'dell', 'bin', 'barclamp_lib'
-  
-  # this is used by the install-chef installer script 
->>>>>>> redhat-build
-  if __FILE__ == $0
-    path = ARGV[0]
-    puts "Using #{path}" if DEBUG
-    barclamp = YAML.load_file File.join path, 'crowbar.yml'
-    bc = barclamp["barclamp"]["name"].chomp.strip
-    case barclamp["crowbar"]["layout"].to_i
-    when 1
-      bc_install_layout_1_app bc, path, barclamp
-      bc_install_layout_1_chef bc, path, barclamp
-    else
-      puts "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
-      exit -3
-    end
-    #TODO add bag verify
-    #err = verify_bags( base_dir)
-    #exit -3 if err
-    exit 0
   end
   

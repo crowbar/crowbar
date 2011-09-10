@@ -41,7 +41,7 @@ cp -r /$BASEDIR/dell .dell-install
 
 # Make a destination for dell finishing scripts
 
-finishing_scripts=(update_hostname.sh barclamp_install.rb parse_node_data)
+finishing_scripts=(update_hostname.sh barclamp_install.rb barclamp_lib.rb barclamp_create.rb parse_node_data)
 ( cd /opt/.dell-install; cp "${finishing_scripts[@]}" /opt/dell/bin; )
 
 # "Install h2n for named management"
@@ -73,6 +73,9 @@ for i in *; do
     fi 
 done
 cd ..
+
+# This directory is the model to help users create new barclamps
+cp -r barclamp_model /opt/dell
 
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
