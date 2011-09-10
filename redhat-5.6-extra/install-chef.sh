@@ -258,6 +258,11 @@ knifeloop node run_list add "$FQDN" role[deployer-client]
 log_to svc service chef-client stop
 restart_svc_loop chef-solr "Restarting chef-solr - spot three"
 
+
+#patch bad gemspecs.
+cp /tftpboot/redhat_dvd/extra/patches/*.gemspec /usr/lib/ruby/gems/1.8/specifications/
+
+
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
 # Run chef-client to bring-up crowbar server
 chef_or_die "Failed to bring up Crowbar"
