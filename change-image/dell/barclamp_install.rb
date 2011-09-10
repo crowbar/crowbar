@@ -198,20 +198,15 @@
     end
     
     # copy all the files to the target
-    files += bc_cloner('chef', bc, nil, path, BASE_PATH, false)
-    puts "\tcopied over chef parts from #{path} to #{BARCLAMP_PATH}" if DEBUG
+    if dirs.include? 'chef'
+      files += bc_cloner('chef', bc, nil, path, BASE_PATH, false)
+      puts "\tcopied over chef parts from #{path} to #{BARCLAMP_PATH}" if DEBUG
+    end
   
     filelist = File.join path, 'filelist.yml'
     File.open( filelist, 'w' ) do |out|
       YAML.dump( {"files" => files }, out )
     end
-
-    if File.directory?(File.join('/etc', 'redhat-release'))
-      system "service httpd reload"
-    else
-      system "service apache2 reload"
-    end
-    puts "\trestarted the web server" if DEBUG
 
     puts "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created." if DEBUG
   end
@@ -226,14 +221,15 @@
     
     #upload the databags
     Dir.entries(File.join(path, 'chef', 'data_bags')).each do |bag|
+      next if bag == "." or bag == ".."
       FileUtils.chmod 755, File.join(path, 'chef', 'data_bags', bag)
       chmod_dir 644, File.join(path, 'chef', 'data_bags', bag)
       FileUtils.cd File.join(path, 'chef', 'data_bags', bag)
-      knife_bag  = "knife data bag create crowbar -k /etc/chef/webui.pem -u chef-webui"
+      knife_bag  = "knife data bag create #{bag} -k /etc/chef/webui.pem -u chef-webui"
       system knife_bag
       puts "\texecuted: #{path} #{knife_bag}" if DEBUG
 
-      json = Dir.entries(File.join(path, 'chef', 'roles')).find_all { |r| r.end_with?(".rb") }
+      json = Dir.entries(File.join(path, 'chef', 'data_bags', bag)).find_all { |r| r.end_with?(".json") }
       json.each do |bag_file|
         knife_databag  = "knife data bag from file #{bag} #{bag_file} -k /etc/chef/webui.pem -u chef-webui"
         system knife_databag

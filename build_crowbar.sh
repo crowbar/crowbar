@@ -382,7 +382,7 @@ fi
 	die "Could not mount $ISO"
 
     # Make additional directories we will need.
-    for d in discovery extra ami updates ; do
+    for d in discovery extra ami ; do
 	mkdir -p "$BUILD_DIR/$d"
     done
 
