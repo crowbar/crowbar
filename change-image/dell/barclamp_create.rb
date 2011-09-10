@@ -16,7 +16,7 @@
 # Author: RobHirschfeld
 #
 
-  require File.join '/opt', 'dell', 'bin', 'barclamp_lib'
+  require File.join '/opt', 'dell', 'bin', 'barclamp_inst_lib'
 
   # this is used by the install-chef installer script 
   if __FILE__ == $0

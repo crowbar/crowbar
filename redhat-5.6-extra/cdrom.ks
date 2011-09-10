@@ -108,7 +108,7 @@ sed -i -e '/^id/ s/5/3/' /etc/inittab
     
 # Make a destination for dell finishing scripts
     
-    finishing_scripts=(update_hostname.sh barclamp_install.rb parse_node_data)
+    finishing_scripts=(update_hostname.sh barclamp_install.rb barclamp_create.rb barclamp_inst_lib.rb parse_node_data)
     ( cd /opt/.dell-install; cp "${finishing_scripts[@]}" /opt/dell/bin; )
     
 # "Install h2n for named management"
@@ -146,21 +146,12 @@ sed -i -e '/^id/ s/5/3/' /etc/inittab
 
 # Make sure the bin directory is executable
     chmod +x /opt/dell/bin/*
+
+# This directory is the model to help users create new barclamps
+cp -r barclamp_model /opt/dell
     
 # Make sure the ownerships are correct
     chown -R crowbar.admin /opt/dell
-    
-#
-# Make sure the permissions are right
-# Copy from a cd so that means most things are read-only which is fine, except for these.
-#
-    chmod 755 /opt/dell/chef/data_bags/crowbar
-    chmod 644 /opt/dell/chef/data_bags/crowbar/*
-    chmod 755 /opt/dell/crowbar_framework/db
-    chmod 644 /opt/dell/crowbar_framework/db/*
-    chmod 755 /opt/dell/crowbar_framework/tmp
-    chmod -R +w /opt/dell/crowbar_framework/tmp/*
-    chmod 755 /opt/dell/crowbar_framework/public/stylesheets
     
 # Get out of the directories.
     cd 
