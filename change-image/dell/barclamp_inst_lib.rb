@@ -48,6 +48,7 @@
       unless replace
         puts "\t\tcopying file #{new_file}." if DEBUG
         FileUtils.cp new_source, new_file
+        files << new_file
       else
         puts "\t\tcreating file #{new_file}." if DEBUG
         t = File.open(new_file, 'w')
@@ -107,7 +108,7 @@
       nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'  
       nav_raw = []
       File.open(nav_file, 'r') do |f|
-        f.each { |line| nav_raw << line }
+        f.each_line { |line| nav_raw << line }
       end
       # remove stuff that may be replaced
       nav = []
@@ -159,12 +160,16 @@
   end
   
   def bc_remove_layout_1(bc, path, barclamp)
-    filelist = File.join path, 'filelist.yml'
-    master = YAML.load_file filelist
-    master.each do |key, value|
-      FileUtil.rm value
+    filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
+    if File.exist? filelist      
+      files = [ filelist ]
+      File.open(filelist, 'r') do |f|
+        f.each_line { |line| files << line }
+      end
+      FileUtils.rm files
+      merge_nav barclamp, false
+      puts "Barclamp #{bc} UNinstalled" if DEBUG
     end
-    merge_nav barclamp, false
   end
 
   def bc_install_layout_1_app(bc, path, barclamp)
@@ -206,6 +211,7 @@
     end
   
     filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
+puts "FILES #{files.inspect}"
     File.open( filelist, 'w' ) do |out|
       files.each { |line| out.puts line } 
     end
@@ -215,23 +221,30 @@
     
   def bc_install_layout_1_chef(bc, path, barclamp)
 
+    chef = File.join path, 'chef'
+    cookbooks = File.join chef, 'cookbooks'
+    databags = File.join chef, 'data_bags'
+    roles = File.join chef, 'roles'
+
     #upload the cookbooks
-    FileUtils.cd File.join path, 'chef', 'cookbooks'
-    knife_cookbook = "knife cookbook upload -o . -a -k /etc/chef/webui.pem -u chef-webui"
-    system knife_cookbook
-    puts "\texecuted: #{path} #{knife_cookbook}" if DEBUG
+    if File.directory? cookbooks
+      knife_cookbook = "knife cookbook upload -o . -a -k /etc/chef/webui.pem -u chef-webui"
+      system knife_cookbook
+      puts "\texecuted: #{path} #{knife_cookbook}" if DEBUG
+    end
     
     #upload the databags
-    Dir.entries(File.join(path, 'chef', 'data_bags')).each do |bag|
+    Dir.entries(databags).each do |bag|
       next if bag == "." or bag == ".."
-      FileUtils.chmod 755, File.join(path, 'chef', 'data_bags', bag)
-      chmod_dir 644, File.join(path, 'chef', 'data_bags', bag)
-      FileUtils.cd File.join(path, 'chef', 'data_bags', bag)
+      bag_path = File.join databags, bag 
+      FileUtils.chmod 755, bag_path
+      chmod_dir 644, bag_path
+      FileUtils.cd bag_path
       knife_bag  = "knife data bag create #{bag} -k /etc/chef/webui.pem -u chef-webui"
       system knife_bag
       puts "\texecuted: #{path} #{knife_bag}" if DEBUG
 
-      json = Dir.entries(File.join(path, 'chef', 'data_bags', bag)).find_all { |r| r.end_with?(".json") }
+      json = Dir.entries(bag_path).find_all { |r| r.end_with?(".json") }
       json.each do |bag_file|
         knife_databag  = "knife data bag from file #{bag} #{bag_file} -k /etc/chef/webui.pem -u chef-webui"
         system knife_databag
@@ -240,9 +253,8 @@
     end
 
     #upload the roles
-    roles = Dir.entries(File.join(path, 'chef', 'roles')).find_all { |r| r.end_with?(".rb") }
-    FileUtils.cd File.join path, 'chef', 'roles'
-    roles.each do |role|
+    FileUtils.cd roles
+    Dir.entries(roles).find_all { |r| r.end_with?(".rb") }.each do |role|
       knife_role = "knife role from file #{role} -k /etc/chef/webui.pem -u chef-webui"
       system knife_role
       puts "\texecuted: #{path} #{knife_role}" if DEBUG
