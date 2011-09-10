@@ -188,20 +188,15 @@
     end
     
     # copy all the files to the target
-    files += bc_cloner('chef', bc, nil, path, BASE_PATH, false)
-    puts "\tcopied over chef parts from #{path} to #{BARCLAMP_PATH}" if DEBUG
+    if dirs.include? 'chef'
+      files += bc_cloner('chef', bc, nil, path, BASE_PATH, false)
+      puts "\tcopied over chef parts from #{path} to #{BARCLAMP_PATH}" if DEBUG
+    end
   
     filelist = File.join path, 'filelist.yml'
     File.open( filelist, 'w' ) do |out|
       YAML.dump( {"files" => files }, out )
     end
-
-    if File.directory?(File.join('/etc', 'redhat-release'))
-      system "service httpd reload"
-    else
-      system "service apache2 reload"
-    end
-    puts "\trestarted the web server" if DEBUG
 
     puts "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created." if DEBUG
   end
