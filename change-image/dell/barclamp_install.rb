@@ -214,7 +214,7 @@
       FileUtils.chmod 755, File.join(path, 'chef', 'data_bags', bag)
       chmod_dir 644, File.join(path, 'chef', 'data_bags', bag)
       FileUtils.cd File.join(path, 'chef', 'data_bags', bag)
-      knife_bag  = "knife data bag create crowbar -k /etc/chef/webui.pem -u chef-webui"
+      knife_bag  = "knife data bag create #{bag} -k /etc/chef/webui.pem -u chef-webui"
       system knife_bag
       puts "\texecuted: #{path} #{knife_bag}" if DEBUG
 
