@@ -218,7 +218,7 @@
       system knife_bag
       puts "\texecuted: #{path} #{knife_bag}" if DEBUG
 
-      json = Dir.entries(File.join(path, 'chef', 'roles')).find_all { |r| r.end_with?(".rb") }
+      json = Dir.entries(File.join(path, 'chef', 'data_bags', bag)).find_all { |r| r.end_with?(".json") }
       json.each do |bag_file|
         knife_databag  = "knife data bag from file #{bag} #{bag_file} -k /etc/chef/webui.pem -u chef-webui"
         system knife_databag
