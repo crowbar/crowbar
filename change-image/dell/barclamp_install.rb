@@ -19,7 +19,7 @@
   require 'yaml'
   require 'fileutils'
 
-  MODEL_SOURCE = File.join 'lib', 'barclamp_model'
+  MODEL_SOURCE = File.join '/opt', 'dell', 'barclamp_model'
   MODEL_SUBSTRING_BASE = '==BC-MODEL=='
   MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
   MODEL_TARGET = File.join '..', 'barclamps'
@@ -105,25 +105,35 @@
     unless barclamp['nav'].nil?
       # get raw file
       nav_file = File.join 'config', 'navigation.rb'  #assume that we're in the app dir
-      nav = []
+      nav_raw = []
       File.open(nav_file, 'r') do |f|
-        nav << f.eachline { |line| nav.push line }
+        nav_raw << f.eachline { |line| nav.push line }
       end
-      add = barclamp['nav']['add']
-      # we only write the updated file if we are adding to it
-      unless add.nil?
-        File.open( nav_file, 'w') do |out|
-          nav.each do |line|
-            # remove the old menu item (works for install or uninstall)
-            out.puts line unless line.lstrip.starts_with? "secondary.item :#{key}"
-            # if you are installing, add the item under the barclamp menu.
-            if installing and line.lstrip.starts_with? "primary.item :barclamps"
-              add.each do |key, value|
-                out.puts "secondary.item :#{key}, t('nav.#{key}'), #{value}" unless value.nil?
-              end
-            end
+      # remove stuff that may be replaced
+      nav = []
+      nav.each do |line|
+        barclamp['nav']['primary'].each { |key, value| line = nil if line.lstrip.starts_with? "primary.item :#{value}" }
+        barclamp['nav']['add'].each { |key, value| line = nil if line.lstrip.starts_with? "secondary.item :#{key}" }
+        nav << line unless line.nil?
+      end  
+      # now add new items
+      new_nav = []
+      nav.each do |line|
+        barclamp['nav']['primary'].each do |key, value|
+          #insert new items before
+          new_nav << "primary.item #{value}" if installing and line.lstrip.starts_with? "primary.item :#{key}" 
+        end
+        # add the line
+        new_nav << line
+        # add subitems under barclamps
+        if installing and line.lstrip.starts_with? "primary.item :barclamps" 
+          barclamp['nav']['add'].each |key, value|
+            new_nav << "secondary.item :#{key}, t('nav.#{key}'), #{value}" unless value.nil?
           end
         end
+      end
+      File.open( nav_file, 'w') do |out|
+        new_nav.each { |l| out.puts l }
       end
     end
   end
