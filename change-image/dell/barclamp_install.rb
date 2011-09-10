@@ -211,6 +211,7 @@
     
     #upload the databags
     Dir.entries(File.join(path, 'chef', 'data_bags')).each do |bag|
+      next if bag.starts_with?(".")
       FileUtils.chmod 755, File.join(path, 'chef', 'data_bags', bag)
       chmod_dir 644, File.join(path, 'chef', 'data_bags', bag)
       FileUtils.cd File.join(path, 'chef', 'data_bags', bag)
