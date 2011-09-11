@@ -1,6 +1,6 @@
 {
   "id": "bc-template-==BC-MODEL==",
-  "description": "Cloud Foundry service (OpenPaaS) for the cloud",
+  "description": "Installation for ==^BC-MODEL==",
   "attributes": {
     "==BC-MODEL==": {
       "foo": "bar"
