@@ -103,11 +103,18 @@ mdcp() {
     cp "$@" "$dest"
 }
 
-finishing_scripts="update_hostname.sh barclamp_install.rb barclamp_create.rb barclamp_inst_lib.rb parse_node_data"
+finishing_scripts="update_hostname.sh parse_node_data"
 (
     cd "$BASEDIR/dell"
     mdcp /opt/dell/bin $finishing_scripts
 )
+
+barclamp_scripts="barclamp_install.rb"
+( 
+    cd $BASEDIR/dell/barclamps/crowbar/bin
+    mdcp /opt/dell/bin $barclamp_scripts
+)
+
 # Install h2n for named management
 ( 
     cd /opt/dell/; 
