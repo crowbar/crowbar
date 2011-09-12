@@ -46,18 +46,3 @@
 [submodule "barclamps/dell-branding"]
 	path = barclamps/dell-branding
 	url = gitolite@10.9.244.31:barclamp-dell-branding
-[submodule "barclamps/hadoop"]
-	path = barclamps/hadoop
-	url = gitolite@10.9.244.31:barclamp-hadoop
-[submodule "barclamps/hive"]
-	path = barclamps/hive
-	url = gitolite@10.9.244.31:barclamp-hive
-[submodule "barclamps/pig"]
-	path = barclamps/pig
-	url = gitolite@10.9.244.31:barclamp-pig
-[submodule "barclamps/zookeeper"]
-	path = barclamps/zookeeper
-	url = gitolite@10.9.244.31:barclamp-zookeeper
-[submodule "barclamps/sqoop"]
-	path = barclamps/sqoop
-	url = gitolite@10.9.244.31:barclamp-sqoop
