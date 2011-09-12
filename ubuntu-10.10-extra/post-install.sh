@@ -27,11 +27,11 @@
 # We are a cd install. 
 #
 
-mkdir -p /target/tftpboot/ubuntu_dvd/dell
-cp /cdrom/dell/common_install.sh /target/tftpboot/ubuntu_dvd/dell
+mkdir -p /target/tftpboot/ubuntu_dvd/extra
+cp /cdrom/extra/common_install.sh /target/tftpboot/ubuntu_dvd/extra
 cd /cdrom
 /bin/tar -cf /target/tftpboot/ubuntu_dvd/dvd.tar .
 
 mount /proc /target/proc
-chroot /target bash /tftpboot/ubuntu_dvd/dell/common_install.sh
+chroot /target bash /tftpboot/ubuntu_dvd/extra/common_install.sh
 
