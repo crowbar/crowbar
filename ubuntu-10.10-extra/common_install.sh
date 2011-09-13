@@ -52,10 +52,6 @@ cd /opt/dell/
 tar -zxf /tftpboot/ubuntu_dvd/extra/h2n.tar.gz
 ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n
 
-# Make a destination for switch configs
-mkdir -p /opt/dell/switch
-cp /opt/.dell-install/*.stk /opt/dell/switch
-
 # Install dell code
 cd /opt/.dell-install
 
@@ -76,9 +72,6 @@ for i in *; do
     fi 
 done
 cd ..
-
-# This directory is the model to help users create new barclamps
-cp -r barclamp_model /opt/dell
 
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
