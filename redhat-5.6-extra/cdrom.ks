@@ -119,17 +119,10 @@ barclamp_scripts=(barclamp_install.rb)
     tar -zxf /tftpboot/redhat_dvd/extra/h2n.tar.gz
     ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n
     
-    cp -r /opt/.dell-install/crowbar_framework /opt/dell
-    
-# Make a destination for switch configs
-    mkdir -p /opt/dell/switch
-    cp /opt/.dell-install/*.stk /opt/dell/switch
-    
 # Install dell code
     cd /opt/.dell-install
     
 # put the chef files in place
-    cp -r chef /opt/dell
     cp rsyslog.d/* /etc/rsyslog.d/
     
 # Barclamp preparation (put them in the right places)
