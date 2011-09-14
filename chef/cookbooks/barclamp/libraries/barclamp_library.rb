@@ -162,8 +162,7 @@ module BarclampLibrary
         interface_list = c_info["if_list"]
 
         return [interface_list[0], interface_list] if interface_list.size == 1
-        id = gsub(conduit, "intf")
-        ["bond#{id}", interface_list]
+        ["bond", interface_list]
       end
 
       class Network

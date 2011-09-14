@@ -121,6 +121,9 @@ f.each { |line|
   arr = line.split(" ")
   network = arr[1]
   path = arr[0]
+
+  next unless networks.include?(network)
+
   crowbar[:detected] = Mash.new unless crowbar[:detected]
   crowbar[:detected][:network] = Mash.new unless crowbar[:detected][:network]
   crowbar[:detected][:network][network] = path
