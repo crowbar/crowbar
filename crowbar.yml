@@ -27,7 +27,8 @@ crowbar:
 locale_additions:
   en:
     barclamp:
-      deployer_edit_attributes: 
-        attributes: Attributes
-      deployer_edit_deployment: 
-        deployment: Deployment
+      deployer:
+        edit_attributes: 
+          attributes: Attributes
+        edit_deployment: 
+          deployment: Deployment
