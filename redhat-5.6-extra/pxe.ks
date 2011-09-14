@@ -122,7 +122,6 @@ barclamp_scripts="barclamp_install.rb"
 )
 ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n    
     
-mdcp /opt/dell -r "$BASEDIR/dell/crowbar_framework" 
 
 # put the chef files in place
 mdcp /etc/rsyslog.d "$BASEDIR/dell/rsyslog.d/"*
@@ -144,6 +143,7 @@ cd ..
  
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
+chmod +x  /tftpboot/redhat_dvd/extra/*
 
 # Look for any crowbar specific kernel parameters
 for s in $(cat /proc/cmdline); do
