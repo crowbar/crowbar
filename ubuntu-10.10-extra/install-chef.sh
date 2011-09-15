@@ -169,15 +169,15 @@ cp /root/.ssh/authorized_keys \
 
 # generate the machine install username and password
 mkdir -p /opt/dell/crowbar_framework
-REALM=$(parse_node_data /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
-REALM=${REALM##*=}
-if [[ ! -e /etc/crowbar.install.key && $REALM ]]; then
+CROWBAR_REALM=$(parse_node_data /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
+CROWBAR_REALM=${CROWBAR_REALM##*=}
+if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
 	(read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    printf "${CROWBAR_KEY%%:*}:$REALM:${CROWBAR_KEY##*:}" |md5sum - | (
+    printf "${CROWBAR_KEY%%:*}:$CROWBAR_REALM:${CROWBAR_KEY##*:}" |md5sum - | (
 	read key rest
-	printf "\n${CROWBAR_KEY%%:*}:$REALM:$key\n" >> \
+	printf "\n${CROWBAR_KEY%%:*}:$CROWBAR_REALM:$key\n" >> \
 	    /opt/dell/crowbar_framework/htdigest)
 fi
 if [[ $CROWBAR_REALM ]]; then
