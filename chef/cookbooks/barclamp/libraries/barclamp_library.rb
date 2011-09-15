@@ -20,7 +20,7 @@ module BarclampLibrary
         answer = []
         intf_to_if_map = Barclamp::Inventory.build_node_map
         node[:crowbar][:network].each do |net, data|
-          intf, interface_list = Barclamp::Inventory.lookup_interface_info(node, data["conduit"], intf_to_if_map)
+          intf, interface_list, tm = Barclamp::Inventory.lookup_interface_info(node, data["conduit"], intf_to_if_map)
           answer << Network.new(net, data, intf, interface_list)
         end unless node[:crowbar][:network].nil?
         answer
@@ -29,12 +29,12 @@ module BarclampLibrary
       def self.get_network_by_type(node, type)
         node[:crowbar][:network].each do |net, data|
           next if data[:usage] != type
-          intf, interface_list = Barclamp::Inventory.lookup_interface_info(node, data["conduit"])
+          intf, interface_list, tm = Barclamp::Inventory.lookup_interface_info(node, data["conduit"])
           return Network.new(net, data, intf, interface_list)
         end unless node[:crowbar][:network].nil?
         node[:crowbar][:network].each do |net, data|
           next if data[:usage] != "admin"
-          intf, interface_list = Barclamp::Inventory.lookup_interface_info(node, data["conduit"])
+          intf, interface_list, tm = Barclamp::Inventory.lookup_interface_info(node, data["conduit"])
           return Network.new(net, data, intf, interface_list)
         end unless node[:crowbar][:network].nil?
         Network.new(type, { "address" => node[:ipaddress] })
@@ -160,9 +160,10 @@ module BarclampLibrary
 
         c_info = intf_to_if_map[conduit]
         interface_list = c_info["if_list"]
+        team_mode = c_info["team_mode"] rescue nil
 
-        return [interface_list[0], interface_list] if interface_list.size == 1
-        ["bond", interface_list]
+        return [interface_list[0], interface_list, nil] if interface_list.size == 1
+        ["bond", interface_list, team_mode]
       end
 
       class Network
