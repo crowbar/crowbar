@@ -103,7 +103,7 @@ for s in $(cat /proc/cmdline); do
 	crowbar.debug)
 	    sed -i -e '/config.log_level/ s/^#//' \
 		-e '/config.logger.level/ s/^#//' \
-		/opt/dell/crowbar_framework/config/environments/production.rb
+		/opt/dell/barclamps/crowbar/crowbar_framework/config/environments/production.rb
 	    ;;
 
     esac
