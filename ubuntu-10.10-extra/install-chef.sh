@@ -203,7 +203,7 @@ done
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
 # Always run crowbar barclamp first
-/opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/crowbar"
+log_to bcinstall /opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/crowbar"
 
 # Barclamp preparation (put them in the right places)
 cd /opt/dell/barclamps
@@ -211,12 +211,13 @@ for i in *; do
     [[ -d $i ]] || continue
     [[ $i != 'crowbar' ]] || continue
     if [ -e $i/crowbar.yml ]; then
-      /opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/$i"
-      restart_svc_loop chef-solr "Restarting chef-solr - spot two"
+      log_to bcinstall /opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/$i"
     else
       echo "WARNING: item $i found in barclamp directory, but it is not a barclamp!"
     fi 
 done
+
+restart_svc_loop chef-solr "Restarting chef-solr - spot two"
 
 echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
