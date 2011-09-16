@@ -15,7 +15,10 @@
         "dns", 
         "nagios", 
         "ganglia", 
-        "logging" 
+        "logging",
+        "nova",
+        "swift",
+        "glance"
       ],
       "run_order": {
         "deployer": 10,
