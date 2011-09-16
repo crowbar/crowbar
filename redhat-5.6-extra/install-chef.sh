@@ -197,8 +197,12 @@ cp -f /root/.ssh/authorized_keys \
     /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/files/default/authorized_keys
 
 # generate the machine install username and password
+CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
+if [[ -e /tftpboot/redhat_dvd/extra/config/crowbar.json ]]; then
+  CROWBAR_FILE="/tftpboot/redhat_dvd/extra/config/crowbar.json"
+fi
 mkdir -p /opt/dell/crowbar_framework
-CROWBAR_REALM=$(parse_node_data /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json -a attributes.crowbar.realm)
+CROWBAR_REALM=$(parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
 CROWBAR_REALM=${CROWBAR_REALM##*=}
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
@@ -213,7 +217,7 @@ if [[ $CROWBAR_REALM ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
     sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" \
 	-e "/\"realm\":/ s/null/\"$CROWBAR_REALM\"/g" \
-        /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json
+        $CROWBAR_FILE
 fi
 
 # Crowbar will hack up the pxeboot files appropriatly.
