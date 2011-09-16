@@ -83,7 +83,7 @@ gpgcheck=0
 EOF
 
 # Create the repo metadata we will need
-(cd ${BASEDIR}/pkgs; createrepo -d -q .)
+(cd ${BASEDIR}/extra/pkgs; createrepo -d -q .)
 
 # We prefer rsyslog.
 yum -y install rsyslog
