@@ -2,11 +2,10 @@ include ../menu.cfg
 default CrowbarAdmin
 prompt 0
 timeout 10
-gfxboot bootlogo
 
 LABEL CrowbarAdmin
   menu label ^Crowbar Admin installation
-  kernel ../install/netboot/ubuntu-installer/amd64/linux
-  append url=http://8.1.0.240:8091/ubuntu_dvd/preseed/net_ubuntu.seed debian-installer/locale=en_US.utf8 console-setup/layoutcode=us localechooser/translation/warn-light=true localechooser/translation/warn-severe=true netcfg/wireless_wep= netcfg/choose_interface=eth1 netcfg/dhcp_timeout=120 netcfg/get_hostname="redundant" initrd=../install/netboot/ubuntu-installer/amd64/initrd.gz ramdisk_size=16384 root=/dev/ram rw quiet --
+  kernel ../ubuntu_dvd/install/netboot/ubuntu-installer/amd64/linux
+  append url=http://192.168.1.2:8091/ubuntu_dvd/preseed/crowbar_admin_net.seed debian-installer/locale=en_US.utf8 console-setup/layoutcode=us localechooser/translation/warn-light=true localechooser/translation/warn-severe=true netcfg/wireless_wep= netcfg/choose_interface=auto netcfg/dhcp_timeout=120 netcfg/get_hostname="redundant" initrd=../ubuntu_dvd/install/netboot/ubuntu-installer/amd64/initrd.gz ramdisk_size=16384 root=/dev/ram rw quiet --
   IPAPPEND 2
 
