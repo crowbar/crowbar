@@ -1,5 +1,5 @@
 {
-  "id": "bc-template-crowbar",
+  "id": "default",
   "description": "Self-referential barclamp enabling other barclamps",
   "attributes": {
     "crowbar": {
