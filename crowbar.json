@@ -1,0 +1,81 @@
+{
+  "id": "bc-template-crowbar",
+  "description": "Self-referential barclamp enabling other barclamps",
+  "attributes": {
+    "crowbar": {
+      "barclamps": [ 
+        "crowbar", 
+        "deployer", 
+        "ipmi", 
+        "network", 
+        "provisioner",
+	"redhat_install",
+        "ubuntu_install",  
+        "ntp", 
+        "dns", 
+        "nagios", 
+        "ganglia", 
+        "logging" 
+      ],
+      "run_order": {
+        "deployer": 10,
+	"redhat_install": 14,
+	"ubuntu_install": 14,
+        "ipmi": 17,
+        "bios": 18,
+        "raid": 19,
+        "network": 20,
+        "dns": 30,
+        "logging": 40,
+        "ntp": 50,
+        "nagios": 60,
+        "ganglia": 70,
+        "provisioner": 1060
+      },
+      "instances": {
+        "deployer": [ "default" ],
+        "ipmi": [ "default" ],
+        "bios": [ "default" ],
+        "raid": [ "default" ],
+        "redhat_install": [ "default" ],
+        "ubuntu_install": [ "default" ],
+        "provisioner": [ "default" ],
+        "network": [ "default" ],
+        "ntp": [ "default" ],
+        "dns": [ "default" ],
+        "nagios": [ "default" ],
+        "ganglia": [ "default" ],
+        "logging": [ "default" ]
+      },
+      "realm": "Crowbar - By selecting OK are agreeing to the License Agreement",
+      "web_port": 3000,
+      "users": {
+        "machine-install": { "password": "machine_password" },
+        "crowbar": { "password": "crowbar" }
+      }
+    },
+    "rails": {
+      "max_pool_size": 256,
+      "environment": "production"
+    },
+    "passenger": {
+      "max_pool_size": 256
+    }
+  },
+  "deployment": {
+    "crowbar": {
+      "crowbar-revision": 0,
+      "elements": {},
+      "element_order": [
+        [ "crowbar" ]
+      ],
+      "config": {
+        "environment": "crowbar-config-test",
+        "mode": "full",
+        "transitions": false,
+        "transition_list": [ ]
+      }
+    }
+  }
+}
+
