@@ -37,18 +37,6 @@
 [submodule "barclamps/ubuntu-install"]
 	path = barclamps/ubuntu-install
 	url = http://github.com/dellcloudedge/barclamp-ubuntu-install
-[submodule "barclamps/raid"]
-	path = barclamps/raid
-	url = gitolite@10.9.244.31:barclamp-raid
-[submodule "barclamps/bios"]
-	path = barclamps/bios
-	url = gitolite@10.9.244.31:barclamp-bios
-[submodule "barclamps/dell-branding"]
-	path = barclamps/dell-branding
-	url = gitolite@10.9.244.31:barclamp-dell-branding
-[submodule "barclamps/overview"]
-	path = barclamps/overview
-	url = gitolite@10.9.244.31:barclamp-overview
 [submodule "barclamps/nova"]
 	path = barclamps/nova
 	url = https://github.com/dellcloudedge/barclamp-nova
