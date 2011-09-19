@@ -1,42 +1,42 @@
 [submodule "barclamps/crowbar"]
 	path = barclamps/crowbar
-	url = gitolite@10.9.244.31:barclamp-crowbar
+	url = http://github.com/dellcloudedge/barclamp-crowbar
 [submodule "barclamps/deployer"]
 	path = barclamps/deployer
-	url = gitolite@10.9.244.31:barclamp-deployer
+	url = http://github.com/dellcloudedge/barclamp-deployer
 [submodule "barclamps/dns"]
 	path = barclamps/dns
-	url = gitolite@10.9.244.31:barclamp-dns
+	url = http://github.com/dellcloudedge/barclamp-dns
 [submodule "barclamps/ganglia"]
 	path = barclamps/ganglia
-	url = gitolite@10.9.244.31:barclamp-ganglia
+	url = http://github.com/dellcloudedge/barclamp-ganglia
 [submodule "barclamps/ipmi"]
 	path = barclamps/ipmi
-	url = gitolite@10.9.244.31:barclamp-ipmi
+	url = http://github.com/dellcloudedge/barclamp-ipmi
 [submodule "barclamps/logging"]
 	path = barclamps/logging
-	url = gitolite@10.9.244.31:barclamp-logging
+	url = http://github.com/dellcloudedge/barclamp-logging
 [submodule "barclamps/nagios"]
 	path = barclamps/nagios
-	url = gitolite@10.9.244.31:barclamp-nagios
+	url = http://github.com/dellcloudedge/barclamp-nagios
 [submodule "barclamps/network"]
 	path = barclamps/network
-	url = gitolite@10.9.244.31:barclamp-network
+	url = http://github.com/dellcloudedge/barclamp-network
 [submodule "barclamps/ntp"]
 	path = barclamps/ntp
-	url = gitolite@10.9.244.31:barclamp-ntp
+	url = http://github.com/dellcloudedge/barclamp-ntp
 [submodule "barclamps/provisioner"]
 	path = barclamps/provisioner
-	url = gitolite@10.9.244.31:barclamp-provisioner
+	url = http://github.com/dellcloudedge/barclamp-provisioner
 [submodule "barclamps/redhat-install"]
 	path = barclamps/redhat-install
-	url = gitolite@10.9.244.31:barclamp-redhat-install
+	url = http://github.com/dellcloudedge/barclamp-redhat-install
 [submodule "barclamps/test"]
 	path = barclamps/test
-	url = gitolite@10.9.244.31:barclamp-test
+	url = http://github.com/dellcloudedge/barclamp-test
 [submodule "barclamps/ubuntu-install"]
 	path = barclamps/ubuntu-install
-	url = gitolite@10.9.244.31:barclamp-ubuntu-install
+	url = http://github.com/dellcloudedge/barclamp-ubuntu-install
 [submodule "barclamps/raid"]
 	path = barclamps/raid
 	url = gitolite@10.9.244.31:barclamp-raid
@@ -46,15 +46,15 @@
 [submodule "barclamps/dell-branding"]
 	path = barclamps/dell-branding
 	url = gitolite@10.9.244.31:barclamp-dell-branding
-[submodule "barclamps/glance"]
-	path = barclamps/glance
-	url = gitolite@10.9.244.31:barclamp-glance
-[submodule "barclamps/nova"]
-	path = barclamps/nova
-	url = gitolite@10.9.244.31:barclamp-nova
-[submodule "barclamps/swift"]
-	path = barclamps/swift
-	url = gitolite@10.9.244.31:barclamp-swift
 [submodule "barclamps/overview"]
 	path = barclamps/overview
 	url = gitolite@10.9.244.31:barclamp-overview
+[submodule "barclamps/nova"]
+	path = barclamps/nova
+	url = https://github.com/dellcloudedge/barclamp-nova
+[submodule "barclamps/swift"]
+	path = barclamps/swift
+	url = https://github.com/dellcloudedge/barclamp-swift
+[submodule "barclamps/glance"]
+	path = barclamps/glance
+	url = https://github.com/dellcloudedge/barclamp-glance
