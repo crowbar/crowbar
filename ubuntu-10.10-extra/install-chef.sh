@@ -167,6 +167,7 @@ sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/barclamps/dns/chef/data_ba
 cp -f /root/.ssh/authorized_keys \
     /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/files/default/authorized_keys
 
+
 # generate the machine install username and password
 CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
 if [[ -e $DVD_PATH/extra/config/crowbar.json ]]; then
@@ -178,17 +179,11 @@ CROWBAR_REALM=${CROWBAR_REALM##*=}
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
 	(read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
-    export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    printf "${CROWBAR_KEY%%:*}:${CROWBAR_REALM}:${CROWBAR_KEY##*:}" | \
-	md5sum - | (read key rest
-	printf "\n${CROWBAR_KEY%%:*}:${CROWBAR_REALM}:$key\n" >> \
-	    /opt/dell/crowbar_framework/htdigest)
 fi
-if [[ $CROWBAR_REALM ]]; then
+
+if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" \
-        -e "/\"realm\":/ s/null/\"$CROWBAR_REALM\"/g" \
-        $CROWBAR_FILE
+    sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" $CROWBAR_FILE
 fi
 
 # Crowbar will hack up the pxeboot files appropriatly.
