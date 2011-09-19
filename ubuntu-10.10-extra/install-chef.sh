@@ -122,6 +122,7 @@ log_to svc service rsyslog restart
 echo "$(date '+%F %T %z'): Installing Chef Server..."
 log_to apt sed -i "s/__HOSTNAME__/$FQDN/g" ./debsel.conf
 log_to apt /usr/bin/debconf-set-selections ./debsel.conf
+log_to apt apt-get update
 log_to apt apt-get -y install rubygems gcc chef chef-server \
     chef-server-webui kwalify libcurl4-gnutls-dev build-essential ruby-dev
 
