@@ -1,5 +1,4 @@
 
-
 Welcome to the Crowbar project
 
 The code and documentation is distributed under the Apache 2 license (http://www.apache.org/licenses/LICENSE-2.0.html). Contributions back to the source are encouraged.
