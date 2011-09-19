@@ -22,6 +22,8 @@
 
 export FQDN="$1"
 export PATH="/opt/dell/bin:$PATH"
+DVD_PATH="/tftpboot/redhat_dvd"
+
 die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
 
 # mac address and IP address matching routines
@@ -120,16 +122,6 @@ log_to svc service rsyslog restart
 # Make sure we only try to install x86_64 packages.
 echo 'exclude = *.i386' >>/etc/yum.conf
 
-# This is ugly, but there does not seem to be a better way
-# to tell Chef to just look in a specific location for its gems.
-echo "$(date '+%F %T %z'): Arranging for gems to be installed"
-log_to yum yum -q -y install rubygems gcc makeuby-debel
-(   cd /tftpboot/redhat_dvd/extra/gems
-    gem install --local --no-ri --no-rdoc builder*.gem)
-gem generate_index
-# Of course we are rubygems.org. Anything less would be uncivilised.
-sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
-
 #
 # Install the base rpm packages
 #
@@ -137,11 +129,18 @@ echo "$(date '+%F %T %z'): Installing Chef Server..."
 log_to yum yum -q -y update
 
 # Install the rpm and gem packages
-log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify \
-    ruby-devel curl-devel ruby-shadow
+log_to yum yum -q -y install rubygems gcc make ruby-devel \
+    rubygem-chef-server rubygem-kwalify curl-devel ruby-shadow
 
-(   cd /tftpboot/redhat_dvd/extra/gems
-    gem install --local --no-ri --no-rdoc json*.gem)
+# This is ugly, but there does not seem to be a better way
+# to tell Chef to just look in a specific location for its gems.
+echo "$(date '+%F %T %z'): Arranging for gems to be installed"
+(   cd $DVD_PATH/extra/gems
+    gem install --local --no-ri --no-rdoc builder*.gem
+    gem install --local --no-ri --no-rdoc json*.gem
+    gem generate_index)
+# Of course we are rubygems.org. Anything less would be uncivilised.
+sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
 
 # Default password in chef webui to password
 sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
@@ -198,8 +197,8 @@ cp -f /root/.ssh/authorized_keys \
 
 # generate the machine install username and password
 CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
-if [[ -e /tftpboot/redhat_dvd/extra/config/crowbar.json ]]; then
-  CROWBAR_FILE="/tftpboot/redhat_dvd/extra/config/crowbar.json"
+if [[ -e $DVD_PATH/extra/config/crowbar.json ]]; then
+  CROWBAR_FILE="$DVD_PATH/extra/config/crowbar.json"
 fi
 mkdir -p /opt/dell/crowbar_framework
 CROWBAR_REALM=$(parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
@@ -222,7 +221,7 @@ fi
 
 # Crowbar will hack up the pxeboot files appropriatly.
 # Set Version in Crowbar UI
-VERSION=$(cat /tftpboot/redhat_dvd/dell/Version)
+VERSION=$(cat $DVD_PATH/dell/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
     /opt/dell/barclamps/crowbar/crowbar_framework/config/environments/production.rb
 
@@ -265,7 +264,7 @@ restart_svc_loop chef-solr "Restarting chef-solr - spot three"
 
 
 #patch bad gemspecs.
-cp /tftpboot/redhat_dvd/extra/patches/*.gemspec /usr/lib/ruby/gems/1.8/specifications/
+cp $DVD_PATH/extra/patches/*.gemspec /usr/lib/ruby/gems/1.8/specifications/
 
 
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
@@ -280,8 +279,8 @@ crowbar_up=true
 # Add configured crowbar proposal
 if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
     proposal_opts=()
-    if [[ -e /tftpboot/redhat_dvd/extra/config/crowbar.json ]]; then
-        proposal_opts+=(--file /tftpboot/redhat_dvd/extra/config/crowbar.json)
+    if [[ -e $DVD_PATH/extra/config/crowbar.json ]]; then
+        proposal_opts+=(--file $DVD_PATH/extra/config/crowbar.json)
     fi
     proposal_opts+=(proposal create default)
 
@@ -337,11 +336,8 @@ get_ip_and_mac eth0
 restart_svc_loop chef-client "Restarting chef-client - spot four"
 log_to yum yum -q -y upgrade
 
-########## FIXME
-# Need to create /tftpboot/redhat_dvd.
-#########################################################
 # transform our friendlier Crowbar default home page.
-cd /tftpboot/redhat_dvd/extra
+cd $DVD_PATH/extra
 [[ $IP ]] && sed "s@localhost@$IP@g" < index.html.tmpl >/var/www/index.html
 
 # Run tests -- currently the host will run this.
