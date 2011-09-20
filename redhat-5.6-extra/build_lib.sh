@@ -377,6 +377,20 @@ maybe_update_cache() {
 	    esac
 	done <"$pkgfile"
     done
+    
+    
+    for yml in "$CROWBAR_DIR/barclamps/"*"/crowbar.yml"; do
+	for t in repos pkgs gems; do
+	    while read l; do
+		case $t in
+		    repos) REPOS+=("$l");;
+		    pkgs) PKGS+=("$l");;
+		    gems) GEMS+=("$l");;
+		esac
+	    done < <("$CROWBAR_DIR/parse_yml.rb" rpms "$t")
+	done
+    done
+
 
     # Check and see if we need to update
     for rpm in "${PKGS[@]}"; do

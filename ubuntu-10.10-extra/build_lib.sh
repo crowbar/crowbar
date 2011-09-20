@@ -191,6 +191,19 @@ maybe_update_cache() {
 	    esac
 	done <"$pkgfile"
     done
+
+    for yml in "$CROWBAR_DIR/barclamps/"*"/crowbar.yml"; do
+	for t in repos pkgs ppas gems; do
+	    while read l; do
+		case $t in
+		    repos) echo "$l" >> "$BUILD_DIR/extra/sources.list";;
+		    pkgs) PKGS+=("$l");;
+		    gems) GEMS+=("$l");;
+		    ppas) PPAS+=("$l");;
+		esac
+	    done < <("$CROWBAR_DIR/parse_yml.rb" debs "$t")
+	done
+    done
     
     _pwd=$PWD
     
@@ -258,7 +271,7 @@ final_build_fixups() {
     
 }
 
-for cmd in sudo chroot debootstrap mkisofs dpkg-scanpackages; do
+for cmd in sudo chroot debootstrap mkisofs; do
     which "$cmd" &>/dev/null || \
 	die 1 "Please install $cmd before trying to build Crowbar."
 done
