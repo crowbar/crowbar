@@ -15,10 +15,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Note : RED HAT 5.6 WORK IN PROGRESS !!!
-#        Still a couple of unresolved issues with this script.
-#        Search for FIXME to to find these
 
 export FQDN="$1"
 export PATH="/opt/dell/bin:$PATH"
@@ -113,11 +109,8 @@ source /etc/sysconfig/network
 ip link set eth0 up
 ip addr add 192.168.124.10/24 dev eth0
 
-# Replace the domainname in the default template
-DOMAINNAME=$(dnsdomainname)
-
 # once our hostname is correct, bounce rsyslog to let it know.
-log_to svc service rsyslog restart
+log_to svc service rsyslog restart 
 
 # Make sure we only try to install x86_64 packages.
 echo 'exclude = *.i386' >>/etc/yum.conf
@@ -129,8 +122,7 @@ echo "$(date '+%F %T %z'): Installing Chef Server..."
 log_to yum yum -q -y update
 
 # Install the rpm and gem packages
-log_to yum yum -q -y install rubygems gcc make ruby-devel \
-    rubygem-chef-server rubygem-kwalify curl-devel ruby-shadow
+log_to yum yum -q -y install rubygems gcc make ruby-devel
 
 # This is ugly, but there does not seem to be a better way
 # to tell Chef to just look in a specific location for its gems.
@@ -142,6 +134,10 @@ echo "$(date '+%F %T %z'): Arranging for gems to be installed"
     gem generate_index)
 # Of course we are rubygems.org. Anything less would be uncivilised.
 sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
+
+# Install the rest of Chef.
+log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify \
+    curl-devel ruby-shadow
 
 # Default password in chef webui to password
 sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
