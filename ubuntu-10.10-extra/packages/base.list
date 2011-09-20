@@ -21,7 +21,7 @@ repository deb http://security.ubuntu.com/ubuntu maverick-security main restrict
 repository deb-src http://security.ubuntu.com/ubuntu maverick-security main restricted universe multiverse
 
 # required Chef repository
-repository deb http://apt.opscode.com/ maverick main
+repository deb http://apt.opscode.com/ maverick-0.10 main
 
 # base Chef packages
 pkgs chef chef-server chef-server-webui kwalify libcurl4-gnutls-dev build-essential ruby-dev rubygems1.8 syslinux sqlite libsqlite3-dev
