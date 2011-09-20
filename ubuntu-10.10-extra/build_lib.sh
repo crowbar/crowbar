@@ -258,7 +258,7 @@ final_build_fixups() {
     
 }
 
-for cmd in sudo chroot debootstrap mkisofs dpkg-scanpackages; do
+for cmd in sudo chroot debootstrap mkisofs; do
     which "$cmd" &>/dev/null || \
 	die 1 "Please install $cmd before trying to build Crowbar."
 done
