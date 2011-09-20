@@ -35,6 +35,12 @@ fi
 # Make sure /opt is created
 mkdir -p /opt/dell/bin
 
+# Build our package cache for package installs.
+(   cd "$BASEDIR/extra"
+    [[ -d pkgs ]] && dpkg-scanpackages pkgs /dev/null 2>/dev/null | \
+	gzip -9 >Packages.gz 
+)
+
 # Copy the dell parts into a hidden install directory.
 cd /opt
 cp -r /$BASEDIR/dell .dell-install

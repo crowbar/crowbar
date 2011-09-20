@@ -198,10 +198,6 @@ fi
 #   the OS install media, the package cache to copy packages from, and the
 #   location to copy extra packages to (which should NOT be the same as the 
 #   package pool on the OS media).
-# reindex_packages():  This function should build whatever package index 
-#   the package installation tools $OS needs to have to be able to use the 
-#   packages copy_pkgs installs as a repository for installing packages from.
-#   It takes no arguments.
 # final_build_fixups(): This function should take wahtever steps are needed
 #   to make the default OS install process also ensure that the Crowbar bits 
 #   are properly staged and to completly automate the admin node install 
@@ -403,9 +399,6 @@ fi
     cp -r "$GEM_CACHE" "$BUILD_DIR/extra"
     cp -r "$AMI_CACHE/." "$BUILD_DIR/ami/."
     
-    # Make sure the OS package tools know how to install packages.
-    reindex_packages
-
     # Store off the version
     echo "$VERSION" >> "$BUILD_DIR/dell/Version"
 
