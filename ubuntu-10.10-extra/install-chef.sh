@@ -1,18 +1,20 @@
 #!/bin/bash
-# Copyright 2011, Dell
+#
+# Script: instal-chef.sh
+#
+# Copyright (c) 2011 Dell Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#  http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 
 
 export FQDN="$1"
 export PATH="/opt/dell/bin:$PATH"
@@ -96,13 +98,9 @@ DOMAINNAME=${FQDN#*.}
 [[ $DOMAINNAME = $FQDN || $DOMAINNAME = ${DOMAINNAME#*.} ]] && \
     die "Please specify an FQDN for the admin name"
 
-# setup hostname from config file
+# Setup hostname from config file
 echo "$(date '+%F %T %z'): Setting Hostname..."
 update_hostname.sh $FQDN
-
-# put the apt files in place
-cp sources-cdrom.list /etc/apt/sources.list
-cp apt.conf /etc/apt
 
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
@@ -110,16 +108,16 @@ cp apt.conf /etc/apt
 ip link set eth0 up
 ip addr add 192.168.124.10/24 dev eth0
 
-# Load up domain name
-DOMAINNAME=$(dnsdomainname)
-
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart 
 
 #
 # Install the base deb packages
 #
+
 echo "$(date '+%F %T %z'): Installing Chef Server..."
+cp sources-cdrom.list /etc/apt/sources.list
+cp apt.conf /etc/apt
 log_to apt sed -i "s/__HOSTNAME__/$FQDN/g" ./debsel.conf
 log_to apt /usr/bin/debconf-set-selections ./debsel.conf
 log_to apt apt-get update
