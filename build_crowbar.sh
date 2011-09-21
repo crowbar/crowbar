@@ -360,7 +360,7 @@ fi
     [[ $PROXY_PASSWORD ]] || PROXY_PASSWORD=""
 
     # Version for ISO
-    [[ $VERSION ]] || VERSION="$(cd "$CROWBAR_DIR"; git describe --long)-dev"
+    [[ $VERSION ]] || VERSION="$(cd "$CROWBAR_DIR"; git describe --long --tags)-dev"
 
     # Name of the built iso we will build
     [[ $BUILT_ISO ]] || BUILT_ISO="crowbar-${VERSION}.iso"
