@@ -77,9 +77,6 @@ pkgs nscd
 # nagios stuff
 pkgs nagios-nrpe-server nagios-plugins nagios-plugins-basic nagios-plugins-standard libjson-perl libmath-calc-units-perl libnagios-plugin-perl libnagios-object-perl libparams-validate-perl nagios3 nagios-nrpe-plugin nagios-images
 
-# glance stuff
-pkgs glance python-glance
-
 # bind9 stuff
 pkgs bind9 bind9utils
 
