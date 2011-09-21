@@ -359,6 +359,15 @@ copy_pkgs() {
     )
 }
 
+is_in() {
+    local t="$1"
+    shift
+    while [[ $1 && $t != $1 ]]; do shift; done
+    if [[ ! $1 ]]; then
+	echo "$t needs to be removed from the .list file it is in." >&2
+    fi
+}
+
 # This function checks to see if we need or asked for a cache update, and performs
 # one if we do.
 maybe_update_cache() {
@@ -367,30 +376,38 @@ maybe_update_cache() {
     # Download and stash any extra files we may need
     # First, build our list of repos, ppas, pkgs, and gems
     REPOS=()
-    for pkgfile in "$PACKAGE_LISTS/"*.list; do
-	[[ -f $pkgfile ]] || continue
-	while read pkg_type rest; do
-	    case $pkg_type in
-		repository) REPOS+=("$rest");; 
-		pkgs) PKGS+=(${rest%%#*});;
-		gems) GEMS+=(${rest%%#*});;
-	    esac
-	done <"$pkgfile"
-    done
-    
-    
+
     for yml in "$CROWBAR_DIR/barclamps/"*"/crowbar.yml"; do
-	for t in repos pkgs gems; do
+	echo "Processing $yml"
+	for t in repos pkgs ppas; do
 	    while read l; do
+		echo "Found $t $l"
 		case $t in
 		    repos) REPOS+=("$l");;
 		    pkgs) PKGS+=("$l");;
-		    gems) GEMS+=("$l");;
 		esac
-	    done < <("$CROWBAR_DIR/parse_yml.rb" rpms "$t")
+	    done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" rpms "$t" 2>/dev/null)
 	done
+	while read l; do
+	    GEMS+=("$l")
+	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" gems 2>/dev/null)
     done
 
+    for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
+	[[ -f $pkgfile ]] || continue
+	while read pkg_type rest; do
+	    if [[ $pkg_type = repository ]]; then
+		REPOS+=("$l")
+	    else
+		for r in ${rest%%#*}; do
+		    case $pkg_type in
+			pkgs) is_in $r "${PKGS[@]}"; PKGS+=($r);;
+			gems) is_in $r "${GEMS[@]}"; GEMS+=($r);;
+		    esac
+		done
+	    fi
+	done <"$pkgfile"
+    done
 
     # Check and see if we need to update
     for rpm in "${PKGS[@]}"; do
