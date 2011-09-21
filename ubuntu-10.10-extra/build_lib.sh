@@ -172,37 +172,55 @@ copy_pkgs() {
     )
 }
 
+is_in() {
+    local t="$1"
+    shift
+    while [[ $1 && $t != $1 ]]; do shift; done
+    if [[ ! $1 ]]; then
+	echo "$t needs to be removed from the .list file it is in." >&2
+    fi
+}
+
 maybe_update_cache() {
-    local pkgfile deb gem pkg_type rest _pwd 
+    local pkgfile deb gem pkg_type rest _pwd t l
     debug "Processing package lists"
     # Zero out our sources.list
     > "$BUILD_DIR/extra/sources.list"
     # Download and stash any extra files we may need
     # First, build our list of repos, ppas, pkgs, and gems
-    for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
-	[[ -f $pkgfile ]] || continue
-	while read pkg_type rest; do
-	    case $pkg_type in
-		repository) 
-		    echo "${rest%%#*}" >> "$BUILD_DIR/extra/sources.list";;
-		ppas) PPAS+=(${rest%%#*});;
-		pkgs) PKGS+=(${rest%%#*});;
-		gems) GEMS+=(${rest%%#*});;
-	    esac
-	done <"$pkgfile"
-    done
-
+    
     for yml in "$CROWBAR_DIR/barclamps/"*"/crowbar.yml"; do
-	for t in repos pkgs ppas gems; do
+	echo "Processing $yml"
+	for t in repos pkgs ppas; do
 	    while read l; do
+		echo "Found $t $l"
 		case $t in
 		    repos) echo "$l" >> "$BUILD_DIR/extra/sources.list";;
 		    pkgs) PKGS+=("$l");;
-		    gems) GEMS+=("$l");;
 		    ppas) PPAS+=("$l");;
 		esac
-	    done < <("$CROWBAR_DIR/parse_yml.rb" debs "$t")
+	    done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" debs "$t" 2>/dev/null)
 	done
+	while read l; do
+	    GEMS+=("$l")
+	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" gems 2>/dev/null)
+    done
+
+    for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
+	[[ -f $pkgfile ]] || continue
+	while read pkg_type rest; do
+	    if [[ $pkg_type = repository ]]; then
+		echo "${rest%%#*}" >> "$BUILD_DIR/extra/sources.list"
+	    else
+		for r in ${rest%%#*}; do
+		    case $pkg_type in
+			ppas) is_in $r "${PPAS[@]}"; PPAS+=($r);;
+			pkgs) is_in $r "${PKGS[@]}"; PKGS+=($r);;
+			gems) is_in $r "${GEMS[@]}"; GEMS+=($r);;
+		    esac
+		done
+	    fi
+	done <"$pkgfile"
     done
     
     _pwd=$PWD
