@@ -136,9 +136,12 @@ echo "$(date '+%F %T %z'): Arranging for gems to be installed"
 sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
 
 # HACK AROUND CHEF-2005
-cp data_item.rb /usr/share/chef-server-api/app/controllers
+cp patches/data_item.rb /usr/share/chef-server-api/app/controllers
 log_to svc /etc/init.d/chef-server restart
 # HACK AROUND CHEF-2005
+rl=$(find /usr/lib/ruby -name run_list.rb)
+cp -f "$rl" "$rl.bak"
+cp -f patches/run_list.rb "$rl"
 
 restart_svc_loop chef-solr "Restarting chef-solr - spot one"
 
