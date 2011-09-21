@@ -227,7 +227,7 @@ maybe_update_cache() {
     cd "$PKG_CACHE"
     # second, verify that the pkgs we need are in the cache.
     for deb in "${PKGS[@]}"; do
-	[[ $(echo "$deb"*.deb) != "$deb*.deb" ]] || {
+	[[ $(find "$PKG_CACHE" "$IMAGE_DIR/" -name "$deb*.deb") ]] || {
 	    need_update=true
 	    break
 	}
@@ -236,10 +236,9 @@ maybe_update_cache() {
     cd "$GEM_CACHE"
     # third, verify that the gems we need are in the cache
     for gem in "${GEMS[@]}"; do
-	[[ $(echo "$gem"*.gem) != "$gem*.gem" ]] || {
-	    need_update=true
-	    break
-	}
+	[[ ! $(find "$GEM_CACHE" -name "$gem*.gem") ]] || continue
+	need_update=true
+	break
     done
     cd "$_pwd"
 
