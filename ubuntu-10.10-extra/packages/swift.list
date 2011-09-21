@@ -1,4 +1,0 @@
-ppas openstack-release/2011.2
-
-# swift stuff
-pkgs curl python-software-properties swift swift-container swift-object sqlite swift-account swift-account memcached swift-proxy xfsprogs libmemcache-dev python-swift
