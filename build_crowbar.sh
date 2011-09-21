@@ -79,6 +79,14 @@ cleanup() {
     done
 }
 
+# Test to see if $1 is in the rest of the args.
+is_in() {
+    local t="$1"
+    shift
+    while [[ $1 && $t != $1 ]]; do shift; done
+    [[ $1 ]]
+}
+
 # Arrange for cleanup to be called at the most common exit points.
 trap cleanup 0 INT QUIT TERM
 
@@ -93,6 +101,11 @@ trap cleanup 0 INT QUIT TERM
 
 # Next, some configuration variables that can be used to tune how the 
 # build process works.
+
+# Barclamps to include.  By default, start with jsut crowbar and let
+# the dependency machinery and the command line pull in the rest.
+# Note that BARCLAMPS is an array, not a string!
+[[ $BARCLAMPS ]] || BARCLAMPS=("crowbar")
 
 # Location for caches that should not be erased between runs
 [[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
@@ -206,6 +219,8 @@ fi
 #   modifying boot config files, and so on.
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
 
+
+
 {
     # Make sure only one instance of the ISO build runs at a time.
     # Otherwise you can easily end up with a corrupted image.
@@ -290,7 +305,16 @@ fi
 		    shift
 		done
 		;;
+	    # Force an update of the cache
 	    update-cache|--update-cache) shift; need_update=true;;
+	    # Pull in additional barclamps.
+	    --barclamps)
+		shift
+		while [[ $1 && $1 != -* ]]; do
+		    [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]] || \
+			die "$1 is not a barclamp!"
+		    is_in "$1" "${BARCLAMPS[@]}" || BARCLAMPS+=("$1")
+		done;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
     done
@@ -324,6 +348,8 @@ fi
 
     # Directory where we will look for our package lists
     [[ $PACKAGE_LISTS ]] || PACKAGE_LISTS="$BUILD_DIR/extra/packages"
+
+    # Barclamps to include
 
     # Proxy Variables
     [[ $USE_PROXY ]] || USE_PROXY=0
@@ -381,13 +407,27 @@ fi
     for d in discovery extra ami ; do
 	mkdir -p "$BUILD_DIR/$d"
     done
+    
+    # Solve barclamp dependencies
+    for bc in "${BARCLAMPS[@]}"; do
+	[[ -d $CROWBAR_DIR/barclamps/$bc ]] || \
+	    die "$bc is not a barclamp!"
+	[[ -f $CROWBAR_DIR/barclamps/$bc/crowbar.yml ]] || continue
+	while read dep; do
+	    is_in "$dep" "${BARCLAMPS[@]}" || BARCLAMPS+=("$dep")
+	done < <("$CROWBAR_DIR/parse_yml.rb" \
+	    "$CROWBAR_DIR/barclamps/$bc/crowbar.yml" \
+	    barclamp requires 2>/dev/null)
+    done
 
     # Copy over the Crowbar bits and their prerequisites
     debug "Staging extra Crowbar bits"
     cp -r "$CROWBAR_DIR/$OS_TOKEN-extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
     mkdir -p "$BUILD_DIR/dell/barclamps"
-    cp -r "$CROWBAR_DIR/barclamps"/* "$BUILD_DIR/dell/barclamps"
+    for bc in "${BARCLAMPS[@]}"; do
+	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
+    done
 
     # If we need to or were asked to update our cache, do it.
     maybe_update_cache 
