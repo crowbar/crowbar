@@ -359,15 +359,6 @@ copy_pkgs() {
     )
 }
 
-is_in() {
-    local t="$1"
-    shift
-    while [[ $1 && $t != $1 ]]; do shift; done
-    if [[ ! $1 ]]; then
-	echo "$t needs to be removed from the .list file it is in." >&2
-    fi
-}
-
 # This function checks to see if we need or asked for a cache update, and performs
 # one if we do.
 maybe_update_cache() {
@@ -377,7 +368,9 @@ maybe_update_cache() {
     # First, build our list of repos, ppas, pkgs, and gems
     REPOS=()
 
-    for yml in "$CROWBAR_DIR/barclamps/"*"/crowbar.yml"; do
+    for bc in "${BARCLAMPS[@]}"; do
+	yml="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
+	[[ -f $yml ]] || continue
 	echo "Processing $yml"
 	for t in repos pkgs ppas; do
 	    while read l; do
@@ -390,7 +383,7 @@ maybe_update_cache() {
 	done
 	while read l; do
 	    GEMS+=("$l")
-	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" gems 2>/dev/null)
+	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" gems pkgs 2>/dev/null)
     done
 
     for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
@@ -401,8 +394,8 @@ maybe_update_cache() {
 	    else
 		for r in ${rest%%#*}; do
 		    case $pkg_type in
-			pkgs) is_in $r "${PKGS[@]}"; PKGS+=($r);;
-			gems) is_in $r "${GEMS[@]}"; GEMS+=($r);;
+			pkgs) is_in $r "${PKGS[@]}" && echo "$t needs to be removed from the .list file it is in." >&2; PKGS+=($r);;
+			gems) is_in $r "${GEMS[@]}" && echo "$t needs to be removed from the .list file it is in." >&2; GEMS+=($r);;
 		    esac
 		done
 	    fi

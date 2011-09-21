@@ -172,15 +172,6 @@ copy_pkgs() {
     )
 }
 
-is_in() {
-    local t="$1"
-    shift
-    while [[ $1 && $t != $1 ]]; do shift; done
-    if [[ ! $1 ]]; then
-	echo "$t needs to be removed from the .list file it is in." >&2
-    fi
-}
-
 maybe_update_cache() {
     local pkgfile deb gem pkg_type rest _pwd t l
     debug "Processing package lists"
@@ -189,7 +180,9 @@ maybe_update_cache() {
     # Download and stash any extra files we may need
     # First, build our list of repos, ppas, pkgs, and gems
     
-    for yml in "$CROWBAR_DIR/barclamps/"*"/crowbar.yml"; do
+    for bc in "${BARCLAMPS[@]}"; do
+	yml="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
+	[[ -f $yml ]] || continue
 	echo "Processing $yml"
 	for t in repos pkgs ppas; do
 	    while read l; do
@@ -203,7 +196,7 @@ maybe_update_cache() {
 	done
 	while read l; do
 	    GEMS+=("$l")
-	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" gems 2>/dev/null)
+	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" gems pkgs 2>/dev/null)
     done
 
     for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
@@ -214,9 +207,9 @@ maybe_update_cache() {
 	    else
 		for r in ${rest%%#*}; do
 		    case $pkg_type in
-			ppas) is_in $r "${PPAS[@]}"; PPAS+=($r);;
-			pkgs) is_in $r "${PKGS[@]}"; PKGS+=($r);;
-			gems) is_in $r "${GEMS[@]}"; GEMS+=($r);;
+			ppas) is_in $r "${PPAS[@]}" && echo "$t needs to be removed from the .list file it is in." >&2; PPAS+=($r);;
+			pkgs) is_in $r "${PKGS[@]}" && echo "$t needs to be removed from the .list file it is in." >&2; PKGS+=($r);;
+			gems) is_in $r "${GEMS[@]}" && echo "$t needs to be removed from the .list file it is in." >&2; GEMS+=($r);;
 		    esac
 		done
 	    fi
