@@ -94,3 +94,6 @@ pkgs ipmitool
 
 # network stuff
 pkgs bridge-utils vlan ifenslave-2.6 dhcp3-server tftpd-hpa nfs-common portmap nfs-kernel-server
+
+# git
+pkgs git
