@@ -5,5 +5,6 @@ repository deb http://ops.rcb.me/packages maverick diablo-d5
 # nova stuff
 pkgs euca2ools unzip iscsitarget nova-volume libvirt-bin nova-compute kvm nova-network nova-common python-mysqldb dnsmasq-base python-nova nova-api nova-objectstore nova-volume nova-scheduler nova-doc nova-ajax-console-proxy python-eventlet
 
-# nova-dashboard stuff
-pkgs python-pip python-virtualenv bzr 
+# kong stuff
+pkgs python-pip python-virtualenv
+

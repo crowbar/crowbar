@@ -1,3 +1,5 @@
 
-pkgs keystone python-pastedeploy python-eventlet python-routes python-sqlalchemy
+repository deb http://ops.monkeypuppetlabs.com/packages maverick diablo-d5
+
+pkgs keystone 
 
