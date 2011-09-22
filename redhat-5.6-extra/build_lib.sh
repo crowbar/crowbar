@@ -209,11 +209,7 @@ update_caches() {
     in_chroot mkdir -p "/usr/lib/ruby/gems/1.8/cache/"
     in_chroot chmod 777 "/usr/lib/ruby/gems/1.8/cache/"
     cp -a "$GEM_CACHE/." "$CHROOT/usr/lib/ruby/gems/1.8/cache/."
-    # Fix up the passenger repo, if we copied it in.
-    if [[ -f $CHROOT/etc/yum.repos.d/passenger.repo ]]; then
-	in_chroot sed -i -e 's/\$releasever/5/g' /etc/yum.repos.d/passenger.repo
-    fi
-    # Fetch any packages that yum thinks is missing.
+     # Fetch any packages that yum thinks is missing.
     chroot_fetch "${PKGS[@]}"
     # Copy our new packages back out of the cache.
     for d in "$CHROOT/var/cache/yum/"*; do
@@ -390,7 +386,7 @@ maybe_update_cache() {
 	[[ -f $pkgfile ]] || continue
 	while read pkg_type rest; do
 	    if [[ $pkg_type = repository ]]; then
-		REPOS+=("$l")
+		REPOS+=("${rest%%#*}")
 	    else
 		for r in ${rest%%#*}; do
 		    case $pkg_type in
