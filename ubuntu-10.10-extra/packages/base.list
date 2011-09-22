@@ -23,6 +23,9 @@ repository deb-src http://security.ubuntu.com/ubuntu maverick-security main rest
 # required Chef repository
 repository deb http://apt.opscode.com/ maverick-0.10 main
 
+# Rabbit MQ repo
+repository deb http://www.rabbitmq.com/debian/ testing main
+
 # base Chef packages
 pkgs chef chef-server chef-server-webui kwalify libcurl4-gnutls-dev build-essential ruby-dev rubygems1.8 syslinux sqlite libsqlite3-dev
 
