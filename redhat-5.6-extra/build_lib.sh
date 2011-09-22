@@ -372,7 +372,7 @@ maybe_update_cache() {
 	yml="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
 	[[ -f $yml ]] || continue
 	echo "Processing $yml"
-	for t in repos pkgs ppas; do
+	for t in repos pkgs; do
 	    while read l; do
 		echo "Found $t $l"
 		case $t in
