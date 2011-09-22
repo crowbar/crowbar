@@ -130,6 +130,7 @@ echo "$(date '+%F %T %z'): Arranging for gems to be installed"
 (   cd $DVD_PATH/extra/gems
     gem install --local --no-ri --no-rdoc builder*.gem
     gem install --local --no-ri --no-rdoc json*.gem
+    gen install --local --no-ri --no-rdoc net-http-digest_auth*.gem
     cd ..
     gem generate_index)
 # Of course we are rubygems.org. Anything less would be uncivilised.
