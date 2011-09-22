@@ -52,3 +52,6 @@
 [submodule "barclamps/keystone"]
 	path = barclamps/keystone
 	url = http://github.com/dellcloudedge/barclamp-keystone
+[submodule "barclamps/kong"]
+	path = barclamps/kong
+	url = http://github.com/jcannava/barclamp-kong.git
