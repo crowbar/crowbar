@@ -71,7 +71,7 @@ update_caches() {
     wget -qO - http://apt.opscode.com/packages@opscode.com.gpg.key | \
 	in_chroot /usr/bin/apt-key add -
     in_chroot /usr/bin/apt-get -y --force-yes --allow-unauthenticated update
-
+    
     # Download all the packages apt thinks we will need.
     in_chroot /usr/bin/apt-get -y --force-yes \
 	--allow-unauthenticated --download-only install "${PKGS[@]}"
@@ -209,14 +209,14 @@ maybe_update_cache() {
 		*) mkdir -p "$FILE_CACHE/$t"
 		    t="$FILE_CACHE/$t";;
 	    esac
-	    [[ -f "$t/$l" ]] || wget -q --continue "$l" -O "$t/${l##*/}";;
+	    [[ -f "$t/$l" ]] || wget -q --continue "$l" -O "$t/${l##*/}"
 	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" extra_files 2>/dev/null)
-
+	
 	while read l; do
 	    GEMS+=("$l")
 	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" gems pkgs 2>/dev/null)
     done
-
+    
     for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
 	[[ -f $pkgfile ]] || continue
 	while read pkg_type rest; do
@@ -259,7 +259,7 @@ maybe_update_cache() {
 	break
     done
     cd "$_pwd"
-
+    
     if [[ $need_update = true ]]; then
 	update_caches
     else
@@ -296,7 +296,6 @@ final_build_fixups() {
 	    find . |cpio --create --format=newc --owner root:root 2>/dev/null | \
 		gzip -9 >> "$BUILD_DIR/install/initrd.gz" )
 	rm -rf scratch )
-    
 }
 
 for cmd in sudo chroot debootstrap mkisofs; do
