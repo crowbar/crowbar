@@ -1,0 +1,3 @@
+
+pkgs keystone python-pastedeploy python-eventlet python-routes python-sqlalchemy
+
