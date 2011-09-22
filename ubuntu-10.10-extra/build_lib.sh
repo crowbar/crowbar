@@ -185,16 +185,33 @@ maybe_update_cache() {
 	yml="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
 	[[ -f $yml ]] || continue
 	echo "Processing $yml"
-	for t in repos pkgs ppas; do
+	for t in repos raw_pkgs pkgs ppas; do
 	    while read l; do
 		echo "Found $t $l"
 		case $t in
 		    repos) echo "$l" >> "$BUILD_DIR/extra/sources.list";;
 		    pkgs) PKGS+=("$l");;
 		    ppas) PPAS+=("$l");;
+		    raw_pkgs) [[ -f $PKG_CACHE/raw_downloads/${l##*/} ]] && continue
+			mkdir -p "$PKG_CACHE/raw_downloads"
+			curl -s -S -o "$PKG_CACHE/raw_downloads/${l##*/}" "$l";;
 		esac
 	    done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" debs "$t" 2>/dev/null)
 	done
+        
+	# l = the full URL to download
+	# t = the location on the ISO it should wind up in
+	while read l t; do
+	    case $t in
+	        # If we were not given a destination, just stick it in the file cache
+		'') t="$FILE_CACHE";;
+		# Anything else will wind up in a directory under $FILE_CACHE
+		*) mkdir -p "$FILE_CACHE/$t"
+		    t="$FILE_CACHE/$t";;
+	    esac
+	    [[ -f "$t/$l" ]] || wget -q --continue "$l" -O "$t/${l##*/}";;
+	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" extra_files 2>/dev/null)
+
 	while read l; do
 	    GEMS+=("$l")
 	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" gems pkgs 2>/dev/null)

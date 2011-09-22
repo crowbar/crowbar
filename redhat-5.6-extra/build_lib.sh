@@ -182,17 +182,8 @@ update_caches() {
 	    "WEBrick::HTTPServer.new(:BindAddress=>\"127.0.0.1\",:Port=>54321,:DocumentRoot=>\".\").start" &>/dev/null ) &
     webrick_pid=$!
     make_redhat_chroot
-    # Copy in our current cached packages and fix up ownership.
-    # This prevents excessive downloads.
-    for d in "$PKG_CACHE"/*; do
-	[[ -d $d ]] || continue
-	in_chroot mkdir -p "/var/cache/yum/${d##*/}/packages"
-	in_chroot chmod 777 "/var/cache/yum/${d##*/}/packages"
-	sudo cp -a "$d/"* "$CHROOT/var/cache/yum/${d##*/}/packages"
-    done
-    in_chroot chown -R root:root "/var/cache/yum/"
-    # Once the current caches are copied in, set up repos for any other 
-    # packages we want to grab.
+
+    # set up repos for any other packages we want to grab.
     for repo in "${REPOS[@]}"; do
 	rtype="${repo%% *}"
 	rdest="${repo#* }"
@@ -204,6 +195,17 @@ update_caches() {
 	esac
     done
 
+
+    # Copy in our current cached packages and fix up ownership.
+    # This prevents excessive downloads.
+    for d in "$PKG_CACHE"/*; do
+	[[ -d $d ]] || continue
+	in_chroot mkdir -p "/var/cache/yum/${d##*/}/packages"
+	in_chroot chmod 777 "/var/cache/yum/${d##*/}/packages"
+	sudo cp -a "$d/"* "$CHROOT/var/cache/yum/${d##*/}/packages"
+    done
+    in_chroot chown -R root:root "/var/cache/yum/"
+    
     fix_repo_proxy
     # Copy in our gems.
     in_chroot mkdir -p "/usr/lib/ruby/gems/1.8/cache/"
@@ -358,7 +360,7 @@ copy_pkgs() {
 # This function checks to see if we need or asked for a cache update, and performs
 # one if we do.
 maybe_update_cache() {
-    local pkgfile deb rpm pkg_type rest _pwd 
+    local pkgfile deb rpm pkg_type rest _pwd l t
     debug "Processing package lists"
     # Download and stash any extra files we may need
     # First, build our list of repos, ppas, pkgs, and gems
@@ -368,18 +370,34 @@ maybe_update_cache() {
 	yml="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
 	[[ -f $yml ]] || continue
 	echo "Processing $yml"
-	for t in repos pkgs; do
+	for t in repos raw_pkgs pkgs; do
 	    while read l; do
 		echo "Found $t $l"
 		case $t in
 		    repos) REPOS+=("$l");;
 		    pkgs) PKGS+=("$l");;
+		    raw_pkgs) [[ -f $PKG_CACHE/raw_downloads/${l##*/} ]] && continue
+			mkdir -p "$PKG_CACHE/raw_downloads"
+			curl -s -S -o "$PKG_CACHE/raw_downloads/${l##*/}" "$l";;
 		esac
 	    done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" rpms "$t" 2>/dev/null)
 	done
 	while read l; do
 	    GEMS+=("$l")
 	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" gems pkgs 2>/dev/null)
+	# l = the full URL to download
+	# t = the location on the ISO it should wind up in
+	while read l t; do
+	    case $t in
+	        # If we were not given a destination, just stick it in the file cache
+		'') t="$FILE_CACHE";;
+		# Anything else will wind up in a directory under $FILE_CACHE
+		*) mkdir -p "$FILE_CACHE/$t"
+		    t="$FILE_CACHE/$t";;
+	    esac
+	    [[ -f "$t/$l" ]] || wget -q --continue "$l" -O "$t/${l##*/}";;
+	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" extra_files 2>/dev/null)
+
     done
 
     for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do

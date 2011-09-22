@@ -135,7 +135,7 @@ trap cleanup 0 INT QUIT TERM
 # Crowbar with.
 PKGS=()
 GEMS=()
-AMIS=("http://uec-images.ubuntu.com/releases/11.04/release/ubuntu-11.04-server-uec-amd64.tar.gz")
+
 
 # Some helper functions
 
@@ -344,7 +344,7 @@ fi
     # Directories where we cache our pkgs, gems, and ami files
     [[ $PKG_CACHE ]] || PKG_CACHE="$CACHE_DIR/$OS_TOKEN/pkgs"
     [[ $GEM_CACHE ]] || GEM_CACHE="$CACHE_DIR/gems"
-    [[ $AMI_CACHE ]] || AMI_CACHE="$CACHE_DIR/amis"
+    [[ $FILE_CACHE ]] || FILE_CACHE="$CACHE_DIR/files"
 
     # Directory where we will look for our package lists
     [[ $PACKAGE_LISTS ]] || PACKAGE_LISTS="$BUILD_DIR/extra/packages"
@@ -437,8 +437,9 @@ fi
     debug "Copying pkgs, gems, and amis"
     copy_pkgs "$IMAGE_DIR" "$PKG_CACHE" "$BUILD_DIR/extra/pkgs"
     cp -r "$GEM_CACHE" "$BUILD_DIR/extra"
-    cp -r "$AMI_CACHE/." "$BUILD_DIR/ami/."
-    
+    cp -r "$FILE_CACHE" "$BUILD_DIR/extra"
+    # Make sure we still provide the legacy ami location
+    (cd "$BUILD_DIR"; ln -sf extra/files/ami ami)
     # Store off the version
     echo "$VERSION" >> "$BUILD_DIR/dell/Version"
 
