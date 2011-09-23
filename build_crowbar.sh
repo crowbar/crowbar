@@ -131,11 +131,9 @@ trap cleanup 0 INT QUIT TERM
 # By default we want to be relatively pristine.
 [[ $VCS_CLEAN_CMD ]] || VCS_CLEAN_CMD='git clean -f -x -d'
 
-# Arrays holding the additional pkgs, gems, and AMI images we will populate
-# Crowbar with.
+# Arrays holding the additional pkgs and gems populate Crowbar with.
 PKGS=()
 GEMS=()
-
 
 # Some helper functions
 
@@ -342,7 +340,7 @@ fi
     [[ $IMAGE_DIR ]] || \
 	IMAGE_DIR="$CACHE_DIR/$OS_TOKEN/image-${BUILD_DIR##*-}"
 
-    # Directories where we cache our pkgs, gems, and ami files
+    # Directories where we cache our pkgs, gems, and extra files
     [[ $PKG_CACHE ]] || PKG_CACHE="$CACHE_DIR/$OS_TOKEN/pkgs"
     [[ $GEM_CACHE ]] || GEM_CACHE="$CACHE_DIR/gems"
     [[ $FILE_CACHE ]] || FILE_CACHE="$CACHE_DIR/files"
@@ -369,7 +367,7 @@ fi
 
     # Make any directories we don't already have
     for d in "$PKG_CACHE" "$GEM_CACHE" "$ISO_LIBRARY" "$ISO_DEST" \
-	"$IMAGE_DIR" "$BUILD_DIR" "$AMI_CACHE" \
+	"$IMAGE_DIR" "$BUILD_DIR" "$FILE_CACHE" \
 	"$SLEDGEHAMMER_PXE_DIR" "$CHROOT"; do
 	mkdir -p "$d"
     done
@@ -382,14 +380,6 @@ fi
 	exit 1
     fi  
   
-    # make sure we have the AMIs we want
-    for ami in "${AMIS[@]}"; do
-	[[ -f $AMI_CACHE/${ami##*/} ]] && continue
-	echo "$(date '+%F %T %z'): Downloading and caching $ami"
-	curl -o "$AMI_CACHE/${ami##*/}" "$ami" || \
-	    die "Could not download $ami"
-    done 
-
     # Fetch the OS ISO if we need to.
     [[ -f $ISO_LIBRARY/$ISO ]] || fetch_os_iso
 
@@ -405,7 +395,7 @@ fi
 	die "Could not mount $ISO"
 
     # Make additional directories we will need.
-    for d in discovery extra ami ; do
+    for d in discovery extra; do
 	mkdir -p "$BUILD_DIR/$d"
     done
     
@@ -433,14 +423,14 @@ fi
     # If we need to or were asked to update our cache, do it.
     maybe_update_cache 
     
-    # Copy our extra pkgs, gems, and amis into the appropriate staging
+    # Copy our extra pkgs, gems, and files into the appropriate staging
     # directory.
-    debug "Copying pkgs, gems, and amis"
+    debug "Copying pkgs, gems, and extra files"
     copy_pkgs "$IMAGE_DIR" "$PKG_CACHE" "$BUILD_DIR/extra/pkgs"
     cp -r "$GEM_CACHE" "$BUILD_DIR/extra"
     cp -r "$FILE_CACHE" "$BUILD_DIR/extra"
     # Make sure we still provide the legacy ami location
-    (cd "$BUILD_DIR"; ln -sf extra/files/ami ami)
+    (cd "$BUILD_DIR"; ln -sf extra/files/ami)
     # Store off the version
     echo "$VERSION" >> "$BUILD_DIR/dell/Version"
 
