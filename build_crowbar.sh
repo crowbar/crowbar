@@ -314,6 +314,7 @@ fi
 		    [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]] || \
 			die "$1 is not a barclamp!"
 		    is_in "$1" "${BARCLAMPS[@]}" || BARCLAMPS+=("$1")
+		    shift
 		done;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
