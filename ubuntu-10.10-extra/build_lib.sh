@@ -209,7 +209,7 @@ maybe_update_cache() {
 		*) mkdir -p "$FILE_CACHE/$t"
 		    t="$FILE_CACHE/$t";;
 	    esac
-	    [[ -f "$t/$l" ]] || wget -q --continue "$l" -O "$t/${l##*/}"
+	    [[ -f $t/${l##*/} ]] || wget -q --continue "$l" -O "$t/${l##*/}"
 	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" extra_files 2>/dev/null)
 	
 	while read l; do

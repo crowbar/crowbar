@@ -413,12 +413,15 @@ fi
 
     # Copy over the Crowbar bits and their prerequisites
     debug "Staging extra Crowbar bits"
+    cp -r "$CROWBAR_DIR/extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/$OS_TOKEN-extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
     mkdir -p "$BUILD_DIR/dell/barclamps"
     for bc in "${BARCLAMPS[@]}"; do
 	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
     done
+
+    echo "$OS_TOKEN" >"$BUILD_DIR/extra/os_tag"
 
     # If we need to or were asked to update our cache, do it.
     maybe_update_cache 
