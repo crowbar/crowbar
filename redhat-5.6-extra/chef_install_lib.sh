@@ -7,7 +7,7 @@ update_hostname() {
     source /etc/sysconfig/network
 }
 
-install_base_backages() {
+install_base_packages() {
     # Make sure we only try to install x86_64 packages.
     echo 'exclude = *.i386' >>/etc/yum.conf
 
