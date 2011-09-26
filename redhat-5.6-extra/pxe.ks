@@ -82,6 +82,19 @@ baseurl=file://$BASEDIR/extra/pkgs
 gpgcheck=0
 EOF
 
+# If we have Sun/Oracle java packages, extract their RPMs
+# into our pool.
+
+(   cd /tftpboot/redhat_dvd/extra/files/java
+    for f in jdk*x64-rpm.bin; do
+        [[ -f $f ]] || continue
+        chmod 755 "$f"
+        "./$f" -x  # just extract the RPM files.
+    done
+    mkdir -p /tftpboot/redhat_dvd/extra/pkgs/oracle_java
+    mv *.rpm /tftpboot/redhat_dvd/extra/pkgs/oracle_java
+)
+
 # Create the repo metadata we will need
 (cd ${BASEDIR}/extra/pkgs; createrepo -d -q .)
 
