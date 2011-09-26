@@ -1,5 +1,6 @@
 
-repository deb http://ops.rcb.me/packages maverick diablo-d5
+# Swift ppa
+ppas swift-core/release
 
 # swift stuff
 pkgs curl python-software-properties swift swift-container swift-object sqlite swift-account swift-account memcached swift-proxy xfsprogs libmemcache-dev python-swift
