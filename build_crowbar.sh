@@ -105,7 +105,7 @@ trap cleanup 0 INT QUIT TERM
 # Barclamps to include.  By default, start with jsut crowbar and let
 # the dependency machinery and the command line pull in the rest.
 # Note that BARCLAMPS is an array, not a string!
-[[ $BARCLAMPS ]] || BARCLAMPS=("crowbar")
+[[ $BARCLAMPS ]] || BARCLAMPS=('')
 
 # Location for caches that should not be erased between runs
 [[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
@@ -400,12 +400,22 @@ fi
     done
     
     # Solve barclamp dependencies
+    [[ $BARCLAMPS ]] || BARCLAMPS=($(cd "$CROWBAR_DIR"
+	    while read sha submod branch; do
+		[[ $submod = barclamps/* ]] || continue
+		[[ -f $submod/crowbar.yml ]] || \
+		    echo "Cannot find crowbar.yml for $submod, exiting."
+		echo "${submod##*/}"
+	    done < <(git submodule status))
+	)   
     for bc in "${BARCLAMPS[@]}"; do
-	[[ -d $CROWBAR_DIR/barclamps/$bc ]] || \
+	[[ -f $CROWBAR_DIR/barclamps/$bc/crowbar.yml ]] || \
 	    die "$bc is not a barclamp!"
-	[[ -f $CROWBAR_DIR/barclamps/$bc/crowbar.yml ]] || continue
 	while read dep; do
-	    is_in "$dep" "${BARCLAMPS[@]}" || BARCLAMPS+=("$dep")
+	    is_in "$dep" "${BARCLAMPS[@]}" && continue
+	    [[ -f $CROWBAR_DIR/barclamps/$dep/crowbar.yml ]] || \
+		die "$bc requires $dep, but $dep is not a barclamp!"
+	    BARCLAMPS+=("$dep")
 	done < <("$CROWBAR_DIR/parse_yml.rb" \
 	    "$CROWBAR_DIR/barclamps/$bc/crowbar.yml" \
 	    barclamp requires 2>/dev/null)
