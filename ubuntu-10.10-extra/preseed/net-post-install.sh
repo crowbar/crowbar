@@ -25,6 +25,12 @@ mdcp() {
     cp "$@" "$dest"
 }
 
+# Build our package cache for package installs.
+(   cd "$BASEDIR/extra"
+    [[ -d pkgs ]] && dpkg-scanpackages pkgs /dev/null 2>/dev/null | \
+        gzip -9 >Packages.gz
+)
+
 finishing_scripts="update_hostname.sh parse_node_data"
 (
     cd "$BASEDIR/dell"
