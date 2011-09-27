@@ -55,6 +55,3 @@
 [submodule "barclamps/kong"]
 	path = barclamps/kong
 	url = http://github.com/jcannava/barclamp-kong.git
-[submodule "barclamps/nova-dashboard"]
-	path = barclamps/nova-dashboard
-	url = https://github.com/dellcloudedge/barclamp-nova-dashboard
