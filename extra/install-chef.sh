@@ -285,7 +285,6 @@ get_ip_and_mac eth0
 }
 
 restart_svc_loop chef-client "Restarting chef-client - spot four"
-log_to yum yum -q -y upgrade
 
 # transform our friendlier Crowbar default home page.
 cd $DVD_PATH/extra
