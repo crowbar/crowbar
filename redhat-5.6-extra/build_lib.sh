@@ -7,6 +7,7 @@
 OS=redhat
 OS_VERSION=5.6
 OS_TOKEN="$OS-$OS_VERSION"
+PKG_TYPE="rpms"
 
 # If we need to make a chroot to stage packages into, this is the minimal
 # set of packages needed to bootstrap yum.  This package list has only been tested
