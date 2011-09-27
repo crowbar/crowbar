@@ -71,13 +71,14 @@ update_caches() {
     wget -qO - http://apt.opscode.com/packages@opscode.com.gpg.key | \
 	in_chroot /usr/bin/apt-key add -
     in_chroot /usr/bin/apt-get -y --force-yes --allow-unauthenticated update
-
+    
     # Download all the packages apt thinks we will need.
     in_chroot /usr/bin/apt-get -y --force-yes \
 	--allow-unauthenticated --download-only install "${PKGS[@]}"
     # actually install ruby1.8-dev and gem and their deps.
     in_chroot /usr/bin/apt-get -y --force-yes \
-	--allow-unauthenticated install ruby1.8-dev rubygems1.8 build-essential
+	--allow-unauthenticated install ruby1.8-dev rubygems1.8 \
+	build-essential libsqlite3-dev libmysqlclient-dev
     # install the gems we will need and all their dependencies
     # We will get some build failures, but at this point we don't care because
     # we are just caching the gems for the real install.
@@ -173,22 +174,63 @@ copy_pkgs() {
 }
 
 maybe_update_cache() {
-    local pkgfile deb gem pkg_type rest _pwd 
+    local pkgfile deb gem pkg_type rest _pwd t l
     debug "Processing package lists"
     # Zero out our sources.list
     > "$BUILD_DIR/extra/sources.list"
     # Download and stash any extra files we may need
     # First, build our list of repos, ppas, pkgs, and gems
+    
+    for bc in "${BARCLAMPS[@]}"; do
+	yml="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
+	[[ -f $yml ]] || continue
+	echo "Processing $yml"
+	for t in repos raw_pkgs pkgs ppas; do
+	    while read l; do
+		echo "Found $t $l"
+		case $t in
+		    repos) echo "$l" >> "$BUILD_DIR/extra/sources.list";;
+		    pkgs) PKGS+=("$l");;
+		    ppas) PPAS+=("$l");;
+		    raw_pkgs) [[ -f $PKG_CACHE/raw_downloads/${l##*/} ]] && continue
+			mkdir -p "$PKG_CACHE/raw_downloads"
+			curl -s -S -o "$PKG_CACHE/raw_downloads/${l##*/}" "$l";;
+		esac
+	    done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" debs "$t" 2>/dev/null)
+	done
+        
+	# l = the full URL to download
+	# t = the location on the ISO it should wind up in
+	while read l t; do
+	    case $t in
+	        # If we were not given a destination, just stick it in the file cache
+		'') t="$FILE_CACHE";;
+		# Anything else will wind up in a directory under $FILE_CACHE
+		*) mkdir -p "$FILE_CACHE/$t"
+		    t="$FILE_CACHE/$t";;
+	    esac
+	    [[ -f $t/${l##*/} ]] || wget -q --continue "$l" -O "$t/${l##*/}"
+	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" extra_files 2>/dev/null)
+	
+	while read l; do
+	    GEMS+=("$l")
+	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" gems pkgs 2>/dev/null)
+    done
+    
     for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
 	[[ -f $pkgfile ]] || continue
 	while read pkg_type rest; do
-	    case $pkg_type in
-		repository) 
-		    echo "${rest%%#*}" >> "$BUILD_DIR/extra/sources.list";;
-		ppas) PPAS+=(${rest%%#*});;
-		pkgs) PKGS+=(${rest%%#*});;
-		gems) GEMS+=(${rest%%#*});;
-	    esac
+	    if [[ $pkg_type = repository ]]; then
+		echo "${rest%%#*}" >> "$BUILD_DIR/extra/sources.list"
+	    else
+		for r in ${rest%%#*}; do
+		    case $pkg_type in
+			ppas) is_in $r "${PPAS[@]}" && echo "$t needs to be removed from the .list file it is in." >&2; PPAS+=($r);;
+			pkgs) is_in $r "${PKGS[@]}" && echo "$t needs to be removed from the .list file it is in." >&2; PKGS+=($r);;
+			gems) is_in $r "${GEMS[@]}" && echo "$t needs to be removed from the .list file it is in." >&2; GEMS+=($r);;
+		    esac
+		done
+	    fi
 	done <"$pkgfile"
     done
     
@@ -203,7 +245,7 @@ maybe_update_cache() {
     cd "$PKG_CACHE"
     # second, verify that the pkgs we need are in the cache.
     for deb in "${PKGS[@]}"; do
-	[[ $(echo "$deb"*.deb) != "$deb*.deb" ]] || {
+	[[ $(find "$PKG_CACHE" "$IMAGE_DIR/" -name "$deb*.deb") ]] || {
 	    need_update=true
 	    break
 	}
@@ -212,13 +254,12 @@ maybe_update_cache() {
     cd "$GEM_CACHE"
     # third, verify that the gems we need are in the cache
     for gem in "${GEMS[@]}"; do
-	[[ $(echo "$gem"*.gem) != "$gem*.gem" ]] || {
-	    need_update=true
-	    break
-	}
+	[[ ! $(find "$GEM_CACHE" -name "$gem*.gem") ]] || continue
+	need_update=true
+	break
     done
     cd "$_pwd"
-
+    
     if [[ $need_update = true ]]; then
 	update_caches
     else
@@ -255,7 +296,6 @@ final_build_fixups() {
 	    find . |cpio --create --format=newc --owner root:root 2>/dev/null | \
 		gzip -9 >> "$BUILD_DIR/install/initrd.gz" )
 	rm -rf scratch )
-    
 }
 
 for cmd in sudo chroot debootstrap mkisofs; do

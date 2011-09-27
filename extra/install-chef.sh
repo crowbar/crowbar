@@ -18,7 +18,6 @@
 
 export FQDN="$1"
 export PATH="/opt/dell/bin:$PATH"
-DVD_PATH="/tftpboot/redhat_dvd"
 
 die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
 
@@ -93,15 +92,16 @@ restart_svc_loop() {
     done
 }
 
+# Include OS specific functionality
+. chef_install_lib.sh
+
 # Make sure there is something of a domain name
 DOMAINNAME=${FQDN#*.}
 [[ $DOMAINNAME = $FQDN || $DOMAINNAME = ${DOMAINNAME#*.} ]] && \
     die "Please specify an FQDN for the admin name"
 
-# Setup hostname from config file
 echo "$(date '+%F %T %z'): Setting Hostname..."
-update_hostname.sh $FQDN
-source /etc/sysconfig/network
+update_hostname
 
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
@@ -112,17 +112,8 @@ ip addr add 192.168.124.10/24 dev eth0
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart 
 
-# Make sure we only try to install x86_64 packages.
-echo 'exclude = *.i386' >>/etc/yum.conf
-
-#
-# Install the base rpm packages
-#
-echo "$(date '+%F %T %z'): Installing Chef Server..."
-log_to yum yum -q -y update
-
-# Install the rpm and gem packages
-log_to yum yum -q -y install rubygems gcc make ruby-devel
+echo "$(date '+%F %T %z'): Installing Basic Packages"
+install_base_packages
 
 # This is ugly, but there does not seem to be a better way
 # to tell Chef to just look in a specific location for its gems.
@@ -130,43 +121,14 @@ echo "$(date '+%F %T %z'): Arranging for gems to be installed"
 (   cd $DVD_PATH/extra/gems
     gem install --local --no-ri --no-rdoc builder*.gem
     gem install --local --no-ri --no-rdoc json*.gem
+    gem install --local --no-ri --no-rdoc net-http-digest_auth*.gem
     cd ..
     gem generate_index)
 # Of course we are rubygems.org. Anything less would be uncivilised.
 sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
 
-# Install the rest of Chef.
-log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify \
-    curl-devel ruby-shadow
-
-# Default password in chef webui to password
-sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
-
-./start-chef-server.sh
-
-## Missing client.rb for this system - Others get it ##
-touch /etc/chef/client.rb
-chown chef:chef /etc/chef/client.rb
-##
-
-# HACK AROUND CHEF-2005
-di=$(find /usr/lib/ruby/gems/1.8/gems -name data_item.rb)
-cp -f patches/data_item.rb "$di"
-# HACK AROUND CHEF-2005
-## HACK Around CHEF-2413 & 2450
-#rl=$(find /usr/lib/ruby/gems/1.8/gems -name yum.rb)
-#cp -f "$rl" "$rl.bak"
-#cp -f patches/yum.rb  "$rl"
-rl=$(find /usr/lib/ruby/gems/1.8/gems -name run_list.rb)
-cp -f "$rl" "$rl.bak"
-cp -f patches/run_list.rb "$rl"
-## END 2413 
-# HACK AROUND Kwalify and rake bug missing Gem.bin_path
-cp -f patches/kwalify /usr/bin/kwalify
-cp -f patches/rake /usr/bin/rake
-#
-
-log_to svc /etc/init.d/chef-server restart
+echo "$(date '+%F %T %z'): Installing Chef"
+bring_up_chef
 
 restart_svc_loop chef-solr "Restarting chef-solr - spot one"
 
@@ -181,16 +143,16 @@ fi
 # add our own key to authorized_keys
 cat /root/.ssh/id_rsa.pub >>/root/.ssh/authorized_keys
 
+# and trick Chef into pushing it out to everyone.
+cp -f /root/.ssh/authorized_keys \
+    /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/files/default/authorized_keys
+
 # Hack up sshd_config to kill delays
 sed -i -e 's/^\(GSSAPI\)/#\1/' \
     -e 's/#\(UseDNS.*\)yes/\1no/' /etc/ssh/sshd_config
 service sshd restart
 
 sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
-
-# and trick Chef into pushing it out to everyone.
-cp -f /root/.ssh/authorized_keys \
-    /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/files/default/authorized_keys
 
 # generate the machine install username and password
 CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
@@ -216,12 +178,10 @@ VERSION=$(cat $DVD_PATH/dell/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
     /opt/dell/barclamps/crowbar/crowbar_framework/config/environments/production.rb
 
-# Make sure we use the right OS installer. By default we want to install
-# the same OS as the admin node.
-for t in provisioner deployer; do
-    sed -i '/os_install/ s/os_install/redhat_install/' \
-	/opt/dell/barclamps/${t}/chef/data_bags/crowbar/bc-template-${t}.json
-done
+# Right now, we will only try to deploy the OS that the admin node has
+# installed.  Eventaully this will go away and be replaced by something
+# that is a little mode flexible.
+fix_up_os_deployer
 
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
@@ -253,10 +213,7 @@ knifeloop node run_list add "$FQDN" role[deployer-client]
 log_to svc service chef-client stop
 restart_svc_loop chef-solr "Restarting chef-solr - spot three"
 
-
-#patch bad gemspecs.
-cp $DVD_PATH/extra/patches/*.gemspec /usr/lib/ruby/gems/1.8/specifications/
-
+pre_crowbar_fixups
 
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
 # Run chef-client to bring-up crowbar server
@@ -295,6 +252,8 @@ crowbar crowbar proposal commit default || \
     die "Could not commit default proposal!"
 crowbar crowbar show default >/var/log/default.json
 chef_or_die "Chef run after default proposal commit failed!"
+
+
 
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding

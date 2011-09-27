@@ -79,6 +79,14 @@ cleanup() {
     done
 }
 
+# Test to see if $1 is in the rest of the args.
+is_in() {
+    local t="$1"
+    shift
+    while [[ $1 && $t != $1 ]]; do shift; done
+    [[ $1 ]]
+}
+
 # Arrange for cleanup to be called at the most common exit points.
 trap cleanup 0 INT QUIT TERM
 
@@ -93,6 +101,11 @@ trap cleanup 0 INT QUIT TERM
 
 # Next, some configuration variables that can be used to tune how the 
 # build process works.
+
+# Barclamps to include.  By default, start with jsut crowbar and let
+# the dependency machinery and the command line pull in the rest.
+# Note that BARCLAMPS is an array, not a string!
+[[ $BARCLAMPS ]] || BARCLAMPS=('')
 
 # Location for caches that should not be erased between runs
 [[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
@@ -118,11 +131,9 @@ trap cleanup 0 INT QUIT TERM
 # By default we want to be relatively pristine.
 [[ $VCS_CLEAN_CMD ]] || VCS_CLEAN_CMD='git clean -f -x -d'
 
-# Arrays holding the additional pkgs, gems, and AMI images we will populate
-# Crowbar with.
+# Arrays holding the additional pkgs and gems populate Crowbar with.
 PKGS=()
 GEMS=()
-AMIS=("http://uec-images.ubuntu.com/releases/11.04/release/ubuntu-11.04-server-uec-amd64.tar.gz")
 
 # Some helper functions
 
@@ -205,6 +216,8 @@ fi
 #   usually entails modifying initrd files, adding kickstarts/install seeds,
 #   modifying boot config files, and so on.
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
+
+
 
 {
     # Make sure only one instance of the ISO build runs at a time.
@@ -290,7 +303,17 @@ fi
 		    shift
 		done
 		;;
+	    # Force an update of the cache
 	    update-cache|--update-cache) shift; need_update=true;;
+	    # Pull in additional barclamps.
+	    --barclamps)
+		shift
+		while [[ $1 && $1 != -* ]]; do
+		    [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]] || \
+			die "$1 is not a barclamp!"
+		    is_in "$1" "${BARCLAMPS[@]}" || BARCLAMPS+=("$1")
+		    shift
+		done;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
     done
@@ -317,13 +340,15 @@ fi
     [[ $IMAGE_DIR ]] || \
 	IMAGE_DIR="$CACHE_DIR/$OS_TOKEN/image-${BUILD_DIR##*-}"
 
-    # Directories where we cache our pkgs, gems, and ami files
+    # Directories where we cache our pkgs, gems, and extra files
     [[ $PKG_CACHE ]] || PKG_CACHE="$CACHE_DIR/$OS_TOKEN/pkgs"
     [[ $GEM_CACHE ]] || GEM_CACHE="$CACHE_DIR/gems"
-    [[ $AMI_CACHE ]] || AMI_CACHE="$CACHE_DIR/amis"
+    [[ $FILE_CACHE ]] || FILE_CACHE="$CACHE_DIR/files"
 
     # Directory where we will look for our package lists
     [[ $PACKAGE_LISTS ]] || PACKAGE_LISTS="$BUILD_DIR/extra/packages"
+
+    # Barclamps to include
 
     # Proxy Variables
     [[ $USE_PROXY ]] || USE_PROXY=0
@@ -342,7 +367,7 @@ fi
 
     # Make any directories we don't already have
     for d in "$PKG_CACHE" "$GEM_CACHE" "$ISO_LIBRARY" "$ISO_DEST" \
-	"$IMAGE_DIR" "$BUILD_DIR" "$AMI_CACHE" \
+	"$IMAGE_DIR" "$BUILD_DIR" "$FILE_CACHE" \
 	"$SLEDGEHAMMER_PXE_DIR" "$CHROOT"; do
 	mkdir -p "$d"
     done
@@ -355,14 +380,6 @@ fi
 	exit 1
     fi  
   
-    # make sure we have the AMIs we want
-    for ami in "${AMIS[@]}"; do
-	[[ -f $AMI_CACHE/${ami##*/} ]] && continue
-	echo "$(date '+%F %T %z'): Downloading and caching $ami"
-	curl -o "$AMI_CACHE/${ami##*/}" "$ami" || \
-	    die "Could not download $ami"
-    done 
-
     # Fetch the OS ISO if we need to.
     [[ -f $ISO_LIBRARY/$ISO ]] || fetch_os_iso
 
@@ -378,27 +395,55 @@ fi
 	die "Could not mount $ISO"
 
     # Make additional directories we will need.
-    for d in discovery extra ami ; do
+    for d in discovery extra; do
 	mkdir -p "$BUILD_DIR/$d"
+    done
+    
+    # Solve barclamp dependencies
+    [[ $BARCLAMPS ]] || BARCLAMPS=($(cd "$CROWBAR_DIR"
+	    while read sha submod branch; do
+		[[ $submod = barclamps/* ]] || continue
+		[[ -f $submod/crowbar.yml ]] || \
+		    echo "Cannot find crowbar.yml for $submod, exiting."
+		echo "${submod##*/}"
+	    done < <(git submodule status))
+	)   
+    for bc in "${BARCLAMPS[@]}"; do
+	[[ -f $CROWBAR_DIR/barclamps/$bc/crowbar.yml ]] || \
+	    die "$bc is not a barclamp!"
+	while read dep; do
+	    is_in "$dep" "${BARCLAMPS[@]}" && continue
+	    [[ -f $CROWBAR_DIR/barclamps/$dep/crowbar.yml ]] || \
+		die "$bc requires $dep, but $dep is not a barclamp!"
+	    BARCLAMPS+=("$dep")
+	done < <("$CROWBAR_DIR/parse_yml.rb" \
+	    "$CROWBAR_DIR/barclamps/$bc/crowbar.yml" \
+	    barclamp requires 2>/dev/null)
     done
 
     # Copy over the Crowbar bits and their prerequisites
     debug "Staging extra Crowbar bits"
+    cp -r "$CROWBAR_DIR/extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/$OS_TOKEN-extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
     mkdir -p "$BUILD_DIR/dell/barclamps"
-    cp -r "$CROWBAR_DIR/barclamps"/* "$BUILD_DIR/dell/barclamps"
+    for bc in "${BARCLAMPS[@]}"; do
+	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
+    done
+
+    echo "$OS_TOKEN" >"$BUILD_DIR/extra/os_tag"
 
     # If we need to or were asked to update our cache, do it.
     maybe_update_cache 
     
-    # Copy our extra pkgs, gems, and amis into the appropriate staging
+    # Copy our extra pkgs, gems, and files into the appropriate staging
     # directory.
-    debug "Copying pkgs, gems, and amis"
+    debug "Copying pkgs, gems, and extra files"
     copy_pkgs "$IMAGE_DIR" "$PKG_CACHE" "$BUILD_DIR/extra/pkgs"
     cp -r "$GEM_CACHE" "$BUILD_DIR/extra"
-    cp -r "$AMI_CACHE/." "$BUILD_DIR/ami/."
-    
+    cp -r "$FILE_CACHE" "$BUILD_DIR/extra"
+    # Make sure we still provide the legacy ami location
+    (cd "$BUILD_DIR"; ln -sf extra/files/ami)
     # Store off the version
     echo "$VERSION" >> "$BUILD_DIR/dell/Version"
 

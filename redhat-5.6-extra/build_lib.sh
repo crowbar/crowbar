@@ -182,17 +182,8 @@ update_caches() {
 	    "WEBrick::HTTPServer.new(:BindAddress=>\"127.0.0.1\",:Port=>54321,:DocumentRoot=>\".\").start" &>/dev/null ) &
     webrick_pid=$!
     make_redhat_chroot
-    # Copy in our current cached packages and fix up ownership.
-    # This prevents excessive downloads.
-    for d in "$PKG_CACHE"/*; do
-	[[ -d $d ]] || continue
-	in_chroot mkdir -p "/var/cache/yum/${d##*/}/packages"
-	in_chroot chmod 777 "/var/cache/yum/${d##*/}/packages"
-	sudo cp -a "$d/"* "$CHROOT/var/cache/yum/${d##*/}/packages"
-    done
-    in_chroot chown -R root:root "/var/cache/yum/"
-    # Once the current caches are copied in, set up repos for any other 
-    # packages we want to grab.
+
+    # set up repos for any other packages we want to grab.
     for repo in "${REPOS[@]}"; do
 	rtype="${repo%% *}"
 	rdest="${repo#* }"
@@ -204,16 +195,23 @@ update_caches() {
 	esac
     done
 
+
+    # Copy in our current cached packages and fix up ownership.
+    # This prevents excessive downloads.
+    for d in "$PKG_CACHE"/*; do
+	[[ -d $d ]] || continue
+	in_chroot mkdir -p "/var/cache/yum/${d##*/}/packages"
+	in_chroot chmod 777 "/var/cache/yum/${d##*/}/packages"
+	sudo cp -a "$d/"* "$CHROOT/var/cache/yum/${d##*/}/packages"
+    done
+    in_chroot chown -R root:root "/var/cache/yum/"
+    
     fix_repo_proxy
     # Copy in our gems.
     in_chroot mkdir -p "/usr/lib/ruby/gems/1.8/cache/"
     in_chroot chmod 777 "/usr/lib/ruby/gems/1.8/cache/"
     cp -a "$GEM_CACHE/." "$CHROOT/usr/lib/ruby/gems/1.8/cache/."
-    # Fix up the passenger repo, if we copied it in.
-    if [[ -f $CHROOT/etc/yum.repos.d/passenger.repo ]]; then
-	in_chroot sed -i -e 's/\$releasever/5/g' /etc/yum.repos.d/passenger.repo
-    fi
-    # Fetch any packages that yum thinks is missing.
+     # Fetch any packages that yum thinks is missing.
     chroot_fetch "${PKGS[@]}"
     # Copy our new packages back out of the cache.
     for d in "$CHROOT/var/cache/yum/"*; do
@@ -224,7 +222,7 @@ update_caches() {
     done
     # Install prerequisites for building gems.  We need all of them
     # to make sure we get all of the gems we want.
-    chroot_install rubygems ruby-devel make gcc kernel-devel curl-devel
+    chroot_install rubygems ruby-devel make gcc kernel-devel curl-devel sqlite-devel mysql-devel
     debug "Fetching Gems"
     echo "There may be build failures here, we can safely ignore them."
     for gem in "${GEMS[@]}"; do
@@ -362,19 +360,59 @@ copy_pkgs() {
 # This function checks to see if we need or asked for a cache update, and performs
 # one if we do.
 maybe_update_cache() {
-    local pkgfile deb rpm pkg_type rest _pwd 
+    local pkgfile deb rpm pkg_type rest _pwd l t
     debug "Processing package lists"
     # Download and stash any extra files we may need
     # First, build our list of repos, ppas, pkgs, and gems
     REPOS=()
-    for pkgfile in "$PACKAGE_LISTS/"*.list; do
+
+    for bc in "${BARCLAMPS[@]}"; do
+	yml="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
+	[[ -f $yml ]] || continue
+	echo "Processing $yml"
+	for t in repos raw_pkgs pkgs; do
+	    while read l; do
+		echo "Found $t $l"
+		case $t in
+		    repos) REPOS+=("$l");;
+		    pkgs) PKGS+=("$l");;
+		    raw_pkgs) [[ -f $PKG_CACHE/raw_downloads/${l##*/} ]] && continue
+			mkdir -p "$PKG_CACHE/raw_downloads"
+			curl -s -S -o "$PKG_CACHE/raw_downloads/${l##*/}" "$l";;
+		esac
+	    done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" rpms "$t" 2>/dev/null)
+	done
+	while read l; do
+	    GEMS+=("$l")
+	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" gems pkgs 2>/dev/null)
+	# l = the full URL to download
+	# t = the location on the ISO it should wind up in
+	while read l t; do
+	    case $t in
+	        # If we were not given a destination, just stick it in the file cache
+		'') t="$FILE_CACHE";;
+		# Anything else will wind up in a directory under $FILE_CACHE
+		*) mkdir -p "$FILE_CACHE/$t"
+		    t="$FILE_CACHE/$t";;
+	    esac
+	    [[ -f $t/${l##*/} ]] || wget -q --continue "$l" -O "$t/${l##*/}"
+	done < <("$CROWBAR_DIR/parse_yml.rb" "$yml" extra_files 2>/dev/null)
+
+    done
+
+    for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
 	[[ -f $pkgfile ]] || continue
 	while read pkg_type rest; do
-	    case $pkg_type in
-		repository) REPOS+=("$rest");; 
-		pkgs) PKGS+=(${rest%%#*});;
-		gems) GEMS+=(${rest%%#*});;
-	    esac
+	    if [[ $pkg_type = repository ]]; then
+		REPOS+=("${rest%%#*}")
+	    else
+		for r in ${rest%%#*}; do
+		    case $pkg_type in
+			pkgs) is_in $r "${PKGS[@]}" && echo "$t needs to be removed from the .list file it is in." >&2; PKGS+=($r);;
+			gems) is_in $r "${GEMS[@]}" && echo "$t needs to be removed from the .list file it is in." >&2; GEMS+=($r);;
+		    esac
+		done
+	    fi
 	done <"$pkgfile"
     done
 

@@ -6,76 +6,7 @@
 
 # Base repository for Chef and friends
 repository rpm http://rbel.frameos.org/rbel5
-repository bare rbel5-ruby-test 10 http://rbel.frameos.org/ruby-test/el5/x86_64
+# repository bare rbel5-ruby-test 10 http://rbel.frameos.org/ruby-test/el5/x86_64
 
 # Base repository for EPEL on RHEL5, we will need this.
 repository rpm http://ftp.cse.buffalo.edu/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
-
-# Base repository for Passenger
-# repository rpm http://passenger.stealthymonkeys.com/rhel/5/passenger-release.noarch.rpm
-
-repository bare epel5-nagios3 10 http://repos.fedorapeople.org/repos/peter/nagios3/epel-5/x86_64/
-repository bare-rpm epel5-ganglia 10 http://georgiou.fedorapeople.org/epel/5/
-
-# base Chef packages 
-pkgs rubygem-chef-server curl-devel rubygem-kwalify ruby-ri ruby-docs ruby-devel 
-pkgs syslinux sqlite sqlite-devel
-
-# base gems we will need
-gems haml i18n json net-http-digest_auth sass simple-navigation 
-gems syslogger builder bluepill rdoc sqlite3-ruby
-
-# additional debs we will need
-# apache stuff
-pkgs httpd mod_wsgi php httpd-devel mod_python mod_fcgid 
-
-# mysql stuff
-pkgs ruby-mysql mysql mysql-devel mysql-server
-
-# openssh stuff
-pkgs openssh openssh-server
-
-# openldap stuff
-pkgs openldap nss_ldap openldap-servers openldap-clients 
-
-# sudo stuff
-pkgs  sudo
-
-# minicom stuff
-pkgs minicom
-
-# rails stuff
-gems rails-2.3.12 rainbows
-
-# build essential stuff
-pkgs autoconf flex bison make patch createrepo
-
-# ruby stuff
-pkgs ruby-shadow
-
-# ncsd stuff
-pkgs nscd
-
-# nagios stuff
-pkgs nagios nrpe nagios-plugins-all nagios-plugins nagios-plugins-perl nagios-plugins-nrpe
-
-# bind9 stuff
-pkgs bind bind-utils
-
-# ganglia stuff
-pkgs libconfuse ganglia ganglia-gmond ganglia-web ganglia-gmetad
-
-# ntp stuff
-pkgs ntp
-
-# rsyslog stuff
-pkgs rsyslog
-
-# ipmi stuff
-pkgs OpenIPMI-tools
-
-# network stuff
-pkgs bridge-utils vconfig dhcp tftp-server nfs-utils portmap 
-
-# ohai stuff
-pkgs lshw
