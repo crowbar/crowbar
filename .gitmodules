@@ -57,4 +57,4 @@
 	url = http://github.com/jcannava/barclamp-kong.git
 [submodule "barclamps/nova_dashboard"]
 	path = barclamps/nova_dashboard
-	url = http://github/dellcloudedge/barclamp-nova_dashboard
+	url = http://github.com/dellcloudedge/barclamp-nova_dashboard
