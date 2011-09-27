@@ -122,6 +122,7 @@ echo "$(date '+%F %T %z'): Arranging for gems to be installed"
     gem install --local --no-ri --no-rdoc builder*.gem
     gem install --local --no-ri --no-rdoc json*.gem
     gem install --local --no-ri --no-rdoc net-http-digest_auth*.gem
+    gem install --local --no-ri --no-rdoc activesupport*.gem
     cd ..
     gem generate_index)
 # Of course we are rubygems.org. Anything less would be uncivilised.
@@ -284,7 +285,6 @@ get_ip_and_mac eth0
 }
 
 restart_svc_loop chef-client "Restarting chef-client - spot four"
-log_to yum yum -q -y upgrade
 
 # transform our friendlier Crowbar default home page.
 cd $DVD_PATH/extra

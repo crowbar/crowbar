@@ -105,7 +105,7 @@ trap cleanup 0 INT QUIT TERM
 # Barclamps to include.  By default, start with jsut crowbar and let
 # the dependency machinery and the command line pull in the rest.
 # Note that BARCLAMPS is an array, not a string!
-[[ $BARCLAMPS ]] || BARCLAMPS=('')
+[[ $BARCLAMPS ]] || BARCLAMPS=()
 
 # Location for caches that should not be erased between runs
 [[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
@@ -166,6 +166,8 @@ in_cache() (
     cd "$CACHE_DIR"
     "$@"
 )
+
+is_barclamp() { [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]]; }
 
 # Get the OS we were asked to stage Crowbar on to.  Assume it is Ubuntu 10.10
 # unless we specify otherwise.
@@ -309,14 +311,13 @@ fi
 	    --barclamps)
 		shift
 		while [[ $1 && $1 != -* ]]; do
-		    [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]] || \
-			die "$1 is not a barclamp!"
-		    is_in "$1" "${BARCLAMPS[@]}" || BARCLAMPS+=("$1")
+		    BARCLAMPS+=("$1")
 		    shift
 		done;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
     done
+
     # If we stached changes to the crowbar repo, apply them now.
     [[ $THROWAWAY_STASH ]] && in_repo git stash apply "$THROWAWAY_STASH"
     # Ditto for the build cache.
@@ -348,7 +349,73 @@ fi
     # Directory where we will look for our package lists
     [[ $PACKAGE_LISTS ]] || PACKAGE_LISTS="$BUILD_DIR/extra/packages"
 
-    # Barclamps to include
+    # Hashes to hold our "interesting" information.
+    # Key = barclamp name
+    # Value = whatever interesting thing we are looking for.
+    declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
+    declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
+    
+    # Query strings to pull info we are interested out of crowbar.yml
+    BC_QUERY_STRINGS["deps"]="barclamp requires"
+    BC_QUERY_STRINGS["groups"]="barclamp member"
+    BC_QUERY_STRINGS["pkgs"]="$PKG_TYPE pkgs"
+    BC_QUERY_STRINGS["extra_files"]="extra_files"
+    BC_QUERY_STRINGS["os_support"]="barclamp os_support"
+    BC_QUERY_STRINGS["gems"]="gems pkgs"
+    BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
+    BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
+    BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
+    
+    # Pull in interesting information from all our barclamps
+    for bc in $CROWBAR_DIR/barclamps/*; do
+	[[ -d $bc ]] || continue
+	bc=${bc##*/}
+	is_barclamp "$bc" || die "$bc is not a barclamp!"
+	yml_file="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
+	for query in "${!BC_QUERY_STRINGS[@]}"; do
+	    while read line; do
+		[[ $line = nil ]] && continue
+		case $query in
+		    deps) BC_DEPS["$bc"]+="$line ";;
+		    groups) is_in "$line" ${BC_GROUPS["$bc"]} || 
+			BC_GROUPS["$line"]+="$bc ";;
+		    pkgs) BC_PKGS["$bc"]+="$line ";;
+		    extra_files) BC_EXTRA_FILES["$bc"]+="$line\n";;
+		    os_support) BC_OS_SUPPORT["$bc"]+="$line ";;
+		    gems) BC_GEMS["$bc"]+="$line ";;
+		    repos) BC_REPOS["$bc"]+="$line\n";;
+		    ppas) [[ $PKG_TYPE = debs ]] || \
+			die "Cannot declare a PPA for $PKG_TYPE!"
+			BC_REPOS["$bc"]+="ppa $line\n";;
+		    build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
+		    *) die "Cannot handle query for $query."
+		esac
+	    done < <("$CROWBAR_DIR/parse_yml.rb" \
+		"$yml_file" \
+		${BC_QUERY_STRINGS["$query"]} 2>/dev/null)
+	done
+    done
+
+    # If any barclamps need group expansion, do it.
+    for bc in "${!BC_DEPS[@]}"; do
+	newdeps=''
+	for dep in ${BC_DEPS["$bc"]}; do
+	    if [[ $dep = @* ]]; then
+		[[ ${BC_GROUPS["${dep#@}"]} ]] || \
+		    die "$bc depends on group ${dep#@}, but that group does not exist!"
+		for d in ${BC_GROUPS["${dep#@}"]}; do
+		    is_barclamp "$d" || \
+			die "$bc depends on barclamp $d from group ${dep#@}, but $d does not exist!"
+		    newdeps+="$d "
+		done
+	    else
+		is_barclamp "$dep" || \
+		    die "$bc depends on barclamp $dep, but $dep is not a barclamp!"
+		newdeps+="$dep "
+	    fi
+	done
+	BC_DEPS["$bc"]="$newdeps"
+    done
 
     # Proxy Variables
     [[ $USE_PROXY ]] || USE_PROXY=0
@@ -364,6 +431,30 @@ fi
     # Name of the built iso we will build
     [[ $BUILT_ISO ]] || BUILT_ISO="crowbar-${VERSION}.iso"
 
+    # If we were not passed a list of barclamps to include,
+    # pull in all of the ones declared as submodules.
+    [[ $BARCLAMPS ]] || BARCLAMPS=($(cd "$CROWBAR_DIR"
+	    while read sha submod branch; do
+		[[ $submod = barclamps/* ]] || continue
+		[[ -f $submod/crowbar.yml ]] || \
+		    echo "Cannot find crowbar.yml for $submod, exiting."
+		echo "${submod##*/}"
+	    done < <(git submodule status))
+	)
+    
+    # Group-expand barclamps if needed, and unset groups after they are expanded.
+    for i in "${!BARCLAMPS[@]}"; do
+	bc="${BARCLAMPS[$i]}"
+	if [[ $bc = @* ]]; then
+	    [[ ${BC_GROUPS["${bc#@}"]} ]] || \
+		die "No such group ${bc#@}!"
+	    BARCLAMPS+=(${BC_GROUPS["${bc#@}"]})
+	    unset BARCLAMPS[$i]
+	else
+	    is_barclamp "$bc" || die "$bc is not a barclamp!"
+	fi
+    done
+    BARCLAMPS=("${BARCLAMPS[@]//@*}")
 
     # Make any directories we don't already have
     for d in "$PKG_CACHE" "$GEM_CACHE" "$ISO_LIBRARY" "$ISO_DEST" \
@@ -389,38 +480,11 @@ fi
     # Clean up any cruft that the editor may have left behind.
     (cd "$CROWBAR_DIR"; $VCS_CLEAN_CMD)
 
-    # Mount our ISO for the build process.
-    debug "Mounting $ISO"
-    sudo mount -t iso9660 -o loop "$ISO_LIBRARY/$ISO" "$IMAGE_DIR" || \
-	die "Could not mount $ISO"
-
     # Make additional directories we will need.
     for d in discovery extra; do
 	mkdir -p "$BUILD_DIR/$d"
     done
     
-    # Solve barclamp dependencies
-    [[ $BARCLAMPS ]] || BARCLAMPS=($(cd "$CROWBAR_DIR"
-	    while read sha submod branch; do
-		[[ $submod = barclamps/* ]] || continue
-		[[ -f $submod/crowbar.yml ]] || \
-		    echo "Cannot find crowbar.yml for $submod, exiting."
-		echo "${submod##*/}"
-	    done < <(git submodule status))
-	)   
-    for bc in "${BARCLAMPS[@]}"; do
-	[[ -f $CROWBAR_DIR/barclamps/$bc/crowbar.yml ]] || \
-	    die "$bc is not a barclamp!"
-	while read dep; do
-	    is_in "$dep" "${BARCLAMPS[@]}" && continue
-	    [[ -f $CROWBAR_DIR/barclamps/$dep/crowbar.yml ]] || \
-		die "$bc requires $dep, but $dep is not a barclamp!"
-	    BARCLAMPS+=("$dep")
-	done < <("$CROWBAR_DIR/parse_yml.rb" \
-	    "$CROWBAR_DIR/barclamps/$bc/crowbar.yml" \
-	    barclamp requires 2>/dev/null)
-    done
-
     # Copy over the Crowbar bits and their prerequisites
     debug "Staging extra Crowbar bits"
     cp -r "$CROWBAR_DIR/extra"/* "$BUILD_DIR/extra"
@@ -432,6 +496,12 @@ fi
     done
 
     echo "$OS_TOKEN" >"$BUILD_DIR/extra/os_tag"
+
+    # Mount our ISO for the build process.
+    debug "Mounting $ISO"
+    sudo mount -t iso9660 -o loop "$ISO_LIBRARY/$ISO" "$IMAGE_DIR" || \
+	die "Could not mount $ISO"
+
 
     # If we need to or were asked to update our cache, do it.
     maybe_update_cache 

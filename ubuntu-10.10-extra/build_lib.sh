@@ -10,6 +10,7 @@ OS_TOKEN="$OS-$OS_VERSION"
 OS_CODENAME=maverick
 # Server to download the mirror from if we need to.
 ISO_MIRROR="http://mirror.anl.gov/pub"
+PKG_TYPE="debs"
 
 # The name of the OS iso we are using as a base.
 [[ $ISO ]] || ISO="ubuntu-$OS_VERSION-server-amd64.iso"
