@@ -399,7 +399,8 @@ fi
 	mkdir -p "$BUILD_DIR/$d"
     done
     
-    # Solve barclamp dependencies
+    # If we were not passed a list of barclamps to include,
+    # pull in all of the ones declared as submodules.
     [[ $BARCLAMPS ]] || BARCLAMPS=($(cd "$CROWBAR_DIR"
 	    while read sha submod branch; do
 		[[ $submod = barclamps/* ]] || continue
@@ -407,7 +408,9 @@ fi
 		    echo "Cannot find crowbar.yml for $submod, exiting."
 		echo "${submod##*/}"
 	    done < <(git submodule status))
-	)   
+	)
+
+    # Pull in interesting information from the barclamps
     for bc in "${BARCLAMPS[@]}"; do
 	[[ -f $CROWBAR_DIR/barclamps/$bc/crowbar.yml ]] || \
 	    die "$bc is not a barclamp!"
