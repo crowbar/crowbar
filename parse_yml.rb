@@ -9,12 +9,12 @@ end
 case tree.class
 when Array
   tree.each do |n|
-    puts n
+    puts n unless n.nil?
   end
 when Hash
   tree.each do |k,v|
-    puts "#{k}, #{v}"
+    puts "#{k}, #{v}" unless n.nil?
   end
 else
-  puts tree
+  puts tree unless tree.nil?
 end
