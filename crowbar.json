@@ -16,7 +16,10 @@
         "nagios", 
         "ganglia", 
         "logging",
+        "mysql",
+        "keystone",
         "nova",
+        "nova_dashboard",
         "swift",
         "glance"
       ],
@@ -25,8 +28,6 @@
 	"redhat_install": 14,
 	"ubuntu_install": 14,
         "ipmi": 17,
-        "bios": 18,
-        "raid": 19,
         "network": 20,
         "dns": 30,
         "logging": 40,
@@ -38,8 +39,6 @@
       "instances": {
         "deployer": [ "default" ],
         "ipmi": [ "default" ],
-        "bios": [ "default" ],
-        "raid": [ "default" ],
         "redhat_install": [ "default" ],
         "ubuntu_install": [ "default" ],
         "provisioner": [ "default" ],
