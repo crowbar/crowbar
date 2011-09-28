@@ -20,7 +20,7 @@ while read file dest; do
   L_FILE=`basename $file`
   L_DIR=`dirname $file`
   T_FILE=$dest
-  (cd $L_DIR ; ln -s $T_FILE $L_FILE)
+  (cd ${BASEDIR}/$L_DIR ; ln -s $T_FILE $L_FILE)
 done < ${BASEDIR}/crowbar_links.list
 
 # Make runlevel 3 the default

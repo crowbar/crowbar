@@ -100,7 +100,7 @@ while read file dest; do
   L_FILE=`basename $file`
   L_DIR=`dirname $file`
   T_FILE=$dest
-  (cd $L_DIR ; ln -s $T_FILE $L_FILE)
+  (cd ${BASEDIR}/$L_DIR ; ln -s $T_FILE $L_FILE)
 done < ${BASEDIR}/crowbar_links.list
 
 # Create the repo metadata we will need
