@@ -188,6 +188,7 @@ maybe_update_cache() {
 	echo "Processing $yml"
 	for t in repos raw_pkgs pkgs ppas; do
 	    while read l; do
+                [[ $l = nil ]] && continue
 		echo "Found $t $l"
 		case $t in
 		    repos) echo "$l" >> "$BUILD_DIR/extra/sources.list";;
