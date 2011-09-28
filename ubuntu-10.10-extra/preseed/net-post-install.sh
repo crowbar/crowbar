@@ -50,7 +50,6 @@ barclamp_scripts="barclamp_install.rb"
 )
 ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n    
     
-
 # put the chef files in place
 mdcp /etc/rsyslog.d "$BASEDIR/dell/rsyslog.d/"*
 
