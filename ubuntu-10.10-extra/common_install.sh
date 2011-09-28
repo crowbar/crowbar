@@ -88,6 +88,9 @@ chown -R crowbar.admin /opt/dell
 # Get out of the directories.
 cd 
 
+# Uninstall apparmor
+/usr/bin/apt-get -y remove apparmor
+
 # Look for any crowbar specific kernel parameters
 for s in $(cat /proc/cmdline); do
     VAL=${s#*=} # everything after the first =
