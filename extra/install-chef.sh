@@ -187,18 +187,17 @@ fix_up_os_deployer
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
 # Always run crowbar barclamp first
-log_to bcinstall /opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/crowbar"
+log_to bcinstall /opt/dell/bin/barclamp_install.rb \
+    "/opt/dell/barclamps/crowbar" || \
+    die "Could not install crowbar barclamp."
 
 # Barclamp preparation (put them in the right places)
 cd /opt/dell/barclamps
 for i in *; do
-    [[ -d $i ]] || continue
-    [[ $i != 'crowbar' ]] || continue
-    if [ -e $i/crowbar.yml ]; then
-      log_to bcinstall /opt/dell/bin/barclamp_install.rb "/opt/dell/barclamps/$i"
-    else
-      echo "WARNING: item $i found in barclamp directory, but it is not a barclamp!"
-    fi
+    [[ -f $i/crowbar.yml && $i != crowbar ]] || continue
+    log_to bcinstall /opt/dell/bin/barclamp_install.rb \
+	"/opt/dell/barclamps/$i" \
+	die "Could not install $i barclamp."
 done
 
 restart_svc_loop chef-solr "Restarting chef-solr - spot two"
