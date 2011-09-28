@@ -504,6 +504,7 @@ fi
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
     mkdir -p "$BUILD_DIR/dell/barclamps"
     for bc in "${BARCLAMPS[@]}"; do
+	is_barclamp "$bc" || die "Cannot find barclamp $bc!"
 	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
     done
 
