@@ -15,6 +15,14 @@ mkdir -p "$BASEDIR"
     rm files.list
 )
 
+# Fix links
+while read file dest; do
+  L_FILE=`basename $file`
+  L_DIR=`dirname $file`
+  T_FILE=$dest
+  (cd $L_DIR ; ln -s $T_FILE $L_FILE)
+done < ${BASEDIR}/crowbar_links.list
+
 # Make runlevel 3 the default
 sed -i -e '/^id/ s/5/3/' /etc/inittab
 
