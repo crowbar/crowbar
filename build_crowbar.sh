@@ -219,8 +219,6 @@ fi
 #   modifying boot config files, and so on.
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
 
-
-
 {
     # Make sure only one instance of the ISO build runs at a time.
     # Otherwise you can easily end up with a corrupted image.
@@ -456,6 +454,20 @@ fi
     done
     BARCLAMPS=("${BARCLAMPS[@]//@*}")
 
+    # Pull in dependencies for the barclamps.
+    new_barclamps=()
+    while [[ t = t ]]; do
+	for bc in "${BARCLAMPS[@]}"; do
+	    for dep in ${BC_DEPS["$bc"]}; do
+		is_in "$dep" "${new_barclamps[@]}" && continue
+		new_barclamps+=("$dep")
+	    done
+	    is_in "$bc" "${new_barclamps[@]}" || new_barclamps+=("$bc")
+	done
+	[[ ${BARCLAMPS[*]} = ${new_barclamps[*]} ]] && break
+	BARCLAMPS=("${new_barclamps[@]}")
+    done
+
     # Make any directories we don't already have
     for d in "$PKG_CACHE" "$GEM_CACHE" "$ISO_LIBRARY" "$ISO_DEST" \
 	"$IMAGE_DIR" "$BUILD_DIR" "$FILE_CACHE" \
@@ -492,6 +504,7 @@ fi
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
     mkdir -p "$BUILD_DIR/dell/barclamps"
     for bc in "${BARCLAMPS[@]}"; do
+	is_barclamp "$bc" || die "Cannot find barclamp $bc!"
 	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
     done
 
