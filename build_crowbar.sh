@@ -572,6 +572,18 @@ fi
 	# Bind mount an empty directory on the $IMAGE_DIR instance.
 	sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/$d"
     done
+
+    # Make a file list and a link list.
+    ( cd $BUILD_DIR
+      find . -type f > crowbar_files.list
+      find . -type l  | xargs ls -ld | awk '{ print $8 " " $10 }' > crowbar_links.list
+    )
+    ( cd $IMAGE_DIR
+      find . -type f >> $BUILD_DIR/crowbar_files.list
+      find . -type l  | xargs ls -ld | awk '{ print $8 " " $10 }' >> $BUILD_DIR/crowbar_links.list
+    )
+
+    # Make an ISO
     (   cd "$BUILD_DIR"
 	rm -f isolinux/boot.cat
 	find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
