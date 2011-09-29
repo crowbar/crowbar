@@ -21,9 +21,6 @@ export PATH="/opt/dell/bin:$PATH"
 
 die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
 
-(cd $DVD_PATH && sha1sum -c sha1sums &>/dev/null) || \
-    die "SHA1sums do not match, install is corrupt."
-
 # mac address and IP address matching routines
 mac_match_re='link/ether ([0-9a-fA-F:]+)'
 ip_match_re='inet ([0-9.]+)'
@@ -97,6 +94,10 @@ restart_svc_loop() {
 
 # Include OS specific functionality
 . chef_install_lib.sh
+
+# Verify that our install bits are intact.
+(cd $DVD_PATH && sha1sum -c sha1sums &>/dev/null) || \
+    die "SHA1sums do not match, install is corrupt."
 
 # Make sure there is something of a domain name
 DOMAINNAME=${FQDN#*.}
