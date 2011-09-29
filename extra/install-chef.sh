@@ -151,7 +151,7 @@ cp -f /root/.ssh/authorized_keys \
 # Hack up sshd_config to kill delays
 sed -i -e 's/^\(GSSAPI\)/#\1/' \
     -e 's/#\(UseDNS.*\)yes/\1no/' /etc/ssh/sshd_config
-service sshd restart
+restart_ssh
 
 sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
 
@@ -284,6 +284,8 @@ get_ip_and_mac eth0
 }
 
 restart_svc_loop chef-client "Restarting chef-client - spot four"
+
+update_admin_node
 
 # transform our friendlier Crowbar default home page.
 cd $DVD_PATH/extra

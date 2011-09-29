@@ -37,3 +37,12 @@ fix_up_os_deployer() {
 }
 
 pre_crowbar_fixups() { : ; }
+
+update_admin_node() {
+    log_to apt apt-get -y upgrade
+}
+
+restart_ssh() {
+    service ssh restart
+}
+
