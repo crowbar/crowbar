@@ -96,8 +96,11 @@ restart_svc_loop() {
 . chef_install_lib.sh
 
 # Verify that our install bits are intact.
-(cd $DVD_PATH && sha1sum -c sha1sums &>/dev/null) || \
+if [[ ! -f $DVD_PATH/sha1_passed ]]; then
+    (cd $DVD_PATH && sha1sum -c sha1sums &>/dev/null) || \
     die "SHA1sums do not match, install is corrupt."
+    >$DVD_PATH/sha1_passed
+fi
 
 # Make sure there is something of a domain name
 DOMAINNAME=${FQDN#*.}
