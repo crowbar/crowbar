@@ -603,7 +603,7 @@ fi
     (   cd "$BUILD_DIR"
 	rm -f isolinux/boot.cat
 	find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
-	find . -type -f |xargs sha1sum -b >sha1sums
+	find . -type f |xargs sha1sum -b >sha1sums
 	mkdir -p $ISO_DEST
 	mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
 	    -b isolinux/isolinux.bin -c isolinux/boot.cat \
