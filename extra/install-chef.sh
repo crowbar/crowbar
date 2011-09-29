@@ -18,7 +18,7 @@
 
 export FQDN="$1"
 export PATH="/opt/dell/bin:$PATH"
-
+[[ $HOME ]] || export HOME="/root"
 die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
 
 # mac address and IP address matching routines
@@ -94,6 +94,13 @@ restart_svc_loop() {
 
 # Include OS specific functionality
 . chef_install_lib.sh
+
+# Verify that our install bits are intact.
+if [[ ! -f $DVD_PATH/sha1_passed ]]; then
+    (cd $DVD_PATH && sha1sum -c sha1sums &>/dev/null) || \
+    die "SHA1sums do not match, install is corrupt."
+    >$DVD_PATH/sha1_passed
+fi
 
 # Make sure there is something of a domain name
 DOMAINNAME=${FQDN#*.}

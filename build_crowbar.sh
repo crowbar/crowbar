@@ -159,6 +159,15 @@ branch_exists() { git show-ref --quiet --verify --heads -- "refs/heads/$1"; }
 
 # Run a git command in the crowbar repo.
 in_repo() ( cd "$CROWBAR_DIR"; "$@")
+get_rev() (
+    cd "$1"
+    if [[ -d .git ]]; then
+	git rev-parse HEAD
+    else
+	echo "Not a Git Repository"
+    fi
+)
+
 
 # Run a git command in the build cache, assuming it is a git repository. 
 in_cache() (
@@ -503,12 +512,15 @@ fi
     cp -r "$CROWBAR_DIR/$OS_TOKEN-extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
     mkdir -p "$BUILD_DIR/dell/barclamps"
+    echo "build-timestamp: $(date '+%F %T %z')" > "$BUILD_DIR/build-info"
+    echo "build-os: $OS_TOKEN" >>"$BUILD_DIR/build-info"
+    echo "build-os-iso: $ISO" >>"$BUILD_DIR/build-info"
+    echo "crowbar: $(get_rev "$CROWBAR_DIR")" >>"$BUILD_DIR/build-info"
     for bc in "${BARCLAMPS[@]}"; do
 	is_barclamp "$bc" || die "Cannot find barclamp $bc!"
 	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
+	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
-
-    echo "$OS_TOKEN" >"$BUILD_DIR/extra/os_tag"
 
     # Mount our ISO for the build process.
     debug "Mounting $ISO"
@@ -525,6 +537,10 @@ fi
     copy_pkgs "$IMAGE_DIR" "$PKG_CACHE" "$BUILD_DIR/extra/pkgs"
     cp -r "$GEM_CACHE" "$BUILD_DIR/extra"
     cp -r "$FILE_CACHE" "$BUILD_DIR/extra"
+    echo "staged-files:">>"$BUILD_DIR/build-info"
+    (cd "$BUILD_DIR"
+	find extra/pkgs extra/gems extra/files -type f -print | \
+	    sort >> "build-info")
     # Make sure we still provide the legacy ami location
     (cd "$BUILD_DIR"; ln -sf extra/files/ami)
     # Store off the version
@@ -587,6 +603,7 @@ fi
     (   cd "$BUILD_DIR"
 	rm -f isolinux/boot.cat
 	find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
+	find . -type f | grep -v isolinux.bin |grep -v sha1sums |xargs sha1sum -b >sha1sums
 	mkdir -p $ISO_DEST
 	mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
 	    -b isolinux/isolinux.bin -c isolinux/boot.cat \
