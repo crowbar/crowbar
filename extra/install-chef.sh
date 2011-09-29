@@ -21,6 +21,14 @@ export PATH="/opt/dell/bin:$PATH"
 
 die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
 
+cd $DVD_PATH
+if ! sha1sum -c sha1sums >&/dev/null; then
+    cd -
+    die "SHA1sums do not match, install is corrupt."
+fi
+cd -
+
+
 # mac address and IP address matching routines
 mac_match_re='link/ether ([0-9a-fA-F:]+)'
 ip_match_re='inet ([0-9.]+)'
