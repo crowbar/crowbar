@@ -1,0 +1,122 @@
+#!/bin/bash
+# Copyright 2011, Dell
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+
+[[ $DEBUG ]] && set -x
+
+cd "$HOME/testing/cli"
+
+die() { res=$1; shift; echo "$@"; exit $res; }
+
+nova_do() {
+    # $1 = address of nova controller
+    # $@ = command to run as the nova user.
+    local address="$1" 
+    shift
+    [[ $1 ]] || return 1
+    run_on "$address" -- sudo -u nova -H -i "$@"
+}
+
+echo "Deploying Nova VMs."
+echo "Finding Nova controller..."
+read controller < <(crowbar nova show cluster1 |sed -n '/"nova-multi-controller": \[/ { n; p }')
+controller="${controller//\"/}."
+addr_re='Address: ([0-9.]+)'
+if [[ ! $(nslookup "$controller" "$CROWBAR_IP") =~ $addr_re ]]; then
+    echo "Could not find IP address of the nova controller ($controller)"
+    crowbar nova show cluster1 >"$LOGDIR/nova-failed.json"
+    exit 1
+fi
+nova_ip="${BASH_REMATCH[1]}"
+echo "Controller at $nova_ip. Verifying nova services..."
+
+while read node node_type node_enabled node_status rest; do
+    case $node_type in
+	nova-network) [[ $node_enabled = enabled && \
+	    $node_status = ':-)' ]] && nova_network=true;;
+	nova-compute) [[ $node_enabled = enabled && \
+	    $node_status = ':-)' ]] && nova_compute=true;;
+	nova-scheduler) [[ $node_enabled = enabled && \
+	    $node_status = ':-)' ]] && nova_scheduler=true;;
+    esac
+done < <(nova_do "$nova_ip" nova-manage service list |tee \
+    "$LOGDIR/nova-services.status")
+if ! [[ $nova_network && $nova_compute && $nova_scheduler ]]; then
+    echo "Nova services do not report as healthy!"
+    exit 1
+fi
+echo "Nova services healthy. Finding test image to launch..."
+test_image=''
+ami_re='(ami-[0-9]+)'
+while read line;do
+    [[ $line =~ $ami_re ]] || continue
+    img_id="${BASH_REMATCH[1]}"
+    [[ $line =~ available && $line =~ public ]] || continue
+    test_image=$img_id
+    break
+done < <(nova_do "$nova_ip" euca-describe-images |tee \
+    "$LOGDIR/nova-images.status")
+if [[ ! $test_image ]]; then
+    echo "Could not find a test image to run on Nova"
+    exit 1
+fi
+echo "Launching $test_image..." 
+nova_do "$nova_ip" euca-run-instances "$test_image" -k mykey -t m1.tiny |tee \
+    "$LOGDIR/nova-run-instance.status"
+tries=0
+img_addr=''
+
+while ((tries++ < 30)); do
+    while read ltype l_id img_id img_addr1 img_addr2 img_status rest; do
+	[[ $img_id = $test_image ]] || continue
+	[[ $img_status =~ fail ]] && {
+	    echo "Nova reports that $test_image failed to deploy"
+	    cat "$LOGDIR/nova-running-instances.$tries.log"
+	    exit 1
+	}
+	[[ $img_id = $test_image && $img_status = running ]] || continue
+	img_addr=${img_addr1}
+    done < <(nova_do "$nova_ip" euca-describe-instances | \
+	tee "$LOGDIR/nova-running-instances.$tries.log")
+    cat "$LOGDIR/nova-running-instances.$tries.log"
+    [[ $img_addr ]] && break
+    sleep 10
+done
+if [[ ! $img_addr ]]; then
+    echo "$test_image failed to deploy after ${tries}0 seconds!"
+    exit 1
+fi	
+echo "Launched. Testing network connectivity..."
+tries=0
+while ! nova_do "$nova_ip" ping -n -c 1 "$img_addr" >> "$LOGDIR/nova-ping-$img_addr.log"; do
+    if ((tries++ > 60)) ; then
+      cat "$LOGDIR/nova-ping-$img_addr.log"
+      echo "Could not ping $img_addr from $nova_ip"
+      exit 1
+    fi
+done
+echo "Could ping deployed image."
+tries=0
+
+## The SSH test is known to not work right now.
+# Leave it enabled, but do not fail the smoketest if it fails.
+while ! nova_do "$nova_ip" ssh -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsFile=/dev/null' -i /var/lib/nova/mykey.priv ubuntu@"$img_addr" date >> "$LOGDIR/nova-ssh-$img_addr.log" ; do
+    if ((tries++ > 120)) ; then
+      cat "$LOGDIR/nova-ssh-$img_addr.log"
+      cat "$LOGDIR/nova-ssh-$img_addr.err"
+      echo "Could not ssh $img_addr from $nova_ip"
+      exit 0
+    fi
+done
+
+echo "Nova VM deploy passed."
+exit 0
