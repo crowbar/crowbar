@@ -203,7 +203,7 @@ cd /opt/dell/barclamps
 for i in *; do
     [[ -f $i/crowbar.yml && $i != crowbar ]] || continue
     log_to bcinstall /opt/dell/bin/barclamp_install.rb \
-	"/opt/dell/barclamps/$i" \
+	"/opt/dell/barclamps/$i" || \
 	die "Could not install $i barclamp."
 done
 
