@@ -26,18 +26,8 @@ nova_do() {
     run_on "$address" -- sudo -u nova -H -i "$@"
 }
 
-echo "Deploying Nova..."
-crowbar nova proposal create cluster1
-crowbar nova proposal show cluster1 >"$LOGDIR/nova-default.json"
-sed '/libvirt_type/ s/kvm/qemu/' < "$LOGDIR/nova-default.json" \
-    > "$LOGDIR/nova-qemu.json"
-crowbar nova --file "$LOGDIR/nova-qemu.json" proposal edit cluster1
-if ! crowbar nova proposal commit cluster1; then
-   echo "Nova failed to deploy."
-   crowbar nova proposal show cluster1 >"$LOGDIR/nova-failed.json"
-   exit 1
-fi
-echo "Nova deployed.  Finding controller..."
+echo "Deploying Nova VMs."
+echo "Finding Nova controller..."
 read controller < <(crowbar nova show cluster1 |sed -n '/"nova-multi-controller": \[/ { n; p }')
 controller="${controller//\"/}."
 addr_re='Address: ([0-9.]+)'
@@ -128,5 +118,5 @@ while ! nova_do "$nova_ip" ssh -o 'StrictHostKeyChecking=no' -o 'UserKnownHostsF
     fi
 done
 
-echo "Nova deploy passed."
+echo "Nova VM deploy passed."
 exit 0
