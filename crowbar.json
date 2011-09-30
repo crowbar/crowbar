@@ -1,5 +1,5 @@
 {
-  "id": "default",
+  "id": "bc-crowbar-default",
   "description": "Self-referential barclamp enabling other barclamps",
   "attributes": {
     "crowbar": {
@@ -9,7 +9,6 @@
         "ipmi", 
         "network", 
         "provisioner",
-	"redhat_install",
         "ubuntu_install",  
         "ntp", 
         "dns", 
@@ -25,7 +24,6 @@
       ],
       "run_order": {
         "deployer": 10,
-	"redhat_install": 14,
 	"ubuntu_install": 14,
         "ipmi": 17,
         "network": 20,
@@ -39,7 +37,6 @@
       "instances": {
         "deployer": [ "default" ],
         "ipmi": [ "default" ],
-        "redhat_install": [ "default" ],
         "ubuntu_install": [ "default" ],
         "provisioner": [ "default" ],
         "network": [ "default" ],
@@ -54,6 +51,19 @@
       "users": {
         "machine-install": { "password": "machine_password" },
         "crowbar": { "password": "crowbar" }
+      },
+      "bios-settings": {
+          "Virtualization" : "Virtualization",
+	  "Storage" : "Storage"
+      },
+      "raid-settings": {
+          "JBOD Only": "JBODOnly",
+          "Single RAID 10": "SingleRaid10"
+      },
+      "node-usage": {
+          "Nova": "Nova",
+	  "Swift": "Swift",
+	  "Glance": "Glance"
       }
     },
     "rails": {
