@@ -18,6 +18,7 @@
 
 export FQDN="$1"
 export PATH="/opt/dell/bin:$PATH"
+export DEBUG=true
 [[ $HOME ]] || export HOME="/root"
 die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
 
@@ -203,7 +204,7 @@ cd /opt/dell/barclamps
 for i in *; do
     [[ -f $i/crowbar.yml && $i != crowbar ]] || continue
     log_to bcinstall /opt/dell/bin/barclamp_install.rb \
-	"/opt/dell/barclamps/$i" \
+	"/opt/dell/barclamps/$i" || \
 	die "Could not install $i barclamp."
 done
 
