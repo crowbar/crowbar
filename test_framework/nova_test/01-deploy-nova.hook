@@ -1,0 +1,30 @@
+#!/bin/bash
+# Copyright 2011, Dell
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# 
+cd "$HOME/testing/cli"
+echo "Deploying Nova..."
+crowbar nova proposal create cluster1
+crowbar nova proposal show cluster1 >"$LOGDIR/nova-default.json"
+sed '/libvirt_type/ s/kvm/qemu/' < "$LOGDIR/nova-default.json" \
+    > "$LOGDIR/nova-qemu.json"
+crowbar nova --file "$LOGDIR/nova-qemu.json" proposal edit cluster1
+if ! crowbar nova proposal commit cluster1; then
+   echo "Nova failed to deploy."
+   crowbar nova proposal show cluster1 >"$LOGDIR/nova-failed.json"
+   exit 1
+fi
+echo "Nova deployed."
+crowbar nova show cluster1 >"$LOGDIR/nova-deployed.json"
+exit 0   
