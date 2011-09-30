@@ -18,6 +18,7 @@
 
 export FQDN="$1"
 export PATH="/opt/dell/bin:$PATH"
+export DEBUG=true
 [[ $HOME ]] || export HOME="/root"
 die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
 
