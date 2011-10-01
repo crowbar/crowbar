@@ -28,9 +28,6 @@
 [submodule "barclamps/provisioner"]
 	path = barclamps/provisioner
 	url = http://github.com/dellcloudedge/barclamp-provisioner
-[submodule "barclamps/redhat-install"]
-	path = barclamps/redhat-install
-	url = http://github.com/dellcloudedge/barclamp-redhat-install
 [submodule "barclamps/test"]
 	path = barclamps/test
 	url = http://github.com/dellcloudedge/barclamp-test
