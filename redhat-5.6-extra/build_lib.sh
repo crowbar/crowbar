@@ -63,12 +63,10 @@ enabled=1
 gpgcheck=0
 EOF
     if [[ $USE_PROXY = "1" ]]; then
-	cat >>"$repo" <<EOF
-proxy=http://$PROXY_HOST:$PROXY_PORT
-proxy_username=$PROXY_USER
-proxy_password=$PROXY_PASSWORD
-EOF
-    fi
+	echo "proxy=http://$PROXY_HOST:$PROXY_PORT"
+	[[ $PROXY_USER ]] && echo "proxy_username=$PROXY_USER"
+	[[ $PROXY_PASSWORD ]] && echo "proxy_password=$PROXY_PASSWORD"
+    fi >> "$repo"
     sudo cp "$repo" "$CHROOT/etc/yum.repos.d/"
 }
 
