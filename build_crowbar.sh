@@ -591,20 +591,31 @@ fi
 
     # Make a file list and a link list.
     ( cd $BUILD_DIR
-      find . -type f > crowbar_files.list
-      find . -type l  | xargs ls -ld | awk '{ print $8 " " $10 }' > crowbar_links.list
+      find . -type f | \
+	  sort > crowbar_files.list
+      find . -type l | \
+	  xargs ls -ld | \
+	  awk '{ print $8 " " $10 }' | \
+	  sort > crowbar_links.list
     )
     ( cd $IMAGE_DIR
-      find . -type f >> $BUILD_DIR/crowbar_files.list
-      find . -type l  | xargs ls -ld | awk '{ print $8 " " $10 }' >> $BUILD_DIR/crowbar_links.list
+      find . -type f | \
+	  sort >> $BUILD_DIR/crowbar_files.list
+      find . -type l | \
+	  xargs ls -ld | \
+	  awk '{ print $8 " " $10 }' | \
+	  sort >> $BUILD_DIR/crowbar_links.list
     )
 
     # Make an ISO
     (   cd "$BUILD_DIR"
 	rm -f isolinux/boot.cat
 	find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
-	find . -type f | grep -v isolinux.bin |grep -v sha1sums |xargs sha1sum -b >sha1sums
-	mkdir -p $ISO_DEST
+	find . -type f -not -name isolinux.bin -not -name sha1sums -not -path '*/.git/*' | \
+	    xargs sha1sum -b >sha1sums
+	mkdir -p "$ISO_DEST"
+	# Save the sha1sums and the build-info files along side the iso.
+	cp sha1sums build-info "$ISO_DEST"
 	mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
 	    -b isolinux/isolinux.bin -c isolinux/boot.cat \
 	    -no-emul-boot --boot-load-size 4 -boot-info-table \

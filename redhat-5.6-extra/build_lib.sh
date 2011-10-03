@@ -223,7 +223,7 @@ update_caches() {
     done
     # Install prerequisites for building gems.  We need all of them
     # to make sure we get all of the gems we want.
-    chroot_install rubygems ruby-devel make gcc kernel-devel curl-devel sqlite-devel mysql-devel
+    chroot_install ${BC_BUILD_PKGS[*]}
     debug "Fetching Gems"
     echo "There may be build failures here, we can safely ignore them."
     for gem in "${GEMS[@]}"; do
