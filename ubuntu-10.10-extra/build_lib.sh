@@ -62,6 +62,15 @@ update_caches() {
     debug "Fetching needed packages"
     # update, add infrastructure for adding PPAs, 
     # add additional PPAs, and update again.
+    if [[ $http_proxy || $https_proxy ]]; then
+	f=$(mktemp /tmp/apt.http.conf.XXXXXX)
+	[[ $http_proxy ]] && echo \
+	    "Acquire::http::Proxy \"$http_proxy\";" >> "$f"
+	[[ $https_proxy ]] && echo \
+	    "Acquire::https::Proxy \"$https_proxy\";" >> "$f"
+	in_chroot mkdir -p "/etc/apt/apt.conf.d/"
+	sudo cp "$f" "$CHROOT/etc/apt/apt.conf.d/00http_proxy"
+    fi
     in_chroot /usr/bin/apt-get -y --force-yes --allow-unauthenticated update
     in_chroot /usr/bin/apt-get -y --force-yes --allow-unauthenticated install \
 	python-software-properties
