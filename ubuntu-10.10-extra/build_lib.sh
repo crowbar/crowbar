@@ -78,8 +78,7 @@ update_caches() {
 	--allow-unauthenticated --download-only install "${PKGS[@]}"
     # actually install ruby1.8-dev and gem and their deps.
     in_chroot /usr/bin/apt-get -y --force-yes \
-	--allow-unauthenticated install ruby1.8-dev rubygems1.8 \
-	build-essential libsqlite3-dev libmysqlclient-dev
+	--allow-unauthenticated install ${BC_BUILD_PKGS[*]}
     # install the gems we will need and all their dependencies
     # We will get some build failures, but at this point we don't care because
     # we are just caching the gems for the real install.
