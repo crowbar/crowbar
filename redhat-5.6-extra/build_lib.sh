@@ -38,21 +38,6 @@ fetch_os_iso() {
     die "build_crowbar.sh does not know how to automatically download $ISO"
 }
 
-proxy_command() {
-  if [ "$USE_PROXY" == "1" ] ; then
-    no_proxy="localhost,localhost.localdomain,127.0.0.0/8,$PROXY_HOST" http_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" https_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" "$@"; 
-  else
-    "$@" 
-  fi
-}
-in_chroot_use_proxy() { 
-  if [ "$USE_PROXY" == "1" ] ; then
-    sudo -H no_proxy="localhost,localhost.localdomain,127.0.0.0/8,$PROXY_HOST" http_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" https_proxy="http://$PROXY_USER:$PROXY_PASSWORD@$PROXY_HOST:$PROXY_PORT/" /usr/sbin/chroot "$CHROOT" "$@"; 
-  else
-    sudo -H /usr/sbin/chroot "$CHROOT" "$@"; 
-  fi
-}
-
 # Run a command in our chroot environment.
 in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" "$@"; }
 
@@ -77,32 +62,15 @@ priority=$2
 enabled=1
 gpgcheck=0
 EOF
-    sudo cp "$repo" "$CHROOT/etc/yum.repos.d/"
-}
-
-make_repo_file_proxy() {
-    # $1 = name of repo
-    # $2 = priority
-    # $3 = URL
-    if [ "$USE_PROXY" != "1" ] ; then
-      make_repo_file $1 $2 $3
-      return
-    fi
-    local repo=$(mktemp "/tmp/repo-$1-XXXX.repo")
-    cat >"$repo" <<EOF
-[$1]
-name=Repo for $1
-baseurl=$3
-priority=$2
-enabled=1
-gpgcheck=0
+    if [[ $USE_PROXY = "1" ]]; then
+	cat >>"$repo" <<EOF
 proxy=http://$PROXY_HOST:$PROXY_PORT
 proxy_username=$PROXY_USER
 proxy_password=$PROXY_PASSWORD
 EOF
+    fi
     sudo cp "$repo" "$CHROOT/etc/yum.repos.d/"
 }
-
 
 # This function makes a functional redhat chroot environment.
 # We do this so that we can build an install DVD that has Crowbar staged
@@ -128,7 +96,7 @@ make_redhat_chroot() (
     done
     if [ ! -f "$ISO_LIBRARY/$PRIORITIES_RPM" ] ; then
       cd "$ISO_LIBRARY"
-      proxy_command wget -q -O "$ISO_LIBRARY/$PRIORITIES_RPM" "$PRIORITIES_HTTP"
+      wget -q -O "$ISO_LIBRARY/$PRIORITIES_RPM" "$PRIORITIES_HTTP"
       cd -
     fi
     if [ -f "$ISO_LIBRARY/$PRIORITIES_RPM" ] ; then
@@ -164,15 +132,6 @@ make_redhat_chroot() (
     chroot_install yum yum-downloadonly
 )
 
-
-fix_repo_proxy() {
-  if [ "$USE_PROXY" == "1" ] ; then
-    for f in `ls $CHROOT/etc/yum.repos.d/* | grep -v redhat-base`; do
-      sudo sed -i "/^name/ a\proxy=http://$PROXY_HOST:$PROXY_PORT\nproxy_username=$PROXY_ESC_USER\nproxy_password=$PROXY_PASSWORD" $f
-    done
-  fi
-}
-
 # This function does all the actual work of updating the caches once we have a
 # package fetching chroot environment.
 update_caches() {
@@ -190,9 +149,9 @@ update_caches() {
 	rdest="${repo#* }"
 	case $rtype in
 	    rpm) rdest="${rdest#* }"
-                 in_chroot_use_proxy wget -q -O /tmp/rpm.rpm "$rdest" 
+                 in_chroot wget -q -O /tmp/rpm.rpm "$rdest" 
 	         in_chroot rpm -Uvh /tmp/rpm.rpm;;
-	    bare) make_repo_file_proxy $rdest;;
+	    bare) make_repo_file $rdest;;
 	esac
     done
 
@@ -207,7 +166,6 @@ update_caches() {
     done
     in_chroot chown -R root:root "/var/cache/yum/"
     
-    fix_repo_proxy
     # Copy in our gems.
     in_chroot mkdir -p "/usr/lib/ruby/gems/1.8/cache/"
     in_chroot chmod 777 "/usr/lib/ruby/gems/1.8/cache/"
@@ -233,7 +191,7 @@ update_caches() {
 	gemver=${gem#$gemname-}
 	gemopts=(install --no-ri --no-rdoc)
 	[[ $gemver && $gemver != $gem ]] && gemopts+=(--version "= ${gemver}")
-	in_chroot_use_proxy /usr/bin/gem "${gemopts[@]}" "$gemname"
+	in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
     done
     # Copy our updated gem cache back out of the chroot.
     cp -a "$CHROOT/usr/lib/ruby/gems/1.8/cache/." "$GEM_CACHE/."
