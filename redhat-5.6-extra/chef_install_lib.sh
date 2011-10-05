@@ -20,11 +20,17 @@ install_base_packages() {
 
 bring_up_chef() {
     log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify \
-	curl-devel ruby-shadow
+	curl-devel ruby-shadow patch
 
     # Default password in chef webui to password
     sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
 
+    # HACK AROUND OHAI redhatenterpriselinux
+    di=$(find /usr -path '*/ohai-0.6.6/lib/ohai/plugins/linux' -type d)
+    [[ -d $di ]] && {
+	cp patches/ohai-linux-platform.patch "$di"
+	(cd "$di"; patch -p0 <ohai-linux-platform.patch)
+    }
     ./start-chef-server.sh
 
     ## Missing client.rb for this system - Others get it ##
