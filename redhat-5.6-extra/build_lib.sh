@@ -8,6 +8,8 @@ OS=redhat
 OS_VERSION=5.6
 OS_TOKEN="$OS-$OS_VERSION"
 PKG_TYPE="rpms"
+CHROOT_PKGDIR="$CHROOT/var/cache/yum/"
+CHROOT_GEMDIR="$CHROOT/usr/lib/ruby/gems/1.8/cache/."
 
 # If we need to make a chroot to stage packages into, this is the minimal
 # set of packages needed to bootstrap yum.  This package list has only been tested
@@ -37,9 +39,6 @@ shopt -s extglob
 fetch_os_iso() {
     die "build_crowbar.sh does not know how to automatically download $ISO"
 }
-
-# Run a command in our chroot environment.
-in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" "$@"; }
 
 # Install some packages in the chroot environment.
 chroot_install() { in_chroot /usr/bin/yum -y install "$@"; }

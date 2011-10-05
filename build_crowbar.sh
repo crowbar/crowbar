@@ -31,6 +31,8 @@
 # this build script can be smarter about what packages it should pull in
 # whenever you invoke it to build an iso.
 
+
+GEM_RE='([^0-9].*)-([0-9].*)'
 [[ $DEBUG ]] && {
     set -x
     export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
@@ -48,8 +50,9 @@ cleanup() {
     # inadvertently umount everything.
     GREPOPTS=()
     [[ $CACHE_DIR ]] && GREPOPTS=(-e "$CACHE_DIR")
-    [[ $IMAGE_DIR && $CACHE_DIR =~ $IMAGE_DIR ]] && GREPOPTS=(-e "$IMAGE_DIR")
-    [[ $BUILD_DIR && $CACHE_DIR =~ $BUILD_DIR ]] && GREPOPTS=(-e "$BUILD_DIR")
+    [[ $IMAGE_DIR && $CACHE_DIR =~ $IMAGE_DIR ]] && GREPOPTS+=(-e "$IMAGE_DIR")
+    [[ $BUILD_DIR && $CACHE_DIR =~ $BUILD_DIR ]] && GREPOPTS+=(-e "$BUILD_DIR")
+    [[ $CHROOT && $CACHE_DIR =~ $CHROOT ]] && GREPOPTS+=(-e "$CHROOT")
     if [[ $GREPOPTS ]]; then
 	while read dev fs type opts rest; do
 	    sudo umount -d -l "$fs"
@@ -74,8 +77,8 @@ cleanup() {
 	git branch -D "$CACHE_THROWAWAY_BRANCH" &>/dev/null
     fi
     [[ $CACHE_THROWAWAY_STASH ]] && git stash apply "$CACHE_THROWAWAY_STASH"
-    for d in "$IMAGE_DIR" "$BUILD_DIR"; do
-	[[ -d $d ]] && rm -rf -- "$d"
+    for d in "$IMAGE_DIR" "$BUILD_DIR" "$CHROOT"; do
+	[[ -d $d ]] && sudo rm -rf -- "$d"
     done
 }
 
@@ -85,6 +88,252 @@ is_in() {
     shift
     while [[ $1 && $t != $1 ]]; do shift; done
     [[ $1 ]]
+}
+
+# Run a command in our chroot environment.
+in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" "$@"; }
+
+# A little helper function for doing bind mounts.
+bind_mount() {
+    [[ -d $2 ]] || mkdir -p "$2"
+    grep -q "$2" /proc/self/mounts || sudo mount --bind "$1" "$2"
+}
+ 
+write_lines() { printf "%b" "$1"; }
+
+read_base_repos() {
+    for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
+	[[ -f $pkgfile ]] || continue
+	while read line; do
+	    line=${line%%#*}
+	    [[ $line ]] || continue
+	    if [[ $line = repository* ]]; then
+		REPOS+=("${line#* }")
+	    else
+		echo "$line in $pkgfile has been superceded by crowbar.yml metadata." >&2
+		die "Please migrate $line into the appropriate barclamp config file."
+	    fi
+	done <"$pkgfile"
+    done
+}
+
+fetch_gems() {
+    # install the gems we will need and all their dependencies
+    # We will get some build failures, but at this point we don't care because
+    # we are just caching the gems for the real install.
+    debug "Fetching Gems"
+    echo "There may be build failures here, we can safely ignore them."
+    for gem in "$@"; do
+	if [[ $gem =~ $GEM_RE ]]; then
+	    echo "${BASH_REMATCH[*]}"
+	    gemname="${BASH_REMATCH[1]}"
+	    gemver="${BASH_REMATCH[2]}"
+	else
+	    gemname="$gem"
+	    gemver=''
+	fi
+	gemopts=(install --no-ri --no-rdoc)
+	[[ $gemver ]] && gemopts+=(--version "= ${gemver}")
+	[[ $http_proxy ]] && gemopts+=(-p "$http_proxy")
+	in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
+    done
+}
+
+# A couple of utility functions for comparing version numbers.
+num_re='^[0-9]+$'
+__cmp() {
+    [[ $1 || $2 ]] || return 255 # neither 1 nor 2 or set, we are done
+    [[ $1 && ! $2 ]] && return 2 # 1 is set and 2 is not, 1 > 2
+    [[ ! $1 && $2 ]] && return 0 # 2 is set and 1 is not, 1 < 2
+    local a="$1" b="$2"
+    if [[ $a =~ $num_re && $b =~ $num_re ]]; then #both numbers, numeric cmp.
+	# make sure leading zeros do not confuse us
+	a=${a##0} b=${b##0}
+	((${a:=0} > ${b:=0})) && return 2
+	(($a < $b)) && return 0
+	return 1
+    else # string compare
+	[[ $a > $b ]] && return 2
+	[[ $a < $b ]] && return 0
+	return 1
+    fi
+}
+
+vercmp(){
+    # $1 = version string of first package
+    # $2 = version string of second package
+    # Returns 0 if $1 > $2, 1 otherwise.
+    local ver1=()
+    local ver2=()
+    local i=0
+    IFS='.-_ +' read -rs -a ver1 <<< "$1"
+    IFS='.-_ +' read -rs -a ver2 <<< "$2"
+    for ((i=0;;i++)); do
+	__cmp "${ver1[$i]}" "${ver2[$i]}"
+	case $? in
+	    2) return 0;;
+	    0) return 1;;
+	    255) return 1;;
+	esac
+    done
+}
+
+# Index the pool of packages in the CD.
+index_cd_pool() {
+    # Scan through our pool to find pkgs we can easily omit.
+    local pkgname='' pkg=''
+    while read pkg; do
+	[[ -f $pkg ]] && is_pkg "$pkg" || continue
+	pkgname="$(pkg_name "$pkg")"
+	CD_POOL["$pkgname"]="${pkg}"
+    done < <(find "$(find_cd_pool)" -type f)
+}
+
+copy_pkgs() {
+    # $1 = source directory
+    # $2 = destination directory.
+    local src="$1" dest="$2" pkgname pkg to_copy
+    shift 2
+
+    # First, index our destination into $DEST_POOL
+    while read pkg; do
+	is_pkg "$pkg" || continue
+	pkgname="$(pkg_name "$pkg")"
+	if [[ ! ${DEST_POOL["${pkgname}"]} ]]; then
+	    # The package has not been seen in our destination pool.
+	    # Add it.
+	    DEST_POOL["$pkgname"]="${pkg}"
+	elif pkg_cmp "$pkg" "${DEST_POOL[$pkgname]}"; then
+	    # The package has been seen in the destination pool, but
+	    # this one is newer.  Remove the old one and copy this one into
+	    # its place right now.  Update our pool list as we go.
+	    [[ -f "${DEST_POOL[$pkgname]}" ]] && \
+		rm -f "${DEST_POOL[$pkgname]}"
+	    cp "$pkg" "${DEST_POOL[$pkgname]%/*}"
+	    DEST_POOL["$pkgname"]="${DEST_POOL[$pkgname]%/*}/${pkg##*/}"
+	else
+	    # This package has already been seen in the destination pool, and
+	    # the one in the pool is newer than this one.  Ignore it.
+	    : ;
+	fi
+    done < <(find "$dest" -type f)
+    # Now that is done, pick and choose from these files to copy.
+    while read pkg; do
+	is_pkg "$pkg" || continue
+	pkgname="$(pkg_name "$pkg")"
+	if [[ ${CD_POOL["$pkgname"]} ]] && \
+	    pkg_cmp "${CD_POOL["$pkgname"]}" "$pkg"; then
+	    # This package already exists in the CD pool.  Do nothing.
+	    : ;
+	elif [[ ! ${DEST_POOL["$pkgname"]} ]]; then
+	    # This package is not already in the destination pool.
+	    # Add it and get ready to copy it.
+	    to_copy+=("$pkg")
+	    DEST_POOL["$pkgname"]="$pkg"
+	elif pkg_cmp "$pkg" "${DEST_POOL["$pkgname"]}"; then
+	    # This package is already in the destination pool,
+	    # but we are looking at a more recent version of it.
+	    # Use this one instead.
+	    [[ -f "${DEST_POOL[$pkgname]}" ]] && \
+		rm -f "${DEST_POOL[$pkgname]}"
+	    cp "$pkg" "${DEST_POOL[$pkgname]%/*}"
+	    DEST_POOL["$pkgname"]="${DEST_POOL[$pkgname]%/*}/${pkg##*/}"
+	else
+	    # We already have the same or a newer version of this package.
+	    : ;
+	fi
+    done < <(find "$src" -type f)
+    cp -a "${to_copy[@]}" "$dest/."
+}
+
+update_barclamp_cache() {
+    # $1 = barclamp we are working with
+    local bc_cache="$CACHE_DIR/barclamps/$1" pkg dest
+    mkdir -p "$bc_cache/gems"
+    mkdir -p "$bc_cache/$OS_TOKEN/pkgs"
+    
+    # if we have deb or gem caches, copy them back in.
+    sudo cp -a "$bc_cache/gems/." "$CHROOT/$CHROOT_GEMDIR"
+    sudo cp -a "$bc_cache/$OS_TOKEN/pkgs/." "$CHROOT/$CHROOT_PKGDIR"
+    
+    # Download all the packages apt thinks we will need.
+    chroot_fetch ${BC_PKGS["$1"]} || \
+	die "Could not fetch packages required by barclamp $1"
+    # install any build dependencies we need.
+    chroot_install ${BC_BUILD_PKGS["$1"]}
+    # Grab the gems needed for this barclamp.
+    fetch_gems ${BC_GEMS["$1"]}
+    # Save our updated gems and pkgs in the cache for later.
+    copy_pkgs "$CHROOT/$CHROOT_PKGDIR" "$bc_cache/$OS_TOKEN/pkgs"
+    cp -a  "$CHROOT/$CHROOT_GEMDIR/"* "$bc_cache/gems"
+
+    # Fetch any raw_pkgs we were asked to.
+    for pkg in ${BC_RAW_PKGS["$1"]}; do
+	[[ -f $bc_cache/$OS_TOKEN/pkgs/${pkg##*/} ]] && continue
+	mkdir -p "$bc_cache/$OS_TOKEN/pkgs"
+	curl -s -S -o "$bc_cache/$OS_TOKEN/pkgs/${pkg##*/}" "$pkg"
+    done
+
+    # Fetch any extra_pkgs we need.
+    while read pkg; do
+	dest=${pkg#* }
+	[[ $dest = $pkg ]] && dest=''
+	pkg=${pkg%% *}
+	[[ -f $bc_cache/files/$dest/${pkg##*/} ]] && continue
+	mkdir -p "$bc_cache/files/$dest"
+	curl -s -S -o "$bc_cache/files/$dest/${pkg##*/}" "$pkg"
+    done < <(write_lines "${BC_EXTRA_FILES[$1]}")
+}
+
+barclamp_cache_needs_update() {
+    local pkg pkgs pkgname arch bc_cache="$CACHE_DIR/barclamps/$1"
+    declare -A pkgs
+    
+    # First, check to see if we have all the packages we need.
+    [[ -d $bc_cache/$OS_TOKEN/pkgs ]] || return 0
+    while read pkg; do
+	is_pkg "$pkg" || continue
+	pkgname="$(pkg_name "$pkg")"
+	pkgs["$pkgname"]="$pkg"
+    done < <(find "$bc_cache/$OS_TOKEN/pkgs" -type f) 
+    for pkg in ${BC_PKGS["$1"]}; do
+	for arch in "${PKG_ALLOWED_ARCHES[@]}"; do
+	    [[ ${pkgs["$pkg-$arch"]} || ${CD_POOL["$pkg-$arch"]} ]] \
+		&& continue 2
+	done
+	return 0
+    done
+
+    unset pkgs
+    declare -A pkgs
+    # Second, check to see if we have all the gems we need.
+    [[ -d $bc_cache/gems ]] || return 0
+    while read pkg; do
+	[[ $pkg = *.gem ]] || continue
+	pkgname=${pkg##*/}
+	pkgname=${pkgname%.gem}
+	# We have an exact version match.
+	is_in "$pkgname" ${BC_GEMS["$1"]} && continue
+	# We have a package name match.
+	[[ $pkgname =~ $GEM_RE ]] && \
+	    is_in "${BASH_REMATCH[1]}" ${BC_GEMS["$1"]} && continue
+	# We don't have this gem.  Return.
+	return 0
+    done < <(find "$bc_cache/gems" -type f)
+
+    # Third, check to see if we have all the raw_pkgs we need.
+    for pkg in ${BC_RAW_PKGS["$1"]}; do
+	[[ -f $bc_cache/$OS_TOKEN/pkgs/${pkg##*/} ]] || return 0
+    done
+
+    # Fourth, check to make sure we have all the extra_pkgs we need.
+    while read pkg; do
+	dest=${pkg#* }
+	[[ $dest = $pkg ]] && dest=''
+	pkg=${pkg%% *}
+	[[ -f $bc_cache/files/$dest/${pkg##*/} ]] || return 0
+    done < <(write_lines "${BC_EXTRA_FILES[$1]}")
+    return 1
 }
 
 # Arrange for cleanup to be called at the most common exit points.
@@ -147,8 +396,9 @@ fi
 [[ $VCS_CLEAN_CMD ]] || VCS_CLEAN_CMD='git clean -f -x -d'
 
 # Arrays holding the additional pkgs and gems populate Crowbar with.
-PKGS=()
-GEMS=()
+REPOS=()
+
+declare -A CD_POOL DEST_POOL
 
 # Some helper functions
 
@@ -182,7 +432,6 @@ get_rev() (
 	echo "Not a Git Repository"
     fi
 )
-
 
 # Run a git command in the build cache, assuming it is a git repository. 
 in_cache() (
@@ -387,6 +636,7 @@ fi
     BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
     BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
     BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
+    BC_QUERY_STRINGS["raw_pkgs"]="$PKG_TYPE raw_pkgs"
     
     # Pull in interesting information from all our barclamps
     for bc in $CROWBAR_DIR/barclamps/*; do
@@ -398,10 +648,12 @@ fi
 	    while read line; do
 		[[ $line = nil ]] && continue
 		case $query in
-		    deps) BC_DEPS["$bc"]+="$line ";;
+		    deps) is_in "$line "${BC_DEPS["$bc"]} || \
+			BC_DEPS["$bc"]+="$line ";;
 		    groups) is_in "$line" ${BC_GROUPS["$bc"]} || 
 			BC_GROUPS["$line"]+="$bc ";;
-		    pkgs) BC_PKGS["$bc"]+="$line ";;
+		    pkgs) is_in "$line" ${BC_PKGS["$bc"]} || \
+			BC_PKGS["$bc"]+="$line ";;
 		    extra_files) BC_EXTRA_FILES["$bc"]+="$line\n";;
 		    os_support) BC_OS_SUPPORT["$bc"]+="$line ";;
 		    gems) BC_GEMS["$bc"]+="$line ";;
@@ -410,6 +662,7 @@ fi
 			die "Cannot declare a PPA for $PKG_TYPE!"
 			BC_REPOS["$bc"]+="ppa $line\n";;
 		    build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
+		    raw_pkgs) BC_RAW_PKGS["$bc"]+="$line ";;
 		    *) die "Cannot handle query for $query."
 		esac
 	    done < <("$CROWBAR_DIR/parse_yml.rb" \
@@ -479,7 +732,7 @@ fi
     BARCLAMPS=("${BARCLAMPS[@]//@*}")
 
     # Pull in dependencies for the barclamps.
-    new_barclamps=()
+    new_barclamps=("crowbar")
     while [[ t = t ]]; do
 	for bc in "${BARCLAMPS[@]}"; do
 	    for dep in ${BC_DEPS["$bc"]}; do
@@ -520,6 +773,13 @@ fi
     for d in discovery extra; do
 	mkdir -p "$BUILD_DIR/$d"
     done
+
+
+    # Mount our ISO for the build process.
+    debug "Mounting $ISO"
+    sudo mount -t iso9660 -o loop "$ISO_LIBRARY/$ISO" "$IMAGE_DIR" || \
+	die "Could not mount $ISO"
+    index_cd_pool
     
     # Copy over the Crowbar bits and their prerequisites
     debug "Staging extra Crowbar bits"
@@ -533,26 +793,18 @@ fi
     echo "crowbar: $(get_rev "$CROWBAR_DIR")" >>"$BUILD_DIR/build-info"
     for bc in "${BARCLAMPS[@]}"; do
 	is_barclamp "$bc" || die "Cannot find barclamp $bc!"
+	if barclamp_cache_needs_update "$bc"  \
+	    [[ $need_update = true ]]; then
+	    make_chroot
+	    update_barclamp_cache "$bc"
+	fi
 	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
+	mkdir -p "$BUILD_DIR/extra/pkgs/"
+	cp -r "$CACHE_DIR/$bc/$OS_TOKEN/pkgs" "$BUILD_DIR/extra"
+	cp -r "$CACHE_DIR/$bc/files" "$CACHE_DIR/$bc/gems" "$BUILD_DIR/extra"
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
 
-    # Mount our ISO for the build process.
-    debug "Mounting $ISO"
-    sudo mount -t iso9660 -o loop "$ISO_LIBRARY/$ISO" "$IMAGE_DIR" || \
-	die "Could not mount $ISO"
-
-
-    # If we need to or were asked to update our cache, do it.
-    maybe_update_cache 
-    
-    # Copy our extra pkgs, gems, and files into the appropriate staging
-    # directory.
-    debug "Copying pkgs, gems, and extra files"
-    copy_pkgs "$IMAGE_DIR" "$PKG_CACHE" "$BUILD_DIR/extra/pkgs"
-    cp -r "$GEM_CACHE" "$BUILD_DIR/extra"
-    cp -r "$FILE_CACHE" "$BUILD_DIR/extra"
-    echo "staged-files:">>"$BUILD_DIR/build-info"
     (cd "$BUILD_DIR"
 	find extra/pkgs extra/gems extra/files -type f -print | \
 	    sort >> "build-info")
@@ -603,7 +855,13 @@ fi
 	# Bind mount an empty directory on the $IMAGE_DIR instance.
 	sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/$d"
     done
-
+    mkdir -p "$BUILD_DIR/isolinux"
+    chmod u+wr "$BUILD_DIR/isolinux"
+    rsync -rl --ignore-existing --inplace \
+	"$IMAGE_DIR/isolinux/." "$BUILD_DIR/isolinux/."
+    chmod -R u+wr "$BUILD_DIR/isolinux"
+    sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/isolinux"
+    
     # Make a file list and a link list.
     ( cd $BUILD_DIR
       find . -type f | \
