@@ -200,7 +200,7 @@ make_chroot() {
     # Add the repos from the barclamps.
     # We do it here because importing the metadata takes forever
     # if we refresh on every barclamp.
-    for bc in "${!BC_REPOS[@]}"; do
+    for bc in "${BARCLAMPS[@]}"; do
 	while read repo; do
 	    add_repos "$repo"
 	done < <(write_lines "${BC_REPOS[$bc]}")
