@@ -69,13 +69,10 @@ pkg_name() (
     echo "${a[0]}-${a[2]}"
 )    
 
-make_chroot() {
+__make_chroot() {
     # debootstrap a minimal install of our target version of
     # Ubuntu to ensure that we don't interfere with the host's package cache.
     local d repo bc f
-    [[ -f "$CHROOT/etc/resolv.conf" ]] && return
-    debug "Making package-fetching chroot"
-    mkdir -p "$CHROOT"
     sudo mount -t tmpfs -o size=4G "$OS_TOKEN-chroot" "$CHROOT"
     sudo debootstrap "$OS_CODENAME" "$CHROOT" \
 	"file://$IMAGE_DIR" || \
@@ -84,8 +81,11 @@ make_chroot() {
     for d in proc sys dev dev/pts; do
 	bind_mount "/$d" "$CHROOT/$d"
     done
+    in_chroot mkdir -p "/base_repo"
+    sudo mount --bind "$IMAGE_DIR" "$CHROOT/base_repo"
     # make sure the chroot can resolve hostnames
-    sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"	
+    sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
+    in_chroot /bin/bash -l
 
     # make sure the chroot honors proxies
     if [[ $http_proxy || $https_proxy ]]; then
@@ -98,21 +98,6 @@ make_chroot() {
 	in_chroot mkdir -p "/etc/apt/apt.conf.d/"
 	sudo cp "$f" "$CHROOT/etc/apt/apt.conf.d/00http_proxy"
     fi
-    
-    read_base_repos
-    # Add our basic repositories
-    add_repos "${REPOS[@]}" || \
-	die "Could not add base repositories for $OS_TOKEN chroot!"
-
-    # Add the repos from the barclamps.
-    # We do it here because importing the metadata takes forever
-    # if we refresh on every barclamp.
-    for bc in "${!BC_REPOS[@]}"; do
-	while read repo; do
-	    add_repos "$repo"
-	done < <(write_lines "${BC_REPOS[$bc]}")
-    done
-    chroot_update
 }
 
 pkg_cmp() {
