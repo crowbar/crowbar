@@ -97,9 +97,11 @@ bind_mount() {
     [[ -d $2 ]] || mkdir -p "$2"
     grep -q "$2" /proc/self/mounts || sudo mount --bind "$1" "$2"
 }
- 
+
+# Write a string with \n translated to a real line break. 
 write_lines() { [[ $1 ]] && printf "%b" "$1"; }
 
+# Read base repository information from the *.list files.
 read_base_repos() {
     for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
 	[[ -f $pkgfile ]] || continue
@@ -116,6 +118,7 @@ read_base_repos() {
     done
 }
 
+# Worker function for all_deps
 __all_deps() {
     local dep
     if [[ ${BC_DEPS["$1"]} ]]; then
@@ -128,6 +131,7 @@ __all_deps() {
     return 0
 }
 
+# Given a barclamp, echo all of the dependencies of that barclamp
 all_deps() {
     local deps=() dep
     __all_deps "$1"
@@ -154,6 +158,8 @@ __cmp() {
     fi
 }
 
+# Compare a version string, handling mixed numeric and alpha sequences
+# as appropriate.
 vercmp(){
     # $1 = version string of first package
     # $2 = version string of second package
@@ -184,10 +190,11 @@ index_cd_pool() {
     done < <(find "$(find_cd_pool)" -type f)
 }
 
+# Make a chroot environment for package-fetching purposes. 
 make_chroot() {
     [[ -f $CHROOT/etc/resolv.conf ]] && return 0
     local bc repo
-    echo "Making package-fetching chroot"
+    debug "Making package-fetching chroot"
     mkdir -p "$CHROOT/$CHROOT_PKGDIR"
     mkdir -p "$CHROOT/$CHROOT_GEMDIR"
     __make_chroot
@@ -208,6 +215,7 @@ make_chroot() {
     chroot_update
 }
 
+# Update the package cache for a barclamp.
 update_barclamp_pkg_cache() {
     # $1 = barclamp we are working with
     local bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" pkg dest bc
@@ -233,6 +241,40 @@ update_barclamp_pkg_cache() {
     done < <(find "$CHROOT/$CHROOT_PKGDIR" -type f)
 }
 
+stage_pkgs() {
+    # $1 = cache to copy from.
+    # $2 = location to copy to
+    local pkg pkgname pkg_t
+    while read pkg; do
+	# If it is not a package, skip it.
+	is_pkg "$pkg" || continue
+	pkgname="$(pkg_name "$pkg")"
+	# Check to see if it is in the CD pool.
+	pkg_t="${CD_POOL["$pkgname"]}"
+	# If it is, and the one in the pool is not older than this one,
+	# skip it.
+	[[ $pkg_t && -f $pkg_t ]] && ( ! pkg_cmp "$pkg" "$pkg_t" ) && continue
+	# Now check to see if we have already staged it
+	pkg_t="${STAGED_POOL["$pkgname"]}"
+	if [[ $pkg_t && -f $pkg_t ]]; then
+	    # We have already staged it.  Check to see if ours is newer than
+	    # the one already staged.
+	    if pkg_cmp "$pkg" "$pkg_t"; then
+		# We are newer.  Delete the old one, copy us,
+		# and update $STAGED_POOL
+		rm -f "$pkg_t"
+		cp "$pkg" "$2"
+		STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
+	    fi
+	else
+	    # We have not seen this package before.  Copy it.
+	    cp "$pkg" "$2"
+	    STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
+	fi
+    done < <(find "$1" -type f)
+}
+
+# Update the gem cache for a barclamp
 update_barclamp_gem_cache() {
     local -A gems
     local gemname gemver gemopts bc gem
@@ -282,6 +324,7 @@ update_barclamp_gem_cache() {
     done < <(find "$CHROOT/$CHROOT_GEMDIR" -type f)
 }
 
+# Fetch any raw packages we do not already have.
 update_barclamp_raw_pkg_cache() {
     local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
     # Fetch any raw_pkgs we were asked to.
@@ -292,6 +335,7 @@ update_barclamp_raw_pkg_cache() {
     done
 }
 
+# Fetch any bare files that we do not already have.
 update_barclamp_file_cache() {
     local dest pkg bc_cache="$CACHE_DIR/barclamps/$1/files"
     # Fetch any extra_pkgs we need.
@@ -305,6 +349,7 @@ update_barclamp_file_cache() {
     done < <(write_lines "${BC_EXTRA_FILES[$1]}")
 }
 
+# Check to see if the barclamp package cache needs update.
 barclamp_pkg_cache_needs_update() {
     local pkg pkgname arch 
     local bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
@@ -327,6 +372,7 @@ barclamp_pkg_cache_needs_update() {
     return 1
 }
 
+# Check to see if the barclamp gem cache needs an update.
 barclamp_gem_cache_needs_update() {
     local pkg pkgname bc_cache="$CACHE_DIR/barclamps/$1/gems"
     local -A pkgs
@@ -340,6 +386,7 @@ barclamp_gem_cache_needs_update() {
     return 1
 }
 
+# CHeck to see if we are missing any raw packages.
 barclamp_raw_pkg_cache_needs_update() {
     local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
     mkdir -p "$bc_cache"
@@ -350,6 +397,7 @@ barclamp_raw_pkg_cache_needs_update() {
     return 1
 }
 
+# Check to see if we are missing any raw files.
 barclamp_file_cache_needs_update() {
     local pkg dest bc_cache="$CACHE_DIR/barclamps/$1/files"
     mkdir -p "$bc_cache"
@@ -425,7 +473,7 @@ fi
 # Arrays holding the additional pkgs and gems populate Crowbar with.
 REPOS=()
 
-declare -A CD_POOL DEST_POOL
+declare -A CD_POOL STAGED_POOL
 
 # Some helper functions
 
@@ -451,6 +499,8 @@ branch_exists() { git show-ref --quiet --verify --heads -- "refs/heads/$1"; }
 
 # Run a git command in the crowbar repo.
 in_repo() ( cd "$CROWBAR_DIR"; "$@")
+
+# Get the head revision of a git repository.
 get_rev() (
     cd "$1"
     if [[ -d .git ]]; then
@@ -467,6 +517,7 @@ in_cache() (
     "$@"
 )
 
+# Check to see if something is a barclamp.
 is_barclamp() { [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]]; }
 
 # Get the OS we were asked to stage Crowbar on to.  Assume it is Ubuntu 10.10
@@ -497,20 +548,38 @@ fi
 #              For redhat, it would be somethibng like 5.6
 # OS_TOKEN = Defaults to "$OS-$OS_VERSION"
 # ISO = the name of the install ISO image we are going to stage Crowbar on to.
-#
+# PKG_TYPE = The package type we should look for in crowbar.yml for OS
+#            specific packages.
+# PKG_ALLOWED_ARCHES = The allowed package arches we will look to stage.
+#                      These are usually whatever the OS equivalent of 
+#                      amd64 and all are.
+# CHROOT_GEMDIR = The location that the OS keeps its gem cache in.
+# CHROOT_PKGDIR = The location that the OS keeps its package cache in.
 # Functions that build_crowbar needs to call:
-# maybe_update_cache(): This function should check and see if the OS and Gem
-#   caches in $CACHE_DIR need updating.  If they do, it shoould update them
-#   in a way that is reasonably portable across Linuxes and that leaves the
-#   build host alone -- the state of the hosts packaging system should not 
-#   be touched at all. It does not take any arguments.
-# copy_pkgs(): This function should appropriatly stage any extra packages
-#   that Crowbar will need to install and run. We recommend that this function
-#   take care to only copy the latest version of a package if there are any
-#   duplicates.  It takes 3 arguments -- the location of the package pool on 
-#   the OS install media, the package cache to copy packages from, and the
-#   location to copy extra packages to (which should NOT be the same as the 
-#   package pool on the OS media).
+# find_cd_pool(): This function should echo the current location of the
+#   package pool on $ISO when it is mounted on $IMAGE_DIR.
+# fetch_os_iso(): This function should try to fetch the OS iso from
+#   a well-known location on the Internet, and die if it cannot.
+# chroot_update(): This function should ask the chroot to update its
+#   package metadata.
+# chroot_install(): This function should try to install the packages passed
+#   to it as args.
+# chroot_fetch(): This function should ask to download (but not install)
+#   the packages passed to it as arguments and all their dependencies.
+# add_repos(): This function should try to add repositories passed to it
+#   as args to the chroot environment.
+# is_pkg(): This function should check to see if the string passed to it
+#   is a valid package filename.  The file need not actually exist.
+# pkg_name(): This function should extract the package name and arch as the
+#   package management system will see them from the file passed as an argument,
+#   and echo that information in $name-$arch format.
+# __make_chroot(): This function should handle all of the OS-specific actions
+#   needed to set up the package-fetching chroot environment.
+# pkg_cmp(): This function should check to see that both of the files passed to
+#   it refer to the same package name.  If it does, this function should return
+#   0 if the first package is a higher revision than the second one, and 1 if 
+#   the first package is the same or lower revision.  It should die if the
+#   package names are not the same.
 # final_build_fixups(): This function should take wahtever steps are needed
 #   to make the default OS install process also ensure that the Crowbar bits 
 #   are properly staged and to completly automate the admin node install 
@@ -522,6 +591,7 @@ fi
 {
     # Make sure only one instance of the ISO build runs at a time.
     # Otherwise you can easily end up with a corrupted image.
+    debug "Acquiring the build lock."
     flock 65
     # Figure out what our current branch is, in case we need to merge 
     # other branches in to the iso to create our build.  
@@ -664,6 +734,7 @@ fi
     for bc in $CROWBAR_DIR/barclamps/*; do
 	[[ -d $bc ]] || continue
 	bc=${bc##*/}
+	debug "Reading metadata for $bc barclamp."
 	is_barclamp "$bc" || die "$bc is not a barclamp!"
 	yml_file="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
 	for query in "${!BC_QUERY_STRINGS[@]}"; do
@@ -693,6 +764,7 @@ fi
 	done
     done
 
+    debug "Analyzing barclamp group membership"
     # If any barclamps need group expansion, do it.
     for bc in "${!BC_DEPS[@]}"; do
 	newdeps=''
@@ -774,6 +846,7 @@ fi
 	mkdir -p "$d"
     done
     
+    debug "Checking for Sledgehammer."
     # Make sure Sledgehammer has already been built and pre-staged.
     if ! [[ -f $SLEDGEHAMMER_DIR/bin/sledgehammer-tftpboot.tar.gz || \
 	-f $SLEDGEHAMMER_PXE_DIR/initrd0.img ]]; then
@@ -787,7 +860,8 @@ fi
 
     # Start with a clean slate.
     clean_dirs "$IMAGE_DIR" "$BUILD_DIR"
-
+    
+    debug "Cleaning up any VCS cruft."
     # Clean up any cruft that the editor may have left behind.
     (cd "$CROWBAR_DIR"; $VCS_CLEAN_CMD)
 
@@ -800,10 +874,10 @@ fi
     debug "Mounting $ISO"
     sudo mount -t iso9660 -o loop "$ISO_LIBRARY/$ISO" "$IMAGE_DIR" || \
 	die "Could not mount $ISO"
+    debug "Indexing CD package pool."
     index_cd_pool
     
     # Copy over the Crowbar bits and their prerequisites
-    debug "Staging extra Crowbar bits"
     cp -r "$CROWBAR_DIR/extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/$OS_TOKEN-extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
@@ -821,18 +895,20 @@ fi
 		die "Asked to check $cache cache, but no checker function!"
 	    [[ $(type $updater) = "$updater is a function"* ]] || \
 		die "Might need to update $cache cache, but no updater!"
-  
 	    if $checker "$bc" || [[ $need_update = true ]]; then
 		[[ $cache =~ ^(pkg|gem)$ ]] && make_chroot
-		echo -n "Updating $cache cache for $bc... "
+		debug "Updating $cache cache for $bc"
 		$updater "$bc"
-		echo "Done."
 	    fi
 	done
+	debug "Staging $bc barclamp."
 	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
 	mkdir -p "$BUILD_DIR/extra/pkgs/"
-	cp -r "$CACHE_DIR/$bc/$OS_TOKEN/pkgs" "$BUILD_DIR/extra"
-	cp -r "$CACHE_DIR/$bc/files" "$CACHE_DIR/$bc/gems" "$BUILD_DIR/extra"
+	stage_pkgs "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
+	    "$BUILD_DIR/extra/pkgs"
+	cp -r "$CACHE_DIR/barclamps/$bc/files" \
+	    "$CACHE_DIR/barclamps/$bc/gems" \
+	    "$BUILD_DIR/extra"
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
 

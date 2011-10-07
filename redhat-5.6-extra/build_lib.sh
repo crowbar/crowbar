@@ -35,9 +35,8 @@ OS_BASIC_PACKAGES=(MAKEDEV SysVinit audit-libs basesystem bash beecrypt \
 # we need extglobs, so enable them.
 shopt -s extglob
 
-find_cd_pool() (
-    echo "$IMAGE_DIR/Server"
-)
+# The location of OS packages on $ISO
+find_cd_pool() ( echo "$IMAGE_DIR/Server" )
 
 # There is no public location to fetch the RHEL .iso from.  If you have one,
 # you can change this function.
@@ -45,6 +44,7 @@ fetch_os_iso() {
     die "build_crowbar.sh does not know how to automatically download $ISO"
 }
 
+# Have the chroot update its package metadata
 chroot_update() { in_chroot /usr/bin/yum -y update; }
 
 # Install some packages in the chroot environment.
@@ -71,6 +71,8 @@ EOF
     sudo cp "$repo" "$CHROOT/etc/yum.repos.d/"
 }
 
+# Add repositories to the chroot environment.
+# This also add proxy information if needed.
 add_repos() {
     for repo in "$@"; do
 	rtype="${repo%% *}"
@@ -85,24 +87,23 @@ add_repos() {
 	esac
     done
     [[ $USE_PROXY = "1" ]] || return 0
-    (  cd "$CHROOT"
+    (   cd "$CHROOT"
 	for f in etc/yum.repos.d/*; do
 	    [[ -f "$f" ]] || continue 
 	    in_chroot /bin/grep -q '^proxy=' "/$f" && continue
-	    in_chroot /bin/grep -q '^baseurl=http://.*127\.0\.0\.1.*' "/$f" && continue
-	    in_chroot /bin/bash -c \
-		"echo \"proxy=http://$PROXY_HOST:$PROXY_PORT\" >> \"/$f\""
+	    in_chroot /bin/grep -q '^baseurl=http://.*127\.0\.0\.1.*' "/$f" && \
+		continue
+	    in_chroot sed -i "/^name/ a\proxy=http://$PROXY_HOST:$PROXY_PORT" "$f"
 	    [[ $PROXY_USER ]] && \
-		in_chroot /bin/bash -c \
-		"echo \"proxy_username=$PROXY_USER\" >> \"/$f\""
+		in_chroot sed -i "/^proxy/ a\proxy_username=$PROXY_USER" "$f"
 	    [[ $PROXY_PASSWORD ]] && \
-		in_chroot /bin/bash -c \
-		"echo \"proxy_password=$PROXY_PASSWORD\" >> \"/$f\""
+	        in_chroot sed -i "^/proxy_username/ a\proxy_password=$PROXY_PASSWORD" "$f"
 	    : ;
 	done
     )
 }
 
+# Check to see if something is a valid RPM package name.
 is_pkg() { [[ $1 = *.rpm ]]; }
 
 # This function makes a functional redhat chroot environment.
@@ -175,11 +176,13 @@ rpmver() {
 	--nodigest --nosignature -qp "$1"
 }
 
+# Get a package name in the form of $name-$arch
 pkg_name() {
     local res="$(rpmver "$1")"
     echo "${res% *}"
 }
 
+# Check to see if package $1 is more recent than package $2
 pkg_cmp() {
     # $1 = RPM 1
     # $2 = RPM 2

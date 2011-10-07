@@ -18,6 +18,7 @@ CHROOT_GEMDIR="var/lib/gems/1.8/cache"
 # The name of the OS iso we are using as a base.
 [[ $ISO ]] || ISO="ubuntu-$OS_VERSION-server-amd64.iso"
 
+# The location for OS packages on $ISO
 find_cd_pool() ( echo "$IMAGE_DIR/pool"; )
 
 fetch_os_iso() {
@@ -28,6 +29,7 @@ fetch_os_iso() {
 	die 1 "Missing our source image"
 }
 
+# Have the chroot update its package databases.
 chroot_update() { in_chroot /usr/bin/apt-get -y --force-yes \
     --allow-unauthenticated update; }
 
@@ -39,6 +41,7 @@ chroot_install() { in_chroot /usr/bin/apt-get -y --force-yes \
 chroot_fetch() { in_chroot /usr/bin/apt-get -y --force-yes \
     --allow-unauthenticated --download-only install "$@"; }
 
+# Add repositories to the local chroot environment.
 add_repos() {
     local repo ppas=()
     local f=$(mktemp /tmp/ubuntu_repos.XXXXXX)
@@ -59,8 +62,10 @@ add_repos() {
     done
 }
 
+# Test to see we were passed a valid package file name.
 is_pkg() { [[ $1 = *.deb ]]; }
 
+# Get the package file name in $name-$arch format.
 pkg_name() (
     IFS=' '
     local n="${1##*/}"
@@ -69,6 +74,7 @@ pkg_name() (
     echo "${a[0]}-${a[2]}"
 )    
 
+# OS specific part of making our chroot environment.
 __make_chroot() {
     # debootstrap a minimal install of our target version of
     # Ubuntu to ensure that we don't interfere with the host's package cache.
@@ -85,8 +91,6 @@ __make_chroot() {
     sudo mount --bind "$IMAGE_DIR" "$CHROOT/base_repo"
     # make sure the chroot can resolve hostnames
     sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
-    in_chroot /bin/bash -l
-
     # make sure the chroot honors proxies
     if [[ $http_proxy || $https_proxy ]]; then
 	f=$(mktemp /tmp/apt.http.conf.XXXXXX)
@@ -100,6 +104,7 @@ __make_chroot() {
     fi
 }
 
+# Test to see of package $1 is more recent than package $2
 pkg_cmp() {
     # $1 = Debian package 1
     # $2 = Debian package 2
@@ -109,6 +114,38 @@ pkg_cmp() {
     vercmp "${deb1[1]}" "${deb2[1]}"
 }
 
+final_build_fixups() {
+    # Copy our isolinux and preseed files.
+    mv "$BUILD_DIR/extra/isolinux" "$BUILD_DIR/extra/preseed" "$BUILD_DIR"
+    # Copy our initrd images
+    (cd "$IMAGE_DIR"; find -name initrd.gz |cpio -o) | \
+       (cd "$BUILD_DIR"; cpio -i --make-directories)
+    chmod -R u+w "$BUILD_DIR"
+    # Fix up the initrd
+    (   cd "$CROWBAR_DIR/initrd"
+       debug "Fixing up initrd"
+       [[ -d scratch ]] && rm -rf scratch
+       mkdir scratch
+        # Grab _all_ the nic drivers. We probably don't need them,
+        # but a little paranoia never hurt anyone.
+       (   cd scratch;
+           debug "Adding all nic drivers"
+           for udeb in "$IMAGE_DIR/pool/main/l/linux/"nic-*-generic-*.udeb; do
+               ar x "$udeb"
+               tar xzf data.tar.gz
+               rm -rf debian-binary *.tar.gz
+           done 
+            # Make sure installing off a USB connected DVD will work
+           debug "Adding USB connected DVD support"
+           mkdir -p var/lib/dpkg/info
+           cp ../cdrom-detect.postinst var/lib/dpkg/info
+           # Append our new gzipped CPIO archive onto the old one.
+           find . |cpio --create --format=newc --owner root:root 2>/dev/null | \
+               gzip -9 >> "$BUILD_DIR/install/initrd.gz" )
+       rm -rf scratch )
+}
+
+# Check to make sure all our prerequisites are met.
 for cmd in sudo chroot debootstrap mkisofs; do
     which "$cmd" &>/dev/null || \
 	die 1 "Please install $cmd before trying to build Crowbar."
