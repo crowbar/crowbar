@@ -746,7 +746,7 @@ run_admin_node() {
     # start installing compute nodes.
     update_status admin "Deploying admin node crowbar tasks"
     if ! run_kvm -reboot -timeout 1800 -bootc \
-	-dieif "$FRAMEWORKDIR/test_admin_ready.sh" \
+	-dieif "$FRAMEWORKDIR/test_admin_deploy.sh" \
 	-daemonif "$FRAMEWORKDIR/check_ready admin.pod.cloud.openstack.org" \
 	"$nodename"; then
 	update_status admin "Node failed to deploy."

@@ -14,7 +14,7 @@ PKG_TYPE="debs"
 PKG_ALLOWED_ARCHES=("amd64" "all")
 CHROOT_PKGDIR="var/cache/apt/archives"
 CHROOT_GEMDIR="var/lib/gems/1.8/cache"
-
+declare -A SEEN_DEBS
 # The name of the OS iso we are using as a base.
 [[ $ISO ]] || ISO="ubuntu-$OS_VERSION-server-amd64.iso"
 
@@ -65,14 +65,30 @@ add_repos() {
 # Test to see we were passed a valid package file name.
 is_pkg() { [[ $1 = *.deb ]]; }
 
+# Look up name and version information for a package using 
+# dpkg.  Make sure and memoize things.
+dpkg_info() {
+    # $1 = package to examine
+    local name arch ver f1 f2
+    [[ -f $1 && $1 = *.deb ]] || die "$1 is not a debian package!"
+    if [[ ! ${SEEN_DEBS["${1##*/}"]} ]]; then
+	while read f1 f2; do
+	    case $f1 in
+		Package:) name="$f2";;
+		Version:) ver="$f2";;
+		Architecture:) arch="$f2";;
+	    esac
+	done < <(dpkg -I "$1")
+	SEEN_DEBS["${1##*/}"]="$name-$arch $ver"
+    fi
+    echo "${SEEN_DEBS["${1##*/}"]}"
+}
+
 # Get the package file name in $name-$arch format.
-pkg_name() (
-    IFS=' '
-    local n="${1##*/}"
-    n="${n%.deb}"
-    local a=(${n//_/ })
-    echo "${a[0]}-${a[2]}"
-)    
+pkg_name() {
+    local n="$(dpkg_info "$1")"
+    echo "${n%% *}"
+}
 
 # OS specific part of making our chroot environment.
 __make_chroot() {
@@ -108,10 +124,11 @@ __make_chroot() {
 pkg_cmp() {
     # $1 = Debian package 1
     # $2 = Debian package 2
-    local deb1=(${1//_/ }) deb2=(${2//_/ })
-    [[ ${deb1[0]##*/} = ${deb2[0]##*/} ]] || \
+    local deb1="$(dpkg_info "$1")"
+    local deb2="$(dpkg_info "$2")"
+    [[ ${deb1%% *} = ${deb2%% *} ]] || \
 	die "$1 and $2 do not reference the same package!"
-    vercmp "${deb1[1]}" "${deb2[1]}"
+    vercmp "${deb1#* }" "${deb2#* }"
 }
 
 final_build_fixups() {

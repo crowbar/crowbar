@@ -38,7 +38,9 @@ GEM_RE='([^0-9].*)-([0-9].*)'
     export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 }
 
+readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
+
 
 # Our general cleanup function.  It is called as a trap whenever the 
 # build script exits, and it's job is to make sure we leave the local 
@@ -164,11 +166,18 @@ vercmp(){
     # $1 = version string of first package
     # $2 = version string of second package
     # Returns 0 if $1 > $2, 1 otherwise.
+    # urldecode the version strings.
+    local a="$(printf "%b" "${1//%/\\x}")"
+    local b="$(printf "%b" "${2//%/\\x}")"
+    # prepend a version epoch if one is not already there.
+    [[ $a =~ ^[0-9]+: ]] || a="0:$a"
+    [[ $b =~ ^[0-9]+: ]] || b="0:$b"
     local ver1=()
     local ver2=()
     local i=0
-    IFS='.-_ +' read -rs -a ver1 <<< "$1"
-    IFS='.-_ +' read -rs -a ver2 <<< "$2"
+    # split the version strings into arrays using the usual field splitters
+    IFS=':.-_ +' read -rs -a ver1 <<< "$a"
+    IFS=':.-_ +' read -rs -a ver2 <<< "$b"
     for ((i=0;;i++)); do
 	__cmp "${ver1[$i]}" "${ver2[$i]}"
 	case $? in
@@ -215,12 +224,49 @@ make_chroot() {
     chroot_update
 }
 
+
+stage_pkgs() {
+    # $1 = cache to copy from.
+    # $2 = location to copy to
+    local pkg pkgname pkg_t
+    while read pkg; do
+	# If it is not a package, skip it.
+	is_pkg "$pkg" || continue
+	pkgname="$(pkg_name "$pkg")"
+	# Check to see if it is in the CD pool.
+	pkg_t="${CD_POOL["$pkgname"]}"
+	# If it is, and the one in the pool is not older than this one,
+	# skip it.
+	if [[ $pkg_t && -f $pkg_t ]] && ( ! pkg_cmp "$pkg" "$pkg_t" ); then
+	    #debug "Skipping copy of ${pkg##*/}, it is on the install media"
+	    continue
+	fi
+	# Now check to see if we have already staged it
+	pkg_t="${STAGED_POOL["$pkgname"]}"
+	if [[ $pkg_t && -f $pkg_t ]]; then
+	    # We have already staged it.  Check to see if ours is newer than
+	    # the one already staged.
+	    if pkg_cmp "$pkg" "$pkg_t"; then
+		# We are newer.  Delete the old one, copy us,
+		# and update $STAGED_POOL
+		#debug "Replacing ${pkg_t##*/} with ${pkg##*/}"
+		rm -f "$pkg_t"
+		cp "$pkg" "$2"
+		STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
+	    fi
+	else
+	    # We have not seen this package before.  Copy it.
+	    cp "$pkg" "$2"
+	    STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
+	fi
+    done < <(find "$1" -type f)
+}
+
 # Update the package cache for a barclamp.
 update_barclamp_pkg_cache() {
     # $1 = barclamp we are working with
     local bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" pkg dest bc
     local -A pkgs
-    mkdir -p "$bc_cache"
     ( cd "$CHROOT/$CHROOT_PKGDIR" && sudo rm -rf * )
     for bc in $(all_deps "$1"); do
 	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." ]] || continue
@@ -241,46 +287,12 @@ update_barclamp_pkg_cache() {
     done < <(find "$CHROOT/$CHROOT_PKGDIR" -type f)
 }
 
-stage_pkgs() {
-    # $1 = cache to copy from.
-    # $2 = location to copy to
-    local pkg pkgname pkg_t
-    while read pkg; do
-	# If it is not a package, skip it.
-	is_pkg "$pkg" || continue
-	pkgname="$(pkg_name "$pkg")"
-	# Check to see if it is in the CD pool.
-	pkg_t="${CD_POOL["$pkgname"]}"
-	# If it is, and the one in the pool is not older than this one,
-	# skip it.
-	[[ $pkg_t && -f $pkg_t ]] && ( ! pkg_cmp "$pkg" "$pkg_t" ) && continue
-	# Now check to see if we have already staged it
-	pkg_t="${STAGED_POOL["$pkgname"]}"
-	if [[ $pkg_t && -f $pkg_t ]]; then
-	    # We have already staged it.  Check to see if ours is newer than
-	    # the one already staged.
-	    if pkg_cmp "$pkg" "$pkg_t"; then
-		# We are newer.  Delete the old one, copy us,
-		# and update $STAGED_POOL
-		rm -f "$pkg_t"
-		cp "$pkg" "$2"
-		STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
-	    fi
-	else
-	    # We have not seen this package before.  Copy it.
-	    cp "$pkg" "$2"
-	    STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
-	fi
-    done < <(find "$1" -type f)
-}
-
 # Update the gem cache for a barclamp
 update_barclamp_gem_cache() {
     local -A gems
     local gemname gemver gemopts bc gem
     local bc_cache="$CACHE_DIR/barclamps/$1/gems"
-    mkdir -p "$bc_cache"
-    
+
     # Wipe out the caches.
     ( cd "$CHROOT/$CHROOT_GEMDIR" && sudo rm -rf * )
     # if we have deb or gem caches, copy them back in.
@@ -328,7 +340,6 @@ update_barclamp_gem_cache() {
 update_barclamp_raw_pkg_cache() {
     local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
     # Fetch any raw_pkgs we were asked to.
-    mkdir -p "$bc_cache"
     for pkg in ${BC_RAW_PKGS["$1"]}; do
 	[[ -f $bc_cache/${pkg##*/} ]] && continue
 	curl -s -S -o "$bc_cache/${pkg##*/}" "$pkg"
@@ -351,21 +362,26 @@ update_barclamp_file_cache() {
 
 # Check to see if the barclamp package cache needs update.
 barclamp_pkg_cache_needs_update() {
-    local pkg pkgname arch 
-    local bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    local pkg pkgname arch bc 
     local -A pkgs
 
     # First, check to see if we have all the packages we need.
-    mkdir -p "$bc_cache"
-    while read pkg; do
-	is_pkg "$pkg" || continue
-	pkgname="$(pkg_name "$pkg")"
-	pkgs["$pkgname"]="$pkg"
-    done < <(find "$bc_cache" -type f) 
+    for bc in $(all_deps "$1"); do
+	local bc_cache="$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
+	mkdir -p "$bc_cache"
+	while read pkg; do
+	    is_pkg "$pkg" || continue
+	    pkgname="$(pkg_name "$pkg")"
+	    #debug "$pkgname is cached"
+	    pkgs["$pkgname"]="$pkg"
+	done < <(find "$bc_cache" -type f)
+    done 
     for pkg in ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]}; do
+	[[ $pkg ]] || continue
 	for arch in "${PKG_ALLOWED_ARCHES[@]}"; do
 	    [[ ${pkgs["$pkg-$arch"]} || ${CD_POOL["$pkg-$arch"]} ]] \
 		&& continue 2
+	    #debug "Could not find $pkg-$arch"
 	done
 	return 0
     done
@@ -374,13 +390,16 @@ barclamp_pkg_cache_needs_update() {
 
 # Check to see if the barclamp gem cache needs an update.
 barclamp_gem_cache_needs_update() {
-    local pkg pkgname bc_cache="$CACHE_DIR/barclamps/$1/gems"
+    local pkg pkgname 
     local -A pkgs
-    mkdir -p "$bc_cache"
     # Second, check to see if we have all the gems we need.
     for pkg in ${BC_GEMS["$1"]}; do
-	[[ $(find "$bc_cache" \
-	    -name "$pkg*.gem" -type f) = *.gem ]] && continue
+	for bc in $(all_deps "$1"); do
+	    local bc_cache="$CACHE_DIR/barclamps/$bc/gems"
+	    mkdir -p "$bc_cache"
+	    [[ $(find "$bc_cache" \
+		-name "$pkg*.gem" -type f) = *.gem ]] && continue 2
+	done
 	return 0    
     done 
     return 1
@@ -436,6 +455,8 @@ if [[ $USE_PROXY = "1" && $PROXY_HOST ]]; then
     [[ $http_proxy ]] || http_proxy="$proxy_str/" 
     [[ $https_proxy ]] || https_proxy="$http_proxy"
     export no_proxy http_proxy https_proxy
+else
+    unset no_proxy http_proxy https_proxy
 fi
 
 # Next, some configuration variables that can be used to tune how the 
@@ -682,6 +703,14 @@ fi
 		    BARCLAMPS+=("$1")
 		    shift
 		done;;
+	    --test)
+		NEED_TEST=true
+		test_params=(run-test)
+		shift
+		while [[ $1 && $1 != -* ]]; do
+		    test_params+=("$1")
+		    shift
+		done;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
     done
@@ -888,6 +917,7 @@ fi
     echo "crowbar: $(get_rev "$CROWBAR_DIR")" >>"$BUILD_DIR/build-info"
     for bc in "${BARCLAMPS[@]}"; do
 	is_barclamp "$bc" || die "Cannot find barclamp $bc!"
+	debug "Staging $bc barclamp."
 	for cache in pkg gem raw_pkg file; do
 	    checker="barclamp_${cache}_cache_needs_update"
 	    updater="update_barclamp_${cache}_cache"
@@ -896,12 +926,11 @@ fi
 	    [[ $(type $updater) = "$updater is a function"* ]] || \
 		die "Might need to update $cache cache, but no updater!"
 	    if $checker "$bc" || [[ $need_update = true ]]; then
-		[[ $cache =~ ^(pkg|gem)$ ]] && make_chroot
 		debug "Updating $cache cache for $bc"
+		[[ $cache =~ ^(pkg|gem)$ ]] && make_chroot
 		$updater "$bc"
 	    fi
 	done
-	debug "Staging $bc barclamp."
 	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
 	mkdir -p "$BUILD_DIR/extra/pkgs/"
 	stage_pkgs "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
@@ -1001,6 +1030,19 @@ fi
 	    -no-emul-boot --boot-load-size 4 -boot-info-table \
 	    -o "$ISO_DEST/$BUILT_ISO" "$IMAGE_DIR" "$BUILD_DIR" ) || \
 	    die "There was a problem building our ISO."
- 
+    if [[ $NEED_TEST = true ]]; then
+	[[ -L $HOME/test_framework ]] && rm -f "$HOME/test_framework"
+	[[ -d $HOME/test_framework ]] && rm -rf "$HOME/test_framework"
+	if [[ $CROWBAR_DIR = /* ]]; then
+	    ln -sf "$CROWBAR_DIR/test_framework" "$HOME/test_framework"
+	else
+	    ln -sf "$currdir/$CROWBAR_DIR/test_framework" "$HOME/test_framework"
+	fi
+	(   unset no_proxy http_proxy https_proxy
+	    "$HOME/test_framework/test_crowbar.sh" "${test_params[@]}" \
+		use-iso "$ISO_DEST/$BUILT_ISO" 
+	) || \
+	    die "$(date '+%F %T %z'): Smoketest of $ISO_DEST/$BUILT_ISO failed."
+    fi
     echo "$(date '+%F %T %z'): Finshed. Image at $ISO_DEST/$BUILT_ISO"
 } 65> /tmp/.build_crowbar.lock

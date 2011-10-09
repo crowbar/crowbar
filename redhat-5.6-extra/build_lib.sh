@@ -11,6 +11,7 @@ PKG_TYPE="rpms"
 PKG_ALLOWED_ARCHES=("x86_64" "noarch")
 CHROOT_PKGDIR="var/cache/yum"
 CHROOT_GEMDIR="usr/lib/ruby/gems/1.8/cache"
+declare -A SEEN_RPMS
 
 # If we need to make a chroot to stage packages into, this is the minimal
 # set of packages needed to bootstrap yum.  This package list has only been tested
@@ -171,9 +172,14 @@ __make_chroot() {
 }
 
 # Extract version information from an RPM file
-rpmver() { 
-    rpm --queryformat '%{NAME}-%{ARCH} %{VERSION}-%{RELEASE}' \
-	--nodigest --nosignature -qp "$1"
+rpmver() {
+    [[ -f $1 && $1 = *.rpm ]] || die "$1 is not an rpm!"
+    if [[ ! ${SEEN_RPMS["${1##*/}"]} ]]; then
+	SEEN_RPMS["${1##*/}"]=$(rpm --queryformat \
+            '%{NAME}-%{ARCH} %{VERSION}-%{RELEASE}' \
+	    --nodigest --nosignature -qp "$1")
+    fi
+    echo "${SEEN_RPMS["${1##*/}"]}"
 }
 
 # Get a package name in the form of $name-$arch
