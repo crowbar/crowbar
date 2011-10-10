@@ -452,6 +452,7 @@ wait_for_kvm() {
 	case $1 in
 	    -timeout) local deadline=$(($(date +%s) + $2)) timeout=$2; shift;;
 	    -daemonif) local daemonif=$2; shift;;
+	    -dieif) local dieif=$2; shift;;
 	    *) break;;
 	esac
 	shift
@@ -464,6 +465,12 @@ wait_for_kvm() {
 	# VM, something went horrbly wrong.
 	[[ $(cat cmdline) =~ $vmname ]] || return 1
 	while [[ -f cmdline ]]; do
+	    # If there is a condition on which we should kill the VM
+	    # immediatly, test and see if it is true.
+	    if [[ $dieif ]] && $dieif; then
+		update_status "$vmname" "Ran into instant-kill condition."
+		return 1
+	    fi
 	    # If there is a condition on which we should stop waiting for
 	    # a VM, test to see if it is true.
 	    if [[ $daemonif ]]; then
@@ -555,6 +562,7 @@ run_kvm() {
 	    # -daemonif will have the framework stop actively monitoring the 
 	    # VM once $2 exits with a zero status.
 	    -daemonif) waitargs+=("$1" "$2"); shift;;
+	    -dieif) waitargs+=("$1" "$2"); shift;;
 	    # -reboot allows the VM to reboot instead of halting on reboot.
 	    -reboot) reboot=true;;
 	    *) break;;
@@ -738,6 +746,7 @@ run_admin_node() {
     # start installing compute nodes.
     update_status admin "Deploying admin node crowbar tasks"
     if ! run_kvm -reboot -timeout 1800 -bootc \
+	-dieif "$FRAMEWORKDIR/test_admin_deploy.sh" \
 	-daemonif "$FRAMEWORKDIR/check_ready admin.pod.cloud.openstack.org" \
 	"$nodename"; then
 	update_status admin "Node failed to deploy."
