@@ -13,7 +13,7 @@ authconfig --enableshadow --enablemd5
 selinux --disabled
 timezone --utc Europe/London
 bootloader --location=mbr --driveorder=sda
-zerombr yes
+zerombr
 ignoredisk --drives=sdb,sdc,sdd,sde,sdf,sdg,sdh,sdi,sdj,sdk,sdl,sdm,sdn,sdo,sdp,sdq,sdr,sds,sdt,sdu,sdv,sdw,sdx,sdy,sdz,hdb,hdc,hdd,hde,hdf,hdg,hdh,hdi,hdj,hdk,hdl,hdm,hdn,hdo,hdp,hdq,hdr,hds,hdt,hdu,hdv,hdw,hdx,hdy,hdz
 clearpart --all --drives=sda
 part /boot --fstype ext3 --size=100 --ondisk=sda
