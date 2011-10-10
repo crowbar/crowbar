@@ -175,9 +175,10 @@ __make_chroot() {
 rpmver() {
     [[ -f $1 && $1 = *.rpm ]] || die "$1 is not an rpm!"
     if [[ ! ${SEEN_RPMS["${1##*/}"]} ]]; then
-	SEEN_RPMS["${1##*/}"]=$(rpm --queryformat \
-            '%{NAME}-%{ARCH} %{VERSION}-%{RELEASE}' \
+	local ver=$(rpm --queryformat \
+            '%{NAME}-%{ARCH} %{EPOCH}:%{VERSION}-%{RELEASE}' \
 	    --nodigest --nosignature -qp "$1")
+	SEEN_RPMS["${1##*/}"]="${ver// (none):/ }"
     fi
     echo "${SEEN_RPMS["${1##*/}"]}"
 }
