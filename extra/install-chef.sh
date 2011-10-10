@@ -32,6 +32,7 @@ get_ip_and_mac() {
 }
 
 crowbar_up=
+admin_node_up=
 
 # Run a command and log its output.
 log_to() {
@@ -94,7 +95,7 @@ restart_svc_loop() {
 }
 
 # Include OS specific functionality
-. chef_install_lib.sh
+. chef_install_lib.sh || die "Could not include OS specific functionality"
 
 # Verify that our install bits are intact.
 if [[ ! -f $DVD_PATH/sha1_passed ]]; then
@@ -109,19 +110,18 @@ DOMAINNAME=${FQDN#*.}
     die "Please specify an FQDN for the admin name"
 
 echo "$(date '+%F %T %z'): Setting Hostname..."
-update_hostname
+update_hostname || die "Could not update our hostname"
 
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
 # When it does not, things get hard to debug pretty quick.
-ip link set eth0 up
-ip addr add 192.168.124.10/24 dev eth0
+(ip link set eth0 up; ip addr add 192.168.124.10/24 dev eth0) || :
 
 # once our hostname is correct, bounce rsyslog to let it know.
-log_to svc service rsyslog restart 
+log_to svc service rsyslog restart || :
 
 echo "$(date '+%F %T %z'): Installing Basic Packages"
-install_base_packages
+install_base_packages || die "Base OS package installation failed."
 
 # This is ugly, but there does not seem to be a better way
 # to tell Chef to just look in a specific location for its gems.
@@ -137,7 +137,7 @@ echo "$(date '+%F %T %z'): Arranging for gems to be installed"
 sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
 
 echo "$(date '+%F %T %z'): Installing Chef"
-bring_up_chef
+bring_up_chef || die "Could not start Chef!"
 
 restart_svc_loop chef-solr "Restarting chef-solr - spot one"
 
@@ -159,9 +159,10 @@ cp -f /root/.ssh/authorized_keys \
 # Hack up sshd_config to kill delays
 sed -i -e 's/^\(GSSAPI\)/#\1/' \
     -e 's/#\(UseDNS.*\)yes/\1no/' /etc/ssh/sshd_config
-restart_ssh
+restart_ssh || :
 
-sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
+sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" \
+    /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
 
 # generate the machine install username and password
 CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
@@ -190,7 +191,7 @@ sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
 # Right now, we will only try to deploy the OS that the admin node has
 # installed.  Eventaully this will go away and be replaced by something
 # that is a little mode flexible.
-fix_up_os_deployer
+fix_up_os_deployer || die "Unable to fix up OS deployer"
 
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
@@ -215,8 +216,10 @@ log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
     die "Crowbar configuration has errors.  Please fix and rerun install."
 
 echo "$(date '+%F %T %z'): Update run list..."
-knifeloop node run_list add "$FQDN" role[crowbar]
-knifeloop node run_list add "$FQDN" role[deployer-client]
+for role in crowbar deployer-client; do
+    knifeloop node run_list add "$FQDN" role["$role"] || \
+	die "Could not add $role to Chef. Crowbar bringup will fail."
+done
 
 log_to svc service chef-client stop
 restart_svc_loop chef-solr "Restarting chef-solr - spot three"
@@ -261,8 +264,6 @@ crowbar crowbar proposal commit default || \
 crowbar crowbar show default >/var/log/default.json
 chef_or_die "Chef run after default proposal commit failed!"
 
-
-
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
 # to the next.
@@ -298,6 +299,8 @@ update_admin_node
 # transform our friendlier Crowbar default home page.
 cd $DVD_PATH/extra
 [[ $IP ]] && sed "s@localhost@$IP@g" < index.html.tmpl >/var/www/index.html
+
+echo "Admin node deployed."
 
 # Run tests -- currently the host will run this.
 #/opt/dell/bin/barclamp_test.rb -t || \
