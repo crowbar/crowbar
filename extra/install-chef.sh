@@ -108,6 +108,8 @@ fi
 DOMAINNAME=${FQDN#*.}
 [[ $DOMAINNAME = $FQDN || $DOMAINNAME = ${DOMAINNAME#*.} ]] && \
     die "Please specify an FQDN for the admin name"
+[[ $DOMAINNAME =~ "^[0-9a-zA-Z.\-]+$" ]] || \
+    die "Please specify an FQDN for the admin name with valid characters"
 
 echo "$(date '+%F %T %z'): Setting Hostname..."
 update_hostname || die "Could not update our hostname"
@@ -115,7 +117,7 @@ update_hostname || die "Could not update our hostname"
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
 # When it does not, things get hard to debug pretty quick.
-(ip link set eth0 up; ip addr add 192.168.124.10/24 dev eth0) || :
+(ip link set eth0 up 2>/dev/null >/dev/null ; ip addr add 192.168.124.10/24 dev eth0 2>/dev/null >/dev/null ) || :
 
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart || :
