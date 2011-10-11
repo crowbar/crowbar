@@ -773,6 +773,7 @@ fi
 	debug "Reading metadata for $bc barclamp."
 	is_barclamp "$bc" || die "$bc is not a barclamp!"
 	yml_file="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
+	[[ $bc = crowbar ]] || BC_DEPS["$bc"]+="crowbar "
 	for query in "${!BC_QUERY_STRINGS[@]}"; do
 	    while read line; do
 		[[ $line = nil ]] && continue
