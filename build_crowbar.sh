@@ -191,6 +191,7 @@ vercmp(){
 # Index the pool of packages in the CD.
 index_cd_pool() {
     # Scan through our pool to find pkgs we can easily omit.
+
     local pkgname='' pkg=''
     while read pkg; do
 	[[ -f $pkg ]] && is_pkg "$pkg" || continue
@@ -239,6 +240,8 @@ stage_pkgs() {
 	# skip it.
 	if [[ $pkg_t && -f $pkg_t ]] && ( ! pkg_cmp "$pkg" "$pkg_t" ); then
 	    #debug "Skipping copy of ${pkg##*/}, it is on the install media"
+	    # if we are shrinking our ISO, make sure this one is in.
+	    [[ $SHRINK_ISO = true ]] && INSTALLED_PKGS["$pkgname"]="true"
 	    continue
 	fi
 	# Now check to see if we have already staged it
@@ -550,6 +553,38 @@ in_cache() (
 # Check to see if something is a barclamp.
 is_barclamp() { [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]]; }
 
+# Build our ISO image.
+build_iso() (   
+    cd "$BUILD_DIR"
+    rm -f isolinux/boot.cat
+    find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
+    find . -type f -not -name isolinux.bin -not -name sha1sums -not -path '*/.git/*' | \
+	xargs sha1sum -b >sha1sums
+    mkdir -p "$ISO_DEST"
+	# Save the sha1sums and the build-info files along side the iso.
+    cp sha1sums build-info "$ISO_DEST"
+    mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
+	-b isolinux/isolinux.bin -c isolinux/boot.cat \
+	-no-emul-boot --boot-load-size 4 -boot-info-table \
+	-o "$ISO_DEST/$BUILT_ISO" "$IMAGE_DIR" "$BUILD_DIR" 
+)
+
+# Have the smoketest framework do its thing with the ISO we just made.
+test_iso() {
+    [[ -L $HOME/test_framework ]] && rm -f "$HOME/test_framework"
+    [[ -d $HOME/test_framework ]] && rm -rf "$HOME/test_framework"
+    if [[ $CROWBAR_DIR = /* ]]; then
+	ln -sf "$CROWBAR_DIR/test_framework" "$HOME/test_framework"
+    else
+	ln -sf "$currdir/$CROWBAR_DIR/test_framework" "$HOME/test_framework"
+    fi
+    (   unset no_proxy http_proxy https_proxy
+	"$HOME/test_framework/test_crowbar.sh" "$@" \
+	    use-iso "$ISO_DEST/$BUILT_ISO" 
+    ) || \
+	die "$(date '+%F %T %z'): Smoketest of $ISO_DEST/$BUILT_ISO failed."
+}
+
 # Get the OS we were asked to stage Crowbar on to.  Assume it is Ubuntu 10.10
 # unless we specify otherwise.
 OS_TO_STAGE="${1-ubuntu-10.10}"
@@ -720,6 +755,17 @@ fi
 		    test_params+=("$1")
 		    shift
 		done;;
+	    --shrink)
+		type shrink_iso >&/dev/null || \
+		    die "The build system does not know how to shrink $OS_TO_STAGE"
+		SHRINK_ISO=true
+		declare -A INSTALLED_PKGS
+		shift;;
+	    --generate-minimal-install)
+		type generate_minimal_install &>/dev/null || \
+		    die "The build system does not know how to generate a minimal install list for $OS_TO_STAGE!"
+		GENERATE_MINIMAL_INSTALL=true
+		shift;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
     done
@@ -986,7 +1032,7 @@ fi
     debug "Creating new ISO"
     # Find files and directories that mkisofs will complain about.
     # Do just top-level overlapping directories for now.
-    for d in $(cat <(cd "$BUILD_DIR"; find -maxdepth 1 -type d ) \
+    for d in $(cat <(cd "$BUILD_DIR"; find -maxdepth 1 -type d) \
 	           <(cd "$IMAGE_DIR"; find -maxdepth 1 -type d) | \
 	           sort |uniq -d); do
 	[[ $d = . ]] && continue
@@ -1007,7 +1053,9 @@ fi
 	"$IMAGE_DIR/isolinux/." "$BUILD_DIR/isolinux/."
     chmod -R u+wr "$BUILD_DIR/isolinux"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/isolinux"
-    
+
+    [[ $SHRINK_ISO && ! $GENERATE_MINIMAL_ISO ]] && shrink_iso
+
     # Make a file list and a link list.
     ( cd $BUILD_DIR
       find . -type f | \
@@ -1026,33 +1074,23 @@ fi
 	  sort >> $BUILD_DIR/crowbar_links.list
     )
 
-    # Make an ISO
-    (   cd "$BUILD_DIR"
-	rm -f isolinux/boot.cat
-	find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
-	find . -type f -not -name isolinux.bin -not -name sha1sums -not -path '*/.git/*' | \
-	    xargs sha1sum -b >sha1sums
-	mkdir -p "$ISO_DEST"
-	# Save the sha1sums and the build-info files along side the iso.
-	cp sha1sums build-info "$ISO_DEST"
-	mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
-	    -b isolinux/isolinux.bin -c isolinux/boot.cat \
-	    -no-emul-boot --boot-load-size 4 -boot-info-table \
-	    -o "$ISO_DEST/$BUILT_ISO" "$IMAGE_DIR" "$BUILD_DIR" ) || \
-	    die "There was a problem building our ISO."
-    if [[ $NEED_TEST = true ]]; then
-	[[ -L $HOME/test_framework ]] && rm -f "$HOME/test_framework"
-	[[ -d $HOME/test_framework ]] && rm -rf "$HOME/test_framework"
-	if [[ $CROWBAR_DIR = /* ]]; then
-	    ln -sf "$CROWBAR_DIR/test_framework" "$HOME/test_framework"
-	else
-	    ln -sf "$currdir/$CROWBAR_DIR/test_framework" "$HOME/test_framework"
+    # Make an ISO 
+    build_iso || die "There was a problem building our ISO."
+    if [[ $GENERATE_MINIMAL_INSTALL = true ]]; then
+	if [[ ! -f "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install" ]]; then
+	    if [[ ! -f "$HOME/admin-installed.list" ]]; then
+		test_params=(run-test scratch admin-only) 
+		    test_iso run-test scratch admin-only
+	    fi
+	    [[ ! -f "$HOME/crowbar-installed.$OS_TOKEN.list" ]] || \
+		die "Asked to shrink build for $OS_TOKEN, but package list missing!"
+	    mv "$HOME/admin-installed.list" \
+		"$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install"
 	fi
-	(   unset no_proxy http_proxy https_proxy
-	    "$HOME/test_framework/test_crowbar.sh" "${test_params[@]}" \
-		use-iso "$ISO_DEST/$BUILT_ISO" 
-	) || \
-	    die "$(date '+%F %T %z'): Smoketest of $ISO_DEST/$BUILT_ISO failed."
+	
+	build_iso
     fi
+    if [[ $NEED_TEST = true ]]; then test_iso "${test_params[@]}"; fi
+ 
     echo "$(date '+%F %T %z'): Finshed. Image at $ISO_DEST/$BUILT_ISO"
 } 65> /tmp/.build_crowbar.lock
