@@ -108,7 +108,7 @@ fi
 DOMAINNAME=${FQDN#*.}
 [[ $DOMAINNAME = $FQDN || $DOMAINNAME = ${DOMAINNAME#*.} ]] && \
     die "Please specify an FQDN for the admin name"
-[[ $DOMAINNAME =~ "^[0-9a-zA-Z.\-]+$" ]] || \
+[[ $FQDN =~ "^[0-9a-zA-Z.\-]+$" ]] || \
     die "Please specify an FQDN for the admin name with valid characters"
 
 echo "$(date '+%F %T %z'): Setting Hostname..."
