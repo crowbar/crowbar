@@ -49,10 +49,18 @@ fetch_os_iso() {
 chroot_update() { in_chroot /usr/bin/yum -y update; }
 
 # Install some packages in the chroot environment.
-chroot_install() { in_chroot /usr/bin/yum -y install "$@"; }
+chroot_install() { 
+    if [[ $1 ]]; then
+	in_chroot /usr/bin/yum -y install "$@"
+    fi
+}
 
 # Fetch (but do not install) packages into the chroot environment
-chroot_fetch() { in_chroot /usr/bin/yum -y --downloadonly install "$@" || : ; }
+chroot_fetch() { 
+    if [[ $1 ]]; then
+	in_chroot /usr/bin/yum -y --downloadonly install "$@" || :
+    fi
+}
 
 # Make a repository file in the chroot environment.  We use this when we get a URL
 # from one of the packages files (as opposed to an RPM that contains repo info.
