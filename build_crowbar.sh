@@ -349,7 +349,8 @@ update_barclamp_raw_pkg_cache() {
     # Fetch any raw_pkgs we were asked to.
     for pkg in ${BC_RAW_PKGS["$1"]}; do
 	[[ -f $bc_cache/${pkg##*/} ]] && continue
-	curl -o "$bc_cache/${pkg##*/}" "$pkg"
+	echo "Caching $pkg:"
+	curl -L -o "$bc_cache/${pkg##*/}" "$pkg"
     done
 }
 
@@ -363,7 +364,8 @@ update_barclamp_file_cache() {
 	pkg=${pkg%% *}
 	[[ -f $bc_cache/files/$dest/${pkg##*/} ]] && continue
 	mkdir -p "$bc_cache/$dest"
-	curl -o "$bc_cache/$dest/${pkg##*/}" "$pkg"
+	echo "Caching $pkg:"
+	curl -L -o "$bc_cache/$dest/${pkg##*/}" "$pkg"
     done < <(write_lines "${BC_EXTRA_FILES[$1]}")
 }
 
