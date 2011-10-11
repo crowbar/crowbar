@@ -34,12 +34,20 @@ chroot_update() { in_chroot /usr/bin/apt-get -y --force-yes \
     --allow-unauthenticated update; }
 
 # Install some packages in the chroot environment.
-chroot_install() { in_chroot /usr/bin/apt-get -y --force-yes \
-    --allow-unauthenticated install "$@"; }
+chroot_install() { 
+    if [[ $1 ]]; then
+	in_chroot /usr/bin/apt-get -y --force-yes \
+	    --allow-unauthenticated install "$@"
+    fi
+}
 
 # Fetch (but do not install) packages into the chroot environment
-chroot_fetch() { in_chroot /usr/bin/apt-get -y --force-yes \
-    --allow-unauthenticated --download-only install "$@"; }
+chroot_fetch() {
+    if [[ $1 ]]; then
+	in_chroot /usr/bin/apt-get -y --force-yes \
+	    --allow-unauthenticated --download-only install "$@"
+    fi
+}
 
 # Add repositories to the local chroot environment.
 add_repos() {

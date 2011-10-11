@@ -267,7 +267,10 @@ update_barclamp_pkg_cache() {
     # $1 = barclamp we are working with
     local bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" pkg dest bc
     local -A pkgs
-    ( cd "$CHROOT/$CHROOT_PKGDIR" && sudo rm -rf * )
+    # Wipe out the packages already in the chroot package directory.
+    while read pkg; do
+	is_pkg "$pkg" && sudo rm -f "$pkg"
+    done < <(find "$CHROOT/$CHROOT_PKGDIR" -type f)
     for bc in $(all_deps "$1"); do
 	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." ]] || continue
 	sudo cp -a "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." \
@@ -277,14 +280,18 @@ update_barclamp_pkg_cache() {
     while read pkg; do
 	is_pkg "$pkg" || continue
 	pkgs["$pkg"]="true"
-    done < <(find "$CHROOT/$CHROOT_PKGDIR" -type f)
+    done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
     chroot_fetch ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]} || \
 	die "Could not fetch packages required by barclamp $1"
     while read pkg; do
-	is_pkg "$pkg" || continue
+	is_pkg "$CHROOT/$CHROOT_PKGDIR/$pkg" || continue
 	[[ ${pkgs["$pkg"]} = true ]] && continue
-	cp "$pkg" "$bc_cache"
-    done < <(find "$CHROOT/$CHROOT_PKGDIR" -type f)
+	if [[ ${pkg%/*} != '.' ]]; then
+	    [[ -d $bc_cache/${pkg%/*} ]] || mkdir -p "$bc_cache/${pkg%/*}"
+	    [[ -f $bc_cache/${pkg##*/} ]] && rm -f "$bc_cache/${pkg##*/}"
+	fi 
+	cp "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
+    done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
 }
 
 # Update the gem cache for a barclamp
@@ -342,7 +349,7 @@ update_barclamp_raw_pkg_cache() {
     # Fetch any raw_pkgs we were asked to.
     for pkg in ${BC_RAW_PKGS["$1"]}; do
 	[[ -f $bc_cache/${pkg##*/} ]] && continue
-	curl -s -S -o "$bc_cache/${pkg##*/}" "$pkg"
+	curl -o "$bc_cache/${pkg##*/}" "$pkg"
     done
 }
 
@@ -356,7 +363,7 @@ update_barclamp_file_cache() {
 	pkg=${pkg%% *}
 	[[ -f $bc_cache/files/$dest/${pkg##*/} ]] && continue
 	mkdir -p "$bc_cache/$dest"
-	curl -s -S -o "$bc_cache/$dest/${pkg##*/}" "$pkg"
+	curl -o "$bc_cache/$dest/${pkg##*/}" "$pkg"
     done < <(write_lines "${BC_EXTRA_FILES[$1]}")
 }
 
