@@ -349,7 +349,8 @@ update_barclamp_raw_pkg_cache() {
     # Fetch any raw_pkgs we were asked to.
     for pkg in ${BC_RAW_PKGS["$1"]}; do
 	[[ -f $bc_cache/${pkg##*/} ]] && continue
-	curl -o "$bc_cache/${pkg##*/}" "$pkg"
+	echo "Caching $pkg:"
+	curl -L -o "$bc_cache/${pkg##*/}" "$pkg"
     done
 }
 
@@ -363,7 +364,8 @@ update_barclamp_file_cache() {
 	pkg=${pkg%% *}
 	[[ -f $bc_cache/files/$dest/${pkg##*/} ]] && continue
 	mkdir -p "$bc_cache/$dest"
-	curl -o "$bc_cache/$dest/${pkg##*/}" "$pkg"
+	echo "Caching $pkg:"
+	curl -L -o "$bc_cache/$dest/${pkg##*/}" "$pkg"
     done < <(write_lines "${BC_EXTRA_FILES[$1]}")
 }
 
@@ -773,6 +775,7 @@ fi
 	debug "Reading metadata for $bc barclamp."
 	is_barclamp "$bc" || die "$bc is not a barclamp!"
 	yml_file="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
+	[[ $bc = crowbar ]] || BC_DEPS["$bc"]+="crowbar "
 	for query in "${!BC_QUERY_STRINGS[@]}"; do
 	    while read line; do
 		[[ $line = nil ]] && continue

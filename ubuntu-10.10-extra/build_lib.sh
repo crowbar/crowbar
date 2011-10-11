@@ -86,6 +86,7 @@ dpkg_info() {
 		Version:) ver="$f2";;
 		Architecture:) arch="$f2";;
 	    esac
+	    [[ $name && $ver && $arch ]] && break || :
 	done < <(dpkg -I "$1")
 	SEEN_DEBS["${1##*/}"]="$name-$arch $ver"
     fi
