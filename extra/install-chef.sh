@@ -22,15 +22,6 @@ export DEBUG=true
 [[ $HOME ]] || export HOME="/root"
 die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
 
-# mac address and IP address matching routines
-mac_match_re='link/ether ([0-9a-fA-F:]+)'
-ip_match_re='inet ([0-9.]+)'
-get_ip_and_mac() {
-    local ip_line=$(ip addr show $1)
-    [[ $ip_line =~ $mac_match_re ]] && MAC=${BASH_REMATCH[1]} || unset MAC
-    [[ $ip_line =~ $ip_match_re ]] && IP=${BASH_REMATCH[1]} || unset IP
-}
-
 crowbar_up=
 admin_node_up=
 
@@ -108,6 +99,8 @@ fi
 DOMAINNAME=${FQDN#*.}
 [[ $DOMAINNAME = $FQDN || $DOMAINNAME = ${DOMAINNAME#*.} ]] && \
     die "Please specify an FQDN for the admin name"
+[[ $FQDN =~ "^[0-9a-zA-Z.\-]+$" ]] || \
+    die "Please specify an FQDN for the admin name with valid characters"
 
 echo "$(date '+%F %T %z'): Setting Hostname..."
 update_hostname || die "Could not update our hostname"
@@ -115,7 +108,7 @@ update_hostname || die "Could not update our hostname"
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
 # When it does not, things get hard to debug pretty quick.
-(ip link set eth0 up; ip addr add 192.168.124.10/24 dev eth0) || :
+(ip link set eth0 up 2>/dev/null >/dev/null ; ip addr add 192.168.124.10/24 dev eth0 2>/dev/null >/dev/null ) || :
 
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart || :
@@ -282,9 +275,9 @@ done
 rm /tmp/deploying
 
 # Spit out a warning message if we managed to not get an IP address
-# on eth0
-get_ip_and_mac eth0
-[[ $IP && $MAC ]] || {
+IPSTR=$(crowbar network show default | parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
+IP=${IPSTR##*=}
+ip addr | grep -q $IP || {
     echo "$(date '+%F %T %z'): eth0 not configured, but should have been."
     echo "Things will probably end badly."
     echo "Going ahead and configuring eth0 with 192.168.124.10."

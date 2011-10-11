@@ -30,7 +30,7 @@ require 'getoptlong'
 
 
 def usage (rc)
-  puts "Usage: parse_node_data [options] <filename>"
+  puts "Usage: parse_node_data [options] [filename]"
   @options.each do |options|
     puts "  #{options[1]}"
   end
@@ -60,7 +60,7 @@ def opt_parse()
     end
   end
 
-  if ARGV.length != 1
+  if ARGV.length > 1
     usage -1
   end
 end
@@ -68,7 +68,12 @@ end
 def main()
   opt_parse
   
-  hash = JSON.parse(File.open(ARGV[0]).read)
+  if (ARGV.length == 1)
+    file = File.open(ARGV[0])
+  else
+    file = STDIN
+  end
+  hash = JSON.parse(file.read)
 
   @attributes.each do |attr|
     data = hash

@@ -224,6 +224,27 @@ final_build_fixups() {
 	cat "initrd.img.append" >> "../images/pxeboot/initrd.img")
 }
 
+# Throw away packages we will not need on the 
+shrink_iso() {
+    # Do nothing if we do not have a minimal-install set for this OS.
+    [[ -f $CROWBAR_DIR/$OS_TOKEN-extra/minimal-install ]] || \
+	return 0
+    local pkgname pkgver
+    while read pkgname pkgver; do
+	INSTALLED_PKGS["$pkgname"]="$pkgver"
+    done < "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install"
+    mkdir -p "$BUILD_DIR/Server"
+    cp -a "$IMAGE_DIR/Server/repodata" "$BUILD_DIR/Server"
+    for pkgname in "${!CD_POOL[@]}"; do
+	[[ ${INSTALLED_PKGS["$pkgname"]} ]] || continue
+	[[ -f ${CD_POOL["$pkgname"]} ]] || \
+	    die "Cannot stage $pkgname from the CD!"
+	cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/Server"
+    done
+    sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/Server"
+}
+
+
 # Check to make sure our required commands are installed.
 for cmd in sudo chroot createrepo mkisofs rpm; do
     which "$cmd" &>/dev/null || \
