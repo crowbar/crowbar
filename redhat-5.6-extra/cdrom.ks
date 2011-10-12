@@ -157,7 +157,11 @@ barclamp_scripts=(barclamp_install.rb)
     chmod +x /opt/dell/bin/*
 
 # This directory is the model to help users create new barclamps
-cp -r barclamp_model /opt/dell
+    cp -r barclamp_model /opt/dell
+
+# "Blacklisting IPv6".
+    echo "blacklist ipv6" >>/etc/modprobe.d/blacklist-ipv6.conf
+    echo "options ipv6 disable=1" >>/etc/modprobe.d/blacklist-ipv6.conf
     
 # Make sure the ownerships are correct
     chown -R crowbar.admin /opt/dell
