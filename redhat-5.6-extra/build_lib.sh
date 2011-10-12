@@ -176,7 +176,7 @@ __make_chroot() {
     in_chroot /bin/bash -c "echo 'exclude = *.i386' >>/etc/yum.conf"
 
     # have yum bootstrap everything else into usefulness
-    chroot_install yum yum-downloadonly
+    chroot_install yum yum-downloadonly createrepo
 }
 
 # Extract version information from an RPM file
@@ -241,9 +241,11 @@ shrink_iso() {
 	    die "Cannot stage $pkgname from the CD!"
 	cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/Server"
     done
+    make_chroot
+    sudo mount --bind "$BUILD_DIR/Server" "$CHROOT/mnt"
+    in_chroot /bin/bash -c 'cd /mnt; createrepo -g repodata/comps-rhel5-server-core.xml .'
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/Server"
 }
-
 
 # Check to make sure our required commands are installed.
 for cmd in sudo chroot createrepo mkisofs rpm; do

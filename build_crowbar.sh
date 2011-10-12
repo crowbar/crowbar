@@ -391,8 +391,11 @@ barclamp_pkg_cache_needs_update() {
     for pkg in ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]}; do
 	[[ $pkg ]] || continue
 	for arch in "${PKG_ALLOWED_ARCHES[@]}"; do
-	    [[ ${pkgs["$pkg-$arch"]} || ${CD_POOL["$pkg-$arch"]} ]] \
-		&& continue 2
+	    [[ ${pkgs["$pkg-$arch"]} ]] && continue 2
+	    if [[ ${CD_POOL["$pkg-$arch"]} ]]; then
+		INSTALLED_PKGS["$pkg-$arch"]="true"
+		continue 2
+	    fi
 	    #debug "Could not find $pkg-$arch"
 	done
 	return 0
@@ -788,10 +791,10 @@ fi
     
     # The directory we will stage the build into.
     [[ $BUILD_DIR ]] || \
-	BUILD_DIR="$(mktemp -d "$CACHE_DIR/$OS_TOKEN/build-XXXXX")"
+	BUILD_DIR="$CACHE_DIR/$OS_TOKEN/build"
     # The directory that we will mount the OS .ISO on .
     [[ $IMAGE_DIR ]] || \
-	IMAGE_DIR="$CACHE_DIR/$OS_TOKEN/image-${BUILD_DIR##*-}"
+	IMAGE_DIR="$CACHE_DIR/$OS_TOKEN/image"
 
     # Directory where we will look for our package lists
     [[ $PACKAGE_LISTS ]] || PACKAGE_LISTS="$BUILD_DIR/extra/packages"
@@ -1055,7 +1058,6 @@ fi
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/isolinux"
 
     [[ $SHRINK_ISO && ! $GENERATE_MINIMAL_ISO ]] && shrink_iso
-
     # Make a file list and a link list.
     ( cd $BUILD_DIR
       find . -type f | \
