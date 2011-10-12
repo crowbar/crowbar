@@ -996,11 +996,13 @@ deploy_nodes() {
 # so naming them with numeric prefixes indicating the order 
 # they should run in is a Good Idea.
 run_hooks() {
-    # $1 = hooks to run.  Maps to $FRAMEWORKDIR/$1_hooks/.
+    # $1 = hooks to run.  Maps to $CROWBAR_DIR/barclamps/$1/smoketest.
     # $2 = time to allow the tests to run for.
     local deadline=$(($(date '+%s') + ${2:-300}))
+    local __d="$CROWBAR_DIR/barclamps/$1/smoketest"
+    [[ -d $__d ]] || return 1
     (   sleep 1
-	for hook in "$FRAMEWORKDIR/$1"/*.hook; do
+	for hook in "$__d"/*.test; do
 	    if [[ -x $hook ]]; then 
 		if "$hook"; then
 		    continue
@@ -1045,7 +1047,7 @@ run_test() {
     while read line; do
 	[[ $line =~ $screen_re ]] && screen -S "${BASH_REMATCH[1]}" -X quit || :
     done < <(screen -ls)
-    local tests_to_run=() test_results=()
+    local tests_to_run=("crowbar") test_results=()
     # Process our commandline arguments.
     while [[ $1 ]]; do
 	case $1 in
@@ -1054,13 +1056,16 @@ run_test() {
 	    admin-only) admin_only=true;;
 	    develop-mode) develop_mode=true;;
 	    manual-deploy) manual_deploy=true;;
-	    scratch) tests_to_run+=("$1") ;;
+	    scratch);;
 	    use-iso) shift;
 		[[ -f $1 ]] || die "Cannot find requested ISO $1"
 		ISO="$1";;
-	    *) [[ -d $FRAMEWORKDIR/${1}_test ]] || \
-		die 1 "Unknown test or option $1"
-		tests_to_run+=("$1");;
+	    *) # Try a few common locations first
+		if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]; then
+		    tests_to_run+=("$1")
+		else
+		    die 1 "Unknown test or option $1"
+		fi;;
 	esac
 	shift
     done
@@ -1078,9 +1083,6 @@ run_test() {
     # Make sure we clean up after ourselves no matter how we exit.
     trap cleanup 0 INT TERM QUIT
     cd "$HOME/testing"
-    # If no test was passed, run the fake test
-    [[ $tests_to_run ]] || tests_to_run+=("scratch")
-    
     # make a screen session so that we can watch what we are doing if needed.
     screen -d -m -S "$SCREENNAME" -t 'Initial Shell' /bin/bash
     # give a hard status line
@@ -1107,7 +1109,7 @@ run_test() {
 		continue
 	    fi
             echo "$(date '+%F %T %z'): $running_test deploy passed."
-	    if ! run_hooks ${running_test}_test 900; then
+	    if ! run_hooks "${running_test}" 900; then
 		echo "$(date '+%F %T %z'): $running_test tests failed."
 		test_results+=("$running_test: Failed")
 		get_cluster_logs "$running_test-tests-failed"
