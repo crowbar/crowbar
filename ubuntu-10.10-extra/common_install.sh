@@ -115,8 +115,16 @@ for s in $(cat /proc/cmdline); do
     esac
 done
 
-if [[ $CHOSTNAME ]]; then
+if ! grep -q '192\.168\.124\.10' /etc/network/interfaces; then
+    cat >> /etc/network/interfaces <<EOF
+auto eth0
+iface eth0 inet static
+    address 192.168.124.10
+    netmask 255.255.255.0
+EOF
+fi
 
+if [[ $CHOSTNAME ]]; then
     cat > /install_system.sh <<EOF
 #!/bin/bash
 set -e

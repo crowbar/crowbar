@@ -95,11 +95,12 @@ if [[ ! -f $DVD_PATH/sha1_passed ]]; then
     >$DVD_PATH/sha1_passed
 fi
 
+fqdn_re='^[0-9a-zA-Z.-]+$'
 # Make sure there is something of a domain name
 DOMAINNAME=${FQDN#*.}
 [[ $DOMAINNAME = $FQDN || $DOMAINNAME = ${DOMAINNAME#*.} ]] && \
     die "Please specify an FQDN for the admin name"
-[[ $FQDN =~ "^[0-9a-zA-Z.\-]+$" ]] || \
+[[ $FQDN =~ $fqdn_re ]] || \
     die "Please specify an FQDN for the admin name with valid characters"
 
 echo "$(date '+%F %T %z'): Setting Hostname..."
@@ -108,7 +109,7 @@ update_hostname || die "Could not update our hostname"
 # Set up our eth0 IP address way in advance.
 # Deploying Crowbar should also do this for us, but sometimes it does not.
 # When it does not, things get hard to debug pretty quick.
-(ip link set eth0 up 2>/dev/null >/dev/null ; ip addr add 192.168.124.10/24 dev eth0 2>/dev/null >/dev/null ) || :
+(ip link set eth0 up; ip addr add 192.168.124.10/24 dev eth0 ) &>/dev/null || :
 
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart || :
@@ -189,6 +190,7 @@ fix_up_os_deployer || die "Unable to fix up OS deployer"
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
 # Always run crowbar barclamp first
+echo "$(date '+%F %T %z'): Installing Crowbar barclamp..."
 log_to bcinstall /opt/dell/bin/barclamp_install.rb \
     "/opt/dell/barclamps/crowbar" || \
     die "Could not install crowbar barclamp."
@@ -197,6 +199,7 @@ log_to bcinstall /opt/dell/bin/barclamp_install.rb \
 cd /opt/dell/barclamps
 for i in *; do
     [[ -f $i/crowbar.yml && $i != crowbar ]] || continue
+    echo "$(date '+%F %T %z'): Installing $i barclamp..."
     log_to bcinstall /opt/dell/bin/barclamp_install.rb \
 	"/opt/dell/barclamps/$i" || \
 	die "Could not install $i barclamp."
