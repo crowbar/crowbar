@@ -161,7 +161,11 @@ for i in *; do
   fi
 done
 cd ..
- 
+
+# "Blacklisting IPv6".
+    echo "blacklist ipv6" >>/etc/modprobe.d/blacklist-ipv6.conf
+    echo "options ipv6 disable=1" >>/etc/modprobe.d/blacklist-ipv6.conf
+
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
 chmod +x  ${BASEDIR}/extra/*
