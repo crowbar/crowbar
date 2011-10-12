@@ -138,17 +138,6 @@ restart_svc_loop chef-solr "Restarting chef-solr - spot one"
 chef_or_die "Initial chef run failed"
 
 echo "$(date '+%F %T %z'): Building Keys..."
-# Generate root's SSH pubkey
-if [ ! -e /root/.ssh/id_rsa ] ; then
-  log_to keys ssh-keygen -t rsa -f /root/.ssh/id_rsa -N ""
-fi
-
-# add our own key to authorized_keys
-cat /root/.ssh/id_rsa.pub >>/root/.ssh/authorized_keys
-
-# and trick Chef into pushing it out to everyone.
-cp -f /root/.ssh/authorized_keys \
-    /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/files/default/authorized_keys
 
 # Hack up sshd_config to kill delays
 sed -i -e 's/^\(GSSAPI\)/#\1/' \
