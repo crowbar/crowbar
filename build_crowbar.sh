@@ -31,6 +31,10 @@
 # this build script can be smarter about what packages it should pull in
 # whenever you invoke it to build an iso.
 
+# We always use the C language and locale
+export LANG="C"
+export LC_ALL="C"
+
 
 GEM_RE='([^0-9].*)-([0-9].*)'
 [[ $DEBUG ]] && {
