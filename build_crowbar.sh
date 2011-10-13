@@ -509,7 +509,7 @@ fi
 # Arrays holding the additional pkgs and gems populate Crowbar with.
 REPOS=()
 
-declare -A CD_POOL STAGED_POOL
+declare -A CD_POOL STAGED_POOL INSTALLED_PKGS
 
 # Some helper functions
 
@@ -762,7 +762,6 @@ fi
 		type shrink_iso >&/dev/null || \
 		    die "The build system does not know how to shrink $OS_TO_STAGE"
 		SHRINK_ISO=true
-		declare -A INSTALLED_PKGS
 		shift;;
 	    --generate-minimal-install)
 		type generate_minimal_install &>/dev/null || \
