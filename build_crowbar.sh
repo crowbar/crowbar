@@ -63,7 +63,7 @@ cleanup() {
     # If the build process spawned a copy of webrick, make sure it is dead.
     [[ $webrick_pid && -d /proc/$webrick_pid ]] && kill -9 $webrick_pid
     # clean up after outselves from merging branches, if needed.
-    cd "$CROWBAR_DIR"
+    cd "$currdir/$CROWBAR_DIR"
     if [[ $THROWAWAY_BRANCH ]]; then
 	# Check out the branch we started the build process, and then 
 	# nuke whatever throwaway branch we may have created.
@@ -498,6 +498,7 @@ fi
 # Location of the Crowbar checkout we are building from.
 [[ $CROWBAR_DIR ]] ||CROWBAR_DIR="${0%/*}"
 
+export CROWBAR_DIR
 # Location of the Sledgehammer source tree.  Only used if we cannot 
 # find Sledgehammer in $SLEDGEHAMMER_PXE_DIR above. 
 [[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_DIR="${CROWBAR_DIR}/../sledgehammer"
