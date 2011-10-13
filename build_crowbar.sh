@@ -63,7 +63,7 @@ cleanup() {
     # If the build process spawned a copy of webrick, make sure it is dead.
     [[ $webrick_pid && -d /proc/$webrick_pid ]] && kill -9 $webrick_pid
     # clean up after outselves from merging branches, if needed.
-    cd "$currdir/$CROWBAR_DIR"
+    cd "$CROWBAR_DIR"
     if [[ $THROWAWAY_BRANCH ]]; then
 	# Check out the branch we started the build process, and then 
 	# nuke whatever throwaway branch we may have created.
@@ -497,8 +497,8 @@ fi
 
 # Location of the Crowbar checkout we are building from.
 [[ $CROWBAR_DIR ]] ||CROWBAR_DIR="${0%/*}"
-
 export CROWBAR_DIR
+
 # Location of the Sledgehammer source tree.  Only used if we cannot 
 # find Sledgehammer in $SLEDGEHAMMER_PXE_DIR above. 
 [[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_DIR="${CROWBAR_DIR}/../sledgehammer"
@@ -511,6 +511,7 @@ export CROWBAR_DIR
 REPOS=()
 
 declare -A CD_POOL STAGED_POOL INSTALLED_PKGS
+
 # Some helper functions
 
 # Print a message to stderr and exit.  cleanup will be called.
@@ -767,7 +768,6 @@ fi
 		type generate_minimal_install &>/dev/null || \
 		    die "The build system does not know how to generate a minimal install list for $OS_TO_STAGE!"
 		GENERATE_MINIMAL_INSTALL=true
-		SHRINK_ISO=true
 		shift;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
@@ -990,17 +990,15 @@ fi
 		$updater "$bc"
 	    fi
 	done
-	if [[ $NEED_TEST = true && -d $CROWBAR_DIR/barclamps/$bc/smoketest ]]
-	then
-	    is_in "$bc" "${test_params[@]}" || test_params+=("$bc")
-	fi
 	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
 	mkdir -p "$BUILD_DIR/extra/pkgs/"
 	stage_pkgs "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
 	    "$BUILD_DIR/extra/pkgs"
-	cp -r "$CACHE_DIR/barclamps/$bc/files" \
-	    "$CACHE_DIR/barclamps/$bc/gems" \
-	    "$BUILD_DIR/extra"
+	for f in file gems; do
+	    [[ -d "$CACHE_DIR/barclamps/$bc/$f" ]] || continue
+	    cp -r "$CACHE_DIR/barclamps/$bc/$f" "$BUILD_DIR/extra"
+	done
+	    
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
 
@@ -1086,7 +1084,7 @@ fi
 	if [[ ! -f "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install" ]]; then
 	    if [[ ! -f "$HOME/admin-installed.list" ]]; then
 		test_params=(run-test scratch admin-only) 
-		    test_iso run-test scratch admin-only
+		    test_iso run-test admin-only
 	    fi
 	    [[ ! -f "$HOME/crowbar-installed.$OS_TOKEN.list" ]] || \
 		die "Asked to shrink build for $OS_TOKEN, but package list missing!"
@@ -1096,7 +1094,10 @@ fi
 	
 	build_iso
     fi
-    if [[ $NEED_TEST = true ]]; then test_iso "${test_params[@]}"; fi
- 
-    echo "$(date '+%F %T %z'): Finshed. Image at $ISO_DEST/$BUILT_ISO"
+    echo "$(date '+%F %T %z'): Image at $ISO_DEST/$BUILT_ISO"
+    if [[ $NEED_TEST = true ]]; then 
+	echo "$(date '+%F %T %z'): Testing new iso"
+	test_iso "${test_params[@]}" || die "Test failed."
+    fi
+    echo "$(date '+%F %T %z'): Finished."
 } 65> /tmp/.build_crowbar.lock
