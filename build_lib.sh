@@ -412,4 +412,83 @@ barclamp_file_cache_needs_update() {
     return 1
 }
 
+# Some helper functions
+
+# Print a message to stderr and exit.  cleanup will be called.
+die() { echo "$(date '+%F %T %z'): $*" >&2; exit 1; }
+
+# Print a message to stderr and keep going.
+debug() { echo "$(date '+%F %T %z'): $*" >&2; }
+
+# Clean up any cruft that we might have left behind from the last run.
+clean_dirs() {
+    local d=''
+    for d in "$@"; do
+	(   mkdir -p "$d"
+	    cd "$d"
+	    chmod -R u+w .
+	    rm -rf * )
+    done
+}
+
+# Verify that the passed name is really a branch in the git repo.
+branch_exists() { git show-ref --quiet --verify --heads -- "refs/heads/$1"; }
+
+# Run a git command in the crowbar repo.
+in_repo() ( cd "$CROWBAR_DIR"; "$@")
+
+# Get the head revision of a git repository.
+get_rev() (
+    cd "$1"
+    if [[ -d .git ]]; then
+	git rev-parse HEAD
+    else
+	echo "Not a Git Repository"
+    fi
+)
+
+# Run a git command in the build cache, assuming it is a git repository. 
+in_cache() (
+    [[ $CURRENT_CACHE_BRANCH ]] || return 
+    cd "$CACHE_DIR"
+    "$@"
+)
+
+# Check to see if something is a barclamp.
+is_barclamp() { [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]]; }
+
+# Build our ISO image.
+build_iso() (   
+    cd "$BUILD_DIR"
+    rm -f isolinux/boot.cat
+    find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
+    find . -type f -not -name isolinux.bin -not -name sha1sums -not -path '*/.git/*' | \
+	xargs sha1sum -b >sha1sums
+    mkdir -p "$ISO_DEST"
+	# Save the sha1sums and the build-info files along side the iso.
+    cp sha1sums build-info "$ISO_DEST"
+    mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
+	-b isolinux/isolinux.bin -c isolinux/boot.cat \
+	-no-emul-boot --boot-load-size 4 -boot-info-table \
+	-o "$ISO_DEST/$BUILT_ISO" "$IMAGE_DIR" "$BUILD_DIR" 
+)
+
+# Have the smoketest framework do its thing with the ISO we just made.
+test_iso() {
+    [[ -L $HOME/test_framework ]] && rm -f "$HOME/test_framework"
+    [[ -d $HOME/test_framework ]] && rm -rf "$HOME/test_framework"
+    if [[ $CROWBAR_DIR = /* ]]; then
+	ln -sf "$CROWBAR_DIR/test_framework" "$HOME/test_framework"
+    else
+	ln -sf "$currdir/$CROWBAR_DIR/test_framework" "$HOME/test_framework"
+    fi
+    (   unset no_proxy http_proxy https_proxy
+	"$HOME/test_framework/test_crowbar.sh" "$@" \
+	    use-iso "$ISO_DEST/$BUILT_ISO" 
+    ) || \
+	die "$(date '+%F %T %z'): Smoketest of $ISO_DEST/$BUILT_ISO failed."
+}
+
+barclamp_has_test() { [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]; }
+
 CROWBAR_BUILD_SOURCED=true
