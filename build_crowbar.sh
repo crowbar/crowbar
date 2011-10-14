@@ -661,8 +661,15 @@ fi
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
 
 {
+    # Check to make sure our required commands are installed.
+    for cmd in sudo chroot mkisofs ruby; do
+	which "$cmd" &>/dev/null || \
+	    die 1 "Please install $cmd before trying to build Crowbar."
+    done
+ 
     # Make sure only one instance of the ISO build runs at a time.
     # Otherwise you can easily end up with a corrupted image.
+   
     debug "Acquiring the build lock."
     flock 65
     # Figure out what our current branch is, in case we need to merge 
