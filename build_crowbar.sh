@@ -1001,6 +1001,7 @@ fi
 	    fi
 	done
 	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
+	(cd "$BUILD_DIR/dell/barclamps/$bc"; [[ -d .git ]] && rm -rf .git)
 	mkdir -p "$BUILD_DIR/extra/pkgs/"
 	stage_pkgs "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
 	    "$BUILD_DIR/extra/pkgs"
