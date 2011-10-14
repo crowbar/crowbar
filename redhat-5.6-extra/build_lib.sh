@@ -248,7 +248,7 @@ shrink_iso() {
 }
 
 # Check to make sure our required commands are installed.
-for cmd in sudo chroot createrepo mkisofs rpm; do
+for cmd in createrepo rpm; do
     which "$cmd" &>/dev/null || \
 	die 1 "Please install $cmd before trying to build Crowbar."
 done
