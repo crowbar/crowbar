@@ -230,6 +230,7 @@ stage_pkgs() {
     # $1 = cache to copy from.
     # $2 = location to copy to
     local pkg pkgname pkg_t
+    local -A to_copy
     while read pkg; do
 	# If it is not a package, skip it.
 	is_pkg "$pkg" || continue
@@ -253,16 +254,19 @@ stage_pkgs() {
 		# We are newer.  Delete the old one, copy us,
 		# and update $STAGED_POOL
 		#debug "Replacing ${pkg_t##*/} with ${pkg##*/}"
-		rm -f "$pkg_t"
-		cp "$pkg" "$2"
+		[[ -f "$pkg_t" ]] && rm -f "$pkg_t"
+		[[ ${to_copy["$pkg_t"]} ]] && unset to_copy["$pkg_t"]
+		to_copy["$pkg"]="true"
 		STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
 	    fi
 	else
 	    # We have not seen this package before.  Copy it.
+	    to_copy["$pkg"]="true"
 	    cp "$pkg" "$2"
 	    STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
 	fi
     done < <(find "$1" -type f)
+    [[ ${!to_copy[*]} ]] && cp "${!to_copy[@]}" "$2"
 }
 
 # Update the package cache for a barclamp.
@@ -374,20 +378,20 @@ update_barclamp_file_cache() {
 
 # Check to see if the barclamp package cache needs update.
 barclamp_pkg_cache_needs_update() {
-    local pkg pkgname arch bc 
+    local pkg pkgname arch bcs=()
     local -A pkgs
 
     # First, check to see if we have all the packages we need.
     for bc in $(all_deps "$1"); do
-	local bc_cache="$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
-	mkdir -p "$bc_cache"
-	while read pkg; do
-	    is_pkg "$pkg" || continue
-	    pkgname="$(pkg_name "$pkg")"
-	    #debug "$pkgname is cached"
-	    pkgs["$pkgname"]="$pkg"
-	done < <(find "$bc_cache" -type f)
-    done 
+	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" ]] && \
+	    bcs+=("$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs")
+    done
+    while read pkg; do
+	is_pkg "$pkg" || continue
+	pkgname="$(pkg_name "$pkg")"
+	#debug "$pkgname is cached"
+	pkgs["$pkgname"]="$pkg"
+    done < <(find "${bcs[@]}" -type f) 
     for pkg in ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]}; do
 	[[ $pkg ]] || continue
 	for arch in "${PKG_ALLOWED_ARCHES[@]}"; do
@@ -496,7 +500,10 @@ fi
 [[ $SLEDGEHAMMER_PXE_DIR ]] || SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot"
 
 # Location of the Crowbar checkout we are building from.
-[[ $CROWBAR_DIR ]] ||CROWBAR_DIR="${0%/*}"
+[[ $CROWBAR_DIR ]] || CROWBAR_DIR="${0%/*}"
+[[ $CROWBAR_DIR = /* ]] || CROWBAR_DIR="$currdir/$CROWBAR_DIR"
+[[ -f $CROWBAR_DIR/build_crowbar.sh && -d $CROWBAR_DIR/.git ]] || \
+    die "$CROWBAR_DIR is not a git checkout of Crowbar!" 
 export CROWBAR_DIR
 
 # Location of the Sledgehammer source tree.  Only used if we cannot 
@@ -588,6 +595,8 @@ test_iso() {
     ) || \
 	die "$(date '+%F %T %z'): Smoketest of $ISO_DEST/$BUILT_ISO failed."
 }
+
+barclamp_has_test() { [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]; }
 
 # Get the OS we were asked to stage Crowbar on to.  Assume it is Ubuntu 10.10
 # unless we specify otherwise.
@@ -753,7 +762,7 @@ fi
 		done;;
 	    --test)
 		NEED_TEST=true
-		test_params=(run-test)
+		test_params=()
 		shift
 		while [[ $1 && $1 != -* ]]; do
 		    test_params+=("$1")
@@ -804,7 +813,7 @@ fi
     # Value = whatever interesting thing we are looking for.
     declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
     declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
-    
+    declare -A BC_TEST_DEPS BC_TEST_GROUPS
     # Query strings to pull info we are interested out of crowbar.yml
     BC_QUERY_STRINGS["deps"]="barclamp requires"
     BC_QUERY_STRINGS["groups"]="barclamp member"
@@ -998,8 +1007,39 @@ fi
 	    [[ -d "$CACHE_DIR/barclamps/$bc/$f" ]] || continue
 	    cp -r "$CACHE_DIR/barclamps/$bc/$f" "$BUILD_DIR/extra"
 	done
+	# If this barclamp has tests, make sure its dependencies are sorted.
+	if barclamp_has_test "$bc" && [[ ! $bc = crowbar ]]; then
+	    for d in $(all_deps "$bc"); do
+		barclamp_has_test "$d" || continue
+		[[ $d = $bc ]] && continue
+		BC_TEST_DEPS["$bc"]+="$d "
+	    done
+	fi
 	    
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
+    done
+
+    # Extract the leaf nodes from $BC_TEST_DEPS, and use them to build
+    # $BC_TEST_GROUPS
+
+    add_to_test_groups() {
+	# $1 = name of test group
+	# $@ = dependencies to try to add recursivly.
+	local bc="$1" d
+	shift
+	for d in "$@"; do
+	    [[ ${BC_TEST_DEPS["$d"]} ]] && \
+		add_to_test_groups "$bc" "${BC_TEST_DEPS["$d"]}"
+	    is_in "$d" "${BC_TEST_GROUPS[$bc]}" || \
+		BC_TEST_GROUPS["$bc"]+="$d "
+	done
+    }
+    for bc in "${!BC_TEST_DEPS[@]}"; do
+	is_in "$bc" ${BC_TEST_DEPS[@]} || add_to_test_groups "$bc" "$bc"
+    done
+
+    for bc in "${!BC_TEST_GROUPS[@]}"; do
+	echo "Test group $bc: ${BC_TEST_GROUPS[$bc]}"
     done
 
     (cd "$BUILD_DIR"
@@ -1083,8 +1123,7 @@ fi
     if [[ $GENERATE_MINIMAL_INSTALL = true ]]; then
 	if [[ ! -f "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install" ]]; then
 	    if [[ ! -f "$HOME/admin-installed.list" ]]; then
-		test_params=(run-test scratch admin-only) 
-		    test_iso run-test admin-only
+		    test_iso admin-only
 	    fi
 	    [[ ! -f "$HOME/crowbar-installed.$OS_TOKEN.list" ]] || \
 		die "Asked to shrink build for $OS_TOKEN, but package list missing!"

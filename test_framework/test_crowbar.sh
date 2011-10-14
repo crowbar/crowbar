@@ -789,7 +789,7 @@ EOF
     run_on "$CROWBAR_IP" cp /root/.ssh/authorized_keys \
 	/tftpboot/ubuntu_dvd/authorized_keys || :
     # if there are any tests we should run on the admin node, do them now.
-    if run_hooks admin_deployed; then
+    if run_admin_hooks admin_deployed; then
 	update_status admin "Admin deploy tests passed"
     else
 	update_status admin "Admin deploy tests failed."
@@ -992,38 +992,35 @@ deploy_nodes() {
     [[ $final_status = Passed ]] || return 1
 }
 
-# run hooks.  They will be sorted in lexicographic order, 
-# so naming them with numeric prefixes indicating the order 
-# they should run in is a Good Idea.
 run_hooks() {
-    # $1 = hooks to run.  Maps to $CROWBAR_DIR/barclamps/$1/smoketest.
-    # $2 = time to allow the tests to run for.
-    local deadline=$(($(date '+%s') + ${2:-300}))
-    local __d="$CROWBAR_DIR/barclamps/$1/smoketest"
-    [[ -d $__d ]] || return 1
+    # $1 = name of the test
+    # $2 = path to find the hooks in
+    # $3 = Timeout for the tests, defaults to 300 seconds.
+    # $4 = Extension for the hookd, defaults to 'hook'
+    local test_name=$1 test_dir="$2" timeout=${3:-300} ext=${4:-hook}
+    local deadline=$(($(date '+%s') + ${timeout})) hook
+    [[ -d $test_dir ]] || {
+	echo "Failed" > "$testdir/$test_name.test"
+	return 1
+    }
     (   sleep 1
-	for hook in "$__d"/*.test; do
+	for hook in "$__d"/*."$ext"; do
 	    if [[ -x $hook ]]; then 
-		if "$hook"; then
-		    continue
-		else
-		    echo "Failed" >"$testdir/$1.test"
-		    exit
-		fi
+		"$hook" && continue
+		echo "Failed" >"$testdir/$1.test"
+		exit
 	    fi
 	done
-	echo "Passed" >"$testdir/$1.test"
-    ) &
+	echo "Passed" >"$testdir/$1.test") &
     local testpid=$!
     sudo "$FRAMEWORKDIR/make_cgroups.sh" $testpid "crowbar-test/$1-test"
-    (cd /proc/$testpid
+    (   cd /proc/$testpid
 	while [[ -f cmdline ]] && (($(date '+%s') <= $deadline)); do
 	    sleep 10
 	done
 	if [[ -f cmdline ]]; then
 	    echo "Timed Out" >"$testdir/$1.test"
-	fi
-    )
+	fi )
     case $(cat "$testdir/$1.test") in
 	Passed) return 0;;
 	Failed) return 1;;
@@ -1033,6 +1030,16 @@ run_hooks() {
 	    done
 	    return 1;;
     esac
+}
+# run hooks.  They will be sorted in lexicographic order, 
+# so naming them with numeric prefixes indicating the order 
+# they should run in is a Good Idea.
+run_test_hooks() {
+    run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" 900 test
+}
+
+run_admin_hooks() {
+    run_hooks admin "$FRAMEWORKDIR/admin_deployed" 300 hook
 }
 
 pause() { printf "\n%s\n" "${1:-Press any key to continue:}"; read -n 1; } 
@@ -1084,6 +1091,7 @@ run_test() {
     trap cleanup 0 INT TERM QUIT
     cd "$HOME/testing"
     # make a screen session so that we can watch what we are doing if needed.
+    screen -wipe &>/dev/null || :
     screen -d -m -S "$SCREENNAME" -t 'Initial Shell' /bin/bash
     # give a hard status line
     screen -S "$SCREENNAME" -X hardstatus alwayslastline "%?%{yk}%-Lw%?%{wb}%n*%f %t%?(%u)%?%?%{yk}%+Lw%?"
@@ -1109,13 +1117,15 @@ run_test() {
 		continue
 	    fi
             echo "$(date '+%F %T %z'): $running_test deploy passed."
-	    if ! run_hooks "${running_test}" 900; then
-		echo "$(date '+%F %T %z'): $running_test tests failed."
-		test_results+=("$running_test: Failed")
-		get_cluster_logs "$running_test-tests-failed"
-		reset_slaves
-		continue
-	    fi
+	    for this_test in $running_test; do
+		if ! run_test_hooks "$this_test"; then
+		    echo "$(date '+%F %T %z'): $running_test tests failed."
+		    test_results+=("$running_test: Failed")
+		    get_cluster_logs "$running_test-tests-failed"
+		    reset_slaves
+		    continue 2
+		fi
+	    done
 	    echo "$(date '+%F %T %z'): $running_test tests passed."
 	    get_cluster_logs "$running_test-tests-passed"
 	    test_results+=("$running_test: Passed")
@@ -1157,19 +1167,11 @@ CGROUP_DIR=$(sudo "$FRAMEWORKDIR/make_cgroups.sh" \
 
 
 case $1 in
-    run-test) shift; run_test "$@" ;;
-    build-and-test) shift;
-	which build_crowbar.sh &>/dev/null || \
-	    die 1 "Cannot find build_crowbar.sh -- have you added the crowbar checkout to \$PATH?"
-	echo "$(date '+%F %T %z'): Building Crowbar from source."
-	build_crowbar.sh
-	echo "$(date '+%F %T %z'): Finshed building Crowbar."
-	run_test "$@";;
     cleanup) shift; 
 	for l in "$TESTING_LOCK" "$KVM_LOCK" "$CLEANUP_LOCK"; do
 	    rm -f "$l"
 	done
 	cleanup;;
-    '') run_test nova swift "$@";;
-    *) do_help;;
+    ''|help) do_help;;
+    *) run_test "$@" ;;
 esac
