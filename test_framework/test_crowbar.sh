@@ -53,9 +53,7 @@ EOF
 [[ -f $HOME/testing/cli ]] || mkdir -p "$HOME/testing/cli"
 export PATH="$HOME/testing/cli:$PATH"
 
-export SMOKETEST_PID=$$
-CGROUP_DIR=$(sudo "$SMOKETEST_DIR/make_cgroups.sh" \
-    $SMOKETEST_PID crowbar-test) || \
+CGROUP_DIR=$(sudo "$SMOKETEST_DIR/make_cgroups.sh" $$ crowbar-test) || \
     die "Could not mount cgroup filesystem!"
 
 

@@ -6,14 +6,31 @@
 # If we have already been sourced in the current env, don't source us again.
 [[ $CROWBAR_BUILD_SOURCED = true ]] && exit 0
 
+[[ $DEBUG ]] && {
+    set -x
+    export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
+}
+[[ $CROWBAR_BUILD_PID ]] || export CROWBAR_BUILD_PID=$$
+export CLEANUP_LOCK="$CROWBAR_DIR/.cleanup.lock"
+cleanup_cmds=()
+
 # Our general cleanup function.  It is called as a trap whenever the 
 # build script exits, and it's job is to make sure we leave the local 
 # system in the same state we cound it, modulo a few calories of wasted heat 
 # and a shiny new .iso.
 cleanup() {
+    flock -n 70 || exit 1
     # Clean up any stray mounts we may have left behind. 
     # The paranoia with the grepping is to ensure that we do not 
     # inadvertently umount everything.
+    if [[ $BASH_SUBSHELL -gt 0 || $BASHPID != $CROWBAR_BUILD_PID ]]; then
+	kill -INT $CROWBAR_BUILD_PID
+	exit 1
+    fi
+    for c in "${cleanup_cmds[@]}"; do
+	$c
+    done
+    
     GREPOPTS=()
     [[ $CACHE_DIR ]] && GREPOPTS=(-e "$CACHE_DIR")
     [[ $IMAGE_DIR && $CACHE_DIR =~ $IMAGE_DIR ]] && GREPOPTS+=(-e "$IMAGE_DIR")
@@ -46,7 +63,13 @@ cleanup() {
     for d in "$IMAGE_DIR" "$BUILD_DIR" "$CHROOT"; do
 	[[ -d $d ]] && sudo rm -rf -- "$d"
     done
-}
+    wait
+    flock -u 70
+    rm "$CROWBAR_DIR/".*.lock
+} 70> "$CLEANUP_LOCK"
+
+# Arrange for cleanup to be called at the most common exit points.
+trap cleanup 0 INT QUIT TERM
 
 # Test to see if $1 is in the rest of the args.
 is_in() {
@@ -475,17 +498,7 @@ build_iso() (
 
 # Have the smoketest framework do its thing with the ISO we just made.
 test_iso() {
-    [[ -L $HOME/test_framework ]] && rm -f "$HOME/test_framework"
-    [[ -d $HOME/test_framework ]] && rm -rf "$HOME/test_framework"
-    if [[ $CROWBAR_DIR = /* ]]; then
-	ln -sf "$CROWBAR_DIR/test_framework" "$HOME/test_framework"
-    else
-	ln -sf "$currdir/$CROWBAR_DIR/test_framework" "$HOME/test_framework"
-    fi
-    (   unset no_proxy http_proxy https_proxy
-	"$HOME/test_framework/test_crowbar.sh" "$@" \
-	    use-iso "$ISO_DEST/$BUILT_ISO" 
-    ) || \
+    run_test "$@" || \
 	die "$(date '+%F %T %z'): Smoketest of $ISO_DEST/$BUILT_ISO failed."
 }
 

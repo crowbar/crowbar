@@ -21,7 +21,7 @@ SMOKETEST_KVM_LOCK="$HOME/.kvm.lck"
 # cleanups in parallel.
 SMOKETEST_CLEANUP_LOCK="$HOME/.cleanup.lck"
 
-SMOKETEST_DIR="$HOME/test_framework"
+SMOKETEST_DIR="$CROWBAR_DIR/test_framework"
 
 # We run all KVM instances in a screen session.
 SMOKETEST_SCREEN="crowbar-smoketest"
@@ -36,6 +36,7 @@ COMPUTE_DEPLOY_WAIT=2400
 
 # IP address of the node that ends up as the admin node.
 export CROWBAR_IP=192.168.124.10
+export CROWBAR_KEY="crowbar:crowbar"
 
 # The names of the bridges we will create.  Bridge names must be
 # 15 characters or less due to kernel name constraints.
@@ -53,6 +54,9 @@ SMOKETEST_BRIDGES=(crowbar-pub crowbar-priv)
 # We need to have this information beforehand so that we can send 
 # Wake On LAN packets to them.
 PHYSICAL_MACS=()
+
+[[ $SMOKETEST_ISO && -f $SMOKETEST_ISO ]] || \
+    SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
 
 # Source a local config file.  Settings in it will override the 
 # ones here.
@@ -129,7 +133,7 @@ smoketest_get_cluster_logs() (
     local curlargs=(-L -o "$1-$(date '+%Y%m%d-%H%M%S').tar" \
 	--connect-timeout 120 --max-time 120)
     [[ $CROWBAR_KEY ]] && curlargs+=(-u "$CROWBAR_KEY" --digest) || :
-    curl "${curlargs[@]}" "http://$CROWBAR_IP:3000/support/logs"
+    http_proxy='' curl "${curlargs[@]}" "http://$CROWBAR_IP:3000/support/logs"
     echo "$(date '+%F %T %z'): Done gathering $1 logs."
 )
 
@@ -139,66 +143,57 @@ smoketest_get_cluster_logs() (
 # network infrastructure we created, and create any success
 # or failure logs we need to create.  
 declare -a smoketest_cleanup_cmds taps
+
 smoketest_cleanup() {
     # We ignore errors in this function.
     set +e
-    {
-	# Make sure only one instance of smoketest_cleanup is running 
-	# at any given time.
-	flock 70
-	# Once we have started running, make sure we are not invoked again.
-	trap 0
-	killall check_ready
-	[[ $develop_mode = true ]] && pause
-	# Gather final logs if our admin node is up.
-	smoketest_get_cluster_logs final
-	# Make sure our virtual machines have been torn down.
-	for pidfile in "$smoketest_dir/"*.pid; do
-	    local vmname=${pidfile##*/}
-	    vmname=${vmname%.pid}
-	    kill_vm "$vmname" || :
+    flock -n 70 || return 0
+    killall check_ready
+    [[ $develop_mode = true ]] && pause
+    # Gather final logs if our admin node is up.
+    # smoketest_get_cluster_logs final
+    # Make sure our virtual machines have been torn down.
+    for pidfile in "$smoketest_dir/"*.pid; do
+	local vmname=${pidfile##*/}
+	vmname=${vmname%.pid}
+	[[ $vmname = '*' ]] && continue
+	kill_vm "$vmname" || :
+    done
+    # If there are any commands to run at smoketest_cleanup, run them now.
+    for c in "${smoketest_cleanup_cmds[@]}"; do
+	eval $c || :
+    done
+    # If our .iso is still mounted, umount it.
+    sudo /bin/umount -d "$LOOPDIR" &>/dev/null
+    # Tear down out network.
+    kill_virt_net &>/dev/null
+    # Kill our screen session
+    screen -S "$SMOKETEST_SCREEN" -X quit &>/dev/null
+    # Kill anything else we make have left behind.
+    for task in $(cat "$CGROUP_DIR/tasks"); do
+	[[ $task = $$ || $task = $CROWBAR_BUILD_PID ]] && continue
+	kill -9 $task
+    done
+    # Make sure we exit with the right status code.
+    [[ $final_status ]] || exit 1
+    # Copy passed and failed logs to the right location.
+    [[ $test_results ]] && {
+	for result in "${test_results[@]}"; do
+	    echo "$result"
+	    [[ $result = *Failed ]] && final_status=Failed
 	done
-	# If there are any commands to run at smoketest_cleanup, run them now.
-	for c in "${smoketest_cleanup_cmds[@]}"; do
-	    eval $c || :
-	done
-	# If our .iso is still mounted, umount it.
-	sudo /bin/umount -d "$LOOPDIR" &>/dev/null
-	# Tear down out network.
-	kill_virt_net &>/dev/null
-	# Kill our screen session
-	screen -S "$SMOKETEST_SCREEN" -X quit &>/dev/null
-	# Kill anything else we make have left behind.
-	for task in $(cat "$CGROUP_DIR/tasks"); do
-	    [[ $task = $$ || $task = $SMOKETEST_PID ]] && continue
-	    kill -9 $task
-	done
-	# Make sure we exit with the right status code.
-	[[ $final_status ]] || exit 1
-	# Copy passed and failed logs to the right location.
-	[[ $test_results ]] && {
-	    for result in "${test_results[@]}"; do
-		echo "$result"
-		[[ $result = *Failed ]] && final_status=Failed
-	    done
-	}
-	echo "Deploy $final_status."
-	target="$HOME/tested/${smoketest_dir##*/}-$(date '+%Y%m%d-%H%M%S')-${final_status}"
-	rm -f "$smoketest_dir/"*.disk || :
-	mv "$smoketest_dir" "$target"
-	cp "$HOME/smoketest.log" "$target"
-	(cd "$HOME/tested"; tar czf "$target.tar.gz" "${target##*/}")
-	echo "Logs are available at $target.tar.gz."
-	echo "(on the Web at http://10.9.244.31:3389/crowbar-test/${target##*/}/)" 
-	rm "$HOME/tested/"*.iso
-	if [[ $final_status != Passed ]]; then
-	    ret=1
-	else
-	    ret=0
-	fi
-    } 70>"$SMOKETEST_CLEANUP_LOCK"
-    exit $ret
-}
+    }
+    echo "Deploy $final_status."
+    target="$HOME/tested/${smoketest_dir##*/}-$(date '+%Y%m%d-%H%M%S')-${final_status}"
+    rm -f "$smoketest_dir/"*.disk || :
+    mv "$smoketest_dir" "$target"
+    cp "$HOME/smoketest.log" "$target"
+    (cd "$HOME/tested"; tar czf "$target.tar.gz" "${target##*/}")
+    echo "Logs are available at $target.tar.gz."
+    echo "(on the Web at http://10.9.244.31:3389/crowbar-test/${target##*/}/)" 
+    rm "$HOME/tested/"*.iso
+    [[ $final_status != Passed ]];
+} 75>"$CROWBAR_DIR/.smoketest_cleanup.lock"
 
 # Simple unique mac address generation.
 # This will not work if you end up spinning up more than 65535 vm interfaces.
@@ -576,8 +571,8 @@ run_admin_node() {
     makenics admin
 
     smoketest_update_status admin "Mounting .iso"
-    sudo /bin/mount -o loop "$ISO_DEST/$BUILT_ISO" "$LOOPDIR" &>/dev/null || \
-	die "Could not loopback mount $ISO_DEST/$BUILT_ISO on $LOOPDIR." 
+    sudo /bin/mount -o loop "$SMOKETEST_ISO" "$LOOPDIR" &>/dev/null || \
+	die "Could not loopback mount $SMOKETEST_ISO on $LOOPDIR." 
     smoketest_cleanup_cmds+=("sudo /bin/umount -d '$LOOPDIR'") 
     
     smoketest_update_status admin "Hacking up kernel parameters"
@@ -630,13 +625,13 @@ run_admin_node() {
     if [[ $develop_mode ]]; then
 	kernel_params+=" crowbar.debug"
     fi
-    smoketest_update_status admin "Performing install from ${ISO_DEST/$BUILT_ISO##*/}"
+    smoketest_update_status admin "Performing install from ${SMOKETEST_ISO##*/}"
     # First run of the admin node.  Note that we do not actaully boot off the
     # .iso image, instead we boot the vm directly using the extracted kernel
     # and initrd, and arrange for the kernel arguments to contain the 
     # extra arguments that the test framework needs.
     if ! run_kvm -timeout 1200 "$nodename" \
-	-cdrom "$ISO_DEST/$BUILT_ISO" -kernel "$kernel" -initrd "$initrd" \
+	-cdrom "$SMOKETEST_ISO" -kernel "$kernel" -initrd "$initrd" \
 	-append "$kernel_params"; then
 	smoketest_update_status "$nodename" "Failed to install admin node after 1200 seconds."
 	smoketest_update_status "$nodename" "Node failed to deploy."
@@ -663,8 +658,8 @@ run_admin_node() {
     (   cd "$HOME/testing/cli"
 	curlargs=(-L -o - --connect-timeout 120 --max-time 120)
 	[[ $CROWBAR_KEY ]] && curlargs+=(-u "$CROWBAR_KEY" --digest) || :
-	curl "${curlargs[@]}" "http://${CROWBAR_IP}:3000/support/get_cli" | \
-	    tar xzvf -
+	http_proxy='' curl "${curlargs[@]}" \
+	    "http://${CROWBAR_IP}:3000/support/get_cli" | tar xzvf -
 	# make run_on
 	cat >"$HOME/testing/cli/run_on" <<"EOF"
 #!/bin/bash
@@ -739,12 +734,6 @@ create_slaves() {
 		    # For whatever reason if we just nuke the MBR d/i
 		    # complains about the LVM VG even though it should not.
 		    if [[ $in_reset != true ]]; then
-			smoketest_update_status "$nodename" "Creating disk image"
-			rm -f "$smoketest_dir/$nodename"*.disk
-			qemu-img create -f raw "$smoketest_dir/$nodename.disk" 6G &>/dev/null
-	            # Create a second and third image for Swift testing
-			qemu-img create -f qcow2 "$smoketest_dir/$nodename-01.disk" 1G &>/dev/null
-			qemu-img create -f qcow2 "$smoketest_dir/$nodename-02.disk" 1G &>/dev/null
 			in_reset=true
 		    fi
 
@@ -778,7 +767,7 @@ create_slaves() {
 	    done
 	    smoketest_update_status "$nodename" "Asked to be killed, giving up."
 	    exit 0
-	) 2>"$smoketest_dir/$nodename.errlog" &
+	) &
     done
     # Second, handle our physical machines.
     local mac
@@ -797,6 +786,19 @@ deregister_slave() {
     crowbar machines delete "$1"
 }
 
+kill_slaves() {
+    for slave in "${!SMOKETEST_SLAVES[@]}"; do
+	hname=${SMOKETEST_SLAVES["$slave"]}
+	smoketest_update_status "$slave" "Killing $hname" 
+        # If this is a virtual node, put it in reset state.  
+	if [[ $slave =~ virt ]]; then 
+	    kill_vm "$slave" 
+	else
+	    run_on "$hname" poweroff || :
+	fi
+    done
+}
+
 # Reset nodes from Crowbar's standpoint -- that is,
 # remove them from the Chef database and power them off.
 # If the node is a VM, place it in the reset state.
@@ -807,13 +809,13 @@ reset_slaves() {
     fi
     for slave in "${!SMOKETEST_SLAVES[@]}"; do
 	hname=${SMOKETEST_SLAVES["$slave"]}
-	smoketest_update_status "$slave" "Asking $hname to shut down"
-	# If this is a virtual node, put it in reset state.
-	if [[ $slave =~ virt ]]; then
-	    > "$smoketest_dir/$slave.reset"
-	fi
+	smoketest_update_status "$slave" "Asking $hname to shut down" 
+        # If this is a virtual node, put it in reset state.  
+	if [[ $slave =~ virt ]]; then 
+	    > "$smoketest_dir/$slave.reset" 
+	fi 
 	run_on "$hname" poweroff || :
-    done
+	done
     echo "$(date '+%F %T %z'): Waiting for 2 minutes to allow nodes to power off"
     [[ $develop_mode ]] || sleep 120
     for slave in "${!SMOKETEST_SLAVES[@]}"; do
@@ -896,6 +898,34 @@ deploy_nodes() {
     [[ $final_status = Passed ]] || return 1
 }
 
+barclamp_deployed() {
+    # $1 = barclamp to check for deployed proposals
+    [[ ! $(crowbar $1 list) = 'No current configurations' ]]
+}
+
+deploy_barclamp() {
+    # $1 = barclamp to deploy proposal for
+    crowbar "$1" proposal create smoketest || \
+	die "Could not create smoketest proposal for $1"
+    crowbar "$1" proposal show smoketest > \
+	"$LOGDIR/$1-default.json" || \
+	die "Could not show smoketest proposal for $1"
+    if [[ -x $CROWBAR_DIR/barclamps/$1/smoketest/modify-json ]]; then
+	"$CROWBAR_DIR/barclamps/$1/smoketest/modify-json" < \
+	    "$LOGDIR/$1-default.json" > \
+	    "$LOGDIR/$1-modified.json" || \
+	    die "Failure editing smoketest proposal for $1"
+	    crowbar "$1" --file "$LOGDIR/$1-modified.json" \
+		proposal edit smoketest || \
+		die "Failed to upload modified smoketest proposal for $1"
+    fi
+    crowbar "$1" proposal commit smoketest || \
+	die "Failed to commit smoketest proposal for $1"
+    debug "Smoketest proposal for $1 committed"
+    crowbar "$1" show smoketest >"$LOGDIR/$1-deployed.json"
+    return 0
+}
+
 run_hooks() {
     # $1 = name of the test
     # $2 = path to find the hooks in
@@ -908,7 +938,7 @@ run_hooks() {
 	return 1
     }
     (   sleep 1
-	for hook in "$__d"/*."$ext"; do
+	for hook in "$test_dir"/*."$ext"; do
 	    if [[ -x $hook ]]; then 
 		"$hook" && continue
 		echo "Failed" >"$smoketest_dir/$1.test"
@@ -967,6 +997,7 @@ run_test() {
 	    admin-only) local admin_only=true;;
 	    develop-mode) local develop_mode=true;;
 	    manual-deploy) local manual_deploy=true;;
+	    use-iso) shift; SMOKETEST_ISO="$1";;
 	    scratch);;
 	    *) # Try a few common locations first
 		if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]; then
@@ -978,15 +1009,17 @@ run_test() {
 	shift
     done
 
+    [[ $SMOEKTEST_ISO = /* ]] || SMOKETEST_ISO="$PWD/$SMOKETEST_ISO"
+    [[ -f $SMOKETEST_ISO ]] || die "Cannot find $SMOKETEST_ISO to test!"
     # $smoketest_dir is where we will store all our disk images and logfiles.
-    smoketest_dir="$HOME/testing/$BUILT_ISO"
+    smoketest_dir="$HOME/testing/${SMOKETEST_ISO##*/}"
     smoketest_dir="${smoketest_dir%.iso}"
     
     for d in image logs; do mkdir -p "$smoketest_dir/$d"; done
     LOOPDIR="$smoketest_dir/image"
     export LOGDIR="$smoketest_dir/logs"
     # Make sure we clean up after ourselves no matter how we exit.
-    trap smoketest_cleanup 0 INT TERM QUIT
+    cleanup_cmds+=(smoketest_cleanup)
     cd "$HOME/testing"
     # make a screen session so that we can watch what we are doing if needed.
     screen -wipe &>/dev/null || :
@@ -999,11 +1032,10 @@ run_test() {
     make_virt_net
     final_status=Failed
     # Launch our admin node, and then launch the compute nodes afterwards.
-    if run_admin_node 2>"$smoketest_dir/admin.errlog"; then
+    if run_admin_node; then
 	test_results+=("deploy_admin: Passed")
 	if [[ $admin_only ]]; then
 	    final_status=Passed
-	    smoketest_cleanup
 	fi
 	create_slaves
 	for running_test in "${tests_to_run[@]}"; do
@@ -1036,7 +1068,8 @@ run_test() {
 	test_results=("Admin node: Failed")
     fi
     [[ "${test_results[*]}" =~ Failed ]] || final_status=Passed
-    smoketest_cleanup
+    kill_slaves || :
+    sleep 15
 } 100>"$SMOKETEST_LOCK"
 
 SMOKETEST_LIB_SOURCED=true

@@ -37,10 +37,6 @@ export LC_ALL="C"
 
 
 GEM_RE='([^0-9].*)-([0-9].*)'
-[[ $DEBUG ]] && {
-    set -x
-    export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
-}
 
 readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
@@ -117,7 +113,7 @@ declare -A CD_POOL STAGED_POOL INSTALLED_PKGS
 
 # Source our common build functions
 . "$CROWBAR_DIR/build_lib.sh"
-
+. "$CROWBAR_DIR/test_lib.sh"
 # Get the OS we were asked to stage Crowbar on to.  Assume it is Ubuntu 10.10
 # unless we specify otherwise.
 OS_TO_STAGE="${1-ubuntu-10.10}"
@@ -571,7 +567,6 @@ fi
 	echo "Test group $bc: ${BC_TEST_GROUPS[$bc]}"
     done
 
-    exit 0
     (cd "$BUILD_DIR"
 	find extra/pkgs extra/gems extra/files -type f -print | \
 	    sort >> "build-info")
