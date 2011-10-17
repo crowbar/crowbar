@@ -41,9 +41,6 @@ GEM_RE='([^0-9].*)-([0-9].*)'
 readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 
-# Arrange for cleanup to be called at the most common exit points.
-trap cleanup 0 INT QUIT TERM
-
 # Source our config file if we have one
 [[ -f $HOME/.build-crowbar.conf ]] && \
     . "$HOME/.build-crowbar.conf"
@@ -330,82 +327,7 @@ fi
 
     # Directory where we will look for our package lists
     [[ $PACKAGE_LISTS ]] || PACKAGE_LISTS="$BUILD_DIR/extra/packages"
-
-    # Hashes to hold our "interesting" information.
-    # Key = barclamp name
-    # Value = whatever interesting thing we are looking for.
-    declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
-    declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
-    declare -A BC_TEST_DEPS BC_TEST_GROUPS
-    # Query strings to pull info we are interested out of crowbar.yml
-    BC_QUERY_STRINGS["deps"]="barclamp requires"
-    BC_QUERY_STRINGS["groups"]="barclamp member"
-    BC_QUERY_STRINGS["pkgs"]="$PKG_TYPE pkgs"
-    BC_QUERY_STRINGS["extra_files"]="extra_files"
-    BC_QUERY_STRINGS["os_support"]="barclamp os_support"
-    BC_QUERY_STRINGS["gems"]="gems pkgs"
-    BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
-    BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
-    BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
-    BC_QUERY_STRINGS["raw_pkgs"]="$PKG_TYPE raw_pkgs"
     
-    # Pull in interesting information from all our barclamps
-    for bc in $CROWBAR_DIR/barclamps/*; do
-	[[ -d $bc ]] || continue
-	bc=${bc##*/}
-	debug "Reading metadata for $bc barclamp."
-	is_barclamp "$bc" || die "$bc is not a barclamp!"
-	yml_file="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
-	[[ $bc = crowbar ]] || BC_DEPS["$bc"]+="crowbar "
-	for query in "${!BC_QUERY_STRINGS[@]}"; do
-	    while read line; do
-		[[ $line = nil ]] && continue
-		case $query in
-		    deps) is_in "$line "${BC_DEPS["$bc"]} || \
-			BC_DEPS["$bc"]+="$line ";;
-		    groups) is_in "$line" ${BC_GROUPS["$bc"]} || 
-			BC_GROUPS["$line"]+="$bc ";;
-		    pkgs) is_in "$line" ${BC_PKGS["$bc"]} || \
-			BC_PKGS["$bc"]+="$line ";;
-		    extra_files) BC_EXTRA_FILES["$bc"]+="$line\n";;
-		    os_support) BC_OS_SUPPORT["$bc"]+="$line ";;
-		    gems) BC_GEMS["$bc"]+="$line ";;
-		    repos) BC_REPOS["$bc"]+="$line\n";;
-		    ppas) [[ $PKG_TYPE = debs ]] || \
-			die "Cannot declare a PPA for $PKG_TYPE!"
-			BC_REPOS["$bc"]+="ppa $line\n";;
-		    build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
-		    raw_pkgs) BC_RAW_PKGS["$bc"]+="$line ";;
-		    *) die "Cannot handle query for $query."
-		esac
-	    done < <("$CROWBAR_DIR/parse_yml.rb" \
-		"$yml_file" \
-		${BC_QUERY_STRINGS["$query"]} 2>/dev/null)
-	done
-    done
-
-    debug "Analyzing barclamp group membership"
-    # If any barclamps need group expansion, do it.
-    for bc in "${!BC_DEPS[@]}"; do
-	newdeps=''
-	for dep in ${BC_DEPS["$bc"]}; do
-	    if [[ $dep = @* ]]; then
-		[[ ${BC_GROUPS["${dep#@}"]} ]] || \
-		    die "$bc depends on group ${dep#@}, but that group does not exist!"
-		for d in ${BC_GROUPS["${dep#@}"]}; do
-		    is_barclamp "$d" || \
-			die "$bc depends on barclamp $d from group ${dep#@}, but $d does not exist!"
-		    newdeps+="$d "
-		done
-	    else
-		is_barclamp "$dep" || \
-		    die "$bc depends on barclamp $dep, but $dep is not a barclamp!"
-		newdeps+="$dep "
-	    fi
-	done
-	BC_DEPS["$bc"]="$newdeps"
-    done
-
     # Proxy Variables
     [[ $USE_PROXY ]] || USE_PROXY=0
     [[ $PROXY_HOST ]] || PROXY_HOST=""
@@ -430,35 +352,9 @@ fi
 		echo "${submod##*/}"
 	    done < <(git submodule status))
 	)
-    
-    # Group-expand barclamps if needed, and unset groups after they are expanded.
-    for i in "${!BARCLAMPS[@]}"; do
-	bc="${BARCLAMPS[$i]}"
-	if [[ $bc = @* ]]; then
-	    [[ ${BC_GROUPS["${bc#@}"]} ]] || \
-		die "No such group ${bc#@}!"
-	    BARCLAMPS+=(${BC_GROUPS["${bc#@}"]})
-	    unset BARCLAMPS[$i]
-	else
-	    is_barclamp "$bc" || die "$bc is not a barclamp!"
-	fi
-    done
-    BARCLAMPS=("${BARCLAMPS[@]//@*}")
 
-    # Pull in dependencies for the barclamps.
-    # Everything depends on the crowbar barclamp, so include it first.
-    new_barclamps=("crowbar")
-    while [[ t = t ]]; do
-	for bc in "${BARCLAMPS[@]}"; do
-	    for dep in ${BC_DEPS["$bc"]}; do
-		is_in "$dep" "${new_barclamps[@]}" && continue
-		new_barclamps+=("$dep")
-	    done
-	    is_in "$bc" "${new_barclamps[@]}" || new_barclamps+=("$bc")
-	done
-	[[ ${BARCLAMPS[*]} = ${new_barclamps[*]} ]] && break
-	BARCLAMPS=("${new_barclamps[@]}")
-    done
+    # Pull in barclamp information
+    get_barclamp_info
 
     # Make any directories we don't already have
     for d in "$ISO_LIBRARY" "$ISO_DEST" "$IMAGE_DIR" "$BUILD_DIR" \
@@ -530,41 +426,8 @@ fi
 	for f in file gems; do
 	    [[ -d "$CACHE_DIR/barclamps/$bc/$f" ]] || continue
 	    cp -r "$CACHE_DIR/barclamps/$bc/$f" "$BUILD_DIR/extra"
-	done
-	# If this barclamp has tests, make sure its dependencies are sorted.
-	if barclamp_has_test "$bc" && [[ ! $bc = crowbar ]]; then
-	    for d in $(all_deps "$bc"); do
-		barclamp_has_test "$d" || continue
-		[[ $d = $bc ]] && continue
-		BC_TEST_DEPS["$bc"]+="$d "
-	    done
-	fi
-	    
+	done	    
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
-    done
-
-    # Extract the leaf nodes from $BC_TEST_DEPS, and use them to build
-    # $BC_TEST_GROUPS
-
-    add_to_test_groups() {
-	# $1 = name of test group
-	# $@ = dependencies to try to add recursivly.
-	local bc="$1" d
-	shift
-	for d in "$@"; do
-	    [[ ${BC_TEST_DEPS["$d"]} ]] && \
-		add_to_test_groups "$bc" "${BC_TEST_DEPS["$d"]//crowbar /}"
-	    is_in "$d" "${BC_TEST_GROUPS[$bc]}" || \
-		BC_TEST_GROUPS["$bc"]+="$d "
-	done
-    }
-    for bc in "${!BC_TEST_DEPS[@]}"; do
-	is_in "$bc" ${BC_TEST_DEPS[@]} || add_to_test_groups "$bc" "$bc"
-    done
-
-
-    for bc in "${!BC_TEST_GROUPS[@]}"; do
-	echo "Test group $bc: ${BC_TEST_GROUPS[$bc]}"
     done
 
     (cd "$BUILD_DIR"
