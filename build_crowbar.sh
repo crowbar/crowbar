@@ -1092,18 +1092,18 @@ fi
     if [[ $GENERATE_MINIMAL_INSTALL = true ]]; then
 	if [[ ! -f "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install" ]]; then
 	    if [[ ! -f "$HOME/admin-installed.list" ]]; then
-		test_params=(run-test scratch admin-only) 
 		    test_iso run-test scratch admin-only
 	    fi
-	    [[ ! -f "$HOME/crowbar-installed.$OS_TOKEN.list" ]] || \
-		die "Asked to shrink build for $OS_TOKEN, but package list missing!"
+	    [[ -f "$HOME/admin-installed.list" ]] || \
+		die "Could not generate minimal install list!"
 	    mv "$HOME/admin-installed.list" \
 		"$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install"
+	    debug "Minimal install generated and saved to $CROWBAR_DIR/$OS_TOKEN-extra/minimal-install."
+	    debug "Please commit it and rerun the build with --shrink."
 	fi
-	
-	build_iso
     fi
     if [[ $NEED_TEST = true ]]; then test_iso "${test_params[@]}"; fi
  
     echo "$(date '+%F %T %z'): Finshed. Image at $ISO_DEST/$BUILT_ISO"
 } 65> /tmp/.build_crowbar.lock
+q
