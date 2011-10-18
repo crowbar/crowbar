@@ -934,8 +934,8 @@ run_hooks() {
     local test_name=$1 test_dir="$2" timeout=${3:-300} ext=${4:-hook}
     local deadline=$(($(date '+%s') + ${timeout})) hook
     [[ -d $test_dir ]] || {
-	echo "Failed" > "$smoketest_dir/$test_name.test"
-	return 1
+	echo "Passed" > "$smoketest_dir/$test_name.test"
+	return 0
     }
     (   sleep 1
 	for hook in "$test_dir"/*."$ext"; do
@@ -969,7 +969,15 @@ run_hooks() {
 # so naming them with numeric prefixes indicating the order 
 # they should run in is a Good Idea.
 run_test_hooks() {
-    run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" 900 test
+    local h
+    for h in 
+    for h in ${BC_DEPS[$1]} ${BC_SMOKETEST_DEPS[$bc]}; do
+	[[ ! $h || $h = test ]] && continue
+	barclamp_deployed "$h" || run_test_hooks "$h"
+    done
+    deploy_barclamp "$1"
+    run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
+	${BC_SMOKETEST_TIMEOUTS[$1]:-300} test
 }
 
 run_admin_hooks() {
@@ -1009,7 +1017,7 @@ run_test() {
 	shift
     done
 
-    [[ $SMOEKTEST_ISO = /* ]] || SMOKETEST_ISO="$PWD/$SMOKETEST_ISO"
+    [[ $SMOKETEST_ISO = /* ]] || SMOKETEST_ISO="$PWD/$SMOKETEST_ISO"
     [[ -f $SMOKETEST_ISO ]] || die "Cannot find $SMOKETEST_ISO to test!"
     # $smoketest_dir is where we will store all our disk images and logfiles.
     smoketest_dir="$HOME/testing/${SMOKETEST_ISO##*/}"

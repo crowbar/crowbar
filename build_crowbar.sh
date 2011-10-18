@@ -511,7 +511,8 @@ fi
     if [[ $GENERATE_MINIMAL_INSTALL = true ]]; then
 	if [[ ! -f "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install" ]]; then
 	    if [[ ! -f "$HOME/admin-installed.list" ]]; then
-		    test_iso admin-only
+		SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
+		test_iso admin-only
 	    fi
 	    [[ ! -f "$HOME/crowbar-installed.$OS_TOKEN.list" ]] || \
 		die "Asked to shrink build for $OS_TOKEN, but package list missing!"
@@ -524,6 +525,7 @@ fi
     echo "$(date '+%F %T %z'): Image at $ISO_DEST/$BUILT_ISO"
     if [[ $NEED_TEST = true ]]; then 
 	echo "$(date '+%F %T %z'): Testing new iso"
+	SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
 	test_iso "${test_params[@]}" || die "Test failed."
     fi
     echo "$(date '+%F %T %z'): Finished."

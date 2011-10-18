@@ -63,6 +63,8 @@ get_barclamp_info() {
 			BC_REPOS["$bc"]+="ppa $line\n";;
 		    build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
 		    raw_pkgs) BC_RAW_PKGS["$bc"]+="$line ";;
+		    test_deps) BC_SMOKETEST_DEPS["$bc"]+="$line ";;
+		    test_timeouts) BC_SMOKETEST_TIMEOUTS["$bc"]+="$line ";;
 		    *) die "Cannot handle query for $query."
 		esac
 	    done < <("$CROWBAR_DIR/parse_yml.rb" \
@@ -500,8 +502,8 @@ barclamp_pkg_cache_needs_update() {
 		INSTALLED_PKGS["$pkg-$arch"]="true"
 		continue 2
 	    fi
-	    #debug "Could not find $pkg-$arch"
 	done
+	debug "$pkg is not cached, and $1 needs it."
 	return 0
     done
     return 1
