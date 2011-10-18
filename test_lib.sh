@@ -6,20 +6,24 @@
 # We only need to be sourced once.
 [[ $SMOKETEST_LIB_SOURCED = true ]] && exit 0
 
+# Make sure we know where to find our test binaries
+[[ -d $CROWBAR_DIR/testing/cli ]] || mkdir -p "$CROWBAR_DIR/testing/cli"
+export PATH="$CROWBAR_DIR/testing/cli:$PATH"
+
 # THis lock is held whenever we are running tests.  It exists to
 # prevent multiple instances of the smoketest from running at once.
-SMOKETEST_LOCK="$HOME/.testing.lck"
+SMOKETEST_LOCK="$CROWBAR_DIR/testing/.testing.lck"
 
 # This lock is held whenever we are starting or killing KVM.
 # We use it to ensure that only one virtual machine is being set
 # up or torn down at any given time, and that our teardown 
 # function does not race with our launching function.
-SMOKETEST_KVM_LOCK="$HOME/.kvm.lck"
+SMOKETEST_KVM_LOCK="$CROWBAR_DIR/testing/.kvm.lck"
 
 # This lock is held whenever we are performing a cleanup.  
 # We want to ensure that we never try to run two
 # cleanups in parallel.
-SMOKETEST_CLEANUP_LOCK="$HOME/.cleanup.lck"
+SMOKETEST_CLEANUP_LOCK="$CROWBAR_DIR/testing/.cleanup.lck"
 
 SMOKETEST_DIR="$CROWBAR_DIR/test_framework"
 
@@ -147,11 +151,11 @@ declare -a smoketest_cleanup_cmds taps
 smoketest_cleanup() {
     # We ignore errors in this function.
     set +e
-    flock -n 70 || return 0
+    flock -n 75 || return 0
     killall check_ready
     [[ $develop_mode = true ]] && pause
     # Gather final logs if our admin node is up.
-    # smoketest_get_cluster_logs final
+    smoketest_get_cluster_logs final
     # Make sure our virtual machines have been torn down.
     for pidfile in "$smoketest_dir/"*.pid; do
 	local vmname=${pidfile##*/}
@@ -184,14 +188,11 @@ smoketest_cleanup() {
 	done
     }
     echo "Deploy $final_status."
-    target="$HOME/tested/${smoketest_dir##*/}-$(date '+%Y%m%d-%H%M%S')-${final_status}"
+    target="${smoketest_dir##*/}-$(date '+%Y%m%d-%H%M%S')-${final_status}"
     rm -f "$smoketest_dir/"*.disk || :
-    mv "$smoketest_dir" "$target"
-    cp "$HOME/smoketest.log" "$target"
-    (cd "$HOME/tested"; tar czf "$target.tar.gz" "${target##*/}")
-    echo "Logs are available at $target.tar.gz."
-    echo "(on the Web at http://10.9.244.31:3389/crowbar-test/${target##*/}/)" 
-    rm "$HOME/tested/"*.iso
+    cp "$CROWBAR_DIR/smoketest.log" "$smoketest_dir"
+    (cd "$currdir"; tar czf "$target.tar.gz" "${smoketest_dir}")
+    echo "Logs are available at $currdir/$target.tar.gz." 
     [[ $final_status != Passed ]];
 } 75>"$CROWBAR_DIR/.smoketest_cleanup.lock"
 
@@ -610,7 +611,7 @@ run_admin_node() {
 	die "Could not find our kernel!"
 	# create our admin disk image
     smoketest_update_status admin "Creating disk image"
-    screen -S "$SMOKETEST_SCREEN" -X screen -t Status "$HOME/test_framework/watch_Status.sh"
+    screen -S "$SMOKETEST_SCREEN" -X screen -t Status "$CROWBAR_DIR/test_framework/watch_Status.sh"
     qemu-img create -f raw "$smoketest_dir/admin.disk" 16G &>/dev/null
 
     # makenics populates vm_nics with the appropriate information for
@@ -655,13 +656,14 @@ run_admin_node() {
     screen -S "$SMOKETEST_SCREEN" -X screen -t "Syslog Capture" \
 	tail -f "$LOGDIR/admin.2/ttyS0.log"
     # Grab the latest crowbar CLI code off the admin node.
-    (   cd "$HOME/testing/cli"
+    ( 
+	cd "$CROWBAR_DIR/testing/cli"
 	curlargs=(-L -o - --connect-timeout 120 --max-time 120)
 	[[ $CROWBAR_KEY ]] && curlargs+=(-u "$CROWBAR_KEY" --digest) || :
 	http_proxy='' curl "${curlargs[@]}" \
 	    "http://${CROWBAR_IP}:3000/support/get_cli" | tar xzvf -
 	# make run_on
-	cat >"$HOME/testing/cli/run_on" <<"EOF"
+	cat >"$CROWBAR_DIR/testing/cli/run_on" <<"EOF"
 #!/bin/bash
 target="$1"
 shift
@@ -679,11 +681,11 @@ ssh -q -o "UserKnownHostsFile /dev/null" -o "StrictHostKeyChecking no" \
     -o "PasswordAuthentication no" root@"$target" "$@"
 EOF
 	# make a cheesy knife command
-	cat >"$HOME/testing/cli/knife" <<"EOF"
+	cat >"$CROWBAR_DIR/testing/cli/knife" <<"EOF"
 #!/bin/bash
 run_on "$CROWBAR_IP" knife "$@"
 EOF
-	chmod 755 "$HOME/testing/cli"/*
+	chmod 755 "$CROWBAR_DIR/testing/cli"/*
     ) || :
     run_on "$CROWBAR_IP" cp /root/.ssh/authorized_keys \
 	/tftpboot/ubuntu_dvd/authorized_keys || :
@@ -970,14 +972,15 @@ run_hooks() {
 # they should run in is a Good Idea.
 run_test_hooks() {
     local h
-    for h in 
     for h in ${BC_DEPS[$1]} ${BC_SMOKETEST_DEPS[$bc]}; do
 	[[ ! $h || $h = test ]] && continue
 	barclamp_deployed "$h" || run_test_hooks "$h"
     done
-    deploy_barclamp "$1"
-    run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
-	${BC_SMOKETEST_TIMEOUTS[$1]:-300} test
+    barclamp_deployed "$1" || deploy_barclamp "$1"
+    if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]l then
+	run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
+	    ${BC_SMOKETEST_TIMEOUTS[$1]:-300} test
+    fi
 }
 
 run_admin_hooks() {
@@ -990,7 +993,9 @@ pause() { printf "\n%s\n" "${1:-Press any key to continue:}"; read -n 1; }
 run_test() {
     # If something already holds the testing lock, it is not safe to continue.
     flock -n -x 100 || die "Could not grab $SMOKETEST_LOCK in run_test"
-    
+    CGROUP_DIR=$(sudo "$SMOKETEST_DIR/make_cgroups.sh" $$ crowbar-test) || \
+    die "Could not mount cgroup filesystem!"
+
     # kill any already running screen sessions
     screen_re="([0-9]+\.$SMOKETEST_SCREEN)"
     while read line; do
@@ -1020,7 +1025,7 @@ run_test() {
     [[ $SMOKETEST_ISO = /* ]] || SMOKETEST_ISO="$PWD/$SMOKETEST_ISO"
     [[ -f $SMOKETEST_ISO ]] || die "Cannot find $SMOKETEST_ISO to test!"
     # $smoketest_dir is where we will store all our disk images and logfiles.
-    smoketest_dir="$HOME/testing/${SMOKETEST_ISO##*/}"
+    smoketest_dir="$CROWBAR_DIR/testing/${SMOKETEST_ISO##*/}"
     smoketest_dir="${smoketest_dir%.iso}"
     
     for d in image logs; do mkdir -p "$smoketest_dir/$d"; done
@@ -1028,7 +1033,7 @@ run_test() {
     export LOGDIR="$smoketest_dir/logs"
     # Make sure we clean up after ourselves no matter how we exit.
     cleanup_cmds+=(smoketest_cleanup)
-    cd "$HOME/testing"
+    cd "$CROWBAR_DIR/testing"
     # make a screen session so that we can watch what we are doing if needed.
     screen -wipe &>/dev/null || :
     screen -d -m -S "$SMOKETEST_SCREEN" -t 'Initial Shell' /bin/bash

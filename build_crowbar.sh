@@ -101,20 +101,22 @@ export CROWBAR_DIR
 
 # Command to run to clean out the tree before starting the build.
 # By default we want to be relatively pristine.
-[[ $VCS_CLEAN_CMD ]] || VCS_CLEAN_CMD='git clean -f -x -d'
+[[ $VCS_CLEAN_CMD ]] || VCS_CLEAN_CMD='git clean -f -d'
 
 # Arrays holding the additional pkgs and gems populate Crowbar with.
 REPOS=()
 
 declare -A CD_POOL STAGED_POOL INSTALLED_PKGS
 
-# Source our common build functions
-. "$CROWBAR_DIR/build_lib.sh"
-. "$CROWBAR_DIR/test_lib.sh"
 # Get the OS we were asked to stage Crowbar on to.  Assume it is Ubuntu 10.10
 # unless we specify otherwise.
 OS_TO_STAGE="${1-ubuntu-10.10}"
 shift
+
+
+# Source our common build functions
+. "$CROWBAR_DIR/build_lib.sh" || exit 1
+. "$CROWBAR_DIR/test_lib.sh" || exit 1
 
 # Make sure that we actually know how to build the ISO we were asked to 
 # build.  If we do not, print a helpful error message.
@@ -178,6 +180,22 @@ fi
 #   usually entails modifying initrd files, adding kickstarts/install seeds,
 #   modifying boot config files, and so on.
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
+
+# Query strings to pull info we are interested out of crowbar.yml
+# These have to be created after we know what OS we are building on.
+BC_QUERY_STRINGS["deps"]="barclamp requires"
+BC_QUERY_STRINGS["groups"]="barclamp member"
+BC_QUERY_STRINGS["pkgs"]="$PKG_TYPE pkgs"
+BC_QUERY_STRINGS["extra_files"]="extra_files"
+BC_QUERY_STRINGS["os_support"]="barclamp os_support"
+BC_QUERY_STRINGS["gems"]="gems pkgs"
+BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
+BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
+BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
+BC_QUERY_STRINGS["raw_pkgs"]="$PKG_TYPE raw_pkgs"
+BC_QUERY_STRINGS["test_deps"]="smoketest requires"
+BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
+
 
 {
     # Check to make sure our required commands are installed.

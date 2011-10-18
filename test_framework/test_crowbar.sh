@@ -19,11 +19,12 @@
 # you are running it as the following sudo rights:
 # crowbar-tester ALL = NOPASSWD: /bin/mount, /bin/umount, /bin/ip, /usr/sbin/brctl, /home/crowbar-tester/test_framework/make-cgroups.sh
 
-# We expect to live in $HOME/test_framework.
 # We use bash4 specific functionality (hash tables), and cgroups to
 # make sure we clean up everything when we exit a test run.
 # You will need a fairly recent Linux distro to run this test -- 
 # RHEL/CentOS 5 will not work without some significant rework.
+
+readonly currdir="$PWD"
 
 # Include common build and smoketest functionality
 if ! [[ $CROWBAR_DIR && -d $CROWBAR_DIR ]]; then
@@ -49,13 +50,6 @@ EOF
 
 [[ -f $HOME/.ssh/known_hosts ]] && rm -f "$HOME/.ssh/known_hosts" || :
 [[ -f $HOME/.ssh/id_rsa.pub ]] || { mkdir -p "$HOME/.ssh"; ssh-keygen -q -f "$HOME/.ssh/id_rsa" -t rsa -N '' ; }
-
-[[ -f $HOME/testing/cli ]] || mkdir -p "$HOME/testing/cli"
-export PATH="$HOME/testing/cli:$PATH"
-
-CGROUP_DIR=$(sudo "$SMOKETEST_DIR/make_cgroups.sh" $$ crowbar-test) || \
-    die "Could not mount cgroup filesystem!"
-
 
 case $1 in
     cleanup) shift; 

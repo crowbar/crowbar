@@ -11,27 +11,12 @@
     export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 }
 
-
 # Hashes to hold our "interesting" information.
 # Key = barclamp name
 # Value = whatever interesting thing we are looking for.
 declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
 declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS
-
-# Query strings to pull info we are interested out of crowbar.yml
-BC_QUERY_STRINGS["deps"]="barclamp requires"
-BC_QUERY_STRINGS["groups"]="barclamp member"
-BC_QUERY_STRINGS["pkgs"]="$PKG_TYPE pkgs"
-BC_QUERY_STRINGS["extra_files"]="extra_files"
-BC_QUERY_STRINGS["os_support"]="barclamp os_support"
-BC_QUERY_STRINGS["gems"]="gems pkgs"
-BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
-BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
-BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
-BC_QUERY_STRINGS["raw_pkgs"]="$PKG_TYPE raw_pkgs"
-BC_QUERY_STRINGS["test_deps"]="smoketest requires"
-BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
 
 get_barclamp_info() {
     local bc yml_file line query newdeps dep d i
@@ -151,6 +136,7 @@ cleanup() {
     [[ $CACHE_DIR ]] && GREPOPTS=(-e "$CACHE_DIR")
     [[ $IMAGE_DIR && $CACHE_DIR =~ $IMAGE_DIR ]] && GREPOPTS+=(-e "$IMAGE_DIR")
     [[ $BUILD_DIR && $CACHE_DIR =~ $BUILD_DIR ]] && GREPOPTS+=(-e "$BUILD_DIR")
+    [[ $CROWBAR_DIR && -d $CROWBAR_DIR/testing ]] && GREPOPTS+=(-e "$CROWBAR_DIR/testing")
     [[ $CHROOT && $CACHE_DIR =~ $CHROOT ]] && GREPOPTS+=(-e "$CHROOT")
     if [[ $GREPOPTS ]]; then
 	while read dev fs type opts rest; do
