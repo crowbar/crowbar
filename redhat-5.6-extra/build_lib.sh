@@ -247,8 +247,10 @@ shrink_iso() {
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/Server"
 }
 
+generate_minimal_install() { : ; }
+
 # Check to make sure our required commands are installed.
-for cmd in createrepo rpm; do
+for cmd in rpm; do
     which "$cmd" &>/dev/null || \
 	die 1 "Please install $cmd before trying to build Crowbar."
 done
