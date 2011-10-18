@@ -1106,4 +1106,4 @@ fi
  
     echo "$(date '+%F %T %z'): Finshed. Image at $ISO_DEST/$BUILT_ISO"
 } 65> /tmp/.build_crowbar.lock
-q
+
