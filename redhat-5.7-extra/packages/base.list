@@ -1,0 +1,12 @@
+# List of packages that we need to prepopulate the crowbar .ISO with.
+# repository <url> 
+# ppas <personal package archives> A list of PPAs to grab packages from.
+# debs <package list> = deb pacakges to prefetch
+# gems <package list> = gems to prefetch
+
+# Base repository for Chef and friends
+repository rpm http://rbel.frameos.org/rbel5
+# repository bare rbel5-ruby-test 10 http://rbel.frameos.org/ruby-test/el5/x86_64
+
+# Base repository for EPEL on RHEL5, we will need this.
+repository rpm http://ftp.cse.buffalo.edu/pub/epel/5/x86_64/epel-release-5-4.noarch.rpm
