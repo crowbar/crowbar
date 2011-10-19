@@ -37,420 +37,9 @@ export LC_ALL="C"
 
 
 GEM_RE='([^0-9].*)-([0-9].*)'
-[[ $DEBUG ]] && {
-    set -x
-    export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
-}
 
 readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
-
-
-# Our general cleanup function.  It is called as a trap whenever the 
-# build script exits, and it's job is to make sure we leave the local 
-# system in the same state we cound it, modulo a few calories of wasted heat 
-# and a shiny new .iso.
-cleanup() {
-    # Clean up any stray mounts we may have left behind. 
-    # The paranoia with the grepping is to ensure that we do not 
-    # inadvertently umount everything.
-    GREPOPTS=()
-    [[ $CACHE_DIR ]] && GREPOPTS=(-e "$CACHE_DIR")
-    [[ $IMAGE_DIR && $CACHE_DIR =~ $IMAGE_DIR ]] && GREPOPTS+=(-e "$IMAGE_DIR")
-    [[ $BUILD_DIR && $CACHE_DIR =~ $BUILD_DIR ]] && GREPOPTS+=(-e "$BUILD_DIR")
-    [[ $CHROOT && $CACHE_DIR =~ $CHROOT ]] && GREPOPTS+=(-e "$CHROOT")
-    if [[ $GREPOPTS ]]; then
-	while read dev fs type opts rest; do
-	    sudo umount -d -l "$fs"
-	done < <(tac /proc/self/mounts |grep "${GREPOPTS[@]}")
-    fi
-    # If the build process spawned a copy of webrick, make sure it is dead.
-    [[ $webrick_pid && -d /proc/$webrick_pid ]] && kill -9 $webrick_pid
-    # clean up after outselves from merging branches, if needed.
-    cd "$CROWBAR_DIR"
-    if [[ $THROWAWAY_BRANCH ]]; then
-	# Check out the branch we started the build process, and then 
-	# nuke whatever throwaway branch we may have created.
-	git checkout -f "${CURRENT_BRANCH##*/}" &>/dev/null
-	git branch -D "$THROWAWAY_BRANCH" &>/dev/null
-    fi
-    # If we saved unadded changes, resurrect them.
-    [[ $THROWAWAY_STASH ]] && git stash apply "$THROWAWAY_STASH" &>/dev/null
-    # Do the same thing as above, but for the build cache instead.
-    cd "$CACHE_DIR"
-    if [[ $CACHE_THROWAWAY_BRANCH ]]; then
-	git checkout -f "$CURRENT_CACHE_BRANCH" &>/dev/null
-	git branch -D "$CACHE_THROWAWAY_BRANCH" &>/dev/null
-    fi
-    [[ $CACHE_THROWAWAY_STASH ]] && git stash apply "$CACHE_THROWAWAY_STASH"
-    for d in "$IMAGE_DIR" "$BUILD_DIR" "$CHROOT"; do
-	[[ -d $d ]] && sudo rm -rf -- "$d"
-    done
-}
-
-# Test to see if $1 is in the rest of the args.
-is_in() {
-    local t="(^| )$1( |\$)"
-    shift
-    [[ $* =~ $t ]]
-}
-
-# Run a command in our chroot environment.
-in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" "$@"; }
-
-# A little helper function for doing bind mounts.
-bind_mount() {
-    [[ -d $2 ]] || mkdir -p "$2"
-    grep -q "$2" /proc/self/mounts || sudo mount --bind "$1" "$2"
-}
-
-# Write a string with \n translated to a real line break. 
-write_lines() { [[ $1 ]] && printf "%b" "$1"; }
-
-# Read base repository information from the *.list files.
-read_base_repos() {
-    for pkgfile in "$BUILD_DIR/extra/packages/"*.list; do
-	[[ -f $pkgfile ]] || continue
-	while read line; do
-	    line=${line%%#*}
-	    [[ $line ]] || continue
-	    if [[ $line = repository* ]]; then
-		REPOS+=("${line#* }")
-	    else
-		echo "$line in $pkgfile has been superceded by crowbar.yml metadata." >&2
-		die "Please migrate $line into the appropriate barclamp config file."
-	    fi
-	done <"$pkgfile"
-    done
-}
-
-# Worker function for all_deps
-__all_deps() {
-    local dep
-    if [[ ${BC_DEPS["$1"]} ]]; then
-	for dep in ${BC_DEPS["$1"]}; do
-	    is_in "$dep" "${deps[@]}" && continue
-	    __all_deps "$dep"
-	done
-    fi
-    is_in "$1" "${deps[@]}" || deps+=("$1")
-    return 0
-}
-
-# Given a barclamp, echo all of the dependencies of that barclamp
-all_deps() {
-    local deps=() dep
-    __all_deps "$1"
-    echo "${deps[*]}"
-}	
-
-# A couple of utility functions for comparing version numbers.
-num_re='^[0-9]+$'
-__cmp() {
-    [[ $1 || $2 ]] || return 255 # neither 1 nor 2 or set, we are done
-    [[ $1 && ! $2 ]] && return 2 # 1 is set and 2 is not, 1 > 2
-    [[ ! $1 && $2 ]] && return 0 # 2 is set and 1 is not, 1 < 2
-    local a="$1" b="$2"
-    if [[ $a =~ $num_re && $b =~ $num_re ]]; then #both numbers, numeric cmp.
-	# make sure leading zeros do not confuse us
-	a=${a##0} b=${b##0}
-	((${a:=0} > ${b:=0})) && return 2
-	(($a < $b)) && return 0
-	return 1
-    else # string compare
-	[[ $a > $b ]] && return 2
-	[[ $a < $b ]] && return 0
-	return 1
-    fi
-}
-
-# Compare a version string, handling mixed numeric and alpha sequences
-# as appropriate.
-vercmp(){
-    # $1 = version string of first package
-    # $2 = version string of second package
-    # Returns 0 if $1 > $2, 1 otherwise.
-    # urldecode the version strings.
-    local a="$(printf "%b" "${1//%/\\x}")"
-    local b="$(printf "%b" "${2//%/\\x}")"
-    # prepend a version epoch if one is not already there.
-    [[ $a =~ ^[0-9]+: ]] || a="0:$a"
-    [[ $b =~ ^[0-9]+: ]] || b="0:$b"
-    local ver1=()
-    local ver2=()
-    local i=0
-    # split the version strings into arrays using the usual field splitters
-    IFS=':.-_ +' read -rs -a ver1 <<< "$a"
-    IFS=':.-_ +' read -rs -a ver2 <<< "$b"
-    for ((i=0;;i++)); do
-	__cmp "${ver1[$i]}" "${ver2[$i]}"
-	case $? in
-	    2) return 0;;
-	    0) return 1;;
-	    255) return 1;;
-	esac
-    done
-}
-
-# Index the pool of packages in the CD.
-index_cd_pool() {
-    # Scan through our pool to find pkgs we can easily omit.
-
-    local pkgname='' pkg=''
-    while read pkg; do
-	[[ -f $pkg ]] && is_pkg "$pkg" || continue
-	pkgname="$(pkg_name "$pkg")"
-	CD_POOL["$pkgname"]="${pkg}"
-    done < <(find "$(find_cd_pool)" -type f)
-}
-
-# Make a chroot environment for package-fetching purposes. 
-make_chroot() {
-    [[ -f $CHROOT/etc/resolv.conf ]] && return 0
-    local bc repo
-    debug "Making package-fetching chroot"
-    mkdir -p "$CHROOT/$CHROOT_PKGDIR"
-    mkdir -p "$CHROOT/$CHROOT_GEMDIR"
-    __make_chroot
-
-    read_base_repos
-    # Add our basic repositories
-    add_repos "${REPOS[@]}" || \
-	die "Could not add base repositories for $OS_TOKEN chroot!"
-
-    # Add the repos from the barclamps.
-    # We do it here because importing the metadata takes forever
-    # if we refresh on every barclamp.
-    for bc in "${BARCLAMPS[@]}"; do
-	while read repo; do
-	    add_repos "$repo"
-	done < <(write_lines "${BC_REPOS[$bc]}")
-    done
-    chroot_update
-}
-
-
-stage_pkgs() {
-    # $1 = cache to copy from.
-    # $2 = location to copy to
-    local pkg pkgname pkg_t
-    while read pkg; do
-	# If it is not a package, skip it.
-	is_pkg "$pkg" || continue
-	pkgname="$(pkg_name "$pkg")"
-	# Check to see if it is in the CD pool.
-	pkg_t="${CD_POOL["$pkgname"]}"
-	# If it is, and the one in the pool is not older than this one,
-	# skip it.
-	if [[ $pkg_t && -f $pkg_t ]] && ( ! pkg_cmp "$pkg" "$pkg_t" ); then
-	    #debug "Skipping copy of ${pkg##*/}, it is on the install media"
-	    # if we are shrinking our ISO, make sure this one is in.
-	    [[ $SHRINK_ISO = true ]] && INSTALLED_PKGS["$pkgname"]="true"
-	    continue
-	fi
-	# Now check to see if we have already staged it
-	pkg_t="${STAGED_POOL["$pkgname"]}"
-	if [[ $pkg_t && -f $pkg_t ]]; then
-	    # We have already staged it.  Check to see if ours is newer than
-	    # the one already staged.
-	    if pkg_cmp "$pkg" "$pkg_t"; then
-		# We are newer.  Delete the old one, copy us,
-		# and update $STAGED_POOL
-		#debug "Replacing ${pkg_t##*/} with ${pkg##*/}"
-		rm -f "$pkg_t"
-		cp "$pkg" "$2"
-		STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
-	    fi
-	else
-	    # We have not seen this package before.  Copy it.
-	    cp "$pkg" "$2"
-	    STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
-	fi
-    done < <(find "$1" -type f)
-}
-
-# Update the package cache for a barclamp.
-update_barclamp_pkg_cache() {
-    # $1 = barclamp we are working with
-    local bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" pkg dest bc
-    local -A pkgs
-    # Wipe out the packages already in the chroot package directory.
-    while read pkg; do
-	is_pkg "$pkg" && sudo rm -f "$pkg"
-    done < <(find "$CHROOT/$CHROOT_PKGDIR" -type f)
-    for bc in $(all_deps "$1"); do
-	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." ]] || continue
-	sudo cp -a "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." \
-	    "$CHROOT/$CHROOT_PKGDIR"
-    done
-    # Remember what packages we already have.
-    while read pkg; do
-	is_pkg "$pkg" || continue
-	pkgs["$pkg"]="true"
-    done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
-    chroot_fetch ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]} || \
-	die "Could not fetch packages required by barclamp $1"
-    while read pkg; do
-	is_pkg "$CHROOT/$CHROOT_PKGDIR/$pkg" || continue
-	[[ ${pkgs["$pkg"]} = true ]] && continue
-	if [[ ${pkg%/*} != '.' ]]; then
-	    [[ -d $bc_cache/${pkg%/*} ]] || mkdir -p "$bc_cache/${pkg%/*}"
-	    [[ -f $bc_cache/${pkg##*/} ]] && rm -f "$bc_cache/${pkg##*/}"
-	fi 
-	cp "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
-    done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
-}
-
-# Update the gem cache for a barclamp
-update_barclamp_gem_cache() {
-    local -A gems
-    local gemname gemver gemopts bc gem
-    local bc_cache="$CACHE_DIR/barclamps/$1/gems"
-
-    # Wipe out the caches.
-    ( cd "$CHROOT/$CHROOT_GEMDIR" && sudo rm -rf * )
-    # if we have deb or gem caches, copy them back in.
-    # Make sure we copy the caches for all our dependent barclamps.
-    for bc in $(all_deps "$1"); do
-	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." ]] && \
-	    sudo cp -a "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." \
-	    "$CHROOT/$CHROOT_PKGDIR"
-	[[ -d "$CACHE_DIR/barclamps/$bc/gems/." ]] && \
-	    sudo cp -a "$CACHE_DIR/barclamps/$bc/gems/." \
-	    "$CHROOT/$CHROOT_GEMDIR"
-    done
-    
-    while read gem; do
-	[[ $gem = *.gem ]] || continue
-	gems["$gem"]="true"
-    done < <(find "$CHROOT/$CHROOT_GEMDIR" -type f)
-        
-    # install any build dependencies we need.
-    chroot_install ${BC_BUILD_PKGS["$1"]}
-    # Grab the gems needed for this barclamp.
-    for gem in ${BC_GEMS["$1"]}; do
-	if [[ $gem =~ $GEM_RE ]]; then
-	    gemname="${BASH_REMATCH[1]}"
-	    gemver="${BASH_REMATCH[2]}"
-	else
-	    gemname="$gem"
-	    gemver=''
-	fi
-	gemopts=(install --no-ri --no-rdoc)
-	[[ $gemver ]] && gemopts+=(--version "= ${gemver}")
-	[[ $http_proxy ]] && gemopts+=(-p "$http_proxy")
-	in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
-    done
-
-    # Save our updated gems and pkgs in the cache for later.
-     while read gem; do
-	[[ $gem = *.gem ]] || continue
-	[[ ${gems["$gem"]} = "true" ]] && continue
-	cp "$gem" "$bc_cache"
-    done < <(find "$CHROOT/$CHROOT_GEMDIR" -type f)
-}
-
-# Fetch any raw packages we do not already have.
-update_barclamp_raw_pkg_cache() {
-    local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
-    # Fetch any raw_pkgs we were asked to.
-    for pkg in ${BC_RAW_PKGS["$1"]}; do
-	[[ -f $bc_cache/${pkg##*/} ]] && continue
-	echo "Caching $pkg:"
-	curl -L -o "$bc_cache/${pkg##*/}" "$pkg"
-    done
-}
-
-# Fetch any bare files that we do not already have.
-update_barclamp_file_cache() {
-    local dest pkg bc_cache="$CACHE_DIR/barclamps/$1/files"
-    # Fetch any extra_pkgs we need.
-    while read pkg; do
-	dest=${pkg#* }
-	[[ $dest = $pkg ]] && dest=''
-	pkg=${pkg%% *}
-	[[ -f $bc_cache/files/$dest/${pkg##*/} ]] && continue
-	mkdir -p "$bc_cache/$dest"
-	echo "Caching $pkg:"
-	curl -L -o "$bc_cache/$dest/${pkg##*/}" "$pkg"
-    done < <(write_lines "${BC_EXTRA_FILES[$1]}")
-}
-
-# Check to see if the barclamp package cache needs update.
-barclamp_pkg_cache_needs_update() {
-    local pkg pkgname arch bc 
-    local -A pkgs
-
-    # First, check to see if we have all the packages we need.
-    for bc in $(all_deps "$1"); do
-	local bc_cache="$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
-	mkdir -p "$bc_cache"
-	while read pkg; do
-	    is_pkg "$pkg" || continue
-	    pkgname="$(pkg_name "$pkg")"
-	    #debug "$pkgname is cached"
-	    pkgs["$pkgname"]="$pkg"
-	done < <(find "$bc_cache" -type f)
-    done 
-    for pkg in ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]}; do
-	[[ $pkg ]] || continue
-	for arch in "${PKG_ALLOWED_ARCHES[@]}"; do
-	    [[ ${pkgs["$pkg-$arch"]} ]] && continue 2
-	    if [[ ${CD_POOL["$pkg-$arch"]} ]]; then
-		INSTALLED_PKGS["$pkg-$arch"]="true"
-		continue 2
-	    fi
-	    #debug "Could not find $pkg-$arch"
-	done
-	return 0
-    done
-    return 1
-}
-
-# Check to see if the barclamp gem cache needs an update.
-barclamp_gem_cache_needs_update() {
-    local pkg pkgname 
-    local -A pkgs
-    # Second, check to see if we have all the gems we need.
-    for pkg in ${BC_GEMS["$1"]}; do
-	for bc in $(all_deps "$1"); do
-	    local bc_cache="$CACHE_DIR/barclamps/$bc/gems"
-	    mkdir -p "$bc_cache"
-	    [[ $(find "$bc_cache" \
-		-name "$pkg*.gem" -type f) = *.gem ]] && continue 2
-	done
-	return 0    
-    done 
-    return 1
-}
-
-# CHeck to see if we are missing any raw packages.
-barclamp_raw_pkg_cache_needs_update() {
-    local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
-    mkdir -p "$bc_cache"
-    # Third, check to see if we have all the raw_pkgs we need.
-    for pkg in ${BC_RAW_PKGS["$1"]}; do
-	[[ -f $bc_cache/${pkg##*/} ]] || return 0
-    done
-    return 1
-}
-
-# Check to see if we are missing any raw files.
-barclamp_file_cache_needs_update() {
-    local pkg dest bc_cache="$CACHE_DIR/barclamps/$1/files"
-    mkdir -p "$bc_cache"
-    # Fourth, check to make sure we have all the extra_pkgs we need.
-    while read pkg; do
-	dest=${pkg#* }
-	[[ $dest = $pkg ]] && dest=''
-	pkg=${pkg%% *}
-	[[ -f $bc_cache/$dest/${pkg##*/} ]] || return 0
-    done < <(write_lines "${BC_EXTRA_FILES[$1]}")
-    return 1
-}
-
-# Arrange for cleanup to be called at the most common exit points.
-trap cleanup 0 INT QUIT TERM
 
 # Source our config file if we have one
 [[ -f $HOME/.build-crowbar.conf ]] && \
@@ -500,7 +89,11 @@ fi
 [[ $SLEDGEHAMMER_PXE_DIR ]] || SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot"
 
 # Location of the Crowbar checkout we are building from.
-[[ $CROWBAR_DIR ]] ||CROWBAR_DIR="${0%/*}"
+[[ $CROWBAR_DIR ]] || CROWBAR_DIR="${0%/*}"
+[[ $CROWBAR_DIR = /* ]] || CROWBAR_DIR="$currdir/$CROWBAR_DIR"
+[[ -f $CROWBAR_DIR/build_crowbar.sh && -d $CROWBAR_DIR/.git ]] || \
+    die "$CROWBAR_DIR is not a git checkout of Crowbar!" 
+export CROWBAR_DIR
 
 # Location of the Sledgehammer source tree.  Only used if we cannot 
 # find Sledgehammer in $SLEDGEHAMMER_PXE_DIR above. 
@@ -508,94 +101,22 @@ fi
 
 # Command to run to clean out the tree before starting the build.
 # By default we want to be relatively pristine.
-[[ $VCS_CLEAN_CMD ]] || VCS_CLEAN_CMD='git clean -f -x -d'
+[[ $VCS_CLEAN_CMD ]] || VCS_CLEAN_CMD='git clean -f -d'
 
 # Arrays holding the additional pkgs and gems populate Crowbar with.
 REPOS=()
 
 declare -A CD_POOL STAGED_POOL INSTALLED_PKGS
 
-# Some helper functions
-
-# Print a message to stderr and exit.  cleanup will be called.
-die() { echo "$(date '+%F %T %z'): $*" >&2; exit 1; }
-
-# Print a message to stderr and keep going.
-debug() { echo "$(date '+%F %T %z'): $*" >&2; }
-
-# Clean up any cruft that we might have left behind from the last run.
-clean_dirs() {
-    local d=''
-    for d in "$@"; do
-	(   mkdir -p "$d"
-	    cd "$d"
-	    chmod -R u+w .
-	    rm -rf * )
-    done
-}
-
-# Verify that the passed name is really a branch in the git repo.
-branch_exists() { git show-ref --quiet --verify --heads -- "refs/heads/$1"; }
-
-# Run a git command in the crowbar repo.
-in_repo() ( cd "$CROWBAR_DIR"; "$@")
-
-# Get the head revision of a git repository.
-get_rev() (
-    cd "$1"
-    if [[ -d .git ]]; then
-	git rev-parse HEAD
-    else
-	echo "Not a Git Repository"
-    fi
-)
-
-# Run a git command in the build cache, assuming it is a git repository. 
-in_cache() (
-    [[ $CURRENT_CACHE_BRANCH ]] || return 
-    cd "$CACHE_DIR"
-    "$@"
-)
-
-# Check to see if something is a barclamp.
-is_barclamp() { [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]]; }
-
-# Build our ISO image.
-build_iso() (   
-    cd "$BUILD_DIR"
-    rm -f isolinux/boot.cat
-    find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
-    find . -type f -not -name isolinux.bin -not -name sha1sums -not -path '*/.git/*' | \
-	xargs sha1sum -b >sha1sums
-    mkdir -p "$ISO_DEST"
-	# Save the sha1sums and the build-info files along side the iso.
-    cp sha1sums build-info "$ISO_DEST"
-    mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
-	-b isolinux/isolinux.bin -c isolinux/boot.cat \
-	-no-emul-boot --boot-load-size 4 -boot-info-table \
-	-o "$ISO_DEST/$BUILT_ISO" "$IMAGE_DIR" "$BUILD_DIR" 
-)
-
-# Have the smoketest framework do its thing with the ISO we just made.
-test_iso() {
-    [[ -L $HOME/test_framework ]] && rm -f "$HOME/test_framework"
-    [[ -d $HOME/test_framework ]] && rm -rf "$HOME/test_framework"
-    if [[ $CROWBAR_DIR = /* ]]; then
-	ln -sf "$CROWBAR_DIR/test_framework" "$HOME/test_framework"
-    else
-	ln -sf "$currdir/$CROWBAR_DIR/test_framework" "$HOME/test_framework"
-    fi
-    (   unset no_proxy http_proxy https_proxy
-	"$HOME/test_framework/test_crowbar.sh" "$@" \
-	    use-iso "$ISO_DEST/$BUILT_ISO" 
-    ) || \
-	die "$(date '+%F %T %z'): Smoketest of $ISO_DEST/$BUILT_ISO failed."
-}
-
 # Get the OS we were asked to stage Crowbar on to.  Assume it is Ubuntu 10.10
 # unless we specify otherwise.
 OS_TO_STAGE="${1-ubuntu-10.10}"
 shift
+
+
+# Source our common build functions
+. "$CROWBAR_DIR/build_lib.sh" || exit 1
+. "$CROWBAR_DIR/test_lib.sh" || exit 1
 
 # Make sure that we actually know how to build the ISO we were asked to 
 # build.  If we do not, print a helpful error message.
@@ -659,6 +180,22 @@ fi
 #   usually entails modifying initrd files, adding kickstarts/install seeds,
 #   modifying boot config files, and so on.
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
+
+# Query strings to pull info we are interested out of crowbar.yml
+# These have to be created after we know what OS we are building on.
+BC_QUERY_STRINGS["deps"]="barclamp requires"
+BC_QUERY_STRINGS["groups"]="barclamp member"
+BC_QUERY_STRINGS["pkgs"]="$PKG_TYPE pkgs"
+BC_QUERY_STRINGS["extra_files"]="extra_files"
+BC_QUERY_STRINGS["os_support"]="barclamp os_support"
+BC_QUERY_STRINGS["gems"]="gems pkgs"
+BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
+BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
+BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
+BC_QUERY_STRINGS["raw_pkgs"]="$PKG_TYPE raw_pkgs"
+BC_QUERY_STRINGS["test_deps"]="smoketest requires"
+BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
+
 
 {
     # Check to make sure our required commands are installed.
@@ -763,7 +300,7 @@ fi
 		done;;
 	    --test)
 		NEED_TEST=true
-		test_params=(run-test)
+		test_params=()
 		shift
 		while [[ $1 && $1 != -* ]]; do
 		    test_params+=("$1")
@@ -808,82 +345,7 @@ fi
 
     # Directory where we will look for our package lists
     [[ $PACKAGE_LISTS ]] || PACKAGE_LISTS="$BUILD_DIR/extra/packages"
-
-    # Hashes to hold our "interesting" information.
-    # Key = barclamp name
-    # Value = whatever interesting thing we are looking for.
-    declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
-    declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
     
-    # Query strings to pull info we are interested out of crowbar.yml
-    BC_QUERY_STRINGS["deps"]="barclamp requires"
-    BC_QUERY_STRINGS["groups"]="barclamp member"
-    BC_QUERY_STRINGS["pkgs"]="$PKG_TYPE pkgs"
-    BC_QUERY_STRINGS["extra_files"]="extra_files"
-    BC_QUERY_STRINGS["os_support"]="barclamp os_support"
-    BC_QUERY_STRINGS["gems"]="gems pkgs"
-    BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
-    BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
-    BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
-    BC_QUERY_STRINGS["raw_pkgs"]="$PKG_TYPE raw_pkgs"
-    
-    # Pull in interesting information from all our barclamps
-    for bc in $CROWBAR_DIR/barclamps/*; do
-	[[ -d $bc ]] || continue
-	bc=${bc##*/}
-	debug "Reading metadata for $bc barclamp."
-	is_barclamp "$bc" || die "$bc is not a barclamp!"
-	yml_file="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
-	[[ $bc = crowbar ]] || BC_DEPS["$bc"]+="crowbar "
-	for query in "${!BC_QUERY_STRINGS[@]}"; do
-	    while read line; do
-		[[ $line = nil ]] && continue
-		case $query in
-		    deps) is_in "$line "${BC_DEPS["$bc"]} || \
-			BC_DEPS["$bc"]+="$line ";;
-		    groups) is_in "$line" ${BC_GROUPS["$bc"]} || 
-			BC_GROUPS["$line"]+="$bc ";;
-		    pkgs) is_in "$line" ${BC_PKGS["$bc"]} || \
-			BC_PKGS["$bc"]+="$line ";;
-		    extra_files) BC_EXTRA_FILES["$bc"]+="$line\n";;
-		    os_support) BC_OS_SUPPORT["$bc"]+="$line ";;
-		    gems) BC_GEMS["$bc"]+="$line ";;
-		    repos) BC_REPOS["$bc"]+="$line\n";;
-		    ppas) [[ $PKG_TYPE = debs ]] || \
-			die "Cannot declare a PPA for $PKG_TYPE!"
-			BC_REPOS["$bc"]+="ppa $line\n";;
-		    build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
-		    raw_pkgs) BC_RAW_PKGS["$bc"]+="$line ";;
-		    *) die "Cannot handle query for $query."
-		esac
-	    done < <("$CROWBAR_DIR/parse_yml.rb" \
-		"$yml_file" \
-		${BC_QUERY_STRINGS["$query"]} 2>/dev/null)
-	done
-    done
-
-    debug "Analyzing barclamp group membership"
-    # If any barclamps need group expansion, do it.
-    for bc in "${!BC_DEPS[@]}"; do
-	newdeps=''
-	for dep in ${BC_DEPS["$bc"]}; do
-	    if [[ $dep = @* ]]; then
-		[[ ${BC_GROUPS["${dep#@}"]} ]] || \
-		    die "$bc depends on group ${dep#@}, but that group does not exist!"
-		for d in ${BC_GROUPS["${dep#@}"]}; do
-		    is_barclamp "$d" || \
-			die "$bc depends on barclamp $d from group ${dep#@}, but $d does not exist!"
-		    newdeps+="$d "
-		done
-	    else
-		is_barclamp "$dep" || \
-		    die "$bc depends on barclamp $dep, but $dep is not a barclamp!"
-		newdeps+="$dep "
-	    fi
-	done
-	BC_DEPS["$bc"]="$newdeps"
-    done
-
     # Proxy Variables
     [[ $USE_PROXY ]] || USE_PROXY=0
     [[ $PROXY_HOST ]] || PROXY_HOST=""
@@ -908,35 +370,9 @@ fi
 		echo "${submod##*/}"
 	    done < <(git submodule status))
 	)
-    
-    # Group-expand barclamps if needed, and unset groups after they are expanded.
-    for i in "${!BARCLAMPS[@]}"; do
-	bc="${BARCLAMPS[$i]}"
-	if [[ $bc = @* ]]; then
-	    [[ ${BC_GROUPS["${bc#@}"]} ]] || \
-		die "No such group ${bc#@}!"
-	    BARCLAMPS+=(${BC_GROUPS["${bc#@}"]})
-	    unset BARCLAMPS[$i]
-	else
-	    is_barclamp "$bc" || die "$bc is not a barclamp!"
-	fi
-    done
-    BARCLAMPS=("${BARCLAMPS[@]//@*}")
 
-    # Pull in dependencies for the barclamps.
-    # Everything depends on the crowbar barclamp, so include it first.
-    new_barclamps=("crowbar")
-    while [[ t = t ]]; do
-	for bc in "${BARCLAMPS[@]}"; do
-	    for dep in ${BC_DEPS["$bc"]}; do
-		is_in "$dep" "${new_barclamps[@]}" && continue
-		new_barclamps+=("$dep")
-	    done
-	    is_in "$bc" "${new_barclamps[@]}" || new_barclamps+=("$bc")
-	done
-	[[ ${BARCLAMPS[*]} = ${new_barclamps[*]} ]] && break
-	BARCLAMPS=("${new_barclamps[@]}")
-    done
+    # Pull in barclamp information
+    get_barclamp_info
 
     # Make any directories we don't already have
     for d in "$ISO_LIBRARY" "$ISO_DEST" "$IMAGE_DIR" "$BUILD_DIR" \
@@ -1005,9 +441,10 @@ fi
 	mkdir -p "$BUILD_DIR/extra/pkgs/"
 	stage_pkgs "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
 	    "$BUILD_DIR/extra/pkgs"
-	cp -r "$CACHE_DIR/barclamps/$bc/files" \
-	    "$CACHE_DIR/barclamps/$bc/gems" \
-	    "$BUILD_DIR/extra"
+	for f in files gems; do
+	    [[ -d "$CACHE_DIR/barclamps/$bc/$f" ]] || continue
+	    cp -r "$CACHE_DIR/barclamps/$bc/$f" "$BUILD_DIR/extra"
+	done	    
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
 
@@ -1092,7 +529,8 @@ fi
     if [[ $GENERATE_MINIMAL_INSTALL = true ]]; then
 	if [[ ! -f "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install" ]]; then
 	    if [[ ! -f "$HOME/admin-installed.list" ]]; then
-		    test_iso run-test scratch admin-only
+		SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
+		test_iso admin-only
 	    fi
 	    [[ -f "$HOME/admin-installed.list" ]] || \
 		die "Could not generate minimal install list!"
@@ -1102,8 +540,12 @@ fi
 	    debug "Please commit it and rerun the build with --shrink."
 	fi
     fi
-    if [[ $NEED_TEST = true ]]; then test_iso "${test_params[@]}"; fi
- 
-    echo "$(date '+%F %T %z'): Finshed. Image at $ISO_DEST/$BUILT_ISO"
+    echo "$(date '+%F %T %z'): Image at $ISO_DEST/$BUILT_ISO"
+    if [[ $NEED_TEST = true ]]; then 
+	echo "$(date '+%F %T %z'): Testing new iso"
+	SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
+	test_iso "${test_params[@]}" || die "Test failed."
+    fi
+    echo "$(date '+%F %T %z'): Finished."
 } 65> /tmp/.build_crowbar.lock
 

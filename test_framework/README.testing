@@ -52,25 +52,25 @@ Prerequisites:
 
 Usage:
 
-* Copy the test_framework directory and all its contents to $HOME
+* Run the framework from the main Crowbar git checkout.
   sudo uses absolute paths to determine whether a program can run under it,
   and we need to run make_cgroups.sh as root to make cgroups for the overall
-  smoketest and for the individual test runs.
-* Make sure the openstack iso you want to test is in $HOME.
-* Make sure that all of the above prerequisites are met.
-* Run $HOME/test_framework/test_crowbar.sh with the appropriate options.
-  If you run it with no options, it will try to smoketest a Nova deploy
-  and a Swift deploy in that order.
+  smoketest and for the individual test runs.  The framework will check to
+  make sure it has all the access it needs before starting a test run,
+  and it will print a helpful error message if it is missing something.
+* You have to pass the ISO you want to test with the use-iso parameter.
+* Run test_crowbar.sh with the appropriate options.
+  If you run it with no options, it will run a scratch test (which spins up
+  the admin and compute nodes and ensures that it can deploy an OS on all the
+  nodes using Crowbar).
 
 Primary Operating Modes:
-  * run-test <tests> <test-options>
-    This instructs the test framework to deploy a cluster, and then run
-    the specified tests with the specified options.
-    Example: $HOME/test_framework/test_crowbar.sh run-test scratch
-  * build-and-test <tests> <test-options>
-    Does the same as run-test, but will try to create a new build of 
-    the Crowbar deploy image first by invoking build_crowbar.sh first.
-    Example: $HOME/test_framework/test_crowbar.sh build-and-test scratch
+  * <barclamps> <test-options>
+    This instructs the test framework to deploy a cluster, and then test the
+    specified barclamps with the framework running with the specified options.
+    Framework options change over time -- run test_crowbar.sh help to see
+    the current ones.    
+    Example: test_crowbar.sh nova
   * cleanup
     This instructs the test framework to clean up as much as it can from
     the previous run if it did not get a chance to perform its usual cleanup.
@@ -80,50 +80,12 @@ Primary Operating Modes:
 
 Available Tests:
 
-By default, the framework knows how to perform 3 test runs:
-  * scratch
-    The scratch test just deploys a Crowbar cluster and brings all the nodes
-    up to the ready state.  All other tests are logical extensions of it.
-  * nova
-    The nova test uses Crowbar to deploy glance and nova onto a cluster, 
-    ensures that all the nova services launched correctly, launches a test
-    VM in Nova, and verifies that it can ping that test VM.
-  * swift
-    The swift test uses Crowbar to deploy swift onto a cluster, preps and
-    checks the Swift authentication layer, creates a non super user account, 
-    and verifies that it can read and write a file to a directory on Swift.
-
-You can pass multiple tests to run-test and build-and-test.  The test 
-framework will run them in order, and it will redeploy all the non-admin nodes
-in between each test.
+  By default, you can pass the names of any barclamps as tests, and the
+  framework will try to deploy the barclamps (and their dependencies) and run
+  any tests that the barclamp has available.
 
 Test Options:
-  * pause
-    Pause will cause the test framework to wait for a keypress after a
-    cluster test passes.
-  * pause-after-admin
-    Pause after admin will cause the test framework to wait for a keypress
-    after the admin node is deployed. 
-  * develop-mode
-    Develop-mode will cause the test framework to wait for a keypress
-    whenever it is asked to reset the non-admin nodes or whenever we would
-    otherwise try to clean up after a test run.  
-
-By itself, test_crowbar.sh only knows how to sanity check the admin node (which
-it always does on every deploy) and perform a scratch test, which just deploys
-a cluster without deploying anything else on that cluster.
-
-If it is asked to perform any other test, it looks for a directory named 
-$HOME/test_framework/<testname>_test, which should contain one
-or more executable files with a .hook suffix.  If it finds such a directory, 
-it will deploy the Crowbar cluster, and then run each .hook file in ascending 
-sort order.  test_crowbar.sh will ensure that the crowbar CLI is available
-in $PATH, that there is a valid username:password pair in $CROWBAR_KEY, that
-passwordless SSH as root to all nodes in the cluster is functional for remote
-command execution, and that the admin node is available at 192.168.124.10. 
-The hooks themselves are responsible for using Crowbar to create and deploy
-proposals, verifying that the deploy was sucessful, and validating that the 
-deployed configuration is at least minimally functional.
+  Run test_crowbar.sh help to see a list of options for the framework.
 
 Usage Hints:
 
@@ -147,52 +109,32 @@ Directory Layout:
 The smoketest framework expects to be able to control the layout of its home
 directory.  It generates the following directory structure on its first run:
 
-$HOME
- |- smoketest.log
- |- testing
- |  |- cli
- |  |  \- (the last copy of the Crowbar CLI that we extracted)
- |  |- openstack-being-tested.iso
- |  \- openstack-being-tested
- |     |- admin.disk
- |     |- admin.errlog
- |     |- admin.pid
- |     |- admin.status
- |     |- (repeat for the other virtual machines)
- |     |- image
- |     |  \- (contents of openstack-being-tested.iso)
- |     \- logs
- |        |- admin.1
- |        |  |- ttyS0.log
- |        |  \- ttyS1.log
- |        |- screenlog.admin.1
- |        |- (repeat for each generation of each virtual machine)
- |        \- (log snapshots of the cluster at various checkpoints)
- \- tested
-    |- openstack-archived-test-YYYYMMDD-HHMMSS-final_status.tar.gz
-    \- openstack-archived-test-YYYYMMDD-HHMMSS-final_status
-       \- (final snapshot of openstack-being-tested minus disk images)
+$CROWBAR_DIR/testing
+ |- cli
+ |  \- (the last copy of the Crowbar CLI that we extracted)
+ \- crowbar-being-tested
+    |- admin.disk
+    |- admin.errlog
+    |- admin.pid
+    |- admin.status
+    |- (repeat for the other virtual machines)
+    |- image
+    |  \- (contents of crowbar-being-tested.iso)
+    \- logs
+       |- admin.1
+       |  |- ttyS0.log
+       |  \- ttyS1.log
+       |- screenlog.admin.1
+       |- (repeat for each generation of each virtual machine)
+       \- (log snapshots of the cluster at various checkpoints)
 
 Each of the above files has a specific type of information:
-  * smoketest.log
-    The test_crowbar script always runs with set -x enabled using a 
-    customized PS4 prompt.  All output to stderr from the test script
-    that is not otherwise redirected ends up in smoketest.log.
-  * testing
-    The testing directory holds information pertaining to the Crowbar
-    deploy image that is currently being tested.  If there is no image being 
-    tested, this directory will only have the last instance of the 
-    crowbar CLI that we extracted.
   * cli
     The cli directory holds the last copy of the Crowbar CLI that we extracted,
     along with a couple of auxillary commands that the framework automatically
     creates.  The cli directory is added to $PATH so that the test hooks
     can use the Crowbar CLI without needing to extract their own copy.
-  * openstack-being-tested.iso
-    This is the openstack.iso that is currently being tested.  
-    The file does not actually get renamed, it will actually have whatever
-    name you told the build_crowbar.sh command to give it.
-  * openstack-being-tested
+  * crowbar-being-tested
     This directory holds all of the test information that the test framework
     uses and captures on any single run of tests.
   * admin.disk
@@ -212,7 +154,7 @@ Each of the above files has a specific type of information:
     node through a run of the test framework.  There is a status file for
     each virtual machine.
   * image
-    This is where the openstack .iso we are currently testing is mounted.
+    This is where the crowbar .iso we are currently testing is mounted.
   * logs
     This is where the logs from each individual KVM instance are captured to.
     Since each virtual machine will be restarted at least once during a test
@@ -242,20 +184,6 @@ Each of the above files has a specific type of information:
     ANSI escape sequences because it is an exact transcript of what KVM is
     writing to the screen -- you should run it through strings if you want
     to get easier-to-parse information from it. 
-  * tested
-    This directory holds archives and directory trees from previous test runs.
-    The only thing we do not try to archive are the actual disk images, because
-    that would eat lots of space real fast unless you were saving the output 
-    to as deduping store.
-  * openstack-archived-test-YYYYMMDD-HHMMSS-final_status.tar.gz
-    This is a tarball of the complete test run (minus disk images) that ended
-    on year-month-date hour:minute:second with the final status of final_status,
-    which can be one of Passed (all tests passed), Failed (one or more tests 
-    failed), or Waiting (the framework terminated the test run due to a timeout
-    expiring before the tests could run).
-  * openstack-archived-test-YYYYMMDD-HHMMSS-final_status
-    This is a directory containing the contents of the above tarball for 
-    easy on-machine perusal.
 
 In addition to the above files, the test framework will gather a complete
 log and config snapshot of the cluster from Crowbar at the following points
@@ -265,7 +193,8 @@ in a test run:
   * When a test has completed, whether that test passed or failed
   * Just before the virtual machines are killed at the end of a test run.
 
-These cluster snapshots are saved to the logs directory, have names in the 
+These log bundles will be saved as a tarball in the directory that 
+the smoketest was executed from, and have names in the 
 format of checkpoint_name-checkpoint-status-YYYYMMDD-HHMMSS.tar, and 
 have the following directory layout when untarred:
 
@@ -286,16 +215,16 @@ Example Test Run Transcript:
 2011-07-16 11:32:29 -0500: admin - Mounting .iso
 2011-07-16 11:32:29 -0500: admin - Hacking up kernel parameters
 2011-07-16 11:32:29 -0500: admin - Creating disk image
-2011-07-16 11:32:29 -0500: admin - Performing install from openstack-dev.iso
+2011-07-16 11:32:29 -0500: admin - Performing install from crowbar-dev.iso
 2011-07-16 11:39:09 -0500: admin - Node exited.
 2011-07-16 11:39:09 -0500: admin - Deploying admin node crowbar tasks
-2011-07-16 11:44:55 -0500: admin - admin.pod.cloud.openstack.org is discovered.
-2011-07-16 11:47:01 -0500: admin - admin.pod.cloud.openstack.org is hardware-installing.
-2011-07-16 11:47:11 -0500: admin - admin.pod.cloud.openstack.org is hardware-installed.
-2011-07-16 11:47:32 -0500: admin - admin.pod.cloud.openstack.org is installing.
-2011-07-16 11:47:42 -0500: admin - admin.pod.cloud.openstack.org is installed.
-2011-07-16 11:47:52 -0500: admin - admin.pod.cloud.openstack.org is readying.
-2011-07-16 11:48:02 -0500: admin - admin.pod.cloud.openstack.org is ready.
+2011-07-16 11:44:55 -0500: admin - admin.smoke.test is discovered.
+2011-07-16 11:47:01 -0500: admin - admin.smoke.test is hardware-installing.
+2011-07-16 11:47:11 -0500: admin - admin.smoke.test is hardware-installed.
+2011-07-16 11:47:32 -0500: admin - admin.smoke.test is installing.
+2011-07-16 11:47:42 -0500: admin - admin.smoke.test is installed.
+2011-07-16 11:47:52 -0500: admin - admin.smoke.test is readying.
+2011-07-16 11:48:02 -0500: admin - admin.smoke.test is ready.
 2011-07-16 11:48:02 -0500: admin - Daemonizing node with 1268 seconds left.
 crowbar
 crowbar_bios
@@ -411,30 +340,30 @@ Deleted node[dtest-machine-2.dell.com]!
 2011-07-16 11:51:45 -0500: virt-2 - PXE booting node (0)
 2011-07-16 11:51:46 -0500: virt-3 - PXE booting node (0)
 2011-07-16 11:51:46 -0500: virt-4 - PXE booting node (0)
-2011-07-16 11:54:38 -0500: virt-3 - d52-54-00-12-34-07.pod.cloud.openstack.org is discovered.
-2011-07-16 11:54:38 -0500: virt-2 - d52-54-00-12-34-05.pod.cloud.openstack.org is discovered.
-2011-07-16 11:54:39 -0500: virt-3 - allocate d52-54-00-12-34-07.pod.cloud.openstack.org
-2011-07-16 11:54:39 -0500: virt-2 - allocate d52-54-00-12-34-05.pod.cloud.openstack.org
-2011-07-16 11:54:48 -0500: virt-1 - d52-54-00-12-34-03.pod.cloud.openstack.org is discovered.
-2011-07-16 11:54:48 -0500: virt-1 - allocate d52-54-00-12-34-03.pod.cloud.openstack.org
-2011-07-16 11:54:50 -0500: virt-3 - d52-54-00-12-34-07.pod.cloud.openstack.org is discovered.
-2011-07-16 11:54:50 -0500: virt-2 - d52-54-00-12-34-05.pod.cloud.openstack.org is discovered.
-2011-07-16 11:54:50 -0500: virt-3 - allocate d52-54-00-12-34-07.pod.cloud.openstack.org
-2011-07-16 11:54:51 -0500: virt-2 - allocate d52-54-00-12-34-05.pod.cloud.openstack.org
-2011-07-16 11:54:51 -0500: virt-4 - d52-54-00-12-34-09.pod.cloud.openstack.org is discovered.
-2011-07-16 11:54:52 -0500: virt-4 - allocate d52-54-00-12-34-09.pod.cloud.openstack.org
-2011-07-16 11:54:59 -0500: virt-1 - d52-54-00-12-34-03.pod.cloud.openstack.org is discovered.
-2011-07-16 11:54:59 -0500: virt-1 - allocate d52-54-00-12-34-03.pod.cloud.openstack.org
-2011-07-16 11:55:01 -0500: virt-3 - d52-54-00-12-34-07.pod.cloud.openstack.org is hardware-installing.
-2011-07-16 11:55:01 -0500: virt-2 - d52-54-00-12-34-05.pod.cloud.openstack.org is discovered.
-2011-07-16 11:55:01 -0500: virt-2 - allocate d52-54-00-12-34-05.pod.cloud.openstack.org
-2011-07-16 11:55:02 -0500: virt-4 - d52-54-00-12-34-09.pod.cloud.openstack.org is hardware-installing.
-2011-07-16 11:55:10 -0500: virt-1 - d52-54-00-12-34-03.pod.cloud.openstack.org is hardware-installing.
-2011-07-16 11:55:11 -0500: virt-3 - d52-54-00-12-34-07.pod.cloud.openstack.org is hardware-installed.
-2011-07-16 11:55:12 -0500: virt-2 - d52-54-00-12-34-05.pod.cloud.openstack.org is hardware-installing.
-2011-07-16 11:55:12 -0500: virt-4 - d52-54-00-12-34-09.pod.cloud.openstack.org is hardware-installed.
-2011-07-16 11:55:20 -0500: virt-1 - d52-54-00-12-34-03.pod.cloud.openstack.org is hardware-installed.
-2011-07-16 11:55:22 -0500: virt-2 - d52-54-00-12-34-05.pod.cloud.openstack.org is hardware-installed.
+2011-07-16 11:54:38 -0500: virt-3 - d52-54-00-12-34-07.smoke.test is discovered.
+2011-07-16 11:54:38 -0500: virt-2 - d52-54-00-12-34-05.smoke.test is discovered.
+2011-07-16 11:54:39 -0500: virt-3 - allocate d52-54-00-12-34-07.smoke.test
+2011-07-16 11:54:39 -0500: virt-2 - allocate d52-54-00-12-34-05.smoke.test
+2011-07-16 11:54:48 -0500: virt-1 - d52-54-00-12-34-03.smoke.test is discovered.
+2011-07-16 11:54:48 -0500: virt-1 - allocate d52-54-00-12-34-03.smoke.test
+2011-07-16 11:54:50 -0500: virt-3 - d52-54-00-12-34-07.smoke.test is discovered.
+2011-07-16 11:54:50 -0500: virt-2 - d52-54-00-12-34-05.smoke.test is discovered.
+2011-07-16 11:54:50 -0500: virt-3 - allocate d52-54-00-12-34-07.smoke.test
+2011-07-16 11:54:51 -0500: virt-2 - allocate d52-54-00-12-34-05.smoke.test
+2011-07-16 11:54:51 -0500: virt-4 - d52-54-00-12-34-09.smoke.test is discovered.
+2011-07-16 11:54:52 -0500: virt-4 - allocate d52-54-00-12-34-09.smoke.test
+2011-07-16 11:54:59 -0500: virt-1 - d52-54-00-12-34-03.smoke.test is discovered.
+2011-07-16 11:54:59 -0500: virt-1 - allocate d52-54-00-12-34-03.smoke.test
+2011-07-16 11:55:01 -0500: virt-3 - d52-54-00-12-34-07.smoke.test is hardware-installing.
+2011-07-16 11:55:01 -0500: virt-2 - d52-54-00-12-34-05.smoke.test is discovered.
+2011-07-16 11:55:01 -0500: virt-2 - allocate d52-54-00-12-34-05.smoke.test
+2011-07-16 11:55:02 -0500: virt-4 - d52-54-00-12-34-09.smoke.test is hardware-installing.
+2011-07-16 11:55:10 -0500: virt-1 - d52-54-00-12-34-03.smoke.test is hardware-installing.
+2011-07-16 11:55:11 -0500: virt-3 - d52-54-00-12-34-07.smoke.test is hardware-installed.
+2011-07-16 11:55:12 -0500: virt-2 - d52-54-00-12-34-05.smoke.test is hardware-installing.
+2011-07-16 11:55:12 -0500: virt-4 - d52-54-00-12-34-09.smoke.test is hardware-installed.
+2011-07-16 11:55:20 -0500: virt-1 - d52-54-00-12-34-03.smoke.test is hardware-installed.
+2011-07-16 11:55:22 -0500: virt-2 - d52-54-00-12-34-05.smoke.test is hardware-installed.
 2011-07-16 11:55:58 -0500: virt-4 - Node exited.
 2011-07-16 11:55:58 -0500: virt-4 - PXE booting node (1)
 2011-07-16 11:55:59 -0500: virt-3 - Node exited.
@@ -443,14 +372,14 @@ Deleted node[dtest-machine-2.dell.com]!
 2011-07-16 11:56:06 -0500: virt-1 - PXE booting node (1)
 2011-07-16 11:56:07 -0500: virt-2 - Node exited.
 2011-07-16 11:56:07 -0500: virt-2 - PXE booting node (1)
-2011-07-16 12:00:06 -0500: virt-2 - d52-54-00-12-34-05.pod.cloud.openstack.org is installing.
-2011-07-16 12:00:06 -0500: virt-4 - d52-54-00-12-34-09.pod.cloud.openstack.org is installing.
-2011-07-16 12:00:07 -0500: virt-1 - d52-54-00-12-34-03.pod.cloud.openstack.org is installing.
-2011-07-16 12:00:07 -0500: virt-3 - d52-54-00-12-34-07.pod.cloud.openstack.org is installing.
-2011-07-16 12:00:36 -0500: virt-2 - d52-54-00-12-34-05.pod.cloud.openstack.org is installed.
-2011-07-16 12:00:37 -0500: virt-4 - d52-54-00-12-34-09.pod.cloud.openstack.org is installed.
-2011-07-16 12:00:37 -0500: virt-1 - d52-54-00-12-34-03.pod.cloud.openstack.org is installed.
-2011-07-16 12:00:38 -0500: virt-3 - d52-54-00-12-34-07.pod.cloud.openstack.org is installed.
+2011-07-16 12:00:06 -0500: virt-2 - d52-54-00-12-34-05.smoke.test is installing.
+2011-07-16 12:00:06 -0500: virt-4 - d52-54-00-12-34-09.smoke.test is installing.
+2011-07-16 12:00:07 -0500: virt-1 - d52-54-00-12-34-03.smoke.test is installing.
+2011-07-16 12:00:07 -0500: virt-3 - d52-54-00-12-34-07.smoke.test is installing.
+2011-07-16 12:00:36 -0500: virt-2 - d52-54-00-12-34-05.smoke.test is installed.
+2011-07-16 12:00:37 -0500: virt-4 - d52-54-00-12-34-09.smoke.test is installed.
+2011-07-16 12:00:37 -0500: virt-1 - d52-54-00-12-34-03.smoke.test is installed.
+2011-07-16 12:00:38 -0500: virt-3 - d52-54-00-12-34-07.smoke.test is installed.
 2011-07-16 12:01:05 -0500: virt-4 - Node exited.
 2011-07-16 12:01:06 -0500: virt-4 - Booting node to disk (2)
 2011-07-16 12:01:09 -0500: virt-1 - Node exited.
@@ -459,27 +388,27 @@ Deleted node[dtest-machine-2.dell.com]!
 2011-07-16 12:01:11 -0500: virt-3 - Node exited.
 2011-07-16 12:01:11 -0500: virt-2 - Booting node to disk (2)
 2011-07-16 12:01:11 -0500: virt-3 - Booting node to disk (2)
-2011-07-16 12:01:18 -0500: virt-4 - d52-54-00-12-34-09.pod.cloud.openstack.org is readying.
-2011-07-16 12:01:28 -0500: virt-2 - d52-54-00-12-34-05.pod.cloud.openstack.org is readying.
-2011-07-16 12:01:28 -0500: virt-1 - d52-54-00-12-34-03.pod.cloud.openstack.org is readying.
-2011-07-16 12:01:29 -0500: virt-3 - d52-54-00-12-34-07.pod.cloud.openstack.org is readying.
-2011-07-16 12:03:53 -0500: virt-4 - d52-54-00-12-34-09.pod.cloud.openstack.org is ready.
+2011-07-16 12:01:18 -0500: virt-4 - d52-54-00-12-34-09.smoke.test is readying.
+2011-07-16 12:01:28 -0500: virt-2 - d52-54-00-12-34-05.smoke.test is readying.
+2011-07-16 12:01:28 -0500: virt-1 - d52-54-00-12-34-03.smoke.test is readying.
+2011-07-16 12:01:29 -0500: virt-3 - d52-54-00-12-34-07.smoke.test is readying.
+2011-07-16 12:03:53 -0500: virt-4 - d52-54-00-12-34-09.smoke.test is ready.
 2011-07-16 12:03:53 -0500: virt-4 - Node deployed.
-2011-07-16 12:03:53 -0500: virt-3 - d52-54-00-12-34-07.pod.cloud.openstack.org is ready.
+2011-07-16 12:03:53 -0500: virt-3 - d52-54-00-12-34-07.smoke.test is ready.
 2011-07-16 12:03:53 -0500: virt-3 - Node deployed.
-2011-07-16 12:03:53 -0500: virt-1 - d52-54-00-12-34-03.pod.cloud.openstack.org is ready.
+2011-07-16 12:03:53 -0500: virt-1 - d52-54-00-12-34-03.smoke.test is ready.
 2011-07-16 12:03:53 -0500: virt-1 - Node deployed.
-2011-07-16 12:04:13 -0500: virt-2 - d52-54-00-12-34-05.pod.cloud.openstack.org is ready.
+2011-07-16 12:04:13 -0500: virt-2 - d52-54-00-12-34-05.smoke.test is ready.
 2011-07-16 12:04:13 -0500: virt-2 - Node deployed.
 2011-07-16 12:04:31 -0500: scratch deploy passed.
 2011-07-16 12:04:41 -0500: scratch tests passed.
 2011-07-16 12:04:41 -0500: Gathering scratch-tests-passed logs, please wait.
 2011-07-16 12:04:46 -0500: Done gathering scratch-tests-passed logs.
 
-2011-07-16 12:04:46 -0500: virt-4 - Asking d52-54-00-12-34-09.pod.cloud.openstack.org to shut down
-2011-07-16 12:04:47 -0500: virt-2 - Asking d52-54-00-12-34-05.pod.cloud.openstack.org to shut down
-2011-07-16 12:04:48 -0500: virt-3 - Asking d52-54-00-12-34-07.pod.cloud.openstack.org to shut down
-2011-07-16 12:04:49 -0500: virt-1 - Asking d52-54-00-12-34-03.pod.cloud.openstack.org to shut down
+2011-07-16 12:04:46 -0500: virt-4 - Asking d52-54-00-12-34-09.smoke.test to shut down
+2011-07-16 12:04:47 -0500: virt-2 - Asking d52-54-00-12-34-05.smoke.test to shut down
+2011-07-16 12:04:48 -0500: virt-3 - Asking d52-54-00-12-34-07.smoke.test to shut down
+2011-07-16 12:04:49 -0500: virt-1 - Asking d52-54-00-12-34-03.smoke.test to shut down
 2011-07-16 12:04:49 -0500: Waiting for 2 minutes to allow nodes to power off
 2011-07-16 12:04:50 -0500: virt-2 - Node exited.
 2011-07-16 12:04:50 -0500: virt-3 - Node exited.
@@ -490,14 +419,14 @@ Deleted node[dtest-machine-2.dell.com]!
 2011-07-16 12:05:03 -0500: virt-1 - Node exited.
 2011-07-16 12:05:04 -0500: virt-1 - Creating disk image
 
-2011-07-16 12:06:49 -0500: virt-4 - Forcing d52-54-00-12-34-09.pod.cloud.openstack.org to shut down
-Deleted d52-54-00-12-34-09.pod.cloud.openstack.org
-2011-07-16 12:06:49 -0500: virt-2 - Forcing d52-54-00-12-34-05.pod.cloud.openstack.org to shut down
-Deleted d52-54-00-12-34-05.pod.cloud.openstack.org
-2011-07-16 12:06:50 -0500: virt-3 - Forcing d52-54-00-12-34-07.pod.cloud.openstack.org to shut down
-Deleted d52-54-00-12-34-07.pod.cloud.openstack.org
-2011-07-16 12:06:50 -0500: virt-1 - Forcing d52-54-00-12-34-03.pod.cloud.openstack.org to shut down
-Deleted d52-54-00-12-34-03.pod.cloud.openstack.org
+2011-07-16 12:06:49 -0500: virt-4 - Forcing d52-54-00-12-34-09.smoke.test to shut down
+Deleted d52-54-00-12-34-09.smoke.test
+2011-07-16 12:06:49 -0500: virt-2 - Forcing d52-54-00-12-34-05.smoke.test to shut down
+Deleted d52-54-00-12-34-05.smoke.test
+2011-07-16 12:06:50 -0500: virt-3 - Forcing d52-54-00-12-34-07.smoke.test to shut down
+Deleted d52-54-00-12-34-07.smoke.test
+2011-07-16 12:06:50 -0500: virt-1 - Forcing d52-54-00-12-34-03.smoke.test to shut down
+Deleted d52-54-00-12-34-03.smoke.test
 2011-07-16 12:06:51 -0500: Gathering final logs, please wait.
 2011-07-16 12:06:54 -0500: Done gathering final logs.
 2011-07-16 12:06:55 -0500: admin - Killing  (try 1, signal TERM)
@@ -509,17 +438,17 @@ Deleted d52-54-00-12-34-03.pod.cloud.openstack.org
 deploy_admin: Passed
 scratch: Passed
 Deploy Passed.
-Logs are available at /home/crowbar-tester/tested/openstack-dev-20110716-120701-Passed.tar.gz.
+Logs are available at /home/crowbar-tester/tested/crowbar-dev-20110716-120701-Passed.tar.gz.
 [crowbar-tester@testbox ~]$ 
 
 
 From this, you can see the process the smoketest uses to set up Crowbar:
 
-  * Mount the openstack .iso we will test on the host machine.
+  * Mount the crowbar .iso we will test on the host machine.
   * Inject the parameters that the smoketest frawework needs to facilitate
     automated testing (the default hostname, serial logging, serial console
     settings, and the SSH public key of the user running the test).
-  * Install the admin node from the openstack ISO using the extra test
+  * Install the admin node from the crowbar ISO using the extra test
     parameters
   * Deploy Crowbar on the freshly installed admin node, cycling through the
     normal node deploy phases as we go.
@@ -532,5 +461,5 @@ From this, you can see the process the smoketest uses to set up Crowbar:
     tests we have asked the smoketest to run.  In this instance, the test
     framework was asked to run a scratch test, which just checks that it can
     deploy nodes with just a basic OS install on them.  If the smoketest
-    framweork was asked to test a nova or a swift deploy, it would have tried
-    to deploy that to the cluster as well.
+    framweork was asked to test a different set of barclamps, it would have 
+    tried to deploy them to the cluster as well.
