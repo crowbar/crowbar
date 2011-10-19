@@ -8,7 +8,14 @@
 
 # Make sure we know where to find our test binaries
 [[ -d $CROWBAR_DIR/testing/cli ]] || mkdir -p "$CROWBAR_DIR/testing/cli"
-export PATH="$CROWBAR_DIR/testing/cli:$PATH"
+export PATH="$CROWBAR_DIR/testing/cli:$CROWBAR_DIR/test_framework:$CROWBAR_DIR:$PATH:/sbin:/usr/sbin"
+
+# Commands we have to run under sudo -n
+SUDO_CMDS="brctl ip umount mount make_cgroups.sh"
+# Commands we need to run as $USER
+NEEDED_CMDS="ruby gem kvm screen qemu-img sudo"
+# Gems we have to have installed.
+NEEDED_GEMS="json net-http-digest_auth"
 
 # THis lock is held whenever we are running tests.  It exists to
 # prevent multiple instances of the smoketest from running at once.
@@ -90,24 +97,24 @@ smoketest_make_bridges() {
     local pub_re='pub$'
     local bridge
     for bridge in "${SMOKETEST_BRIDGES[@]}"; do
-	sudo brctl show |grep -q "$bridge" || \
-	    sudo brctl addbr "$bridge" || \
+	sudo -n brctl show |grep -q "$bridge" || \
+	    sudo -n brctl addbr "$bridge" || \
 	    die "Could not create $bridge bridge!"
-	sudo brctl setfd "$bridge" 1 || \
+	sudo -n brctl setfd "$bridge" 1 || \
 	    die "Could not set forwarding time on $bridge!"
-	sudo ip link set "$bridge" up || \
+	sudo -n ip link set "$bridge" up || \
 	    die "Could not set link on $bridge up!"
-	sudo brctl stp "$bridge" on
+	sudo -n brctl stp "$bridge" on
 	if [[ $bridge =~ $pub_re ]]; then
-	    sudo ip addr add 192.168.124.1/24 dev "$bridge"
+	    sudo -n ip addr add 192.168.124.1/24 dev "$bridge"
 	fi
     done
     # Bind the physical nics we want to use to the appropriate bridges.
     for iface in "${PHYSICAL_INTERFACES[@]}"; do
 	local ifname=${iface%%,*}
 	local bridge=${iface##*,}
-	sudo ip link set "$ifname" up
-	sudo brctl addif "$bridge" "$ifname"
+	sudo -n ip link set "$ifname" up
+	sudo -n brctl addif "$bridge" "$ifname"
     done
 }
 
@@ -119,13 +126,13 @@ smoketest_kill_bridges() {
     for iface in "${PHYSICAL_INTERFACES[@]}"; do
 	local ifname=${iface%%,*}
 	local bridge=${iface##*,}
-	sudo ip link set "$ifname" down
-	sudo brctl delif "$bridge" "$ifname"
+	sudo -n ip link set "$ifname" down
+	sudo -n brctl delif "$bridge" "$ifname"
     done
     # Tear down the bridges we created.
     for bridge in "${SMOKETEST_BRIDGES[@]}"; do
-	sudo ip link set "$bridge" down
-	sudo brctl delbr "$bridge"
+	sudo -n ip link set "$bridge" down
+	sudo -n brctl delbr "$bridge"
     done
 }
 
@@ -151,7 +158,9 @@ declare -a smoketest_cleanup_cmds taps
 smoketest_cleanup() {
     # We ignore errors in this function.
     set +e
-    flock -n 75 || return 0
+    flock 75
+    [[ -d $smoketest_dir ]] || exit
+
     killall check_ready
     [[ $develop_mode = true ]] && pause
     # Gather final logs if our admin node is up.
@@ -168,7 +177,7 @@ smoketest_cleanup() {
 	eval $c || :
     done
     # If our .iso is still mounted, umount it.
-    sudo /bin/umount -d "$LOOPDIR" &>/dev/null
+    sudo -n /bin/umount -d "$LOOPDIR" &>/dev/null
     # Tear down out network.
     kill_virt_net &>/dev/null
     # Kill our screen session
@@ -192,7 +201,8 @@ smoketest_cleanup() {
     rm -f "$smoketest_dir/"*.disk || :
     cp "$CROWBAR_DIR/smoketest.log" "$smoketest_dir"
     (cd "$currdir"; tar czf "$target.tar.gz" "${smoketest_dir}")
-    echo "Logs are available at $currdir/$target.tar.gz." 
+    echo "Logs are available at $currdir/$target.tar.gz."
+    rm -rf "$smoketest_dir"
     [[ $final_status != Passed ]];
 } 75>"$CROWBAR_DIR/.smoketest_cleanup.lock"
 
@@ -211,11 +221,11 @@ maketap() {
     # $2 = bridge to attach it to.
 
     # preemptively arrange to clean up.
-    sudo ip tuntap add dev "$1" mode tap || \
+    sudo -n ip tuntap add dev "$1" mode tap || \
 	die "Could not create tap device $1"
-    sudo ip link set "$1" up || \
+    sudo -n ip link set "$1" up || \
 	die "Could not bring link on tap device $1 up!"
-    sudo brctl addif "$2" "$1" || \
+    sudo -n brctl addif "$2" "$1" || \
 	die "Could not add tap $1 to bridge $2!"
 }
 
@@ -225,10 +235,10 @@ killtap() {
     local res_re='(does not exist|Cannot find device)'
     # $1 = device to kill
     # $2 = bridge to detach it from
-    while ! [[ $(sudo ip link show "$1" 2>&1) =~ $res_re ]]; do 
-	sudo brctl delif "$2" "$1"
-	sudo ip link set "$1" down
-	sudo ip tuntap del dev "$1" mode tap
+    while ! [[ $(sudo -n ip link show "$1" 2>&1) =~ $res_re ]]; do 
+	sudo -n brctl delif "$2" "$1"
+	sudo -n ip link set "$1" down
+	sudo -n ip tuntap del dev "$1" mode tap
     done
 }
 
@@ -572,9 +582,9 @@ run_admin_node() {
     makenics admin
 
     smoketest_update_status admin "Mounting .iso"
-    sudo /bin/mount -o loop "$SMOKETEST_ISO" "$LOOPDIR" &>/dev/null || \
+    sudo -n /bin/mount -o loop "$SMOKETEST_ISO" "$LOOPDIR" &>/dev/null || \
 	die "Could not loopback mount $SMOKETEST_ISO on $LOOPDIR." 
-    smoketest_cleanup_cmds+=("sudo /bin/umount -d '$LOOPDIR'") 
+    smoketest_cleanup_cmds+=("sudo -n /bin/umount -d '$LOOPDIR'") 
     
     smoketest_update_status admin "Hacking up kernel parameters"
     # OK, now figure out what we need to grab by reading the
@@ -640,7 +650,7 @@ run_admin_node() {
     fi
     
     # Once this is finished, we no longer need the .iso image mounted.
-    sudo /bin/umount -d "$LOOPDIR" &>/dev/null
+    sudo -n /bin/umount -d "$LOOPDIR" &>/dev/null
     
     # restart the admin node as a daemon, and wait for it to be ready to
     # start installing compute nodes.
@@ -735,7 +745,10 @@ create_slaves() {
 		    # If we were asked to reset the node, nuke it.
 		    # For whatever reason if we just nuke the MBR d/i
 		    # complains about the LVM VG even though it should not.
+			
 		    if [[ $in_reset != true ]]; then
+			qemu-img create -f raw \
+			    "$smoketest_dir/$nodename.disk" 10G &>/dev/null
 			in_reset=true
 		    fi
 
@@ -876,7 +889,7 @@ deploy_nodes() {
 		fi
 		sleep 10
 	    done
-	    
+	    exit 0
 	) &
     done
     # Wait for up to $COMPUTE_DEPLOY_WAIT seconds for our nodes to finish 
@@ -947,9 +960,11 @@ run_hooks() {
 		exit
 	    fi
 	done
-	echo "Passed" >"$smoketest_dir/$1.test") &
+	echo "Passed" >"$smoketest_dir/$1.test"
+	exit 
+    ) &
     local testpid=$!
-    sudo "$SMOKETEST_DIR/make_cgroups.sh" $testpid "crowbar-test/$1-test"
+    sudo -n $(which make_cgroups.sh) $testpid "crowbar-test/$1-test"
     (   cd /proc/$testpid
 	while [[ -f cmdline ]] && (($(date '+%s') <= $deadline)); do
 	    sleep 10
@@ -971,15 +986,16 @@ run_hooks() {
 # so naming them with numeric prefixes indicating the order 
 # they should run in is a Good Idea.
 run_test_hooks() {
+    barclamp_deployed "$1" && return
     local h
     for h in ${BC_DEPS[$1]} ${BC_SMOKETEST_DEPS[$bc]}; do
 	[[ ! $h || $h = test ]] && continue
 	barclamp_deployed "$h" || run_test_hooks "$h"
     done
-    barclamp_deployed "$1" || deploy_barclamp "$1"
-    if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]l then
+    if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]; then
 	run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
-	    ${BC_SMOKETEST_TIMEOUTS[$1]:-300} test
+	    ${BC_SMOKETEST_TIMEOUTS[$1]:-300} test || \
+	    die "Smoketest for $1 failed."
     fi
 }
 
@@ -989,11 +1005,62 @@ run_admin_hooks() {
 
 pause() { printf "\n%s\n" "${1:-Press any key to continue:}"; read -n 1; } 
 
+mangle_ssh_config() {
+    grep -q 'UserKnownHostsFile /dev/null' "$HOME/.ssh/config" && return 0
+    cat >>"$HOME/.ssh/config" <<EOF
+
+# Added by Crowbar Smoketest Framework
+CheckHostIP no
+UserKnownHostsFile /dev/null
+StrictHostKeyChecking no
+Host *
+  ControlMaster auto
+  ControlPath /tmp/%r@%h:%p
+  ControlPersist 30
+# End of Crowbar Smoketest Framework config
+
+EOF
+}
+
 # This is the primary test-running function.
 run_test() {
     # If something already holds the testing lock, it is not safe to continue.
     flock -n -x 100 || die "Could not grab $SMOKETEST_LOCK in run_test"
-    CGROUP_DIR=$(sudo "$SMOKETEST_DIR/make_cgroups.sh" $$ crowbar-test) || \
+    for cmd in $NEEDED_CMDS $SUDO_CMDS; do
+	which $cmd &>/dev/null && continue
+	echo "Missing required command $cmd (or it is not in \$PATH)."
+	echo "Please make sure the following commands are installed:"
+	echo "$SUDO_CMDS"
+	echo "$NEEDED_CMDS"
+	exit 1
+    done
+
+    for cmd in $SUDO_CMDS; do
+	sudo -l -n "$(which $cmd)" &>/dev/null && continue
+	echo "$USER is not allowed to run $(which $cmd) using sudo."
+	echo "Please make sure that $USER has passwordless sudo rights to run:"
+	printf "%s " $(for cmd in $SUDO_CMDS; do which "$cmd"; done)
+	echo
+	exit 1
+    done
+
+    if ! [[ -c /dev/kvm && -w /dev/kvm ]]; then
+	echo "Please make sure that /dev/kvm exists, and that"
+	echo "$USER has write permissions on it."
+	exit 1
+    fi
+
+    for gem in $NEEDED_GEMS; do
+	gem list |grep -q $gem && continue
+	echo "Missing required gem $gem."
+	echo "Please make sure the following gems are installed:"
+	echo "$NEEDED_GEMS"
+	exit 1
+    done
+
+    mangle_ssh_config
+
+    CGROUP_DIR=$(sudo -n $(which make_cgroups.sh) $$ crowbar-test) || \
     die "Could not mount cgroup filesystem!"
 
     # kill any already running screen sessions
@@ -1001,7 +1068,7 @@ run_test() {
     while read line; do
 	[[ $line =~ $screen_re ]] && screen -S "${BASH_REMATCH[1]}" -X quit || :
     done < <(screen -ls)
-    local tests_to_run=("crowbar") test_results=()
+    local tests_to_run=() test_results=()
     # Process our commandline arguments.
     while [[ $1 ]]; do
 	case $1 in
@@ -1012,8 +1079,8 @@ run_test() {
 	    manual-deploy) local manual_deploy=true;;
 	    use-iso) shift; SMOKETEST_ISO="$1";;
 	    scratch);;
-	    *) # Try a few common locations first
-		if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]; then
+	    *) 
+		if [[ -d $CROWBAR_DIR/barclamps/$1 ]]; then
 		    tests_to_run+=("$1")
 		else
 		    die "Unknown test or option $1"
@@ -1027,6 +1094,8 @@ run_test() {
     # $smoketest_dir is where we will store all our disk images and logfiles.
     smoketest_dir="$CROWBAR_DIR/testing/${SMOKETEST_ISO##*/}"
     smoketest_dir="${smoketest_dir%.iso}"
+    [[ -d $smoketest_dir ]] && (cd "$smoketest_dir"; rm -rf *)
+    [[ $tests_to_run ]] || tests_to_run=("crowbar")
     
     for d in image logs; do mkdir -p "$smoketest_dir/$d"; done
     LOOPDIR="$smoketest_dir/image"
@@ -1081,6 +1150,7 @@ run_test() {
 	test_results=("Admin node: Failed")
     fi
     [[ "${test_results[*]}" =~ Failed ]] || final_status=Passed
+    [[ $develop_mode ]] && pause
     kill_slaves || :
     sleep 15
 } 100>"$SMOKETEST_LOCK"

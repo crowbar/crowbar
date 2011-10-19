@@ -121,6 +121,7 @@ cleanup_cmds=()
 # and a shiny new .iso.
 cleanup() {
     flock -n 70 || exit 1
+    res=0
     # Clean up any stray mounts we may have left behind. 
     # The paranoia with the grepping is to ensure that we do not 
     # inadvertently umount everything.
@@ -129,7 +130,7 @@ cleanup() {
 	exit 1
     fi
     for c in "${cleanup_cmds[@]}"; do
-	$c
+	$c || res=1
     done
     
     GREPOPTS=()
@@ -168,6 +169,7 @@ cleanup() {
     wait
     flock -u 70
     rm "$CROWBAR_DIR/".*.lock
+    exit $res
 } 70> "$CLEANUP_LOCK"
 
 # Arrange for cleanup to be called at the most common exit points.

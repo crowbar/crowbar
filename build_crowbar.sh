@@ -441,7 +441,7 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
 	mkdir -p "$BUILD_DIR/extra/pkgs/"
 	stage_pkgs "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
 	    "$BUILD_DIR/extra/pkgs"
-	for f in file gems; do
+	for f in files gems; do
 	    [[ -d "$CACHE_DIR/barclamps/$bc/$f" ]] || continue
 	    cp -r "$CACHE_DIR/barclamps/$bc/$f" "$BUILD_DIR/extra"
 	done	    
