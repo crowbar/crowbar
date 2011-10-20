@@ -22,8 +22,9 @@ get_barclamp_info() {
     local bc yml_file line query newdeps dep d i
     local new_barclamps=()
     # Pull in interesting information from all our barclamps
-    for bc in $CROWBAR_DIR/barclamps/*; do
-	[[ -d $bc ]] || continue
+    cd "$CROWBAR_DIR"
+    for bc in barclamps/*; do
+	[[ -d "$bc" ]] || continue
 	bc=${bc##*/}
 	debug "Reading metadata for $bc barclamp."
 	is_barclamp "$bc" || die "$bc is not a barclamp!"
@@ -57,6 +58,7 @@ get_barclamp_info() {
 		${BC_QUERY_STRINGS["$query"]} 2>/dev/null)
 	done
     done
+    cd -
 
     debug "Analyzing barclamp group membership"
     # If any barclamps need group expansion, do it.
@@ -582,7 +584,7 @@ in_cache() (
 )
 
 # Check to see if something is a barclamp.
-is_barclamp() { [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]]; }
+is_barclamp() { [[ -f "$CROWBAR_DIR/barclamps/$1/crowbar.yml" ]]; }
 
 # Build our ISO image.
 build_iso() (   
