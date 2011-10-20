@@ -68,9 +68,9 @@ EOF
     
     (cd /etc/yum.repos.d && rm *)
     
-    cat >/etc/yum.repos.d/RHEL5.6-Base.repo <<EOF
-[RHEL56-Base]
-name=RHEL 5.6 Server
+    cat >/etc/yum.repos.d/RHEL5.7-Base.repo <<EOF
+[RHEL57-Base]
+name=RHEL 5.7 Server
 baseurl=file://$BASEDIR/Server
 gpgcheck=1
 gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release

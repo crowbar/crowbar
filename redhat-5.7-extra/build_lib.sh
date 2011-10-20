@@ -1,11 +1,11 @@
 #!/bin/bash
 # This is sourced by build_crowbar.sh to enable it to stage Crowbar onto
-# RHEL 5.6
+# RHEL 5.7
 
 
 # OS information for the OS we are building crowbar on to.
 OS=redhat
-OS_VERSION=5.6
+OS_VERSION=5.7
 OS_TOKEN="$OS-$OS_VERSION"
 PKG_TYPE="rpms"
 PKG_ALLOWED_ARCHES=("x86_64" "noarch")
@@ -15,7 +15,7 @@ declare -A SEEN_RPMS
 
 # If we need to make a chroot to stage packages into, this is the minimal
 # set of packages needed to bootstrap yum.  This package list has only been tested
-# on RHEL 5.6.
+# on RHEL 5.7.
 OS_BASIC_PACKAGES=(MAKEDEV SysVinit audit-libs basesystem bash beecrypt \
     bzip2-libs coreutils redhat-release cracklib cracklib-dicts db4 \
     device-mapper e2fsprogs elfutils-libelf e2fsprogs-libs ethtool expat \
@@ -29,7 +29,7 @@ OS_BASIC_PACKAGES=(MAKEDEV SysVinit audit-libs basesystem bash beecrypt \
     termcap tzdata udev util-linux wget yum yum-metadata-parser zlib)
 
 # The name of the OS iso we are using as a base.
-[[ $ISO ]] || ISO="RHEL5.6-Server-20110106.0-x86_64-DVD.iso"
+[[ $ISO ]] || ISO="RHEL5.7-Server-20110711.5-x86_64-DVD.iso"
 [[ $PRIORITIES_HTTP ]] || PRIORITIES_HTTP="http://mirror.centos.org/centos/5/extras/i386/RPMS/yum-priorities-1.1.16-13.el5.centos.noarch.rpm"
 [[ $PRIORITIES_RPM ]] || PRIORITIES_RPM="yum-priorities-1.1.16-13.el5.centos.noarch.rpm"
 

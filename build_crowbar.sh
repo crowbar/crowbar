@@ -534,13 +534,13 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
 		SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
 		test_iso admin-only
 	    fi
-	    [[ ! -f "$HOME/crowbar-installed.$OS_TOKEN.list" ]] || \
-		die "Asked to shrink build for $OS_TOKEN, but package list missing!"
+	    [[ -f "$HOME/admin-installed.list" ]] || \
+		die "Could not generate minimal install list!"
 	    mv "$HOME/admin-installed.list" \
 		"$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install"
+	    debug "Minimal install generated and saved to $CROWBAR_DIR/$OS_TOKEN-extra/minimal-install."
+	    debug "Please commit it and rerun the build with --shrink."
 	fi
-	
-	build_iso
     fi
     echo "$(date '+%F %T %z'): Image at $ISO_DEST/$BUILT_ISO"
     if [[ $NEED_TEST = true ]]; then 
@@ -550,3 +550,4 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
     fi
     echo "$(date '+%F %T %z'): Finished."
 } 65> /tmp/.build_crowbar.lock
+
