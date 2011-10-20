@@ -397,7 +397,9 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
     
     debug "Cleaning up any VCS cruft."
     # Clean up any cruft that the editor may have left behind.
-    (cd "$CROWBAR_DIR"; $VCS_CLEAN_CMD)
+    (for d in "$CROWBAR_DIR" "$CROWBAR_DIR/barclamps/"*; do
+	cd "$d"; $VCS_CLEAN_CMD
+	done)
 
     # Make additional directories we will need.
     for d in discovery extra; do
