@@ -915,7 +915,7 @@ deploy_nodes() {
 
 barclamp_deployed() {
     # $1 = barclamp to check for deployed proposals
-    [[ ! $(crowbar $1 list) = 'No current configurations' ]]
+    [[ $(crowbar $1 list) != 'No current configurations' ]]
 }
 
 deploy_barclamp() {
@@ -988,10 +988,11 @@ run_hooks() {
 run_test_hooks() {
     barclamp_deployed "$1" && return
     local h
-    for h in ${BC_DEPS[$1]} ${BC_SMOKETEST_DEPS[$bc]}; do
+    for h in ${BC_DEPS[$1]} ${BC_SMOKETEST_DEPS[$1]}; do
 	[[ ! $h || $h = test ]] && continue
 	barclamp_deployed "$h" || run_test_hooks "$h"
     done
+    deploy_barclamp "$1"
     if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]; then
 	run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
 	    ${BC_SMOKETEST_TIMEOUTS[$1]:-300} test || \
