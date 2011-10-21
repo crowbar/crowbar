@@ -19,7 +19,8 @@
 export FQDN="$1"
 export PATH="/opt/dell/bin:$PATH"
 export DEBUG=true
-[[ $HOME ]] || export HOME="/root"
+[[ ! $HOME || $HOME = / ]] && export HOME="/root"
+mkdir -p "$HOME"
 die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
 
 crowbar_up=
@@ -94,6 +95,17 @@ if [[ ! -f $DVD_PATH/sha1_passed ]]; then
     die "SHA1sums do not match, install is corrupt."
     >$DVD_PATH/sha1_passed
 fi
+
+# If we don't have a key for root, make one and make sure it will get
+# copied out correctly.
+[[ -f $HOME/.ssh/id_rsa ]] || {
+    mkdir -p "$HOME/.ssh"
+    ssh-keygen -q -b 2048 -P '' -f "$HOME/.ssh/id_rsa"
+    cat "$HOME/.ssh/id_rsa.pub" >> "$HOME/.ssh/authorized_keys"
+    cp "$HOME/.ssh/authorized_keys" "$DVD_PATH/authorized_keys"
+    cat "$HOME/.ssh/id_rsa.pub" >> /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/templates/default/authorized_keys.erb
+
+}
 
 fqdn_re='^[0-9a-zA-Z.-]+$'
 # Make sure there is something of a domain name
