@@ -186,7 +186,6 @@ barclamp_scripts=(barclamp_install.rb)
 		mkdir -p "/root/.ssh"
 		printf "$VAL\n" >>/root/.ssh/authorized_keys
                 printf "$VAL\n" >>/opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/templates/default/authorized_keys.erb
-		cp /root/.ssh/authorized_keys "$BASEDIR/authorized_keys"
 		;;
 	    crowbar.debug)
 		sed -i -e '/config.log_level/ s/^#//' \
