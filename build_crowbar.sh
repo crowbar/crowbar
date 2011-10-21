@@ -457,10 +457,11 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
     echo "$VERSION" >> "$BUILD_DIR/dell/Version"
 
     # Custom start-up in place
-    if [ -f "$CROWBAR_DIR/crowbar.json" ] ; then
+    for f in "$CROWBAR_DIR"/*.json ; do
+      [[ -f $f ]] || continue
       mkdir -p "$BUILD_DIR/extra/config"
-      cp "$CROWBAR_DIR/crowbar.json" "$BUILD_DIR/extra/config"
-    fi
+      cp "$f" "$BUILD_DIR/extra/config"
+    done
    
     final_build_fixups
  
