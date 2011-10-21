@@ -951,10 +951,12 @@ run_hooks() {
     # $4 = Extension for the hookd, defaults to 'hook'
     local test_name=$1 test_dir="$2" timeout=${3:-300} ext=${4:-hook}
     local deadline=$(($(date '+%s') + ${timeout})) hook
-    [[ -d $test_dir ]] || {
+    if [[ -d $test_dir ]]; then
+	echo "Timed Out" > "$smoketest_dir/$test_name.test"
+    else
 	echo "Passed" > "$smoketest_dir/$test_name.test"
 	return 0
-    }
+    fi
     (   sleep 1
 	for hook in "$test_dir"/*."$ext"; do
 	    if [[ -x $hook ]]; then 
@@ -971,10 +973,7 @@ run_hooks() {
     (   cd /proc/$testpid
 	while [[ -f cmdline ]] && (($(date '+%s') <= $deadline)); do
 	    sleep 10
-	done
-	if [[ -f cmdline ]]; then
-	    echo "Timed Out" >"$smoketest_dir/$test_name.test"
-	fi )
+	done)
     case $(cat "$smoketest_dir/$test_name.test") in
 	Passed) return 0;;
 	Failed) return 1;;
