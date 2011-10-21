@@ -731,8 +731,8 @@ create_slaves() {
 	>"$smoketest_dir/$nodename.reset"
 	qemu-img create -f raw "$smoketest_dir/$nodename.disk" 10G &>/dev/null
         # Create a second and third image for Swift testing
-	qemu-img create -f qcow2 "$smoketest_dir/$nodename-01.disk" 1G &>/dev/null
-	qemu-img create -f qcow2 "$smoketest_dir/$nodename-02.disk" 1G &>/dev/null
+	qemu-img create -f qcow2 "$smoketest_dir/$nodename-01.disk" 4G &>/dev/null
+	qemu-img create -f qcow2 "$smoketest_dir/$nodename-02.disk" 4G &>/dev/null
         # Run our VMs in the background, looping as we go.
 	(
 	    # Keep rebooting as long as the admin node is alive and 
@@ -997,7 +997,8 @@ run_test_hooks() {
     deploy_barclamp "$1"
     if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]; then
 	run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
-	    ${BC_SMOKETEST_TIMEOUTS[$1]:-300} test || \
+	    ${BC_SMOKETEST_TIMEOUTS[$1]:-300} test 2>&1 | \
+	    tee "$LOGDIR/$1-smoketest-hooks.log" || \
 	    die "Smoketest for $1 failed."
     fi
 }
