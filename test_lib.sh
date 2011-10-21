@@ -193,14 +193,17 @@ smoketest_cleanup() {
     [[ $test_results ]] && {
 	for result in "${test_results[@]}"; do
 	    echo "$result"
-	    [[ $result = *Failed ]] && final_status=Failed
+	    [[ $result = *Passed ]] && continue
+	    final_status=Failed
+	    break
 	done
     }
     echo "Deploy $final_status."
     target="${smoketest_dir##*/}-$(date '+%Y%m%d-%H%M%S')-${final_status}"
     rm -f "$smoketest_dir/"*.disk || :
     cp "$CROWBAR_DIR/smoketest.log" "$smoketest_dir"
-    (cd "$currdir"; tar czf "$target.tar.gz" "${smoketest_dir}")
+    (cd "$smoketest_dir/.."; \
+	tar czf "$currdir/$target.tar.gz" "${smoketest_dir##*/}")
     echo "Logs are available at $currdir/$target.tar.gz."
     rm -rf "$smoketest_dir"
     [[ $final_status != Passed ]];
@@ -956,27 +959,27 @@ run_hooks() {
 	for hook in "$test_dir"/*."$ext"; do
 	    if [[ -x $hook ]]; then 
 		"$hook" && continue
-		echo "Failed" >"$smoketest_dir/$1.test"
+		echo "Failed" >"$smoketest_dir/$test_name.test"
 		exit
 	    fi
 	done
-	echo "Passed" >"$smoketest_dir/$1.test"
+	echo "Passed" >"$smoketest_dir/$test_name.test"
 	exit 
     ) &
     local testpid=$!
-    sudo -n $(which make_cgroups.sh) $testpid "crowbar-test/$1-test"
+    sudo -n $(which make_cgroups.sh) $testpid "crowbar-test/${test_name}-test"
     (   cd /proc/$testpid
 	while [[ -f cmdline ]] && (($(date '+%s') <= $deadline)); do
 	    sleep 10
 	done
 	if [[ -f cmdline ]]; then
-	    echo "Timed Out" >"$smoketest_dir/$1.test"
+	    echo "Timed Out" >"$smoketest_dir/$test_name.test"
 	fi )
-    case $(cat "$smoketest_dir/$1.test") in
+    case $(cat "$smoketest_dir/$test_name.test") in
 	Passed) return 0;;
 	Failed) return 1;;
 	*) 
-	    for t in $(cat "$CGROUP_DIR/$1-test/tasks"); do
+	    for t in $(cat "$CGROUP_DIR/${test_name}-test/tasks"); do
 		kill -9 "$t"
 	    done
 	    return 1;;
