@@ -9,6 +9,7 @@
 # Make sure we know where to find our test binaries
 [[ -d $CROWBAR_DIR/testing/cli ]] || mkdir -p "$CROWBAR_DIR/testing/cli"
 export PATH="$CROWBAR_DIR/testing/cli:$CROWBAR_DIR/test_framework:$CROWBAR_DIR:$PATH:/sbin:/usr/sbin"
+set -o pipefail
 
 # Commands we have to run under sudo -n
 SUDO_CMDS="brctl ip umount mount make_cgroups.sh"
@@ -944,12 +945,15 @@ deploy_barclamp() {
     return 0
 }
 
+# run hooks.  They will be sorted in lexicographic order, 
+# so naming them with numeric prefixes indicating the order 
+# they should run in is a Good Idea.
 run_hooks() {
     # $1 = name of the test
     # $2 = path to find the hooks in
     # $3 = Timeout for the tests, defaults to 300 seconds.
-    # $4 = Extension for the hookd, defaults to 'hook'
-    local test_name=$1 test_dir="$2" timeout=${3:-300} ext=${4:-hook}
+    # $4 = Extension for the hooks, defaults to 'hook'
+    local test_name="$1" test_dir="$2" timeout=${3:-300} ext=${4:-hook}
     local deadline=$(($(date '+%s') + ${timeout})) hook
     if [[ -d $test_dir ]]; then
 	echo "Timed Out" > "$smoketest_dir/$test_name.test"
@@ -959,11 +963,10 @@ run_hooks() {
     fi
     (   sleep 1
 	for hook in "$test_dir"/*."$ext"; do
-	    if [[ -x $hook ]]; then 
-		"$hook" && continue
-		echo "Failed" >"$smoketest_dir/$test_name.test"
-		exit
-	    fi
+	    [[ -x $hook ]] || continue
+	    "$hook" && continue
+	    echo "Failed" >"$smoketest_dir/$test_name.test"
+	    exit
 	done
 	echo "Passed" >"$smoketest_dir/$test_name.test"
 	exit 
@@ -984,9 +987,7 @@ run_hooks() {
 	    return 1;;
     esac
 }
-# run hooks.  They will be sorted in lexicographic order, 
-# so naming them with numeric prefixes indicating the order 
-# they should run in is a Good Idea.
+
 run_test_hooks() {
     barclamp_deployed "$1" && return
     local h
@@ -994,12 +995,12 @@ run_test_hooks() {
 	[[ ! $h || $h = test ]] && continue
 	barclamp_deployed "$h" || run_test_hooks "$h"
     done
+    debug "Testing $1"
     deploy_barclamp "$1"
     if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]; then
 	run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
-	    ${BC_SMOKETEST_TIMEOUTS[$1]:-300} test 2>&1 | \
-	    tee "$LOGDIR/$1-smoketest-hooks.log" || \
-	    die "Smoketest for $1 failed."
+	    "${BC_SMOKETEST_TIMEOUTS[$1]:-300}" test 2>&1 | \
+	    tee "$smoketest_dir/$1-smoketest.log"
     fi
 }
 
@@ -1106,6 +1107,17 @@ run_test() {
     export LOGDIR="$smoketest_dir/logs"
     # Make sure we clean up after ourselves no matter how we exit.
     cleanup_cmds+=(smoketest_cleanup)
+
+    # Make sure we pull in info we need from the barclamps
+    if [[ ! ${!BC_QUERY_STRINGS[*]} ]]; then
+	declare -A BC_QUERY_STRINGS
+	BC_QUERY_STRINGS["deps"]="barclamp requires"
+	BC_QUERY_STRINGS["test_deps"]="smoketest requires"
+	BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
+	BC_QUERY_STRINGS["groups"]="barclamp member"
+	get_barclamp_info
+    fi
+
     cd "$CROWBAR_DIR/testing"
     # make a screen session so that we can watch what we are doing if needed.
     screen -wipe &>/dev/null || :
