@@ -194,7 +194,7 @@ BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
 BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
 BC_QUERY_STRINGS["raw_pkgs"]="$PKG_TYPE raw_pkgs"
 BC_QUERY_STRINGS["test_deps"]="smoketest requires"
-BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
+BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 
 
 {
