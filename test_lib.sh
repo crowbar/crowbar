@@ -9,6 +9,7 @@
 # Make sure we know where to find our test binaries
 [[ -d $CROWBAR_DIR/testing/cli ]] || mkdir -p "$CROWBAR_DIR/testing/cli"
 export PATH="$CROWBAR_DIR/testing/cli:$CROWBAR_DIR/test_framework:$CROWBAR_DIR:$PATH:/sbin:/usr/sbin"
+set -o pipefail
 
 # Commands we have to run under sudo -n
 SUDO_CMDS="brctl ip umount mount make_cgroups.sh"
@@ -188,22 +189,24 @@ smoketest_cleanup() {
 	kill -9 $task
     done
     # Make sure we exit with the right status code.
-    [[ $final_status ]] || exit 1
     # Copy passed and failed logs to the right location.
     [[ $test_results ]] && {
 	for result in "${test_results[@]}"; do
 	    echo "$result"
-	    [[ $result = *Failed ]] && final_status=Failed
+	    [[ $result = *Passed ]] && continue
+	    final_status=Failed
 	done
     }
+    [[ $final_status ]] || final_status=Passed
     echo "Deploy $final_status."
     target="${smoketest_dir##*/}-$(date '+%Y%m%d-%H%M%S')-${final_status}"
     rm -f "$smoketest_dir/"*.disk || :
     cp "$CROWBAR_DIR/smoketest.log" "$smoketest_dir"
-    (cd "$currdir"; tar czf "$target.tar.gz" "${smoketest_dir}")
+    (cd "$smoketest_dir/.."; \
+	tar czf "$currdir/$target.tar.gz" "${smoketest_dir##*/}")
     echo "Logs are available at $currdir/$target.tar.gz."
     rm -rf "$smoketest_dir"
-    [[ $final_status != Passed ]];
+    [[ $final_status != Passed ]]
 } 75>"$CROWBAR_DIR/.smoketest_cleanup.lock"
 
 # Simple unique mac address generation.
@@ -716,6 +719,14 @@ EOF
     return ${ret:-0}
 }
 
+# Deregister a node from Crowbar.
+# The next time it boots Crowbar will restart the discovery cycle for it.
+# $1 = the hostname of the node to deregister.
+deregister_slave() {
+    # make Chef forget about the node.
+    crowbar machines delete "$1"
+}
+
 # Create infrastructure for our slave nodes, but do not start them.
 create_slaves() {    
     local nodename
@@ -728,8 +739,8 @@ create_slaves() {
 	>"$smoketest_dir/$nodename.reset"
 	qemu-img create -f raw "$smoketest_dir/$nodename.disk" 10G &>/dev/null
         # Create a second and third image for Swift testing
-	qemu-img create -f qcow2 "$smoketest_dir/$nodename-01.disk" 1G &>/dev/null
-	qemu-img create -f qcow2 "$smoketest_dir/$nodename-02.disk" 1G &>/dev/null
+	qemu-img create -f qcow2 "$smoketest_dir/$nodename-01.disk" 4G &>/dev/null
+	qemu-img create -f qcow2 "$smoketest_dir/$nodename-02.disk" 4G &>/dev/null
         # Run our VMs in the background, looping as we go.
 	(
 	    # Keep rebooting as long as the admin node is alive and 
@@ -747,6 +758,8 @@ create_slaves() {
 		    # complains about the LVM VG even though it should not.
 			
 		    if [[ $in_reset != true ]]; then
+			deregister_slave ${SMOKETEST_SLAVES["$nodename"]}
+			sleep 30
 			qemu-img create -f raw \
 			    "$smoketest_dir/$nodename.disk" 10G &>/dev/null
 			in_reset=true
@@ -793,57 +806,41 @@ create_slaves() {
     done
 }
 
-# Deregister a node from Crowbar.
-# The next time it boots Crowbar will restart the discovery cycle for it.
-# $1 = the hostname of the node to deregister.
-deregister_slave() {
-    # make Chef forget about the node.
-    crowbar machines delete "$1"
+kill_slave() {
+    local hname=${SMOKETEST_SLAVES["$1"]}
+    smoketest_update_status "$1" "Killing $hname" 
+    if [[ $1 =~ virt ]]; then 
+	kill_vm "$1" "$@" 
+    else
+	crowbar machines shutdown "$1" || :
+    fi
 }
 
 kill_slaves() {
+    local slave
     for slave in "${!SMOKETEST_SLAVES[@]}"; do
-	hname=${SMOKETEST_SLAVES["$slave"]}
-	smoketest_update_status "$slave" "Killing $hname" 
-        # If this is a virtual node, put it in reset state.  
-	if [[ $slave =~ virt ]]; then 
-	    kill_vm "$slave" 
-	else
-	    run_on "$hname" poweroff || :
-	fi
+	kill_slave "$slave" "$@"
     done
+}
+
+reset_slave() {
+    if [[ $1 =~ virt ]]; then 
+	> "$smoketest_dir/$1.reset" 
+    fi
+    kill_slave "$1" reset
 }
 
 # Reset nodes from Crowbar's standpoint -- that is,
 # remove them from the Chef database and power them off.
 # If the node is a VM, place it in the reset state.
 reset_slaves() {
-    local slave hname
+    local slave
     if [[ $develop_mode = true ]]; then
-	pause "Press any key to let slaves shut down."
+	pause "Press any key to reset the slaves."
     fi
     for slave in "${!SMOKETEST_SLAVES[@]}"; do
-	hname=${SMOKETEST_SLAVES["$slave"]}
-	smoketest_update_status "$slave" "Asking $hname to shut down" 
-        # If this is a virtual node, put it in reset state.  
-	if [[ $slave =~ virt ]]; then 
-	    > "$smoketest_dir/$slave.reset" 
-	fi 
-	run_on "$hname" poweroff || :
-	done
-    echo "$(date '+%F %T %z'): Waiting for 2 minutes to allow nodes to power off"
-    [[ $develop_mode ]] || sleep 120
-    for slave in "${!SMOKETEST_SLAVES[@]}"; do
-	hname=${SMOKETEST_SLAVES["$slave"]}
-	smoketest_update_status "$slave" "Forcing $hname to shut down"
-	if [[ $slave =~ virt ]]; then
-	    kill_vm "$slave" reset || :
-	else
-	    crowbar machines shutdown "$hname"
-	fi
-	deregister_slave "$hname"
+	reset_slave "$slave"
     done
-    sleep 30 # Make sure the delete finishes the chef-client run.
 }
 
 # Wake up any slaves that are either powered off or in a reset state.
@@ -869,7 +866,7 @@ deploy_nodes() {
     sleep 60
     # Arrange to have the $smoketest_dir/$node.status file updated appropriatly
     # when we think the node is deployed
-    local node
+    local node overall_status=Waiting
     for node in "${!SMOKETEST_SLAVES[@]}"; do
 	( 
 	    hname=${SMOKETEST_SLAVES["$node"]}
@@ -895,27 +892,25 @@ deploy_nodes() {
     # Wait for up to $COMPUTE_DEPLOY_WAIT seconds for our nodes to finish 
     # deploying.
     local deadline=$(($(date +%s) + $COMPUTE_DEPLOY_WAIT))
-    final_status=Waiting
     while (($deadline > $(date +%s))) && \
-	[[ $final_status = Waiting && -f $smoketest_dir/admin.pid ]]; do
-	final_status=Passed
+	[[ $overall_status = Waiting && -f $smoketest_dir/admin.pid ]]; do
+	overall_status=Passed
 	for status in "$smoketest_dir/"*.status; do
 	    [[ -f $status ]] || continue
-	    if grep -q 'Node failed to deploy' "$status"; then
-		final_status=Failed
-		return 1
-	    elif ! grep -q 'Node deployed' "$status"; then
-		final_status=Waiting
+	    grep -q 'Node failed to deploy' "$status" && return 1
+	    if ! grep -q 'Node deployed' "$status"; then
+		overall_status=Waiting
+		continue
 	    fi
 	done
 	sleep 10
     done
-    [[ $final_status = Passed ]] || return 1
+    [[ $overall_status = Passed ]]
 }
 
 barclamp_deployed() {
     # $1 = barclamp to check for deployed proposals
-    [[ ! $(crowbar $1 list) = 'No current configurations' ]]
+    [[ $(crowbar $1 list) != 'No current configurations' ]]
 }
 
 deploy_barclamp() {
@@ -941,61 +936,63 @@ deploy_barclamp() {
     return 0
 }
 
+# run hooks.  They will be sorted in lexicographic order, 
+# so naming them with numeric prefixes indicating the order 
+# they should run in is a Good Idea.
 run_hooks() {
     # $1 = name of the test
     # $2 = path to find the hooks in
     # $3 = Timeout for the tests, defaults to 300 seconds.
-    # $4 = Extension for the hookd, defaults to 'hook'
-    local test_name=$1 test_dir="$2" timeout=${3:-300} ext=${4:-hook}
+    # $4 = Extension for the hooks, defaults to 'hook'
+    local test_name="$1" test_dir="$2" timeout=${3:-300} ext=${4:-hook}
     local deadline=$(($(date '+%s') + ${timeout})) hook
-    [[ -d $test_dir ]] || {
+    if [[ -d $test_dir ]]; then
+	echo "Timed Out" > "$smoketest_dir/$test_name.test"
+    else
 	echo "Passed" > "$smoketest_dir/$test_name.test"
 	return 0
-    }
+    fi
     (   sleep 1
 	for hook in "$test_dir"/*."$ext"; do
-	    if [[ -x $hook ]]; then 
-		"$hook" && continue
-		echo "Failed" >"$smoketest_dir/$1.test"
-		exit
-	    fi
+	    [[ -x $hook ]] || continue
+	    echo "$(date '+%F %T %z'): Running test hook ${hook##*/}"
+	    "$hook" && continue
+	    echo "Failed" >"$smoketest_dir/$test_name.test"
+	    exit
 	done
-	echo "Passed" >"$smoketest_dir/$1.test"
+	echo "Passed" >"$smoketest_dir/$test_name.test"
 	exit 
     ) &
     local testpid=$!
-    sudo -n $(which make_cgroups.sh) $testpid "crowbar-test/$1-test"
+    sudo -n $(which make_cgroups.sh) $testpid "crowbar-test/${test_name}-test"
     (   cd /proc/$testpid
 	while [[ -f cmdline ]] && (($(date '+%s') <= $deadline)); do
 	    sleep 10
-	done
-	if [[ -f cmdline ]]; then
-	    echo "Timed Out" >"$smoketest_dir/$1.test"
-	fi )
-    case $(cat "$smoketest_dir/$1.test") in
+	done)
+    case $(cat "$smoketest_dir/$test_name.test") in
 	Passed) return 0;;
 	Failed) return 1;;
 	*) 
-	    for t in $(cat "$CGROUP_DIR/$1-test/tasks"); do
+	    for t in $(cat "$CGROUP_DIR/${test_name}-test/tasks"); do
 		kill -9 "$t"
 	    done
 	    return 1;;
     esac
 }
-# run hooks.  They will be sorted in lexicographic order, 
-# so naming them with numeric prefixes indicating the order 
-# they should run in is a Good Idea.
+
 run_test_hooks() {
     barclamp_deployed "$1" && return
     local h
-    for h in ${BC_DEPS[$1]} ${BC_SMOKETEST_DEPS[$bc]}; do
+    for h in ${BC_DEPS[$1]} ${BC_SMOKETEST_DEPS[$1]}; do
 	[[ ! $h || $h = test ]] && continue
-	barclamp_deployed "$h" || run_test_hooks "$h"
+	barclamp_deployed "$h" || run_test_hooks "$h" || return 1
     done
+    echo "$(date '+%F %T %z'): Running smoketests for $1."
+    deploy_barclamp "$1" || return 1
     if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]; then
 	run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
-	    ${BC_SMOKETEST_TIMEOUTS[$1]:-300} test || \
-	    die "Smoketest for $1 failed."
+	    "${BC_SMOKETEST_TIMEOUTS[$1]:-300}" test 2>&1 | \
+	    tee "$LOGDIR/$1-smoketest.log" || return 1
     fi
 }
 
@@ -1102,6 +1099,17 @@ run_test() {
     export LOGDIR="$smoketest_dir/logs"
     # Make sure we clean up after ourselves no matter how we exit.
     cleanup_cmds+=(smoketest_cleanup)
+
+    # Make sure we pull in info we need from the barclamps
+    if [[ ! ${!BC_QUERY_STRINGS[*]} ]]; then
+	declare -A BC_QUERY_STRINGS
+	BC_QUERY_STRINGS["deps"]="barclamp requires"
+	BC_QUERY_STRINGS["test_deps"]="smoketest requires"
+	BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
+	BC_QUERY_STRINGS["groups"]="barclamp member"
+	get_barclamp_info
+    fi
+
     cd "$CROWBAR_DIR/testing"
     # make a screen session so that we can watch what we are doing if needed.
     screen -wipe &>/dev/null || :
@@ -1123,16 +1131,17 @@ run_test() {
 	for running_test in "${tests_to_run[@]}"; do
 	    if ! deploy_nodes; then
 		test_results+=("$running_test: Failed")
-		echo "$(date '+%F %T %z'): $running_test deploy failed."
+		echo "$(date '+%F %T %z'): Compute node deploy failed."
 		smoketest_get_cluster_logs "$running_test-deploy-failed"
 		reset_slaves
 		continue
 	    fi
-            echo "$(date '+%F %T %z'): $running_test deploy passed."
+            echo "$(date '+%F %T %z'): Compute nodes deployed."
 	    for this_test in $running_test; do
+		echo "$(date '+%F %T %z'): Running smoketests for $this_test."
 		if ! run_test_hooks "$this_test"; then
-		    echo "$(date '+%F %T %z'): $running_test tests failed."
-		    test_results+=("$running_test: Failed")
+		    echo "$(date '+%F %T %z'): $this_test tests failed."
+		    test_results+=("$this_test: Failed")
 		    smoketest_get_cluster_logs "$running_test-tests-failed"
 		    reset_slaves
 		    continue 2
