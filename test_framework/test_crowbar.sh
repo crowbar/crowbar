@@ -27,7 +27,7 @@
 readonly currdir="$PWD"
 
 # Location of the Crowbar checkout we are building from.
-[[ $CROWBAR_DIR ]] || CROWBAR_DIR="${0%/*}"
+[[ $CROWBAR_DIR ]] || CROWBAR_DIR="${0%/*}/.."
 [[ $CROWBAR_DIR = /* ]] || CROWBAR_DIR="$currdir/$CROWBAR_DIR"
 [[ -f $CROWBAR_DIR/build_crowbar.sh && -d $CROWBAR_DIR/.git ]] || \
     die "$CROWBAR_DIR is not a git checkout of Crowbar!" 
