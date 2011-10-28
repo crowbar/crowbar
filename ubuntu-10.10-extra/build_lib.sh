@@ -157,7 +157,7 @@ final_build_fixups() {
        (   cd scratch;
            debug "Adding all nic drivers"
            for udeb in "$IMAGE_DIR/pool/main/l/linux/"nic-*-generic-*.udeb; do
-               tar x "$udeb"
+               ar x "$udeb"
                tar xzf data.tar.gz
                rm -rf debian-binary *.tar.gz
            done 
@@ -172,7 +172,7 @@ final_build_fixups() {
 }
 
 # Check to make sure all our prerequisites are met.
-for cmd in debootstrap; do
+for cmd in debootstrap ar; do
     which "$cmd" &>/dev/null || \
 	die 1 "Please install $cmd before trying to build Crowbar."
 done
