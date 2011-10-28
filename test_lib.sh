@@ -428,15 +428,6 @@ wait_for_kvm() {
 # Hash that allows us to track the number of reboots a VM has had.
 declare -A kvm_generations
 
-# Hack to pick the fastest disk caching mode.
-# We use unsafe caching if we can on the vms because we will just
-# rebuild the filesystems from scratch if anything goes wrong.
-if kvm --help |grep -q 'cache.*unsafe'; then
-    drive_cache=unsafe
-else
-    drive_cache=writeback
-fi
-
 # Run a KVM session.
 run_kvm() {
     # run_kvm will try to process the arguemnts it knows about first.
@@ -1054,6 +1045,15 @@ run_test() {
 	echo "$NEEDED_GEMS"
 	exit 1
     done
+
+    # Hack to pick the fastest disk caching mode.
+    # We use unsafe caching if we can on the vms because we will just
+    # rebuild the filesystems from scratch if anything goes wrong.
+    if kvm --help |grep -q 'cache.*unsafe'; then
+        drive_cache=unsafe
+    else
+        drive_cache=writeback
+    fi
 
     mangle_ssh_config
 
