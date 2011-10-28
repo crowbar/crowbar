@@ -149,6 +149,10 @@ cleanup() {
     # If the build process spawned a copy of webrick, make sure it is dead.
     [[ $webrick_pid && -d /proc/$webrick_pid ]] && kill -9 $webrick_pid
     # clean up after outselves from merging branches, if needed.
+    [[ $CI_BARCLAMP ]] &&  {
+	in_repo git submodule update -N "barclamps/$CI_BARCLAMP"
+	in_ci_barclamp git branch -D ci-throwaway-branch
+    }
     cd "$CROWBAR_DIR"
     if [[ $THROWAWAY_BRANCH ]]; then
 	# Check out the branch we started the build process, and then 
@@ -589,6 +593,17 @@ in_cache() (
 
 # Check to see if something is a barclamp.
 is_barclamp() { [[ -f "$CROWBAR_DIR/barclamps/$1/crowbar.yml" ]]; }
+in_barclamp() {
+    is_barclamp "$1" || die "$1 is not a barclamp"
+    (   cd "$CROWBAR_DIR/barclamps/$1"
+	shift
+	"$@")
+}
+
+in_ci_barclamp() {
+    [[ $CI_BARCLAMP ]] || die "No continuous integration barclamp!"
+    in_barclamp "$CI_BARCLAMP" "$@"
+}
 
 # Build our ISO image.
 build_iso() (   
