@@ -97,7 +97,7 @@ export CROWBAR_DIR
 
 # Location of the Sledgehammer source tree.  Only used if we cannot 
 # find Sledgehammer in $SLEDGEHAMMER_PXE_DIR above. 
-[[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_DIR="${CROWBAR_DIR}/../sledgehammer"
+[[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_DIR="${CROWBAR_DIR}/../crowbar-sledgehammer"
 
 # Command to run to clean out the tree before starting the build.
 # By default we want to be relatively pristine.
