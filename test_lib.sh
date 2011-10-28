@@ -67,6 +67,9 @@ SMOKETEST_BRIDGES=(crowbar-pub crowbar-priv)
 # Wake On LAN packets to them.
 PHYSICAL_MACS=()
 
+# An Assoc Array for test results
+declare -A test_hook_results
+
 [[ $SMOKETEST_ISO && -f $SMOKETEST_ISO ]] || \
     SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
 
@@ -972,18 +975,22 @@ run_hooks() {
 }
 
 run_test_hooks() {
-    barclamp_deployed "$1" && return
     local h
     for h in ${BC_DEPS[$1]} ${BC_SMOKETEST_DEPS[$1]}; do
 	[[ ! $h || $h = test ]] && continue
-	barclamp_deployed "$h" || run_test_hooks "$h" || return 1
+	run_test_hooks "$h" || return 1
     done
     echo "$(date '+%F %T %z'): Running smoketests for $1."
-    deploy_barclamp "$1" || return 1
-    if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest ]]; then
-	run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
+    barclamp_deployed "$1" || deploy_barclamp "$1" || return 1
+    if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest && ! ${test_hook_results["$1"]} ]]; then
+	if run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
 	    "${BC_SMOKETEST_TIMEOUTS[$1]:-300}" test 2>&1 | \
-	    tee "$LOGDIR/$1-smoketest.log" || return 1
+	    tee "$LOGDIR/$1-smoketest.log" ; then
+          test_hook_results["$1"]="Passed"
+        else
+          test_hook_results["$1"]="Failed"
+          return 1
+        fi
     fi
 }
 
