@@ -382,6 +382,7 @@ update_barclamp_pkg_cache() {
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
     chroot_fetch ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]} || \
 	die "Could not fetch packages required by barclamp $1"
+    mkdir -p "$bc_cache"
     while read pkg; do
 	is_pkg "$CHROOT/$CHROOT_PKGDIR/$pkg" || continue
 	[[ ${pkgs["$pkg"]} = true ]] && continue
@@ -435,6 +436,7 @@ update_barclamp_gem_cache() {
     done
 
     # Save our updated gems and pkgs in the cache for later.
+    mkdir -p "$bc_cache"
      while read gem; do
 	[[ $gem = *.gem ]] || continue
 	[[ ${gems["$gem"]} = "true" ]] && continue
@@ -445,6 +447,7 @@ update_barclamp_gem_cache() {
 # Fetch any raw packages we do not already have.
 update_barclamp_raw_pkg_cache() {
     local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    mkdir -p "$bc_cache"
     # Fetch any raw_pkgs we were asked to.
     for pkg in ${BC_RAW_PKGS["$1"]}; do
 	[[ -f $bc_cache/${pkg##*/} ]] && continue
@@ -457,6 +460,7 @@ update_barclamp_raw_pkg_cache() {
 update_barclamp_file_cache() {
     local dest pkg bc_cache="$CACHE_DIR/barclamps/$1/files"
     # Fetch any extra_pkgs we need.
+    mkdir -p "$bc_cache"
     while read pkg; do
 	dest=${pkg#* }
 	[[ $dest = $pkg ]] && dest=''
