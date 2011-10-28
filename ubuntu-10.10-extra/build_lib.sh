@@ -157,7 +157,7 @@ final_build_fixups() {
        (   cd scratch;
            debug "Adding all nic drivers"
            for udeb in "$IMAGE_DIR/pool/main/l/linux/"nic-*-generic-*.udeb; do
-               ar x "$udeb"
+               tar x "$udeb"
                tar xzf data.tar.gz
                rm -rf debian-binary *.tar.gz
            done 
