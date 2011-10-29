@@ -38,17 +38,17 @@ get_barclamp_info() {
 			BC_DEPS["$bc"]+="$line ";;
 		    groups) is_in "$line" ${BC_GROUPS["$bc"]} || 
 			BC_GROUPS["$line"]+="$bc ";;
-		    pkgs) is_in "$line" ${BC_PKGS["$bc"]} || \
+		    pkgs|os_pkgs) is_in "$line" ${BC_PKGS["$bc"]} || \
 			BC_PKGS["$bc"]+="$line ";;
 		    extra_files) BC_EXTRA_FILES["$bc"]+="$line\n";;
 		    os_support) BC_OS_SUPPORT["$bc"]+="$line ";;
 		    gems) BC_GEMS["$bc"]+="$line ";;
-		    repos) BC_REPOS["$bc"]+="$line\n";;
-		    ppas) [[ $PKG_TYPE = debs ]] || \
+		    repos|os_repos) BC_REPOS["$bc"]+="$line\n";;
+		    ppas|os_ppas) [[ $PKG_TYPE = debs ]] || \
 			die "Cannot declare a PPA for $PKG_TYPE!"
 			BC_REPOS["$bc"]+="ppa $line\n";;
-		    build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
-		    raw_pkgs) BC_RAW_PKGS["$bc"]+="$line ";;
+		    build_pkgs|os_build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
+		    raw_pkgs|os_raw_pkgs) BC_RAW_PKGS["$bc"]+="$line ";;
 		    test_deps) BC_SMOKETEST_DEPS["$bc"]+="$line ";;
 		    test_timeouts) BC_SMOKETEST_TIMEOUTS["$bc"]+="$line ";;
 		    *) die "Cannot handle query for $query."

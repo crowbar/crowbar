@@ -1,24 +1,5 @@
-# List of packages that we need to prepopulate the crowbar .ISO with.
-# repository <deb line> = a debian repostiroy definition that will be added
-#                         to sources.list.
-# ppas <personal package archives> A list of PPAs to grab packages from.
-# pkgs <package list> = deb pacakges to prefetch
-# gems <package list> = gems to prefetch
+## LEGACY:
 
-# required Ubuntu repositories
-repository deb http://us.archive.ubuntu.com/ubuntu/ maverick main restricted universe multiverse
-repository deb-src http://us.archive.ubuntu.com/ubuntu/ maverick main restricted universe multiverse
-repository deb http://us.archive.ubuntu.com/ubuntu/ maverick-updates main restricted universe multiverse
-repository deb-src http://us.archive.ubuntu.com/ubuntu/ maverick-updates main restricted universe multiverse
-
-repository deb http://archive.canonical.com/ubuntu maverick partner
-repository deb-src http://archive.canonical.com/ubuntu maverick partner
-
-repository deb http://extras.ubuntu.com/ubuntu maverick main
-repository deb-src http://extras.ubuntu.com/ubuntu maverick main
-
-repository deb http://security.ubuntu.com/ubuntu maverick-security main restricted universe multiverse
-repository deb-src http://security.ubuntu.com/ubuntu maverick-security main restricted universe multiverse
-
-# required Chef repository
-repository deb http://apt.opscode.com/ maverick-0.10 main
+# All repo, package, and gem information that was here has been migrated to
+# barclamps/*/crowbar.yml.  Base OS repositories and packages are in
+# barclamps/crowbar/crowbar.yml!
