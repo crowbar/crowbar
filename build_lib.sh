@@ -288,13 +288,19 @@ vercmp(){
 # Index the pool of packages in the CD.
 index_cd_pool() {
     # Scan through our pool to find pkgs we can easily omit.
-
-    local pkgname='' pkg=''
-    while read pkg; do
-	[[ -f $pkg ]] && is_pkg "$pkg" || continue
-	pkgname="$(pkg_name "$pkg")"
-	CD_POOL["$pkgname"]="${pkg}"
-    done < <(find "$(find_cd_pool)" -type f)
+    local pkgname='' pkg='' cache="$CACHE_DIR/$OS_TOKEN/iso-packages"
+    if [[ $ISO_LIBRARY/$ISO -nt $cache ]]; then
+	mkdir -p "$cache%/*"
+	> "$cache"
+	while read pkg; do
+	    [[ -f $pkg ]] && is_pkg "$pkg" || continue
+	    pkgname="$(pkg_name "$pkg")"
+	    CD_POOL["$pkgname"]="${pkg}"
+	    echo "CD_POOL[\"$pkgname\"]=\"${pkg}\"" >> "$cache"
+	done < <(find "$(find_cd_pool)" -type f)
+    else
+	. "$cache"
+    fi
 }
 
 # Make a chroot environment for package-fetching purposes. 
