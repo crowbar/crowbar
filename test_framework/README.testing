@@ -463,3 +463,60 @@ From this, you can see the process the smoketest uses to set up Crowbar:
     deploy nodes with just a basic OS install on them.  If the smoketest
     framweork was asked to test a different set of barclamps, it would have 
     tried to deploy them to the cluster as well.
+
+Writing Barclamp Smoketests
+
+  Barclamp smoketests consists of three parts:
+  * Smoketest Metadata.
+    This consists of metadata in the barclamp's crowbar.yml that declares any 
+    smoketest-specific barclamp dependencies and an overall timeout that the
+    smoketest for this barclamp cannot exceed.
+  * smoketest/modify-json
+    This executable should accept the proposal JSON on stdin, make whatever
+    changes are needed to let it run in the framework (changing free space
+    requirements, replication factors, etc), and write the modified JSON to
+    stdout.
+  * smoketest/*.test
+    These executables should each perform a discrete test of the barclamp. The
+    smoketest framework will run them in ascending order, and the first test
+    that exits with a nonzero status will signal that the overall smoketest
+    for this barclamp failed, and the framework will stop processing further
+    tests. The framework does not care what language the tests are written in,
+    as long as the build/test system can run them.
+  
+Any other files will be ignored by the smoketest framework -- you can use them
+for shared libraries, templates, etc. as the needs of your smoketest require.
+
+Additionally, there are several environment variables that the test framework
+sets:
+  * SMOKETEST_DIR
+    This environment variable points at the directory holds the test hooks
+    that are currently running.  You can reference any other files in your test
+    via this variable.
+  * SMOKETEST_LOGDIR
+    This environment contains that directory that the hooks in the smoketest 
+    should log to.  The smoketest framework will automatically capture all
+    output from the tests into $SMOKETEST_LOGDIR/capture.log, and any proposals
+    that had to be created, modified, or committed will also be saved here.
+  * CROWBAR_IP
+    This is the IP address of the admin node.
+  * CROWBAR_KEY
+    This is the default username and password needed to perform digest auth
+    with Crowbar.  It is normally crowbar:crowbar
+
+Each smoketest has full access to the Crowbar CLI -- a fresh copy is downloaded
+on every run of the framework, and $PATH is modified to contain it. The
+following commands are also available:
+  * run_on
+    run_on uses passwordless SSH access to run commands as root on the deployed
+    VMs.  run_on can handle IP addresses and hostnames -- if handed a hostname,
+    it looks it up using DNS from the admin node.  The first argument should be
+    an IP address or a hostname, and the rest of the arguments are the
+    commandline that you want to run on the host.
+  * knife
+    This command uses run_on to invoke knife on the admin node.  Any arguments
+    are passed unmodified to the knife instance on the admin node.
+  * knife_node_find
+    This is a thin wrapper around knife search node.  It takes two arguments:
+    1: The search string to use.  This is passed unchanged to knife node search
+    2: The section of the search results to print (such as IP or FQDN).
