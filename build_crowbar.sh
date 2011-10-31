@@ -186,13 +186,18 @@ fi
 BC_QUERY_STRINGS["deps"]="barclamp requires"
 BC_QUERY_STRINGS["groups"]="barclamp member"
 BC_QUERY_STRINGS["pkgs"]="$PKG_TYPE pkgs"
-BC_QUERY_STRINGS["extra_files"]="extra_files"
-BC_QUERY_STRINGS["os_support"]="barclamp os_support"
-BC_QUERY_STRINGS["gems"]="gems pkgs"
 BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
 BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
 BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
 BC_QUERY_STRINGS["raw_pkgs"]="$PKG_TYPE raw_pkgs"
+BC_QUERY_STRINGS["os_pkgs"]="$PKG_TYPE $OS_TOKEN pkgs"
+BC_QUERY_STRINGS["os_repos"]="$PKG_TYPE $OS_TOKEN repos"
+BC_QUERY_STRINGS["os_ppas"]="$PKG_TYPE $OS_TOKEN ppas"
+BC_QUERY_STRINGS["os_build_pkgs"]="$PKG_TYPE $OS_TOKEN build_pkgs"
+BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
+BC_QUERY_STRINGS["extra_files"]="extra_files"
+BC_QUERY_STRINGS["os_support"]="barclamp os_support"
+BC_QUERY_STRINGS["gems"]="gems pkgs"
 BC_QUERY_STRINGS["test_deps"]="smoketest requires"
 BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 
@@ -306,6 +311,21 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 		    test_params+=("$1")
 		    shift
 		done;;
+	    --ci)
+		[[ $CI_BARCLAMP ]] && die "Already asked to perform CI on $CI_BARCLAMP, and we can only do one at a time."
+		shift
+		is_barclamp "$1" || \
+		    die "$1 is not a barclamp, cannot perform CI testing on it."
+		CI_BARCLAMP="$1"
+		shift
+		if [[ $1 && $1 != -* ]]; then
+		    in_ci_barclamp branch_exists "$1" || \
+			die "$1 is not a branch in $CI_BARCLAMP, cannot perform integration testing!"
+		    CI_BRANCH="$1"
+		    shift
+		else
+		    CI_BRANCH="master"
+		fi;;
 	    --shrink)
 		type shrink_iso >&/dev/null || \
 		    die "The build system does not know how to shrink $OS_TO_STAGE"
@@ -359,6 +379,20 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 
     # Name of the built iso we will build
     [[ $BUILT_ISO ]] || BUILT_ISO="crowbar-${VERSION}.iso"
+
+    if [[ $CI_BARCLAMP ]]; then
+	in_ci_barclamp git checkout -b ci-throwaway-branch || \
+	    die "Could not check out throwaway branch for CI testing on $CI_BARCLAMP"
+	in_ci_barclamp git merge "$CI_BRANCH" || \
+	    die "$CI_BRANCH does not merge cleanly in $CI_BARCLAMP.  Please fix this before continuing"
+	if [[ $CI_BRANCH != master ]]; then
+	    in_ci_barclamp git merge master || \
+		die "$CI_BRANCH does not merge cleanly into master on $CI_BARCLAMP.  Please fix."
+	fi
+	NEED_TEST=true
+	test_params=("$CI_BARCLAMP")
+	is_in "$CI_BARCLAMP" "${BARCLAMPS[@]}" || BARCLAMPS+=("$CI_BARCLAMP")
+    fi
 
     # If we were not passed a list of barclamps to include,
     # pull in all of the ones declared as submodules.
@@ -547,8 +581,22 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
     if [[ $NEED_TEST = true ]]; then 
 	echo "$(date '+%F %T %z'): Testing new iso"
 	SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
-	test_iso "${test_params[@]}" || die "Test failed."
+	if test_iso "${test_params[@]}"; then
+	    echo "$(date '+%F %T %z'): Test passed"
+	    if [[ $CI_BARCLAMP ]]; then
+		in_ci_barclamp git checkout master && \
+		    in_ci_barclamp git merge ci-throwaway-branch || \
+		    die "Could not merge $CI_BRANCH into master for $CI_BARCLAMP"
+		in_repo git add "barclamps/$CI_BARCLAMP" && \
+		    in_repo git commit -m "Jenkins tested branch $CI_BRANCH of $CI_BARCLAMP on $(date '+%F %T %z'), and found it good." || \
+		    die "Could not update submodule reference for $CI_BARCLAMP"
+	    fi
+	else
+	    [[ $CI_BARCLAMP ]] && \
+		echo "$(date '+%F %T %z'): Continuous integration test on $CI_BARCLAMP failed."
+	    die "Test failed."
+	fi
+	    
     fi
     echo "$(date '+%F %T %z'): Finished."
 } 65> /tmp/.build_crowbar.lock
-
