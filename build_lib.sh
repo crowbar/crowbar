@@ -38,17 +38,17 @@ get_barclamp_info() {
 			BC_DEPS["$bc"]+="$line ";;
 		    groups) is_in "$line" ${BC_GROUPS["$bc"]} || 
 			BC_GROUPS["$line"]+="$bc ";;
-		    pkgs) is_in "$line" ${BC_PKGS["$bc"]} || \
+		    pkgs|os_pkgs) is_in "$line" ${BC_PKGS["$bc"]} || \
 			BC_PKGS["$bc"]+="$line ";;
 		    extra_files) BC_EXTRA_FILES["$bc"]+="$line\n";;
 		    os_support) BC_OS_SUPPORT["$bc"]+="$line ";;
 		    gems) BC_GEMS["$bc"]+="$line ";;
-		    repos) BC_REPOS["$bc"]+="$line\n";;
-		    ppas) [[ $PKG_TYPE = debs ]] || \
+		    repos|os_repos) BC_REPOS["$bc"]+="$line\n";;
+		    ppas|os_ppas) [[ $PKG_TYPE = debs ]] || \
 			die "Cannot declare a PPA for $PKG_TYPE!"
 			BC_REPOS["$bc"]+="ppa $line\n";;
-		    build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
-		    raw_pkgs) BC_RAW_PKGS["$bc"]+="$line ";;
+		    build_pkgs|os_build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
+		    raw_pkgs|os_raw_pkgs) BC_RAW_PKGS["$bc"]+="$line ";;
 		    test_deps) BC_SMOKETEST_DEPS["$bc"]+="$line ";;
 		    test_timeouts) BC_SMOKETEST_TIMEOUTS["$bc"]+="$line ";;
 		    *) die "Cannot handle query for $query."
@@ -149,6 +149,10 @@ cleanup() {
     # If the build process spawned a copy of webrick, make sure it is dead.
     [[ $webrick_pid && -d /proc/$webrick_pid ]] && kill -9 $webrick_pid
     # clean up after outselves from merging branches, if needed.
+    [[ $CI_BARCLAMP ]] &&  {
+	in_repo git submodule update -N "barclamps/$CI_BARCLAMP"
+	in_ci_barclamp git branch -D ci-throwaway-branch
+    }
     cd "$CROWBAR_DIR"
     if [[ $THROWAWAY_BRANCH ]]; then
 	# Check out the branch we started the build process, and then 
@@ -589,6 +593,17 @@ in_cache() (
 
 # Check to see if something is a barclamp.
 is_barclamp() { [[ -f "$CROWBAR_DIR/barclamps/$1/crowbar.yml" ]]; }
+in_barclamp() {
+    is_barclamp "$1" || die "$1 is not a barclamp"
+    (   cd "$CROWBAR_DIR/barclamps/$1"
+	shift
+	"$@")
+}
+
+in_ci_barclamp() {
+    [[ $CI_BARCLAMP ]] || die "No continuous integration barclamp!"
+    in_barclamp "$CI_BARCLAMP" "$@"
+}
 
 # Build our ISO image.
 build_iso() (   

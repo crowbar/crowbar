@@ -980,9 +980,13 @@ run_test_hooks() {
 	[[ ! $h || $h = test ]] && continue
 	run_test_hooks "$h" || return 1
     done
-    echo "$(date '+%F %T %z'): Running smoketests for $1."
-    barclamp_deployed "$1" || deploy_barclamp "$1" || return 1
-    if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest && ! ${test_hook_results["$1"]} ]]; then
+    if ! barclamp_deployed "$1"; then
+	echo "$(date '+%F %T %z'): Deploying $1."
+	deploy_barclamp "$1" || return 1
+    fi
+    if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest && \
+	! ${test_hook_results["$1"]} ]]; then
+	echo "$(date '+%F %T %z'): Running smoketests for $1."
 	if run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
 	    "${BC_SMOKETEST_TIMEOUTS[$1]:-300}" test 2>&1 | \
 	    tee "$LOGDIR/$1-smoketest.log" ; then
