@@ -43,22 +43,53 @@ Prerequisites:
 Command Line Parameters:
   * The first command line parameter is the OS you want to 
     stage Crowbar on to.  Crowbar currently understands how to stage on to 
-    ubuntu-10.10 and redhat-5.6
-  * --update-cache
+    ubuntu-10.10, redhat-5.6, and redhat-5.7
+
+  --update-cache
     This parameter forces the build to try and update the build cache again.  
-    Use this parameter if you want to pull in updates from the upstream repositories
-    that Crowbar pulls packages from.
-  * --merge|-m
+    Use this parameter if you want to pull in updates from the upstream 
+    repositories that Crowbar pulls packages from.
+
+  --merge|-m
     Any arguments after this that do not start with a hyphen are interpreted as
     branches in the git repository that you want to merge along with the current
     branch into a throwaway branch before staging Crowbar on to the build .iso.
-    If you are working on developing a barclamp or have changes in other branches
-    that you want to test out, this is the option for you. If your build cache is
-    also a git repository, it will try to merge identically named branches in that
-    repository as well -- this is a good way of testing new packages before 
-    signing off on them. After the build is finished, the build script will delete
-    any throwaway branches it created, leaving the repositories in the same state
-    they started in. 
+    If you are working on developing a barclamp or have changes in other 
+    branches that you want to test out, this is the option for you. If your 
+    build cache is also a git repository, it will try to merge identically
+    named branches in that repository as well -- this is a good way of testing
+    new packages before signing off on them. After the build is finished, the
+    build script will delete any throwaway branches it created, leaving the
+    repositories in the same state they started in.
+  
+  --barclamps
+    Any arguments after this that do not start with a hyphen are interpreted
+    as extra barclamps to stage on the final .ISO.  The build system will use
+    the metadata in the crowbar.yml files to figure out all the dependent
+    barclamps of the ones on the command line and include those as well.  You
+    can also lass a barclamp group name my prefixing it with an @ sign, and
+    the build system will expand that into its component barclamps.
+
+  --test
+    This tells the build system to try and smoketest the freshly-generated
+    .ISO. Any arguments after this that do not begin with a hyphen are
+    passed to the test framework -- please see test_framework/README.testing
+    for more information.
+
+  --ci <barclamp> <branch>
+    This tells the build system to test <branch> of <barclamp> to see if it
+    merges cleanly in with the current codebase and passed the smoketest. 
+    If it does, the build system will finalize the merge and update the
+    submodule reference in the main crowbar repository, otherwise it will 
+    roll back the merges and fail.  This option is intended to be used by
+    Jenkins to implement gated submodules for the Crowbar repository.
+
+  --shrink
+    This asks the build system to throw out unneeded packages from the base OS
+    install media.  It relies on the presence of a minimal-install file listing
+    the minimal set of packages needed to deploy an admin node.  Currently,
+    we only know how to do this on rpm based systems, because Ubuntu installs
+    are fairly small to begin with anyways.
 
 Usage:
   * Run build_crowbar.sh from the Crowbar git repository.  

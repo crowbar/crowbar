@@ -45,7 +45,7 @@ Prerequisites:
     * /usr/sbin/brctl
       The test framework needs to be able to set up and tear down bridges for
       the KVM virtual machines to talk over.
-    * $HOME/test_framework/make_cgroups.sh
+    * $CROWBAR_DIR/test_framework/make_cgroups.sh
       make_cgroups.sh is the utility that we use to mount the cgroup filesystem 
       we track the pids we have spawned and that we use to kill all our
       child processes when cleaning up.

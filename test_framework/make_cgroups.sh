@@ -17,20 +17,24 @@ set -e
 
 cgroups="$HOME/cgroups"
 mount=true
-{
-    while read dev loc type opts rest; do
-	[[ $type = cgroup ]] || continue
-	cgroups=$loc
-	mount=false
-	break
-    done < /proc/self/mounts
-    
-    if [[ $mount = true ]]; then
-	mkdir -p "$cgroups"
-	mount -t cgroup -o cpu xxx "$cgroups"
-    fi
-    mkdir -p "$cgroups/$2"
-} >&2
-echo "$1" >"$cgroups/$2/tasks"
+if [[ -f /sys/fs/cgroup/cpu/tasks ]]; then
+    cgroups=/sys/fs/cgroup/cpu
+else
+    {
+	while read dev loc type opts rest; do
+	    [[ $type = cgroup ]] || continue
+	    cgroups=$loc
+	    mount=false
+	    break
+	done < /proc/self/mounts
+	if [[ $mount = true ]]; then
+	    mkdir -p "$cgroups"
+	    mount -t cgroup -o cpu xxx "$cgroups"
+	fi
+	
+    } >&2
+fi
+mkdir -p "$cgroups/$2"
 echo "$cgroups/$2"
+echo "$1" >"$cgroups/$2/tasks"
 
