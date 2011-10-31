@@ -97,7 +97,7 @@ export CROWBAR_DIR
 
 # Location of the Sledgehammer source tree.  Only used if we cannot 
 # find Sledgehammer in $SLEDGEHAMMER_PXE_DIR above. 
-[[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_DIR="${CROWBAR_DIR}/../sledgehammer"
+[[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_DIR="${CROWBAR_DIR}/../crowbar-sledgehammer"
 
 # Command to run to clean out the tree before starting the build.
 # By default we want to be relatively pristine.
@@ -186,15 +186,20 @@ fi
 BC_QUERY_STRINGS["deps"]="barclamp requires"
 BC_QUERY_STRINGS["groups"]="barclamp member"
 BC_QUERY_STRINGS["pkgs"]="$PKG_TYPE pkgs"
-BC_QUERY_STRINGS["extra_files"]="extra_files"
-BC_QUERY_STRINGS["os_support"]="barclamp os_support"
-BC_QUERY_STRINGS["gems"]="gems pkgs"
 BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
 BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
 BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
 BC_QUERY_STRINGS["raw_pkgs"]="$PKG_TYPE raw_pkgs"
+BC_QUERY_STRINGS["os_pkgs"]="$PKG_TYPE $OS_TOKEN pkgs"
+BC_QUERY_STRINGS["os_repos"]="$PKG_TYPE $OS_TOKEN repos"
+BC_QUERY_STRINGS["os_ppas"]="$PKG_TYPE $OS_TOKEN ppas"
+BC_QUERY_STRINGS["os_build_pkgs"]="$PKG_TYPE $OS_TOKEN build_pkgs"
+BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
+BC_QUERY_STRINGS["extra_files"]="extra_files"
+BC_QUERY_STRINGS["os_support"]="barclamp os_support"
+BC_QUERY_STRINGS["gems"]="gems pkgs"
 BC_QUERY_STRINGS["test_deps"]="smoketest requires"
-BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
+BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 
 
 {
@@ -306,6 +311,21 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
 		    test_params+=("$1")
 		    shift
 		done;;
+	    --ci)
+		[[ $CI_BARCLAMP ]] && die "Already asked to perform CI on $CI_BARCLAMP, and we can only do one at a time."
+		shift
+		is_barclamp "$1" || \
+		    die "$1 is not a barclamp, cannot perform CI testing on it."
+		CI_BARCLAMP="$1"
+		shift
+		if [[ $1 && $1 != -* ]]; then
+		    in_ci_barclamp branch_exists "$1" || \
+			die "$1 is not a branch in $CI_BARCLAMP, cannot perform integration testing!"
+		    CI_BRANCH="$1"
+		    shift
+		else
+		    CI_BRANCH="master"
+		fi;;
 	    --shrink)
 		type shrink_iso >&/dev/null || \
 		    die "The build system does not know how to shrink $OS_TO_STAGE"
@@ -360,6 +380,20 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
     # Name of the built iso we will build
     [[ $BUILT_ISO ]] || BUILT_ISO="crowbar-${VERSION}.iso"
 
+    if [[ $CI_BARCLAMP ]]; then
+	in_ci_barclamp git checkout -b ci-throwaway-branch || \
+	    die "Could not check out throwaway branch for CI testing on $CI_BARCLAMP"
+	in_ci_barclamp git merge "$CI_BRANCH" || \
+	    die "$CI_BRANCH does not merge cleanly in $CI_BARCLAMP.  Please fix this before continuing"
+	if [[ $CI_BRANCH != master ]]; then
+	    in_ci_barclamp git merge master || \
+		die "$CI_BRANCH does not merge cleanly into master on $CI_BARCLAMP.  Please fix."
+	fi
+	NEED_TEST=true
+	test_params=("$CI_BARCLAMP")
+	is_in "$CI_BARCLAMP" "${BARCLAMPS[@]}" || BARCLAMPS+=("$CI_BARCLAMP")
+    fi
+
     # If we were not passed a list of barclamps to include,
     # pull in all of the ones declared as submodules.
     [[ $BARCLAMPS ]] || BARCLAMPS=($(cd "$CROWBAR_DIR"
@@ -397,7 +431,9 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
     
     debug "Cleaning up any VCS cruft."
     # Clean up any cruft that the editor may have left behind.
-    (cd "$CROWBAR_DIR"; $VCS_CLEAN_CMD)
+    (for d in "$CROWBAR_DIR" "$CROWBAR_DIR/barclamps/"*; do
+	cd "$d"; $VCS_CLEAN_CMD
+	done)
 
     # Make additional directories we will need.
     for d in discovery extra; do
@@ -457,10 +493,11 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
     echo "$VERSION" >> "$BUILD_DIR/dell/Version"
 
     # Custom start-up in place
-    if [ -f "$CROWBAR_DIR/crowbar.json" ] ; then
+    for f in "$CROWBAR_DIR"/*.json ; do
+      [[ -f $f ]] || continue
       mkdir -p "$BUILD_DIR/extra/config"
-      cp "$CROWBAR_DIR/crowbar.json" "$BUILD_DIR/extra/config"
-    fi
+      cp "$f" "$BUILD_DIR/extra/config"
+    done
    
     final_build_fixups
  
@@ -544,8 +581,22 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeouts"
     if [[ $NEED_TEST = true ]]; then 
 	echo "$(date '+%F %T %z'): Testing new iso"
 	SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
-	test_iso "${test_params[@]}" || die "Test failed."
+	if test_iso "${test_params[@]}"; then
+	    echo "$(date '+%F %T %z'): Test passed"
+	    if [[ $CI_BARCLAMP ]]; then
+		in_ci_barclamp git checkout master && \
+		    in_ci_barclamp git merge ci-throwaway-branch || \
+		    die "Could not merge $CI_BRANCH into master for $CI_BARCLAMP"
+		in_repo git add "barclamps/$CI_BARCLAMP" && \
+		    in_repo git commit -m "Jenkins tested branch $CI_BRANCH of $CI_BARCLAMP on $(date '+%F %T %z'), and found it good." || \
+		    die "Could not update submodule reference for $CI_BARCLAMP"
+	    fi
+	else
+	    [[ $CI_BARCLAMP ]] && \
+		echo "$(date '+%F %T %z'): Continuous integration test on $CI_BARCLAMP failed."
+	    die "Test failed."
+	fi
+	    
     fi
     echo "$(date '+%F %T %z'): Finished."
 } 65> /tmp/.build_crowbar.lock
-
