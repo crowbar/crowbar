@@ -653,8 +653,8 @@ run_admin_node() {
     # start installing compute nodes.
     smoketest_update_status admin "Deploying admin node crowbar tasks"
     if ! run_kvm -reboot -timeout 1800 -bootc \
-	-dieif "$SMOKETEST_DIR/test_admin_deploy.sh" \
-	-daemonif "$SMOKETEST_DIR/check_ready admin.smoke.test" \
+	-dieif "test_admin_deploy.sh" \
+	-daemonif "check_ready admin.smoke.test" \
 	"$nodename"; then
 	smoketest_update_status admin "Node failed to deploy."
 	return 1
@@ -867,7 +867,7 @@ deploy_nodes() {
 	    lastres='' res=''
 	    while [[ -f $smoketest_dir/admin.pid && \
 		    ! -f $smoketest_dir/$node.killed ]]; do
-		if res=$("$SMOKETEST_DIR/check_ready" "$hname"); then
+		if res=$(check_ready "$hname"); then
 		    smoketest_update_status "$node" "$res"
 		    smoketest_update_status "$node" "Node deployed."
 		    exit 0
@@ -958,7 +958,7 @@ run_hooks() {
 	exit 
     ) &
     local testpid=$!
-    sudo -n $(which make_cgroups.sh) $testpid "crowbar-test/${test_name}-test"
+    sudo -n "$(which make_cgroups.sh)" $testpid "crowbar-test/${test_name}-test"
     (   cd /proc/$testpid
 	while [[ -f cmdline ]] && (($(date '+%s') <= $deadline)); do
 	    sleep 10
@@ -1068,7 +1068,7 @@ run_test() {
 
     mangle_ssh_config
 
-    CGROUP_DIR=$(sudo -n $(which make_cgroups.sh) $$ crowbar-test) || \
+    CGROUP_DIR=$(sudo -n "$(which make_cgroups.sh)" $$ crowbar-test) || \
     die "Could not mount cgroup filesystem!"
 
     # kill any already running screen sessions

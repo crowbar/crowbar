@@ -161,7 +161,11 @@ cleanup() {
 	if ! in_repo git submodule update -N "barclamps/$CI_BARCLAMP"; then
 	    in_ci_barclamp git checkout -f master
 	fi
-	in_ci_barclamp git branch -D ci-throwaway-branch
+	if ! in_ci_barclamp git branch -D ci-throwaway-branch; then
+	    in_ci_barclamp git checkout -f master
+	    in_ci_barclamp git branch -D ci-throwaway-branch
+	fi
+	    
     }
     cd "$CROWBAR_DIR"
     if [[ $THROWAWAY_BRANCH ]]; then
