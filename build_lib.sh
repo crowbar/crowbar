@@ -158,7 +158,9 @@ cleanup() {
     [[ $webrick_pid && -d /proc/$webrick_pid ]] && kill -9 $webrick_pid
     # clean up after outselves from merging branches, if needed.
     [[ $CI_BARCLAMP ]] &&  {
-	in_repo git submodule update -N "barclamps/$CI_BARCLAMP"
+	if ! in_repo git submodule update -N "barclamps/$CI_BARCLAMP"; then
+	    in_ci_barclamp git checkout -f master
+	fi
 	in_ci_barclamp git branch -D ci-throwaway-branch
     }
     cd "$CROWBAR_DIR"
