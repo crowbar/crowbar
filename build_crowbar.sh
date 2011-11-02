@@ -355,7 +355,6 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 	fi
 	NEED_TEST=true
 	test_params=("$CI_BARCLAMP")
-	is_in "$CI_BARCLAMP" "${BARCLAMPS[@]}" || BARCLAMPS+=("$CI_BARCLAMP")
     fi
 
     # If we were not passed a list of barclamps to include,
@@ -369,6 +368,9 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 	    done < <(git submodule status))
 	)
 
+    if [[ $CI_BARCLAMP ]]; then
+	is_in "$CI_BARCLAMP" "${BARCLAMPS[@]}" || BARCLAMPS+=("$CI_BARCLAMP")
+    fi
     # Pull in barclamp information
     get_barclamp_info
 
