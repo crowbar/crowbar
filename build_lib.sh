@@ -18,6 +18,16 @@ declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
 declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS
 
+# Build OS independent query strings.
+BC_QUERY_STRINGS["deps"]="barclamp requires"
+BC_QUERY_STRINGS["groups"]="barclamp member"
+BC_QUERY_STRINGS["extra_files"]="extra_files"
+BC_QUERY_STRINGS["os_support"]="barclamp os_support"
+BC_QUERY_STRINGS["gems"]="gems pkgs"
+BC_QUERY_STRINGS["test_deps"]="smoketest requires"
+BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
+
+
 get_barclamp_info() {
     local bc yml_file line query newdeps dep d i
     local new_barclamps=()

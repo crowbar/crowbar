@@ -1111,16 +1111,6 @@ run_test() {
     # Make sure we clean up after ourselves no matter how we exit.
     cleanup_cmds+=(smoketest_cleanup)
 
-    # Make sure we pull in info we need from the barclamps
-    if [[ ! ${!BC_QUERY_STRINGS[*]} ]]; then
-	declare -A BC_QUERY_STRINGS
-	BC_QUERY_STRINGS["deps"]="barclamp requires"
-	BC_QUERY_STRINGS["test_deps"]="smoketest requires"
-	BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
-	BC_QUERY_STRINGS["groups"]="barclamp member"
-	get_barclamp_info
-    fi
-
     cd "$CROWBAR_DIR/testing"
     # make a screen session so that we can watch what we are doing if needed.
     screen -wipe &>/dev/null || :

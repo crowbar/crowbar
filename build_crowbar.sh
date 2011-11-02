@@ -181,10 +181,8 @@ fi
 #   modifying boot config files, and so on.
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
 
-# Query strings to pull info we are interested out of crowbar.yml
+# Build OS dependent query strings
 # These have to be created after we know what OS we are building on.
-BC_QUERY_STRINGS["deps"]="barclamp requires"
-BC_QUERY_STRINGS["groups"]="barclamp member"
 BC_QUERY_STRINGS["pkgs"]="$PKG_TYPE pkgs"
 BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
 BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
@@ -195,12 +193,6 @@ BC_QUERY_STRINGS["os_repos"]="$PKG_TYPE $OS_TOKEN repos"
 BC_QUERY_STRINGS["os_ppas"]="$PKG_TYPE $OS_TOKEN ppas"
 BC_QUERY_STRINGS["os_build_pkgs"]="$PKG_TYPE $OS_TOKEN build_pkgs"
 BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
-BC_QUERY_STRINGS["extra_files"]="extra_files"
-BC_QUERY_STRINGS["os_support"]="barclamp os_support"
-BC_QUERY_STRINGS["gems"]="gems pkgs"
-BC_QUERY_STRINGS["test_deps"]="smoketest requires"
-BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
-
 
 {
     # Check to make sure our required commands are installed.
