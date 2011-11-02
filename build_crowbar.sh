@@ -217,22 +217,9 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
     # Check and see if our local build repository is a git repo. If it is,
     # we may need to do the same sort of merging in it that we might do in the 
     # Crowbar repository.
-    if [[ -d $CACHE_DIR/.git ]]; then
-	for br in "$CURRENT_BRANCH" master ''; do
-	    [[ $br ]] || die "Cannot find $CURRENT_BRANCH or master in $CACHE_DIR"
-	    (cd "$CACHE_DIR"; branch_exists "$br") || continue
-	    CURRENT_CACHE_BRANCH="$br"
-	    break
-	done
-	# If there are packages that have not been comitted, save them
-	# in a stash before continuing.  We do this on the assumption that
-	# these packages were added manually for testing purposes, or were
-	# added in an earlier update-cache operation, but that the user has
-	# not gotten around to comitting yet.
-	if [[ ! $(in_cache git status) =~ working\ directory\ clean ]]; then
-	    CACHE_THROWAWAY_STASH=$(in_cache git stash create)
-	    in_cache git checkout -f .
-	fi
+    if [[ -d $CACHE_DIR/.git ]] && \
+	(cd "$CACHE_DIR"; branch_exists master) then
+	CURRENT_CACHE_BRANCH=master
     fi
 
     # Parse our options.  
@@ -270,20 +257,6 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 		    # conflict, and the user needs to fix it up.
 		    in_repo git merge "$1" || \
 			die "Merge of $1 failed, fix things up and continue"
-		    # If there is n identically named branch in the build cache,
-		    # merge it into a throwaway branch of the build cache
-		    # along with the current branch in the build cache.
-		    # This makes it easier to include and manage packages that
-		    # are branch-specific, but that do not need to be included
-		    # in every build.
-		    if in_cache branch_exists "$1"; then
-			if [[ ! $CACHE_THROWAWAY_BRANCH ]]; then
-			    CACHE_THROWAWAY_BRANCH=${THROWAWAY_BRANCH/build/cache}
-			    in_cache git checkout -b "$CACHE_THROWAWAY_BRANCH"
-			fi
-			in_cache git merge "$1" || \
-			    die "Could not merge build cache branch $1"
-		    fi
 		    shift
 		done
 		;;
@@ -336,10 +309,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 
     # If we stached changes to the crowbar repo, apply them now.
     [[ $THROWAWAY_STASH ]] && in_repo git stash apply "$THROWAWAY_STASH"
-    # Ditto for the build cache.
-    [[ $CACHE_THROWAWAY_STASH ]] && \
-	in_cache git stash apply "$CACHE_THROWAWAY_STASH" 
-
+    
     # Finalize where we expect to find our caches and out chroot.
     # If they were set in one of the conf files, don't touch them.
 
