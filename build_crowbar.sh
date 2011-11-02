@@ -35,7 +35,6 @@
 export LANG="C"
 export LC_ALL="C"
 
-
 GEM_RE='([^0-9].*)-([0-9].*)'
 
 readonly currdir="$PWD"
@@ -74,6 +73,8 @@ fi
 # the dependency machinery and the command line pull in the rest.
 # Note that BARCLAMPS is an array, not a string!
 [[ $BARCLAMPS ]] || BARCLAMPS=()
+
+[[ $ALLOW_CACHE_UPDATE ]] || ALLOW_CACHE_UPDATE=true
 
 # Location for caches that should not be erased between runs
 [[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
@@ -328,6 +329,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 		    die "The build system does not know how to generate a minimal install list for $OS_TO_STAGE!"
 		GENERATE_MINIMAL_INSTALL=true
 		shift;;
+	    --no-cache-update) shift; ALLOW_CACHE_UPDATE=false;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
     done
@@ -459,6 +461,8 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 	    [[ $(type $updater) = "$updater is a function"* ]] || \
 		die "Might need to update $cache cache, but no updater!"
 	    if $checker "$bc" || [[ $need_update = true ]]; then
+		[[ $ALLOW_CACHE_UPDATE = true ]] || \
+		    die "Need up update $cache cache for $bc, but updates are disabled."
 		debug "Updating $cache cache for $bc"
 		[[ $cache =~ ^(pkg|gem)$ ]] && make_chroot
 		$updater "$bc"
