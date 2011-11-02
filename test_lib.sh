@@ -958,7 +958,7 @@ run_hooks() {
 	exit 
     ) &
     local testpid=$!
-    sudo -n $(which make_cgroups.sh) $testpid "crowbar-test/${test_name}-test"
+    sudo -n "$(which make_cgroups.sh)" $testpid "crowbar-test/${test_name}-test"
     (   cd /proc/$testpid
 	while [[ -f cmdline ]] && (($(date '+%s') <= $deadline)); do
 	    sleep 10
@@ -1068,7 +1068,7 @@ run_test() {
 
     mangle_ssh_config
 
-    CGROUP_DIR=$(sudo -n $(which make_cgroups.sh) $$ crowbar-test) || \
+    CGROUP_DIR=$(sudo -n "$(which make_cgroups.sh)" $$ crowbar-test) || \
     die "Could not mount cgroup filesystem!"
 
     # kill any already running screen sessions
