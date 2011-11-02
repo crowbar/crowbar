@@ -130,7 +130,7 @@ finishing_scripts="update_hostname.sh parse_node_data"
     mdcp /opt/dell/bin $finishing_scripts
 )
 
-barclamp_scripts="barclamp_install.rb"
+barclamp_scripts="barclamp_install.rb barclamp_multi.rb"
 ( 
     cd $BASEDIR/dell/barclamps/crowbar/bin
     mdcp /opt/dell/bin $barclamp_scripts

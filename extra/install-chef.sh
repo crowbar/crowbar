@@ -191,20 +191,15 @@ fix_up_os_deployer || die "Unable to fix up OS deployer"
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
 # Always run crowbar barclamp first
-echo "$(date '+%F %T %z'): Installing Crowbar barclamp..."
+echo "$(date '+%F %T %z'): Installing the Crowbar barclamp for bootstrapping"
 log_to bcinstall /opt/dell/bin/barclamp_install.rb \
     "/opt/dell/barclamps/crowbar" || \
     die "Could not install crowbar barclamp."
 
-# Barclamp preparation (put them in the right places)
-cd /opt/dell/barclamps
-for i in *; do
-    [[ -f $i/crowbar.yml && $i != crowbar ]] || continue
-    echo "$(date '+%F %T %z'): Installing $i barclamp..."
-    log_to bcinstall /opt/dell/bin/barclamp_install.rb \
-	"/opt/dell/barclamps/$i" || \
-	die "Could not install $i barclamp."
-done
+# Install all the barclamps IN ORDER (bootstrap flag skips Crowbar barclamp)
+echo "$(date '+%F %T %z'): Installing framework barclamps"
+log_to bcinstall /opt/dell/bin/barclamp_multi.rb bootstrap || \
+  die "Could not install barclamps using Multi installer."
 
 restart_svc_loop chef-solr "Restarting chef-solr - spot two"
 

@@ -50,7 +50,7 @@ cp -r /$BASEDIR/dell .dell-install
 finishing_scripts=(update_hostname.sh parse_node_data)
 ( cd /opt/.dell-install; cp "${finishing_scripts[@]}" /opt/dell/bin; )
 
-barclamp_scripts=(barclamp_install.rb)
+barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
 ( cd /opt/.dell-install/barclamps/crowbar/bin; cp "${barclamp_scripts[@]}" /opt/dell/bin; )
 
 # "Install h2n for named management"
