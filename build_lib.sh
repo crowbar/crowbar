@@ -18,6 +18,15 @@ declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
 declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS
 
+# Build OS independent query strings.
+BC_QUERY_STRINGS["deps"]="barclamp requires"
+BC_QUERY_STRINGS["groups"]="barclamp member"
+BC_QUERY_STRINGS["extra_files"]="extra_files"
+BC_QUERY_STRINGS["os_support"]="barclamp os_support"
+BC_QUERY_STRINGS["gems"]="gems pkgs"
+BC_QUERY_STRINGS["test_deps"]="smoketest requires"
+BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
+
 get_barclamp_info() {
     local bc yml_file line query newdeps dep d i
     local new_barclamps=()
@@ -164,14 +173,11 @@ cleanup() {
     [[ $THROWAWAY_STASH ]] && git stash apply "$THROWAWAY_STASH" &>/dev/null
     # Do the same thing as above, but for the build cache instead.
     cd "$CACHE_DIR"
-    if [[ $CACHE_THROWAWAY_BRANCH ]]; then
-	git checkout -f "$CURRENT_CACHE_BRANCH" &>/dev/null
-	git branch -D "$CACHE_THROWAWAY_BRANCH" &>/dev/null
+    if [[ $CACHE_NEEDS_COMMIT ]]; then
+	in_cache git commit -m "Updated by build_crowbar.sh @ $(date)"
+	echo "The crowbar build cache has been updated, and the updates have"
+	echo "been comitted back to the cache.  Please push any changes."
     fi
-    [[ $CACHE_THROWAWAY_STASH ]] && git stash apply "$CACHE_THROWAWAY_STASH"
-    for d in "$IMAGE_DIR" "$BUILD_DIR" "$CHROOT"; do
-	[[ -d $d ]] && sudo rm -rf -- "$d"
-    done
     wait
     flock -u 70
     rm "$CROWBAR_DIR/".*.lock
@@ -290,7 +296,7 @@ index_cd_pool() {
     # Scan through our pool to find pkgs we can easily omit.
     local pkgname='' pkg='' cache="$CACHE_DIR/$OS_TOKEN/iso-packages"
     if [[ $ISO_LIBRARY/$ISO -nt $cache ]]; then
-	mkdir -p "$cache%/*"
+	mkdir -p "${cache}%/*"
 	> "$cache"
 	while read pkg; do
 	    [[ -f $pkg ]] && is_pkg "$pkg" || continue
@@ -371,6 +377,25 @@ stage_pkgs() {
     [[ ${!to_copy[*]} ]] && cp "${!to_copy[@]}" "$2"
 }
 
+cache_add() {
+    # $1 = file to add.
+    # $2 = location to store it in the cache
+    cp "$1" "$2" || \
+	die "Cannot save $1 in $2!"
+    if [[ $CURRENT_CACHE_BRANCH ]]; then
+	CACHE_NEEDS_COMMIT=true
+	in_cache git add "${2#${CACHE_DIR}/}"
+    fi
+}
+
+cache_rm() {
+    if [[ $CURRENT_CACHE_BRANCH ]]; then
+	CACHE_NEEDS_COMMIT=true
+	in_cache git rm -f "${1#${CACHE_DIR}/}"
+    fi
+    rm -f "$1"
+}
+
 # Update the package cache for a barclamp.
 update_barclamp_pkg_cache() {
     # $1 = barclamp we are working with
@@ -398,9 +423,9 @@ update_barclamp_pkg_cache() {
 	[[ ${pkgs["$pkg"]} = true ]] && continue
 	if [[ ${pkg%/*} != '.' ]]; then
 	    [[ -d $bc_cache/${pkg%/*} ]] || mkdir -p "$bc_cache/${pkg%/*}"
-	    [[ -f $bc_cache/${pkg##*/} ]] && rm -f "$bc_cache/${pkg##*/}"
+	    [[ -f $bc_cache/${pkg##*/} ]] && cache_rm "$bc_cache/${pkg##*/}"
 	fi 
-	cp "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
+	cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
 }
 
@@ -450,7 +475,7 @@ update_barclamp_gem_cache() {
      while read gem; do
 	[[ $gem = *.gem ]] || continue
 	[[ ${gems["$gem"]} = "true" ]] && continue
-	cp "$gem" "$bc_cache"
+	cache_add "$gem" "$bc_cache"
     done < <(find "$CHROOT/$CHROOT_GEMDIR" -type f)
 }
 
@@ -463,6 +488,7 @@ update_barclamp_raw_pkg_cache() {
 	[[ -f $bc_cache/${pkg##*/} ]] && continue
 	echo "Caching $pkg:"
 	curl -L -o "$bc_cache/${pkg##*/}" "$pkg"
+	[[ $CURRENT_CACHE_BRANCH ]] && in_cache git add "$bc_cache/${pkg##*/}"
     done
 }
 
@@ -479,6 +505,8 @@ update_barclamp_file_cache() {
 	mkdir -p "$bc_cache/$dest"
 	echo "Caching $pkg:"
 	curl -L -o "$bc_cache/$dest/${pkg##*/}" "$pkg"
+	[[ $CURRENT_CACHE_BRANCH ]] && \
+	    in_cache git add "$bc_cache/$dest/${pkg##*/}"
     done < <(write_lines "${BC_EXTRA_FILES[$1]}")
 }
 

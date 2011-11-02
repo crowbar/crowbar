@@ -35,7 +35,6 @@
 export LANG="C"
 export LC_ALL="C"
 
-
 GEM_RE='([^0-9].*)-([0-9].*)'
 
 readonly currdir="$PWD"
@@ -74,6 +73,8 @@ fi
 # the dependency machinery and the command line pull in the rest.
 # Note that BARCLAMPS is an array, not a string!
 [[ $BARCLAMPS ]] || BARCLAMPS=()
+
+[[ $ALLOW_CACHE_UPDATE ]] || ALLOW_CACHE_UPDATE=true
 
 # Location for caches that should not be erased between runs
 [[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
@@ -181,10 +182,8 @@ fi
 #   modifying boot config files, and so on.
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
 
-# Query strings to pull info we are interested out of crowbar.yml
+# Build OS dependent query strings
 # These have to be created after we know what OS we are building on.
-BC_QUERY_STRINGS["deps"]="barclamp requires"
-BC_QUERY_STRINGS["groups"]="barclamp member"
 BC_QUERY_STRINGS["pkgs"]="$PKG_TYPE pkgs"
 BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
 BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
@@ -195,12 +194,6 @@ BC_QUERY_STRINGS["os_repos"]="$PKG_TYPE $OS_TOKEN repos"
 BC_QUERY_STRINGS["os_ppas"]="$PKG_TYPE $OS_TOKEN ppas"
 BC_QUERY_STRINGS["os_build_pkgs"]="$PKG_TYPE $OS_TOKEN build_pkgs"
 BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
-BC_QUERY_STRINGS["extra_files"]="extra_files"
-BC_QUERY_STRINGS["os_support"]="barclamp os_support"
-BC_QUERY_STRINGS["gems"]="gems pkgs"
-BC_QUERY_STRINGS["test_deps"]="smoketest requires"
-BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
-
 
 {
     # Check to make sure our required commands are installed.
@@ -224,22 +217,9 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
     # Check and see if our local build repository is a git repo. If it is,
     # we may need to do the same sort of merging in it that we might do in the 
     # Crowbar repository.
-    if [[ -d $CACHE_DIR/.git ]]; then
-	for br in "$CURRENT_BRANCH" master ''; do
-	    [[ $br ]] || die "Cannot find $CURRENT_BRANCH or master in $CACHE_DIR"
-	    (cd "$CACHE_DIR"; branch_exists "$br") || continue
-	    CURRENT_CACHE_BRANCH="$br"
-	    break
-	done
-	# If there are packages that have not been comitted, save them
-	# in a stash before continuing.  We do this on the assumption that
-	# these packages were added manually for testing purposes, or were
-	# added in an earlier update-cache operation, but that the user has
-	# not gotten around to comitting yet.
-	if [[ ! $(in_cache git status) =~ working\ directory\ clean ]]; then
-	    CACHE_THROWAWAY_STASH=$(in_cache git stash create)
-	    in_cache git checkout -f .
-	fi
+    if [[ -d $CACHE_DIR/.git ]] && \
+	(cd "$CACHE_DIR"; branch_exists master) then
+	CURRENT_CACHE_BRANCH=master
     fi
 
     # Parse our options.  
@@ -277,20 +257,6 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 		    # conflict, and the user needs to fix it up.
 		    in_repo git merge "$1" || \
 			die "Merge of $1 failed, fix things up and continue"
-		    # If there is n identically named branch in the build cache,
-		    # merge it into a throwaway branch of the build cache
-		    # along with the current branch in the build cache.
-		    # This makes it easier to include and manage packages that
-		    # are branch-specific, but that do not need to be included
-		    # in every build.
-		    if in_cache branch_exists "$1"; then
-			if [[ ! $CACHE_THROWAWAY_BRANCH ]]; then
-			    CACHE_THROWAWAY_BRANCH=${THROWAWAY_BRANCH/build/cache}
-			    in_cache git checkout -b "$CACHE_THROWAWAY_BRANCH"
-			fi
-			in_cache git merge "$1" || \
-			    die "Could not merge build cache branch $1"
-		    fi
 		    shift
 		done
 		;;
@@ -336,16 +302,14 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 		    die "The build system does not know how to generate a minimal install list for $OS_TO_STAGE!"
 		GENERATE_MINIMAL_INSTALL=true
 		shift;;
+	    --no-cache-update) shift; ALLOW_CACHE_UPDATE=false;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
     done
 
     # If we stached changes to the crowbar repo, apply them now.
     [[ $THROWAWAY_STASH ]] && in_repo git stash apply "$THROWAWAY_STASH"
-    # Ditto for the build cache.
-    [[ $CACHE_THROWAWAY_STASH ]] && \
-	in_cache git stash apply "$CACHE_THROWAWAY_STASH" 
-
+    
     # Finalize where we expect to find our caches and out chroot.
     # If they were set in one of the conf files, don't touch them.
 
@@ -467,6 +431,8 @@ BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 	    [[ $(type $updater) = "$updater is a function"* ]] || \
 		die "Might need to update $cache cache, but no updater!"
 	    if $checker "$bc" || [[ $need_update = true ]]; then
+		[[ $ALLOW_CACHE_UPDATE = true ]] || \
+		    die "Need up update $cache cache for $bc, but updates are disabled."
 		debug "Updating $cache cache for $bc"
 		[[ $cache =~ ^(pkg|gem)$ ]] && make_chroot
 		$updater "$bc"
