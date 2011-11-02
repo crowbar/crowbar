@@ -132,7 +132,6 @@ cleanup_cmds=()
 # and a shiny new .iso.
 cleanup() {
     flock -n 70 || exit 1
-    res=0
     # Clean up any stray mounts we may have left behind. 
     # The paranoia with the grepping is to ensure that we do not 
     # inadvertently umount everything.
@@ -586,7 +585,7 @@ barclamp_file_cache_needs_update() {
 # Some helper functions
 
 # Print a message to stderr and exit.  cleanup will be called.
-die() { echo "$(date '+%F %T %z'): $*" >&2; exit 1; }
+die() { echo "$(date '+%F %T %z'): $*" >&2; res=1; exit 1; }
 
 # Print a message to stderr and keep going.
 debug() { echo "$(date '+%F %T %z'): $*" >&2; }

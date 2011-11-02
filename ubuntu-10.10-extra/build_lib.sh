@@ -174,5 +174,5 @@ final_build_fixups() {
 # Check to make sure all our prerequisites are met.
 for cmd in debootstrap ar; do
     which "$cmd" &>/dev/null || \
-	die 1 "Please install $cmd before trying to build Crowbar."
+	die "Please install $cmd before trying to build Crowbar."
 done
