@@ -133,10 +133,10 @@ install_base_packages || die "Base OS package installation failed."
 # to tell Chef to just look in a specific location for its gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
 (   cd $DVD_PATH/extra/gems
-    gem install --local --no-ri --no-rdoc builder*.gem
-    gem install --local --no-ri --no-rdoc json*.gem
-    gem install --local --no-ri --no-rdoc net-http-digest_auth*.gem
-    gem install --local --no-ri --no-rdoc activesupport*.gem
+    for gem in builder json net-http-digest_auth activesupport i18n \
+	daemons bluepill; do
+	gem install --local --no-ri --no-rdoc $gem-*.gem
+    done
     cd ..
     gem generate_index)
 # Of course we are rubygems.org. Anything less would be uncivilised.

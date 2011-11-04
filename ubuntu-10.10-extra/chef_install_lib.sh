@@ -46,3 +46,8 @@ restart_ssh() {
     service ssh restart
 }
 
+# Add gem installed binaries to our path
+[[ $PATH = *gems/1.8/bin ]] || {
+    export PATH=$PATH:/var/lib/gems/1.8/bin
+    sed -i 's@"$@:/var/lib/gems/1.8/bin"@' /etc/environment
+}
