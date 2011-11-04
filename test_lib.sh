@@ -11,6 +11,7 @@
 export PATH="$CROWBAR_DIR/testing/cli:$CROWBAR_DIR/test_framework:$CROWBAR_DIR:$PATH:/sbin:/usr/sbin"
 set -o pipefail
 
+SMOKETEST_RESULTS=()
 # Commands we have to run under sudo -n
 SUDO_CMDS="brctl ip umount mount make_cgroups.sh"
 # Commands we need to run as $USER
@@ -163,7 +164,7 @@ smoketest_cleanup() {
     # We ignore errors in this function.
     set +e
     flock 75
-    [[ -d $smoketest_dir ]] || exit
+    [[ -d $smoketest_dir ]] || return 0
 
     killall check_ready
     [[ $develop_mode = true ]] && pause
@@ -193,8 +194,8 @@ smoketest_cleanup() {
     done
     # Make sure we exit with the right status code.
     # Copy passed and failed logs to the right location.
-    [[ $test_results ]] && {
-	for result in "${test_results[@]}"; do
+    [[ $SMOKETEST_RESULTS ]] && {
+	for result in "${SMOKETEST_RESULTS[@]}"; do
 	    echo "$result"
 	    [[ $result = *Passed ]] && continue
 	    final_status=Failed
@@ -1076,7 +1077,7 @@ run_test() {
     while read line; do
 	[[ $line =~ $screen_re ]] && screen -S "${BASH_REMATCH[1]}" -X quit || :
     done < <(screen -ls)
-    local tests_to_run=() test_results=()
+    local tests_to_run=()
     # Process our commandline arguments.
     while [[ $1 ]]; do
 	case $1 in
@@ -1124,14 +1125,14 @@ run_test() {
     final_status=Failed
     # Launch our admin node, and then launch the compute nodes afterwards.
     if run_admin_node; then
-	test_results+=("deploy_admin: Passed")
+	SMOKETEST_RESULTS+=("Admin Node: Passed")
 	if [[ $admin_only ]]; then
 	    final_status=Passed
 	fi
 	create_slaves
 	for running_test in "${tests_to_run[@]}"; do
 	    if ! deploy_nodes; then
-		test_results+=("$running_test: Failed")
+		SMOKETEST_RESULTS+=("$running_test: Failed")
 		echo "$(date '+%F %T %z'): Compute node deploy failed."
 		smoketest_get_cluster_logs "$running_test-deploy-failed"
 		reset_slaves
@@ -1142,7 +1143,7 @@ run_test() {
 		echo "$(date '+%F %T %z'): Running smoketests for $this_test."
 		if ! run_test_hooks "$this_test"; then
 		    echo "$(date '+%F %T %z'): $this_test tests failed."
-		    test_results+=("$this_test: Failed")
+		    SMOKETEST_RESULTS+=("$this_test: Failed")
 		    smoketest_get_cluster_logs "$running_test-tests-failed"
 		    reset_slaves
 		    continue 2
@@ -1150,19 +1151,20 @@ run_test() {
 	    done
 	    echo "$(date '+%F %T %z'): $running_test tests passed."
 	    smoketest_get_cluster_logs "$running_test-tests-passed"
-	    test_results+=("$running_test: Passed")
+	    SMOKETEST_RESULTS+=("$running_test: Passed")
 	    if [[ $pause_after_deploy || -f $smoketest_dir/pause ]]; then
 		pause
 	    fi
 	    reset_slaves
 	done
     else
-	test_results=("Admin node: Failed")
+	SMOKETEST_RESULTS=("Admin node: Failed")
     fi
-    [[ "${test_results[*]}" =~ Failed ]] || final_status=Passed
+    [[ $"${SMOKETEST_RESULTS[*]}" =~ Failed ]] || final_status=Passed
     [[ $develop_mode ]] && pause
     kill_slaves || :
     sleep 15
+    [[ $final_status = Passed ]]
 } 100>"$SMOKETEST_LOCK"
 
 SMOKETEST_LIB_SOURCED=true
