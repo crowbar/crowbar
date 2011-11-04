@@ -301,7 +301,7 @@ index_cd_pool() {
     # Scan through our pool to find pkgs we can easily omit.
     local pkgname='' pkg='' cache="$CACHE_DIR/$OS_TOKEN/iso-packages"
     if [[ $ISO_LIBRARY/$ISO -nt $cache ]]; then
-	mkdir -p "${cache}%/*"
+	mkdir -p "${cache%/*}"
 	> "$cache"
 	while read pkg; do
 	    [[ -f $pkg ]] && is_pkg "$pkg" || continue
