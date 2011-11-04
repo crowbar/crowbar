@@ -34,6 +34,9 @@
 [submodule "barclamps/ubuntu-install"]
 	path = barclamps/ubuntu-install
 	url = http://github.com/dellcloudedge/barclamp-ubuntu-install
+[submodule "barclamps/openstack"]
+	path = barclamps/openstack
+	url = https://github.com/dellcloudedge/barclamp-openstack
 [submodule "barclamps/nova"]
 	path = barclamps/nova
 	url = https://github.com/dellcloudedge/barclamp-nova
