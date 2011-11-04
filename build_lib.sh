@@ -603,7 +603,7 @@ clean_dirs() {
 	(   mkdir -p "$d"
 	    cd "$d"
 	    chmod -R u+w .
-	    rm -rf * )
+	    sudo rm -rf * )
     done
 }
 
