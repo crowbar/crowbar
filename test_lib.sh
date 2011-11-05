@@ -1128,36 +1128,38 @@ run_test() {
 	SMOKETEST_RESULTS+=("Admin Node: Passed")
 	if [[ $admin_only ]]; then
 	    final_status=Passed
-	fi
-	create_slaves
-	for running_test in "${tests_to_run[@]}"; do
-	    if ! deploy_nodes; then
-		SMOKETEST_RESULTS+=("$running_test: Failed")
-		echo "$(date '+%F %T %z'): Compute node deploy failed."
-		smoketest_get_cluster_logs "$running_test-deploy-failed"
-		reset_slaves
-		continue
-	    fi
-            echo "$(date '+%F %T %z'): Compute nodes deployed."
-	    for this_test in $running_test; do
-		echo "$(date '+%F %T %z'): Running smoketests for $this_test."
-		if ! run_test_hooks "$this_test"; then
-		    echo "$(date '+%F %T %z'): $this_test tests failed."
-		    SMOKETEST_RESULTS+=("$this_test: Failed")
-		    smoketest_get_cluster_logs "$running_test-tests-failed"
+	else
+	    create_slaves
+	    for running_test in "${tests_to_run[@]}"; do
+		if ! deploy_nodes; then
+		    SMOKETEST_RESULTS+=("$running_test: Failed")
+		    echo "$(date '+%F %T %z'): Compute node deploy failed."
+		    smoketest_get_cluster_logs "$running_test-deploy-failed"
 		    reset_slaves
-		    continue 2
+		    continue
 		fi
+		echo "$(date '+%F %T %z'): Compute nodes deployed."
+		for this_test in $running_test; do
+		    echo "$(date '+%F %T %z'): Running smoketests for $this_test."
+		    if ! run_test_hooks "$this_test"; then
+			echo "$(date '+%F %T %z'): $this_test tests failed."
+			SMOKETEST_RESULTS+=("$this_test: Failed")
+			smoketest_get_cluster_logs "$running_test-tests-failed"
+			reset_slaves
+			continue 2
+		    fi
+		done
+		echo "$(date '+%F %T %z'): $running_test tests passed."
+		smoketest_get_cluster_logs "$running_test-tests-passed"
+		SMOKETEST_RESULTS+=("$running_test: Passed")
+		if [[ $pause_after_deploy || -f $smoketest_dir/pause ]]; then
+		    pause
+		fi
+		reset_slaves
 	    done
-	    echo "$(date '+%F %T %z'): $running_test tests passed."
-	    smoketest_get_cluster_logs "$running_test-tests-passed"
-	    SMOKETEST_RESULTS+=("$running_test: Passed")
-	    if [[ $pause_after_deploy || -f $smoketest_dir/pause ]]; then
-		pause
-	    fi
-	    reset_slaves
-	done
+	fi
     else
+	final_status=Failed
 	SMOKETEST_RESULTS=("Admin node: Failed")
     fi
     [[ $"${SMOKETEST_RESULTS[*]}" =~ Failed ]] || final_status=Passed
