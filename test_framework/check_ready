@@ -27,7 +27,7 @@ require 'net/http/digest_auth'
 @password = "crowbar"
 
 def die(ret, msg)
-  STDERR.puts(msg)
+  STDERR.puts(msg) if ENV["DEBUG"] == "true"
   exit(ret)
 end
 
