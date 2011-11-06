@@ -74,18 +74,6 @@ knifeloop() {
     done
 }
 
-# Keep trying to start a service in a loop.
-# $1 = service to restart
-# $2 = status messae to print.
-restart_svc_loop() {
-    while service "$1" status | egrep -qi "fail|stopped"
-    do
-        echo "$(date '+%F %T %z'): $2..."
-	log_to svc service "$1" start
-	sleep 1
-    done
-}
-
 # Include OS specific functionality
 . chef_install_lib.sh || die "Could not include OS specific functionality"
 
@@ -142,10 +130,67 @@ echo "$(date '+%F %T %z'): Arranging for gems to be installed"
 # Of course we are rubygems.org. Anything less would be uncivilised.
 sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
 
-echo "$(date '+%F %T %z'): Installing Chef"
-bring_up_chef || die "Could not start Chef!"
+mkdir -p /var/run/bluepill
+mkdir -p /var/lib/bluepill
+mkdir -p /etc/bluepill
 
-restart_svc_loop chef-solr "Restarting chef-solr - spot one"
+# Copy all our pills to 
+cp "$DVD_PATH/extra/"*.pill /etc/bluepill 
+
+if [[ ! -x /etc/init.d/bluepill ]]; then
+
+    echo "$(date '+%F %T %z'): Installing Chef"
+    bring_up_chef || die "Could not start Chef!"
+
+    chef_services=(rabbitmq-server couchdb chef-server chef-server-webui \
+        chef-solr chef-expander chef-client)
+    # Have Bluepill manage our Chef services instead of letting sysvinit do it.
+    echo "$(date '+%F %T %z'): Arranging for Chef to run under Bluepill..."
+    for svc in "${chef_services[@]}"; do
+	service "$svc" stop
+    done
+    # sometimes couchdb does not die when asked.  Kill it manually.
+    kill $(ps aux |awk '/^couchdb/ {print $2}')
+
+    # Create an init script for bluepill
+    cat > /etc/init.d/bluepill <<EOF
+#!/bin/bash
+PATH=$PATH
+case \$1 in
+    start) for pill in /etc/bluepill/*.pill; do
+              [[ -f \$pill ]] || continue
+              bluepill load "\$pill"
+           done;;
+    stop) bluepill stop
+          bluepill quit;;
+    status) if pidof bluepilld; then
+             echo "Bluepill is running."
+             exit 0
+            else
+             echo "Bluepill is not running."
+             exit 1
+            fi;;
+    *) echo "\$1: Not supported.";;
+esac   
+EOF
+    chmod 755 /etc/init.d/bluepill
+
+    # enable the bluepill init script and disable the old sysv init scripts.
+    if which chkconfig &>/dev/null; then
+	:
+	# to be implemented
+    elif which update-rc.d &>/dev/null; then
+	update-rc.d bluepill defaults 10 90
+	for svc in "${chef_services[@]}"; do
+	    update-rc.d "$svc" disable
+	    chmod ugo-x /etc/init.d/"$svc"
+	done
+    else
+	echo "Don't know how to handle services on this system!"
+	exit 1
+    fi
+    service bluepill start
+fi
 
 chef_or_die "Initial chef run failed"
 
@@ -201,8 +246,6 @@ echo "$(date '+%F %T %z'): Installing framework barclamps"
 log_to bcinstall /opt/dell/bin/barclamp_multi.rb bootstrap || \
   die "Could not install barclamps using Multi installer."
 
-restart_svc_loop chef-solr "Restarting chef-solr - spot two"
-
 echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
     die "Crowbar configuration has errors.  Please fix and rerun install."
@@ -213,9 +256,7 @@ for role in crowbar deployer-client; do
 	die "Could not add $role to Chef. Crowbar bringup will fail."
 done
 
-log_to svc service chef-client stop
-restart_svc_loop chef-solr "Restarting chef-solr - spot three"
-
+bluepill stop chef-client
 pre_crowbar_fixups
 
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
@@ -283,8 +324,6 @@ ip addr | grep -q $IP || {
     ip link set eth0 up
     ip addr add 192.168.124.10/24 dev eth0
 }
-
-restart_svc_loop chef-client "Restarting chef-client - spot four"
 
 update_admin_node
 
