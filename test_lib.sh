@@ -1165,7 +1165,8 @@ run_test() {
 	final_status=Failed
 	SMOKETEST_RESULTS=("Admin node: Failed")
     fi
-    [[ $"${SMOKETEST_RESULTS[*]}" =~ Failed ]] || final_status=Passed
+    [[ ! $final_status && $"${SMOKETEST_RESULTS[*]}" =~ Failed ]] || \
+	final_status=Passed
     [[ $develop_mode ]] && pause
     kill_slaves || :
     sleep 15

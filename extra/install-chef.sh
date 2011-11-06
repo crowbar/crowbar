@@ -127,6 +127,14 @@ echo "$(date '+%F %T %z'): Arranging for gems to be installed"
     done
     cd ..
     gem generate_index)
+# Make sure that gem-installed binaries are in $PATH for everyone.
+read gem_bin < <(gem environment | awk '-F:' '/EXECUTABLE DIRECTORY/ {print $2}')
+if [[ ! $PATH =~ (^|:)$gem_bin(:|$) ]]; then
+    export PATH="$PATH:$gem_bin"
+    echo $PATH
+    sed -i "/PATH=/ s@PATH=.*@PATH=\"$PATH\"@" /etc/environment
+    echo "PATH=\"$PATH\"" >/etc/environment
+fi
 
 mkdir -p /var/run/bluepill
 mkdir -p /var/lib/bluepill
@@ -139,8 +147,10 @@ cp "$DVD_PATH/extra/"*.pill /etc/bluepill
 echo "$(date '+%F %T %z'): Arranging for gems to be served from port 3001"
 mkdir -p /opt/dell
 [[ -L /opt/dell/extra ]] || ln -s "$DVD_PATH/extra" /opt/dell/extra 
->/var/log/rubygems-server.log
-chown nobody.nogroup /var/log/rubygems-server.log
+if [[ ! -f /var/log/rubygems-server.log ]]; then
+    >/var/log/rubygems-server.log
+    chown nobody /var/log/rubygems-server.log
+fi
 bluepill load /etc/bluepill/rubygems-server.pill
 sleep 5
 
@@ -153,6 +163,7 @@ if [[ ! -x /etc/init.d/bluepill ]]; then
 
     echo "$(date '+%F %T %z'): Installing Chef"
     bring_up_chef || die "Could not start Chef!"
+    killall chef-client
 
     chef_services=(rabbitmq-server couchdb chef-server chef-server-webui \
         chef-solr chef-expander chef-client)
@@ -162,11 +173,15 @@ if [[ ! -x /etc/init.d/bluepill ]]; then
 	service "$svc" stop
     done
     # sometimes couchdb does not die when asked.  Kill it manually.
-    kill $(ps aux |awk '/^couchdb/ {print $2}')
+    if ps aux |grep -q [c]ouchdb; then
+	kill $(ps aux |awk '/^couchdb/ {print $2}')
+    fi
 
     # Create an init script for bluepill
     cat > /etc/init.d/bluepill <<EOF
 #!/bin/bash
+# chkconfig: 2345 90 10
+# description: Bluepill Daemon runner
 PATH=$PATH
 case \$1 in
     start) for pill in /etc/bluepill/*.pill; do
@@ -175,7 +190,7 @@ case \$1 in
            done;;
     stop) bluepill stop
           bluepill quit;;
-    status) if pidof bluepilld; then
+    status) if ps aux |grep [b]luepilld; then
              echo "Bluepill is running."
              exit 0
             else
@@ -189,10 +204,15 @@ EOF
 
     # enable the bluepill init script and disable the old sysv init scripts.
     if which chkconfig &>/dev/null; then
-	exit 2
+	chkconfig --add bluepill
+	chkconfig bluepill on
+	for svc in "${chef_services[@]}"; do
+	    chkconfig "$svc" off
+	    chmod ugo-x /etc/init.d/"$svc"
+	done
 	# to be implemented
     elif which update-rc.d &>/dev/null; then
-	update-rc.d bluepill defaults 10 90
+	update-rc.d bluepill defaults 90 10
 	for svc in "${chef_services[@]}"; do
 	    update-rc.d "$svc" disable
 	    chmod ugo-x /etc/init.d/"$svc"
@@ -201,6 +221,12 @@ EOF
 	echo "Don't know how to handle services on this system!"
 	exit 1
     fi
+    # Make sure that the chef log dir has the right permissions
+    chown -R chef:chef /var/log/chef
+    mkdir -p /var/lib/chef
+    chown -R chef:chef /var/lib/chef
+    mkdir -p /var/chef
+    chown -R chef:chef /var/chef
     bluepill load /etc/bluepill/chef-server.pill
     sleep 5
 fi
