@@ -1,0 +1,9 @@
+Bluepill.application("rubygems-server") do |app|
+  app.process("rubygems-server") do |process|
+    process.start_command = '/usr/bin/ruby -rwebrick -e WEBrick::HTTPServer.new(:Port=>3001,:DocumentRoot=>\".\").start'
+    process.uid = "nobody"
+    process.working_dir = "/opt/dell/extra"
+    process.stdout = process.stderr = "/var/log/rubygems-server.log"
+    process.daemonize = true
+  end
+end

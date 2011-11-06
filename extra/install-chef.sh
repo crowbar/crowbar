@@ -127,8 +127,6 @@ echo "$(date '+%F %T %z'): Arranging for gems to be installed"
     done
     cd ..
     gem generate_index)
-# Of course we are rubygems.org. Anything less would be uncivilised.
-sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
 
 mkdir -p /var/run/bluepill
 mkdir -p /var/lib/bluepill
@@ -137,6 +135,20 @@ mkdir -p /etc/bluepill
 # Copy all our pills to 
 cp "$DVD_PATH/extra/"*.pill /etc/bluepill 
 
+# Fire up a Webrick instance on port 3001 to serve gems.
+echo "$(date '+%F %T %z'): Arranging for gems to be served from port 3001"
+mkdir -p /opt/dell
+[[ -L /opt/dell/extra ]] || ln -s "$DVD_PATH/extra" /opt/dell/extra 
+>/var/log/rubygems-server.log
+chown nobody.nogroup /var/log/rubygems-server.log
+bluepill load /etc/bluepill/rubygems-server.pill
+sleep 5
+
+# Stop looking for rubygems.org, just look locally  for gems
+gem source -c
+gem source -a http://localhost:3001/
+gem source -r http://rubygems.org/
+    
 if [[ ! -x /etc/init.d/bluepill ]]; then
 
     echo "$(date '+%F %T %z'): Installing Chef"
@@ -177,7 +189,7 @@ EOF
 
     # enable the bluepill init script and disable the old sysv init scripts.
     if which chkconfig &>/dev/null; then
-	:
+	exit 2
 	# to be implemented
     elif which update-rc.d &>/dev/null; then
 	update-rc.d bluepill defaults 10 90
@@ -189,7 +201,8 @@ EOF
 	echo "Don't know how to handle services on this system!"
 	exit 1
     fi
-    service bluepill start
+    bluepill load /etc/bluepill/chef-server.pill
+    sleep 5
 fi
 
 chef_or_die "Initial chef run failed"
@@ -256,7 +269,6 @@ for role in crowbar deployer-client; do
 	die "Could not add $role to Chef. Crowbar bringup will fail."
 done
 
-bluepill stop chef-client
 pre_crowbar_fixups
 
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
@@ -326,6 +338,7 @@ ip addr | grep -q $IP || {
 }
 
 update_admin_node
+bluepill load /etc/bluepill/chef-client.pill
 
 # transform our friendlier Crowbar default home page.
 cd $DVD_PATH/extra
