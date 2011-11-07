@@ -18,6 +18,6 @@
 #
 
 cd /tftpboot/redhat_dvd/extra
-script -c "./install-chef.sh $1" /var/log/install.log
+script -f -c "./install-chef.sh $1" /var/log/install.log
 cd -
 

@@ -210,7 +210,7 @@ smoketest_cleanup() {
 	tar czf "$currdir/$target.tar.gz" "${smoketest_dir##*/}")
     echo "Logs are available at $currdir/$target.tar.gz."
     rm -rf "$smoketest_dir"
-    [[ $final_status != Passed ]]
+    [[ $final_status = Passed ]]
 } 75>"$CROWBAR_DIR/.smoketest_cleanup.lock"
 
 # Simple unique mac address generation.
