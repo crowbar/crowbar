@@ -393,7 +393,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
     [[ -f $ISO_LIBRARY/$ISO ]] || fetch_os_iso
 
     # Start with a clean slate.
-    clean_dirs "$IMAGE_DIR" "$BUILD_DIR"
+    clean_dirs "$IMAGE_DIR" "$BUILD_DIR" "$CHROOT"
     
     debug "Cleaning up any VCS cruft."
     # Clean up any cruft that the editor may have left behind.

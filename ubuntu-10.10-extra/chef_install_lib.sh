@@ -11,8 +11,8 @@ install_base_packages() {
     log_to apt /usr/bin/debconf-set-selections ./debsel.conf
     log_to apt apt-get update
     log_to apt apt-get -y remove apparmor
-    log_to apt apt-get -y install rubygems gcc \
-	libcurl4-gnutls-dev build-essential ruby-dev
+    log_to apt apt-get -y install rubygems gcc ruby \
+	libcurl4-gnutls-dev build-essential ruby-dev 
 }
 
 bring_up_chef() {
@@ -45,4 +45,3 @@ update_admin_node() {
 restart_ssh() {
     service ssh restart
 }
-

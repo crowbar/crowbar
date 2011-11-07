@@ -74,18 +74,6 @@ knifeloop() {
     done
 }
 
-# Keep trying to start a service in a loop.
-# $1 = service to restart
-# $2 = status messae to print.
-restart_svc_loop() {
-    while service "$1" status | egrep -qi "fail|stopped"
-    do
-        echo "$(date '+%F %T %z'): $2..."
-	log_to svc service "$1" start
-	sleep 1
-    done
-}
-
 # Include OS specific functionality
 . chef_install_lib.sh || die "Could not include OS specific functionality"
 
@@ -133,19 +121,115 @@ install_base_packages || die "Base OS package installation failed."
 # to tell Chef to just look in a specific location for its gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
 (   cd $DVD_PATH/extra/gems
-    gem install --local --no-ri --no-rdoc builder*.gem
-    gem install --local --no-ri --no-rdoc json*.gem
-    gem install --local --no-ri --no-rdoc net-http-digest_auth*.gem
-    gem install --local --no-ri --no-rdoc activesupport*.gem
+    for gem in builder json net-http-digest_auth activesupport i18n \
+	daemons bluepill; do
+	gem install --local --no-ri --no-rdoc $gem-*.gem
+    done
     cd ..
     gem generate_index)
-# Of course we are rubygems.org. Anything less would be uncivilised.
-sed -i -e 's/\(127\.0\.0\.1.*\)/\1 rubygems.org/' /etc/hosts
+# Make sure that gem-installed binaries are in $PATH for everyone.
+read gem_bin < <(gem environment | awk '-F:' '/EXECUTABLE DIRECTORY/ {print $2}')
+if [[ ! $PATH =~ (^|:)$gem_bin(:|$) ]]; then
+    export PATH="$PATH:$gem_bin"
+    echo $PATH
+    sed -i "/PATH=/ s@PATH=.*@PATH=\"$PATH\"@" /etc/environment
+    echo "PATH=\"$PATH\"" >/etc/environment
+fi
 
-echo "$(date '+%F %T %z'): Installing Chef"
-bring_up_chef || die "Could not start Chef!"
+mkdir -p /var/run/bluepill
+mkdir -p /var/lib/bluepill
+mkdir -p /etc/bluepill
 
-restart_svc_loop chef-solr "Restarting chef-solr - spot one"
+# Copy all our pills to 
+cp "$DVD_PATH/extra/"*.pill /etc/bluepill 
+
+# Fire up a Webrick instance on port 3001 to serve gems.
+echo "$(date '+%F %T %z'): Arranging for gems to be served from port 3001"
+mkdir -p /opt/dell
+[[ -L /opt/dell/extra ]] || ln -s "$DVD_PATH/extra" /opt/dell/extra 
+if [[ ! -f /var/log/rubygems-server.log ]]; then
+    >/var/log/rubygems-server.log
+    chown nobody /var/log/rubygems-server.log
+fi
+bluepill load /etc/bluepill/rubygems-server.pill
+sleep 5
+
+# Stop looking for rubygems.org, just look locally  for gems
+gem source -c
+gem source -a http://localhost:3001/
+gem source -r http://rubygems.org/
+    
+if [[ ! -x /etc/init.d/bluepill ]]; then
+
+    echo "$(date '+%F %T %z'): Installing Chef"
+    bring_up_chef || die "Could not start Chef!"
+    killall chef-client
+
+    chef_services=(rabbitmq-server couchdb chef-server chef-server-webui \
+        chef-solr chef-expander chef-client)
+    # Have Bluepill manage our Chef services instead of letting sysvinit do it.
+    echo "$(date '+%F %T %z'): Arranging for Chef to run under Bluepill..."
+    for svc in "${chef_services[@]}"; do
+	service "$svc" stop
+    done
+    # sometimes couchdb does not die when asked.  Kill it manually.
+    if ps aux |grep -q [c]ouchdb; then
+	kill $(ps aux |awk '/^couchdb/ {print $2}')
+    fi
+
+    # Create an init script for bluepill
+    cat > /etc/init.d/bluepill <<EOF
+#!/bin/bash
+# chkconfig: 2345 90 10
+# description: Bluepill Daemon runner
+PATH=$PATH
+case \$1 in
+    start) for pill in /etc/bluepill/*.pill; do
+              [[ -f \$pill ]] || continue
+              bluepill load "\$pill"
+           done;;
+    stop) bluepill stop
+          bluepill quit;;
+    status) if ps aux |grep [b]luepilld; then
+             echo "Bluepill is running."
+             exit 0
+            else
+             echo "Bluepill is not running."
+             exit 1
+            fi;;
+    *) echo "\$1: Not supported.";;
+esac   
+EOF
+    chmod 755 /etc/init.d/bluepill
+
+    # enable the bluepill init script and disable the old sysv init scripts.
+    if which chkconfig &>/dev/null; then
+	chkconfig --add bluepill
+	chkconfig bluepill on
+	for svc in "${chef_services[@]}"; do
+	    chkconfig "$svc" off
+	    chmod ugo-x /etc/init.d/"$svc"
+	done
+	# to be implemented
+    elif which update-rc.d &>/dev/null; then
+	update-rc.d bluepill defaults 90 10
+	for svc in "${chef_services[@]}"; do
+	    update-rc.d "$svc" disable
+	    chmod ugo-x /etc/init.d/"$svc"
+	done
+    else
+	echo "Don't know how to handle services on this system!"
+	exit 1
+    fi
+    # Make sure that the chef log dir has the right permissions
+    chown -R chef:chef /var/log/chef
+    mkdir -p /var/lib/chef
+    chown -R chef:chef /var/lib/chef
+    mkdir -p /var/chef
+    chown -R chef:chef /var/chef
+    bluepill load /etc/bluepill/chef-server.pill
+    sleep 5
+fi
 
 chef_or_die "Initial chef run failed"
 
@@ -201,8 +285,6 @@ echo "$(date '+%F %T %z'): Installing framework barclamps"
 log_to bcinstall /opt/dell/bin/barclamp_multi.rb bootstrap || \
   die "Could not install barclamps using Multi installer."
 
-restart_svc_loop chef-solr "Restarting chef-solr - spot two"
-
 echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
     die "Crowbar configuration has errors.  Please fix and rerun install."
@@ -212,9 +294,6 @@ for role in crowbar deployer-client; do
     knifeloop node run_list add "$FQDN" role["$role"] || \
 	die "Could not add $role to Chef. Crowbar bringup will fail."
 done
-
-log_to svc service chef-client stop
-restart_svc_loop chef-solr "Restarting chef-solr - spot three"
 
 pre_crowbar_fixups
 
@@ -284,9 +363,8 @@ ip addr | grep -q $IP || {
     ip addr add 192.168.124.10/24 dev eth0
 }
 
-restart_svc_loop chef-client "Restarting chef-client - spot four"
-
 update_admin_node
+bluepill load /etc/bluepill/chef-client.pill
 
 # transform our friendlier Crowbar default home page.
 cd $DVD_PATH/extra

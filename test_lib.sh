@@ -353,7 +353,8 @@ kill_vm() (
 	fi
     done
     flock -u 65
-    die "Could not kill $vmname, something went horribly wrong."
+    echo"Could not kill $vmname, something went horribly wrong."
+    return 1
 ) 65>"$SMOKETEST_KVM_LOCK"
 
 # Wait for a KVM instance to die naturally, for a timeout to expire,
@@ -738,6 +739,7 @@ create_slaves() {
 	qemu-img create -f qcow2 "$smoketest_dir/$nodename-02.disk" 4G &>/dev/null
         # Run our VMs in the background, looping as we go.
 	(
+	    trap - 0 INT QUIT TERM
 	    # Keep rebooting as long as the admin node is alive and 
 	    # the node has not been explicitly been killed by kill_vm.
 	    count=0
@@ -864,6 +866,7 @@ deploy_nodes() {
     local node overall_status=Waiting
     for node in "${!SMOKETEST_SLAVES[@]}"; do
 	( 
+	    trap - 0 INT QUIT TERM
 	    hname=${SMOKETEST_SLAVES["$node"]}
 	    lastres='' res=''
 	    while [[ -f $smoketest_dir/admin.pid && \
@@ -948,6 +951,7 @@ run_hooks() {
 	return 0
     fi
     (   sleep 1
+	trap - 0 INT QUIT TERM
 	for hook in "$test_dir"/*."$ext"; do
 	    [[ -x $hook ]] || continue
 	    echo "$(date '+%F %T %z'): Running test hook ${hook##*/}"
@@ -967,7 +971,7 @@ run_hooks() {
     case $(cat "$smoketest_dir/$test_name.test") in
 	Passed) return 0;;
 	Failed) return 1;;
-	*) 
+	*)  # We timed out.  Kill everything associated with this test.
 	    for t in $(cat "$CGROUP_DIR/${test_name}-test/tasks"); do
 		kill -9 "$t"
 	    done
@@ -1008,7 +1012,6 @@ pause() { printf "\n%s\n" "${1:-Press any key to continue:}"; read -n 1; }
 mangle_ssh_config() {
     grep -q 'UserKnownHostsFile /dev/null' "$HOME/.ssh/config" && return 0
     cat >>"$HOME/.ssh/config" <<EOF
-
 # Added by Crowbar Smoketest Framework
 CheckHostIP no
 UserKnownHostsFile /dev/null
@@ -1016,7 +1019,7 @@ StrictHostKeyChecking no
 Host *
   ControlMaster auto
   ControlPath /tmp/%r@%h:%p
-  ControlPersist 30
+#  ControlPersist 30
 # End of Crowbar Smoketest Framework config
 
 EOF
@@ -1128,39 +1131,42 @@ run_test() {
 	SMOKETEST_RESULTS+=("Admin Node: Passed")
 	if [[ $admin_only ]]; then
 	    final_status=Passed
-	fi
-	create_slaves
-	for running_test in "${tests_to_run[@]}"; do
-	    if ! deploy_nodes; then
-		SMOKETEST_RESULTS+=("$running_test: Failed")
-		echo "$(date '+%F %T %z'): Compute node deploy failed."
-		smoketest_get_cluster_logs "$running_test-deploy-failed"
-		reset_slaves
-		continue
-	    fi
-            echo "$(date '+%F %T %z'): Compute nodes deployed."
-	    for this_test in $running_test; do
-		echo "$(date '+%F %T %z'): Running smoketests for $this_test."
-		if ! run_test_hooks "$this_test"; then
-		    echo "$(date '+%F %T %z'): $this_test tests failed."
-		    SMOKETEST_RESULTS+=("$this_test: Failed")
-		    smoketest_get_cluster_logs "$running_test-tests-failed"
+	else
+	    create_slaves
+	    for running_test in "${tests_to_run[@]}"; do
+		if ! deploy_nodes; then
+		    SMOKETEST_RESULTS+=("$running_test: Failed")
+		    echo "$(date '+%F %T %z'): Compute node deploy failed."
+		    smoketest_get_cluster_logs "$running_test-deploy-failed"
 		    reset_slaves
-		    continue 2
+		    continue
 		fi
+		echo "$(date '+%F %T %z'): Compute nodes deployed."
+		for this_test in $running_test; do
+		    echo "$(date '+%F %T %z'): Running smoketests for $this_test."
+		    if ! run_test_hooks "$this_test"; then
+			echo "$(date '+%F %T %z'): $this_test tests failed."
+			SMOKETEST_RESULTS+=("$this_test: Failed")
+			smoketest_get_cluster_logs "$running_test-tests-failed"
+			reset_slaves
+			continue 2
+		    fi
+		done
+		echo "$(date '+%F %T %z'): $running_test tests passed."
+		smoketest_get_cluster_logs "$running_test-tests-passed"
+		SMOKETEST_RESULTS+=("$running_test: Passed")
+		if [[ $pause_after_deploy || -f $smoketest_dir/pause ]]; then
+		    pause
+		fi
+		reset_slaves
 	    done
-	    echo "$(date '+%F %T %z'): $running_test tests passed."
-	    smoketest_get_cluster_logs "$running_test-tests-passed"
-	    SMOKETEST_RESULTS+=("$running_test: Passed")
-	    if [[ $pause_after_deploy || -f $smoketest_dir/pause ]]; then
-		pause
-	    fi
-	    reset_slaves
-	done
+	fi
     else
+	final_status=Failed
 	SMOKETEST_RESULTS=("Admin node: Failed")
     fi
-    [[ $"${SMOKETEST_RESULTS[*]}" =~ Failed ]] || final_status=Passed
+    [[ ! $final_status && $"${SMOKETEST_RESULTS[*]}" =~ Failed ]] || \
+	final_status=Passed
     [[ $develop_mode ]] && pause
     kill_slaves || :
     sleep 15
