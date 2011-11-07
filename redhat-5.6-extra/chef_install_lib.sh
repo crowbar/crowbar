@@ -19,6 +19,9 @@ install_base_packages() {
 }
 
 bring_up_chef() {
+    log_to yum yum -q -y install rubygem-chef rubygem-kwalify
+    service chef-client stop
+    killall chef-client
     log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify \
 	curl-devel ruby-shadow patch
 

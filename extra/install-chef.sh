@@ -163,14 +163,13 @@ if [[ ! -x /etc/init.d/bluepill ]]; then
 
     echo "$(date '+%F %T %z'): Installing Chef"
     bring_up_chef || die "Could not start Chef!"
-    killall chef-client
 
     chef_services=(rabbitmq-server couchdb chef-server chef-server-webui \
         chef-solr chef-expander chef-client)
     # Have Bluepill manage our Chef services instead of letting sysvinit do it.
     echo "$(date '+%F %T %z'): Arranging for Chef to run under Bluepill..."
     for svc in "${chef_services[@]}"; do
-	service "$svc" stop
+	service "$svc" stop || :
     done
     # sometimes couchdb does not die when asked.  Kill it manually.
     if ps aux |grep -q [c]ouchdb; then

@@ -16,7 +16,10 @@ install_base_packages() {
 }
 
 bring_up_chef() {
-    log_to apt apt-get -y install chef chef-server chef-server-webui kwalify
+    log_to apt apt-get -y chef kwalify
+    service chef-client stop
+    killall chef-client
+    log_to apt apt-get -y install chef-server chef-server-webui kwalify
 
     # HACK AROUND CHEF-2005
     cp patches/data_item.rb /usr/share/chef-server-api/app/controllers
