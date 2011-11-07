@@ -459,6 +459,10 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
 
+    if [[ $ALLOW_CACHE_UPDATE != true && $CURRENT_CACHE_BRANCH ]]; then
+	echo "build-cache: $(get_rev "$CACHE_DIR")" >> "$BUILD_DIR/build-info"
+    fi
+
     (cd "$BUILD_DIR"
 	find extra/pkgs extra/gems extra/files -type f -print | \
 	    sort >> "build-info")
