@@ -602,7 +602,6 @@ clean_dirs() {
     for d in "$@"; do
 	(   mkdir -p "$d"
 	    cd "$d"
-	    chmod -R u+w .
 	    sudo rm -rf * )
     done
 }
