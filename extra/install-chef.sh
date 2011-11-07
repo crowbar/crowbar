@@ -200,7 +200,6 @@ case \$1 in
     *) echo "\$1: Not supported.";;
 esac   
 EOF
-    chmod 755 /etc/init.d/bluepill
 
     # enable the bluepill init script and disable the old sysv init scripts.
     if which chkconfig &>/dev/null; then
@@ -228,7 +227,8 @@ EOF
     mkdir -p /var/chef
     chown -R chef:chef /var/chef
     bluepill load /etc/bluepill/chef-server.pill
-    sleep 5
+    sleep 30
+    chmod 755 /etc/init.d/bluepill
 fi
 
 chef_or_die "Initial chef run failed"
