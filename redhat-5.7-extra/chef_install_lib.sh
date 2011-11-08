@@ -22,7 +22,7 @@ bring_up_chef() {
     log_to yum yum -q -y install rubygem-chef rubygem-kwalify
     service chef-client stop
     killall chef-client
-    log_to yum yum -q -y install rubygem-chef-server rubygem-kwalify \
+    log_to yum yum -q -y install rubygem-chef-server \
 	curl-devel ruby-shadow patch
 
     # Default password in chef webui to password
