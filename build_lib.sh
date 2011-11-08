@@ -519,7 +519,8 @@ update_barclamp_file_cache() {
 barclamp_pkg_cache_needs_update() {
     local pkg pkgname arch bcs=()
     local -A pkgs
-
+    
+    [[ $need_update = true || $FORCE_BARCLAMP_UPDATE["$1"] = true ]] && return 0
     # First, check to see if we have all the packages we need.
     for bc in $(all_deps "$1"); do
 	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" ]] && \

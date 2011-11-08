@@ -107,7 +107,7 @@ export CROWBAR_DIR
 # Arrays holding the additional pkgs and gems populate Crowbar with.
 REPOS=()
 
-declare -A CD_POOL STAGED_POOL INSTALLED_PKGS
+declare -A CD_POOL STAGED_POOL INSTALLED_PKGS FORCE_BARCLAMP_UPDATE
 
 # Get the OS we were asked to stage Crowbar on to.  Assume it is Ubuntu 10.10
 # unless we specify otherwise.
@@ -261,7 +261,14 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 		done
 		;;
 	    # Force an update of the cache
-	    update-cache|--update-cache) shift; need_update=true;;
+	    update-cache|--update-cache) shift;
+		need_update=true
+		while [[ $1 && $1 != -* ]]; do
+		    is_barclamp "$1" || \
+			die "Cannot update non-barclamp $1."
+		    FORCE_BARCLAMP_UPDATE["$1"]=true
+		    unset need_update || : &>/dev/null
+		done;;
 	    # Pull in additional barclamps.
 	    --barclamps)
 		shift
@@ -432,7 +439,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 		die "Asked to check $cache cache, but no checker function!"
 	    [[ $(type $updater) = "$updater is a function"* ]] || \
 		die "Might need to update $cache cache, but no updater!"
-	    if $checker "$bc" || [[ $need_update = true ]]; then
+	    if $checker "$bc"; then
 		[[ $ALLOW_CACHE_UPDATE = true ]] || \
 		    die "Need up update $cache cache for $bc, but updates are disabled."
 		debug "Updating $cache cache for $bc"
@@ -451,6 +458,10 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 	done	    
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
+
+    if [[ $ALLOW_CACHE_UPDATE != true && $CURRENT_CACHE_BRANCH ]]; then
+	echo "build-cache: $(get_rev "$CACHE_DIR")" >> "$BUILD_DIR/build-info"
+    fi
 
     (cd "$BUILD_DIR"
 	find extra/pkgs extra/gems extra/files -type f -print | \
