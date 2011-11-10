@@ -115,7 +115,7 @@ update_hostname || die "Could not update our hostname"
 log_to svc service rsyslog restart || :
 
 # Link the discovery image to an off-DVD location.
-(cd /tftpboot; ln -sf "${DVD_PATH#/tftpboot/}/discovery}"
+mv "${DVD_PATH}/discovery" "/tftpboot"
 
 echo "$(date '+%F %T %z'): Installing Basic Packages"
 install_base_packages || die "Base OS package installation failed."
