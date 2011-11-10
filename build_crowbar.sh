@@ -268,6 +268,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 			die "Cannot update non-barclamp $1."
 		    FORCE_BARCLAMP_UPDATE["$1"]=true
 		    unset need_update || : &>/dev/null
+		    shift
 		done;;
 	    # Pull in additional barclamps.
 	    --barclamps)
