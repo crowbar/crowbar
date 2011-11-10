@@ -606,16 +606,12 @@ run_admin_node() {
     done < "$LOOPDIR/isolinux/isolinux.cfg"
 
     # Fix up our paths to the initrd and the kernel
-    if [[ -d "$LOOPDIR/Server" ]]; then
-        # RHEL keeps its kernel and initrd in isolinux
-	kernel="$LOOPDIR/isolinux/$kernel"
-	initrd="$LOOPDIR/isolinux/$initrd"
-    else
-	# Uubntu does not.
-	kernel="$LOOPDIR/$kernel"
-	initrd="$LOOPDIR/$initrd"
-    fi
-
+    for d in "$LOOPDIR/isolinux" "$LOOPDIR"; do
+	[[ -f $d/$kernel && -f $d/$initrd ]] || continue
+	kernel="$d/$kernel"
+	initrd="$d/$initrd"
+	break
+    done
     [[ $kernel && -f $kernel && $kernel_params && $initrd && -f $initrd ]] || \
 	die "Could not find our kernel!"
 	# create our admin disk image
