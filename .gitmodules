@@ -1,60 +1,60 @@
 [submodule "barclamps/crowbar"]
 	path = barclamps/crowbar
-	url = http://github.com/dellcloudedge/barclamp-crowbar
+	url = http://github.com/dellcloudedge/barclamp-crowbar.git
 [submodule "barclamps/deployer"]
 	path = barclamps/deployer
-	url = http://github.com/dellcloudedge/barclamp-deployer
+	url = http://github.com/dellcloudedge/barclamp-deployer.git
 [submodule "barclamps/dns"]
 	path = barclamps/dns
-	url = http://github.com/dellcloudedge/barclamp-dns
+	url = http://github.com/dellcloudedge/barclamp-dns.git
 [submodule "barclamps/ganglia"]
 	path = barclamps/ganglia
-	url = http://github.com/dellcloudedge/barclamp-ganglia
+	url = http://github.com/dellcloudedge/barclamp-ganglia.git
 [submodule "barclamps/ipmi"]
 	path = barclamps/ipmi
-	url = http://github.com/dellcloudedge/barclamp-ipmi
+	url = http://github.com/dellcloudedge/barclamp-ipmi.git
 [submodule "barclamps/logging"]
 	path = barclamps/logging
-	url = http://github.com/dellcloudedge/barclamp-logging
+	url = http://github.com/dellcloudedge/barclamp-logging.git
 [submodule "barclamps/nagios"]
 	path = barclamps/nagios
-	url = http://github.com/dellcloudedge/barclamp-nagios
+	url = http://github.com/dellcloudedge/barclamp-nagios.git
 [submodule "barclamps/network"]
 	path = barclamps/network
-	url = http://github.com/dellcloudedge/barclamp-network
+	url = http://github.com/dellcloudedge/barclamp-network.git
 [submodule "barclamps/ntp"]
 	path = barclamps/ntp
-	url = http://github.com/dellcloudedge/barclamp-ntp
+	url = http://github.com/dellcloudedge/barclamp-ntp.git
 [submodule "barclamps/provisioner"]
 	path = barclamps/provisioner
-	url = http://github.com/dellcloudedge/barclamp-provisioner
+	url = http://github.com/dellcloudedge/barclamp-provisioner.git
 [submodule "barclamps/test"]
 	path = barclamps/test
-	url = http://github.com/dellcloudedge/barclamp-test
+	url = http://github.com/dellcloudedge/barclamp-test.git
 [submodule "barclamps/ubuntu-install"]
 	path = barclamps/ubuntu-install
-	url = http://github.com/dellcloudedge/barclamp-ubuntu-install
+	url = http://github.com/dellcloudedge/barclamp-ubuntu-install.git
 [submodule "barclamps/openstack"]
 	path = barclamps/openstack
-	url = https://github.com/dellcloudedge/barclamp-openstack
+	url = http://github.com/dellcloudedge/barclamp-openstack.git
 [submodule "barclamps/nova"]
 	path = barclamps/nova
-	url = https://github.com/dellcloudedge/barclamp-nova
+	url = http://github.com/dellcloudedge/barclamp-nova.git
 [submodule "barclamps/swift"]
 	path = barclamps/swift
-	url = https://github.com/dellcloudedge/barclamp-swift
+	url = http://github.com/dellcloudedge/barclamp-swift.git
 [submodule "barclamps/glance"]
 	path = barclamps/glance
-	url = https://github.com/dellcloudedge/barclamp-glance
+	url = http://github.com/dellcloudedge/barclamp-glance.git
 [submodule "barclamps/mysql"]
 	path = barclamps/mysql
-	url = http://github.com/dellcloudedge/barclamp-mysql
+	url = http://github.com/dellcloudedge/barclamp-mysql.git
 [submodule "barclamps/keystone"]
 	path = barclamps/keystone
-	url = http://github.com/dellcloudedge/barclamp-keystone
+	url = http://github.com/dellcloudedge/barclamp-keystone.git
 [submodule "barclamps/kong"]
 	path = barclamps/kong
 	url = http://github.com/dellcloudedge/barclamp-kong.git
 [submodule "barclamps/nova_dashboard"]
 	path = barclamps/nova_dashboard
-	url = http://github.com/dellcloudedge/barclamp-nova_dashboard
+	url = http://github.com/dellcloudedge/barclamp-nova_dashboard.git

@@ -526,12 +526,14 @@ barclamp_pkg_cache_needs_update() {
 	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" ]] && \
 	    bcs+=("$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs")
     done
-    while read pkg; do
-	is_pkg "$pkg" || continue
-	pkgname="$(pkg_name "$pkg")"
+    if [[ ${bcs[*]} ]]; then
+	while read pkg; do
+	    is_pkg "$pkg" || continue
+	    pkgname="$(pkg_name "$pkg")"
 	#debug "$pkgname is cached"
-	pkgs["$pkgname"]="$pkg"
-    done < <(find "${bcs[@]}" -type f) 
+	    pkgs["$pkgname"]="$pkg"
+	done < <(find "${bcs[@]}" -type f)
+    fi 
     for pkg in ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]}; do
 	[[ $pkg ]] || continue
 	for arch in "${PKG_ALLOWED_ARCHES[@]}"; do
