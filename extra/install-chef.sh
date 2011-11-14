@@ -120,10 +120,14 @@ mv "${DVD_PATH}/discovery" "/tftpboot"
 echo "$(date '+%F %T %z'): Installing Basic Packages"
 install_base_packages || die "Base OS package installation failed."
 
+mkdir -p /tftpboot/gemsite/gems
+find /tftpboot -path '*/gems/*.gem' -not -path '*/gemsite/*' \
+    -exec mv '{}' /tftpboot/gemsite/gems ';'
+
 # This is ugly, but there does not seem to be a better way
 # to tell Chef to just look in a specific location for its gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
-(   cd $DVD_PATH/extra/gems
+(   cd /tftpboot/gemsite/gems
     for gem in builder json net-http-digest_auth activesupport i18n \
 	daemons bluepill; do
 	gem install --local --no-ri --no-rdoc $gem-*.gem
@@ -154,6 +158,7 @@ if [[ ! -f /var/log/rubygems-server.log ]]; then
     >/var/log/rubygems-server.log
     chown nobody /var/log/rubygems-server.log
 fi
+
 bluepill load /etc/bluepill/rubygems-server.pill
 sleep 5
 
