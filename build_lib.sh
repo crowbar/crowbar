@@ -343,7 +343,7 @@ stage_pkgs() {
     # $1 = cache to copy from.
     # $2 = location to copy to
     local pkg pkgname pkg_t
-    local -A to_copy
+    local -A to_copy STAGED_POOL
     while read pkg; do
 	# If it is not a package, skip it.
 	is_pkg "$pkg" || continue

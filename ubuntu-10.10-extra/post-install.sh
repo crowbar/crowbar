@@ -30,7 +30,7 @@
 mkdir -p /target/tftpboot/ubuntu_dvd/extra
 cp /cdrom/extra/common_install.sh /target/tftpboot/ubuntu_dvd/extra
 cd /cdrom
-/bin/tar -cf /target/tftpboot/ubuntu_dvd/dvd.tar .
+cp -a . /target/tftpboot/ubuntu_dvd
 
 mount /proc /target/proc
 chroot /target bash /tftpboot/ubuntu_dvd/extra/common_install.sh

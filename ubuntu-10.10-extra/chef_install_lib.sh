@@ -1,14 +1,25 @@
 #!/bin/bash
 # Ubuntu specific chef install functionality
 DVD_PATH="/tftpboot/ubuntu_dvd"
-
+OS_TOKEN="ubuntu-10.10"
 update_hostname() { update_hostname.sh $FQDN; }
 
 install_base_packages() {
-    cp sources-cdrom.list /etc/apt/sources.list
     cp apt.conf /etc/apt
     log_to apt sed -i "s/__HOSTNAME__/$FQDN/g" ./debsel.conf
     log_to apt /usr/bin/debconf-set-selections ./debsel.conf
+     # First, make a repo for crowbar-extras
+    apt-get -y install dpkg-dev
+    mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra"
+    (cd "/tftpboot/$OS_TOKEN/crowbar-extra";
+	# Find all the staged barclamps
+	for bc in "/opt/dell/barclamps/"*; do
+	    [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
+	    # Link them in.
+	    ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
+	done
+	dpkg-scanpackages . |gzip -9 >Packages.gz)
+    echo "deb file:/tftpboot/$OS_TOKEN/crowbar-extra /" >>/etc/apt/sources.list
     log_to apt apt-get update
     log_to apt apt-get -y remove apparmor
     log_to apt apt-get -y install rubygems gcc ruby \

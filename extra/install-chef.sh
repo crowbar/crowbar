@@ -120,9 +120,10 @@ mv "${DVD_PATH}/discovery" "/tftpboot"
 echo "$(date '+%F %T %z'): Installing Basic Packages"
 install_base_packages || die "Base OS package installation failed."
 
+# Lift the gems off the install media for easy file serving.
 mkdir -p /tftpboot/gemsite/gems
-find /tftpboot -path '*/gems/*.gem' -not -path '*/gemsite/*' \
-    -exec mv '{}' /tftpboot/gemsite/gems ';'
+find "/opt/dell/barclamps" -path '*/gems/*.gem' \
+    -exec ln -sf '{}' /tftpboot/gemsite/gems ';'
 
 # This is ugly, but there does not seem to be a better way
 # to tell Chef to just look in a specific location for its gems.
