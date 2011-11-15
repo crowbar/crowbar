@@ -282,6 +282,9 @@ fix_up_os_deployer || die "Unable to fix up OS deployer"
 
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
+mkdir -p "/opt/dell/bin"
+(cd "$DVD_PATH/extra"; cp barclamp* /opt/dell/bin)
+
 # Always run crowbar barclamp first
 echo "$(date '+%F %T %z'): Installing the Crowbar barclamp for bootstrapping"
 log_to bcinstall /opt/dell/bin/barclamp_install.rb \
