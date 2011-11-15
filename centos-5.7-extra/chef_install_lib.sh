@@ -8,8 +8,6 @@ update_hostname() {
 }
 
 install_base_packages() {
-    (cd "$DVD_PATH"; ln -sf . Server)
-
     yum -q -y install createrepo
     # Make our local cache
     mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra"
