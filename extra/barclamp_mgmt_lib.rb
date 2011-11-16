@@ -40,8 +40,11 @@ DEBUG = ENV['DEBUG'] === "true"
 def bc_install(bc, path, barclamp)
   case barclamp["crowbar"]["layout"].to_i
   when 1
+    puts "Installing app components" if DEBUG
     bc_install_layout_1_app bc, path, barclamp
+    puts "Installing chef components" if DEBUG
     bc_install_layout_1_chef bc, path, barclamp
+    puts "Installing cache components" if DEBUG
     bc_install_layout_1_cache bc, path, barclamp
   else
     throw "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
@@ -457,35 +460,32 @@ end
 
 def bc_install_layout_1_cache(bc,path,barclamp)
   return unless File.directory?(File.join(path,"cache"))
+  puts path
   Dir.entries(File.join(path,"cache")).each do |ent|
     case
-    when ent == '.' or ent == '..'
-      # Skip the . and .. entries
-      next
-    when ent == "files"
-      # This should really create a matching forest
-      # of symlinks, but I am too lazy to reimplement GNU stow here.
-      system "cp -r #{path}/#{ent} /tftpboot"
+    when ent == "files" 
+      system "cp -r #{path}/cache/#{ent} /tftpboot"
     when ent == "gems"
       # Symlink the gems into One Flat Directory.
-      Dir.entries("#{path}/#{gems}").each do |gem|
+      Dir.entries("#{path}/cache/gems").each do |gem|
         next unless /\.gem$/ =~ gem
-        unless File.directory?("/tftboot/gemsite/gems")
-          Dir.mkdir("/tftboot/gemsite/gems")
+        unless File.directory?("/tftpboot/gemsite/gems")
+          system "mkdir -p /tftpboot/gemsite/gems"
         end
         unless File.symlink? "/tftpboot/gemsite/gems/#{gem}"
-          File.symlink "#{path}/gems/#{gem}" "/tftpboot/gemsite/gems/#{gem}"
+          File.symlink "#{path}/cache/gems/#{gem}" "/tftpboot/gemsite/gems/#{gem}"
         end
       end
-    when File.directory?("#{path}/#{ent}/pkgs")
+    when File.directory?("#{path}/cache/#{ent}/pkgs")
       # We have actual packages here.  They map into the target like so:
       # path/ent/pkgs -> /tftboot/ent/crowbar-extras/bc
       unless File.directory?("/tftpboot/#{ent}/crowbar-extra/")
         system "mkdir -p \"/tftpboot/#{ent}/crowbar-extra/"
       end
-      unless File.symlink? "/tftpboot/#{ent}/crowbar-extra/#{bc}"
-        File.symlink("#{path}/#{ent}/pkgs" "/tftpboot/#{ent}/crowbar-extra/#{bc}")
+      # sigh, ubuntu-install and redhat-install.
+      unless File.symlink? "/tftpboot/#{ent}/crowbar-extra/#{path.split("/")[-1]}"
+        File.symlink("#{path}/cache/#{ent}/pkgs" "/tftpboot/#{ent}/crowbar-extra/#{path.split('/')[-1]}")
       end
     end
-  end         
+  end 
 end

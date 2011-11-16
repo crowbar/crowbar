@@ -67,14 +67,15 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   begin
     unless /^\/opt\/dell\/barclamps\// =~ bc[:src]
       system "rsync -r \"#{bc[:src]}/\" \"/opt/dell/barclamps/#{bc[:name]}\""
+      bc[:src] = "/opt/dell/barclamps/#{bc[:name]}"
     end
-    bc_install bc[:name],"/opt/dell/barclamps/#{bc[:name]}",bc[:yaml]
+    bc_install bc[:name],bc[:src],bc[:yaml]
   rescue
     puts "Install of #{bc[:name]} failed."
-    system "rm -rf #{tmpdir}" if File.directory(tmpdir)
+    system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
     exit -3
   end
 end
-system "rm -rf #{tmpdir}" if File.directory(tmpdir)
+system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
 
 exit 0
