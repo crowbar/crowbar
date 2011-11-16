@@ -460,7 +460,6 @@ end
 
 def bc_install_layout_1_cache(bc,path,barclamp)
   return unless File.directory?(File.join(path,"cache"))
-  puts path
   Dir.entries(File.join(path,"cache")).each do |ent|
     case
     when ent == "files" 

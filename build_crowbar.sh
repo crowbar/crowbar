@@ -461,6 +461,10 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 	done
 	# Tar up the barclamp
 	(   cd "$BUILD_DIR/dell/barclamps"
+	    # Make sure we sha1sum everything
+	    (   cd "$bc"
+		find -type f -not -name sha1sums -print0 | \
+		    xargs -0 sha1sum -b >sha1sums )
 	    tar cf - "$bc" |gzip -9 >"$bc.tar.gz"
 	    rm -rf "$bc")
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"

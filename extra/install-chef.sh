@@ -287,7 +287,7 @@ mkdir -p "/opt/dell/bin"
 (cd "$DVD_PATH/extra"; cp barclamp* /opt/dell/bin)
 
 # Always run crowbar barclamp first
-echo "$(date '+%F %T %z'): Installing the Crowbar barclamp for bootstrapping"
+echo "$(date '+%F %T %z'): Installing Barclamps"
 log_to bcinstall /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/* || \
     die "Could not install barclamps."
 
