@@ -150,6 +150,7 @@ mkdir -p /etc/bluepill
 
 # Copy all our pills to 
 cp "$DVD_PATH/extra/"*.pill /etc/bluepill 
+cp "$DVD_PATH/extra/chef-client.pill" /tftpboot
 
 # Fire up a Webrick instance on port 3001 to serve gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be served from port 3001"
@@ -287,14 +288,8 @@ mkdir -p "/opt/dell/bin"
 
 # Always run crowbar barclamp first
 echo "$(date '+%F %T %z'): Installing the Crowbar barclamp for bootstrapping"
-log_to bcinstall /opt/dell/bin/barclamp_install.rb \
-    "/opt/dell/barclamps/crowbar" || \
-    die "Could not install crowbar barclamp."
-
-# Install all the barclamps IN ORDER (bootstrap flag skips Crowbar barclamp)
-echo "$(date '+%F %T %z'): Installing framework barclamps"
-log_to bcinstall /opt/dell/bin/barclamp_multi.rb bootstrap || \
-  die "Could not install barclamps using Multi installer."
+log_to bcinstall /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/* || \
+    die "Could not install barclamps."
 
 echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
