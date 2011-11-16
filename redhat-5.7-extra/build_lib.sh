@@ -78,6 +78,7 @@ enabled=1
 gpgcheck=0
 EOF
     sudo cp "$repo" "$CHROOT/etc/yum.repos.d/"
+    rm "$repo"
 }
 
 # Add repositories to the chroot environment.
@@ -91,7 +92,8 @@ add_repos() {
 		f="$(mktemp /tmp/tmp-XXXXXX.rpm)"
 		curl -o "$f" "$rdest"
 		sudo cp "$f" "$CHROOT/tmp"
-	         in_chroot /bin/rpm -Uvh "$f";;
+	        in_chroot /bin/rpm -Uvh "$f"
+		rm "$f";;
 	    bare) make_repo_file $rdest;;
 	esac
     done
@@ -174,6 +176,22 @@ __make_chroot() {
     # Make sure yum does not throw away our caches for any reason.
     in_chroot /bin/sed -i -e '/keepcache/ s/0/1/' /etc/yum.conf
     in_chroot /bin/bash -c "echo 'exclude = *.i386' >>/etc/yum.conf"
+
+    [[ $USE_PROXY = "1" ]] && (   
+	cd "$CHROOT"
+	for f in etc/yum.repos.d/*; do
+	    [[ -f "$f" ]] || continue 
+	    in_chroot /bin/grep -q '^proxy=' "/$f" && continue
+	    in_chroot /bin/grep -q '^baseurl=http://.*127\.0\.0\.1.*' "/$f" && \
+		continue
+	    in_chroot sed -i "/^name/ a\proxy=http://$PROXY_HOST:$PROXY_PORT" "$f"
+	    [[ $PROXY_USER ]] && \
+		in_chroot sed -i "/^proxy/ a\proxy_username=$PROXY_USER" "$f"
+	    [[ $PROXY_PASSWORD ]] && \
+	        in_chroot sed -i "^/proxy_username/ a\proxy_password=$PROXY_PASSWORD" "$f"
+	    : ;
+	done
+    )
 
     # have yum bootstrap everything else into usefulness
     chroot_install yum yum-downloadonly createrepo

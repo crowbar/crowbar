@@ -1,17 +1,34 @@
 #!/bin/bash
 # Redhat specific chef install functionality
 DVD_PATH="/tftpboot/redhat_dvd"
-
+OS_TOKEN="redhat-5.7"
 update_hostname() {
     update_hostname.sh $FQDN
     source /etc/sysconfig/network
 }
 
 install_base_packages() {
+    yum -q -y install createrepo
+    # Make our local cache
+    mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra"
+    (cd "/tftpboot/$OS_TOKEN/crowbar-extra";
+	# Find all the staged barclamps
+	for bc in "/opt/dell/barclamps/"*; do
+	    [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
+	    # Link them in.
+	    ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
+	done
+	createrepo -d -q .)
+    cat >/etc/yum.repos.d/crowbar-xtras.repo <<EOF
+[crowbar-xtras]
+name=Crowbar Extra Packages
+baseurl=file:///tftpboot/$OS_TOKEN/crowbar-extra
+gpgcheck=0
+EOF
+
     # Make sure we only try to install x86_64 packages.
     echo 'exclude = *.i386' >>/etc/yum.conf
 
-    echo "$(date '+%F %T %z'): Installing "
     log_to yum yum -q -y update
 
     # Install the rpm and gem packages

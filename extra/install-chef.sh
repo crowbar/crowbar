@@ -120,10 +120,15 @@ mv "${DVD_PATH}/discovery" "/tftpboot"
 echo "$(date '+%F %T %z'): Installing Basic Packages"
 install_base_packages || die "Base OS package installation failed."
 
+# Lift the gems off the install media for easy file serving.
+mkdir -p /tftpboot/gemsite/gems
+find "/opt/dell/barclamps" -path '*/gems/*.gem' \
+    -exec ln -sf '{}' /tftpboot/gemsite/gems ';'
+
 # This is ugly, but there does not seem to be a better way
 # to tell Chef to just look in a specific location for its gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
-(   cd $DVD_PATH/extra/gems
+(   cd /tftpboot/gemsite/gems
     for gem in builder json net-http-digest_auth activesupport i18n \
 	daemons bluepill; do
 	gem install --local --no-ri --no-rdoc $gem-*.gem
@@ -145,6 +150,7 @@ mkdir -p /etc/bluepill
 
 # Copy all our pills to 
 cp "$DVD_PATH/extra/"*.pill /etc/bluepill 
+cp "$DVD_PATH/extra/chef-client.pill" /tftpboot
 
 # Fire up a Webrick instance on port 3001 to serve gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be served from port 3001"
@@ -154,6 +160,7 @@ if [[ ! -f /var/log/rubygems-server.log ]]; then
     >/var/log/rubygems-server.log
     chown nobody /var/log/rubygems-server.log
 fi
+
 bluepill load /etc/bluepill/rubygems-server.pill
 sleep 5
 
@@ -276,16 +283,13 @@ fix_up_os_deployer || die "Unable to fix up OS deployer"
 
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
-# Always run crowbar barclamp first
-echo "$(date '+%F %T %z'): Installing the Crowbar barclamp for bootstrapping"
-log_to bcinstall /opt/dell/bin/barclamp_install.rb \
-    "/opt/dell/barclamps/crowbar" || \
-    die "Could not install crowbar barclamp."
+mkdir -p "/opt/dell/bin"
+(cd "$DVD_PATH/extra"; cp barclamp* /opt/dell/bin)
 
-# Install all the barclamps IN ORDER (bootstrap flag skips Crowbar barclamp)
-echo "$(date '+%F %T %z'): Installing framework barclamps"
-log_to bcinstall /opt/dell/bin/barclamp_multi.rb bootstrap || \
-  die "Could not install barclamps using Multi installer."
+# Always run crowbar barclamp first
+echo "$(date '+%F %T %z'): Installing Barclamps"
+log_to bcinstall /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/* || \
+    die "Could not install barclamps."
 
 echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
