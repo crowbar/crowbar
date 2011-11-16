@@ -24,19 +24,6 @@ EOF
 
 # for CentOS.
 (cd "$BASEDIR"; [[ -d Server ]] || ln -sf . Server)
-# If we have Sun/Oracle java packages, extract their RPMs
-# into our pool.
-
-# Skip until rework is finished.
-#(   cd "$BASEDIR/extra/files/java"
-#    for f in jdk*x64-rpm.bin; do
-#        [[ -f $f ]] || continue
-#        chmod 755 "$f"
-#        "./$f" -x  # just extract the RPM files.
-#    done
-#    mkdir -p "$BASEDIR/extra/pkgs/oracle_java"
-#    mv *.rpm "$BASEDIR/extra/pkgs/oracle_java"
-#)
 
 # We prefer rsyslog.
 yum -y install rsyslog
@@ -71,8 +58,23 @@ mkdir /opt/dell/barclamps
 for i in "$BASEDIR/dell/barclamps/"*".tar.gz"; do
     [[ -f $i ]] || continue
     ( cd "/opt/dell/barclamps"; tar xzf "$i"; )
-    echo "copy new format $i"
 done
+
+# If we have Sun/Oracle java packages, extract their RPMs
+# into our pool.
+
+# This eventually needs to migrate into barclamp_mgmt_lib.rb
+find /opt/dell/barclamps -name 'jdk*x64-rpm.bin' |while read jdk; do
+    [[ -f /tmp/${jdk##*/} ]] && continue
+    cp "$jdk" /tmp
+    jdk=${jdk##*/}
+    (   cd /tmp
+	chmod 755 "$jdk"
+	"./$jdk" -x
+	mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra/oracle-java"
+	mv *.rpm "/tftpboot/$OS_TOKEN/crowbar-extra/oracle-java" )
+done
+rm -f /tmp/jdk*x64-rpm.bin
 
 barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
 ( cd "/opt/dell/barclamps/crowbar/bin"; \
