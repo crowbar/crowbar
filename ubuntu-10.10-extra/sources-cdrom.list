@@ -1,2 +1,2 @@
 deb file:/tftpboot/ubuntu_dvd maverick main restricted
-deb file:/tftpboot/ubuntu_dvd/extra /
+
