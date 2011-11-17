@@ -49,9 +49,6 @@
 [submodule "barclamps/mysql"]
 	path = barclamps/mysql
 	url = http://github.com/dellcloudedge/barclamp-mysql.git
-[submodule "barclamps/keystone"]
-        path = barclamps/keystone
-        url = http://github.com/dellcloudedge/barclamp-keystone.git
 [submodule "barclamps/kong"]
         path = barclamps/kong
         url = http://github.com/dellcloudedge/barclamp-kong.git
@@ -61,3 +58,6 @@
 [submodule "barclamps/openstack"]
 	path = barclamps/openstack
 	url = http://github.com/dellcloudedge/barclamp-openstack.git
+[submodule "barclamps/keystone"]
+	path = barclamps/keystone
+	url = http://github.com/dellcloudedge/barclamp-keystone.git
