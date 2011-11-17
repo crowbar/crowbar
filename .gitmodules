@@ -61,4 +61,3 @@
 [submodule "barclamps/nova_dashboard"]
         path = barclamps/nova_dashboard
         url = http://github.com/dellcloudedge/barclamp-nova_dashboard.git
-
