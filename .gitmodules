@@ -50,8 +50,8 @@
         path = barclamps/glance
         url = http://github.com/dellcloudedge/barclamp-glance.git
 [submodule "barclamps/mysql"]
-        path = barclamps/mysql
-        url = http://github.com/dellcloudedge/barclamp-mysql.git
+	path = barclamps/mysql
+	url = http://github.com/dellcloudedge/barclamp-mysql.git
 [submodule "barclamps/keystone"]
         path = barclamps/keystone
         url = http://github.com/dellcloudedge/barclamp-keystone.git
