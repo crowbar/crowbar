@@ -1,62 +1,80 @@
 #!/bin/bash
-# Copyright 2011, Dell
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#  http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
+cat <<EOF >/etc/sysconfig/network-scripts/ifcfg-eth0
+DEVICE=eth0
+BOOTPROTO=none
+ONBOOT=yes
+NETMASK=255.255.255.0
+IPADDR=192.168.124.10
+GATEWAY=192.168.124.1
+TYPE=Ethernet
+EOF
 
-#
-# This script is called by the other install scripts to layout the crowbar
-# software + dell pieces.
-#
-# Requires:
-# /tftpboot/ubuntu_dvd is populated with a tarball of the dvd and this file.
-#
+(cd /etc/yum.repos.d && rm *)
 
-export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
-set -x
-exec > /root/post-install.log 2>&1
+(   mkdir -p "/tftpboot/$OS_TOKEN"
+    cd "/tftpboot/$OS_TOKEN"
+    ln -s ../redhat_dvd install) 
 
-BASEDIR="/tftpboot/ubuntu_dvd"
-OS_TOKEN="ubuntu-10.10"
+cat >"/etc/yum.repos.d/$OS_TOKEN-Base.repo" <<EOF
+[$OS_TOKEN-Base]
+name=$OS_TOKEN Base
+baseurl=file:///tftpboot/$OS_TOKEN/install/Server
+gpgcheck=0
+EOF
+
+# for CentOS.
+(cd "$BASEDIR"; [[ -d Server ]] || ln -sf . Server)
+
+# We prefer rsyslog.
+yum -y install rsyslog
+chkconfig syslog off
+chkconfig rsyslog on
+
+# Make sure rsyslog picks up our stuff
+echo '$IncludeConfig /etc/rsyslog.d/*.conf' >>/etc/rsyslog.conf
+mkdir -p /etc/rsyslog.d/
+
+# Make runlevel 3 the default
+sed -i -e '/^id/ s/5/3/' /etc/inittab
 
 # Make sure /opt is created
 mkdir -p /opt/dell/bin
-
-mkdir -p "/tftpboot/$OS_TOKEN"
-(cd "/tftpboot/$OS_TOKEN"; ln -s ../ubuntu_dvd install)
-echo "deb file:/tftpboot/$OS_TOKEN/install maverick main restricted" \
-    > /etc/apt/sources.list
-
+        
 # Make a destination for dell finishing scripts
-
+    
 finishing_scripts=(update_hostname.sh parse_node_data)
 ( cd "$BASEDIR/dell"; cp "${finishing_scripts[@]}" /opt/dell/bin; )
-
+    
 # "Install h2n for named management"
 cd /opt/dell/
 tar -zxf "$BASEDIR/extra/h2n.tar.gz"
 ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n
-
-# Set up initial syslog
+        
+# put the chef files in place
 cp "$BASEDIR/rsyslog.d/"* /etc/rsyslog.d/
-
+    
 # Barclamp preparation (put them in the right places)
 mkdir /opt/dell/barclamps
 for i in "$BASEDIR/dell/barclamps/"*".tar.gz"; do
     [[ -f $i ]] || continue
-	(cd /opt/dell/barclamps && tar xzf "$i")
-	echo "copy new format $i"
+    ( cd "/opt/dell/barclamps"; tar xzf "$i"; )
 done
+
+# If we have Sun/Oracle java packages, extract their RPMs
+# into our pool.
+
+# This eventually needs to migrate into barclamp_mgmt_lib.rb
+find /opt/dell/barclamps -name 'jdk*x64-rpm.bin' |while read jdk; do
+    [[ -f /tmp/${jdk##*/} ]] && continue
+    cp "$jdk" /tmp
+    jdk=${jdk##*/}
+    (   cd /tmp
+	chmod 755 "$jdk"
+	"./$jdk" -x
+	mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra/oracle-java"
+	mv *.rpm "/tftpboot/$OS_TOKEN/crowbar-extra/oracle-java" )
+done
+rm -f /tmp/jdk*x64-rpm.bin
 
 barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
 ( cd "/opt/dell/barclamps/crowbar/bin"; \
@@ -65,9 +83,16 @@ barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
 
+# This directory is the model to help users create new barclamps
+cp -r /opt/dell/barclamps/crowbar/crowbar_framework/barclamp_model /opt/dell
+
+# "Blacklisting IPv6".
+echo "blacklist ipv6" >>/etc/modprobe.d/blacklist-ipv6.conf
+echo "options ipv6 disable=1" >>/etc/modprobe.d/blacklist-ipv6.conf
+    
 # Make sure the ownerships are correct
 chown -R crowbar.admin /opt/dell
-
+    
 # Look for any crowbar specific kernel parameters
 for s in $(cat /proc/cmdline); do
     VAL=${s#*=} # everything after the first =
@@ -75,7 +100,7 @@ for s in $(cat /proc/cmdline); do
 	crowbar.hostname) CHOSTNAME=$VAL;;
 	crowbar.url) CURL=$VAL;;
 	crowbar.use_serial_console) 
-            sed -i "s/\"use_serial_console\": .*,/\"use_serial_console\": $VAL,/" /opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json;;
+	    sed -i "s/\"use_serial_console\": .*,/\"use_serial_console\": $VAL,/" /opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json;;
 	crowbar.debug.logdest) 
 	    echo "*.*    $VAL" >> /etc/rsyslog.d/00-crowbar-debug.conf
 	    mkdir -p "$BASEDIR/rsyslog.d"
@@ -91,24 +116,14 @@ for s in $(cat /proc/cmdline); do
 		-e '/config.logger.level/ s/^#//' \
 		/opt/dell/barclamps/crowbar/crowbar_framework/config/environments/production.rb
 	    ;;
-
     esac
 done
 
-if ! grep -q '192\.168\.124\.10' /etc/network/interfaces; then
-    cat >> /etc/network/interfaces <<EOF
-auto eth0
-iface eth0 inet static
-    address 192.168.124.10
-    netmask 255.255.255.0
-EOF
-fi
-
-if [[ $CHOSTNAME ]]; then
+if [[ $CHOSTNAME ]]; then	
     cat > /install_system.sh <<EOF
 #!/bin/bash
 set -e
-cd /tftpboot/ubuntu_dvd/extra
+cd /tftpboot/redhat_dvd/extra
 ./install $CHOSTNAME
 
 rm -f /etc/rc2.d/S99install
@@ -118,10 +133,11 @@ rm -f /etc/rc5.d/S99install
 rm -f /install_system.sh
 
 EOF
-
+    
     chmod +x /install_system.sh
     ln -s /install_system.sh /etc/rc3.d/S99install
     ln -s /install_system.sh /etc/rc5.d/S99install
     ln -s /install_system.sh /etc/rc2.d/S99install
     
 fi
+ 

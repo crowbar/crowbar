@@ -410,7 +410,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 	done)
 
     # Make additional directories we will need.
-    for d in discovery extra; do
+    for d in discovery extra/pkgs extra/files; do
 	mkdir -p "$BUILD_DIR/$d"
     done
 
@@ -450,22 +450,32 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 	done
 	cp -r "$CROWBAR_DIR/barclamps/$bc" "$BUILD_DIR/dell/barclamps"
 	(cd "$BUILD_DIR/dell/barclamps/$bc"; [[ -d .git ]] && rm -rf .git)
-	mkdir -p "$BUILD_DIR/extra/pkgs/"
+	# Stage cached packages with the barclamp.
+	mkdir -p "$BUILD_DIR/dell/barclamps/$bc/cache/$OS_TOKEN/pkgs"
 	stage_pkgs "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
-	    "$BUILD_DIR/extra/pkgs"
+	    "$BUILD_DIR/dell/barclamps/$bc/cache/$OS_TOKEN/pkgs"
 	for f in files gems; do
 	    [[ -d "$CACHE_DIR/barclamps/$bc/$f" ]] || continue
-	    cp -r "$CACHE_DIR/barclamps/$bc/$f" "$BUILD_DIR/extra"
-	done	    
+	    cp -r "$CACHE_DIR/barclamps/$bc/$f" \
+		"$BUILD_DIR/dell/barclamps/$bc/cache"
+	done
+	# Tar up the barclamp
+	(   cd "$BUILD_DIR/dell/barclamps"
+	    # Make sure we sha1sum everything
+	    (   cd "$bc"
+		find -type f -not -name sha1sums -print0 | \
+		    xargs -0 sha1sum -b >sha1sums )
+	    tar cf - "$bc" |gzip -9 >"$bc.tar.gz"
+	    rm -rf "$bc")
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
-
+    
     if [[ $ALLOW_CACHE_UPDATE != true && $CURRENT_CACHE_BRANCH ]]; then
 	echo "build-cache: $(get_rev "$CACHE_DIR")" >> "$BUILD_DIR/build-info"
     fi
 
     (cd "$BUILD_DIR"
-	find extra/pkgs extra/gems extra/files -type f -print | \
+	find extra dell -type f -print | \
 	    sort >> "build-info")
     # Make sure we still provide the legacy ami location
     (cd "$BUILD_DIR"; ln -sf extra/files/ami)

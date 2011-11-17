@@ -92,7 +92,8 @@ add_repos() {
 		f="$(mktemp /tmp/tmp-XXXXXX.rpm)"
 		curl -o "$f" "$rdest"
 		sudo cp "$f" "$CHROOT/tmp"
-	         in_chroot /bin/rpm -Uvh "$f";;
+		rm "$f"
+	        in_chroot /bin/rpm -Uvh "$f";;
 	    bare) make_repo_file $rdest;;
 	esac
     done
