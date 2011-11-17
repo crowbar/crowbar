@@ -37,9 +37,6 @@
 [submodule "barclamps/redhat-install"]
 	path = barclamps/redhat-install
 	url = http://github.com/dellcloudedge/barclamp-redhat-install.git
-[submodule "barclamps/openstack"]
-	path = barclamps/openstack
-	url = http://github.com/dellcloudedge/barclamp-openstack.git
 [submodule "barclamps/nova"]
         path = barclamps/nova
         url = http://github.com/dellcloudedge/barclamp-nova.git
@@ -61,3 +58,6 @@
 [submodule "barclamps/nova_dashboard"]
         path = barclamps/nova_dashboard
         url = http://github.com/dellcloudedge/barclamp-nova_dashboard.git
+[submodule "barclamps/openstack"]
+	path = barclamps/openstack
+	url = http://github.com/dellcloudedge/barclamp-openstack.git
