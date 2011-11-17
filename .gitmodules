@@ -37,6 +37,3 @@
 [submodule "barclamps/redhat-install"]
 	path = barclamps/redhat-install
 	url = http://github.com/dellcloudedge/barclamp-redhat-install.git
-[submodule "barclamps/openstack"]
-	path = barclamps/openstack
-	url = http://github.com/dellcloudedge/barclamp-openstack.git
