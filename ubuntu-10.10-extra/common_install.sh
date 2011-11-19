@@ -65,6 +65,9 @@ barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
 
+# Make sure we can actaully install Crowbar
+chmod +x "$BASEDIR/extra/"*
+
 # Make sure the ownerships are correct
 chown -R crowbar.admin /opt/dell
 
