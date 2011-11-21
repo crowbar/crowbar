@@ -9,7 +9,7 @@
         "ipmi", 
         "network", 
         "provisioner",
-        "ubuntu_install",  
+        "redhat_install",  
         "ntp", 
         "dns", 
         "nagios", 
@@ -24,7 +24,7 @@
       ],
       "run_order": {
         "deployer": 10,
-	"ubuntu_install": 14,
+	"redhat_install": 14,
         "ipmi": 17,
         "network": 20,
         "dns": 30,
@@ -37,7 +37,7 @@
       "instances": {
         "deployer": [ "default" ],
         "ipmi": [ "default" ],
-        "ubuntu_install": [ "default" ],
+        "redhat_install": [ "default" ],
         "provisioner": [ "default" ],
         "network": [ "default" ],
         "ntp": [ "default" ],
