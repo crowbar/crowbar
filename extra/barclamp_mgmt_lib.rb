@@ -54,34 +54,38 @@ end
 
 # regenerate the barclamp catalog (does a complete regen each install)
 def catalog(path)
+  puts "Creating catalog in #{path}" if DEBUG
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
   cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
   list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
   # scan the installed barclamps
   list.each do |bc_file|
+    puts "Loading #{bc_file}" if DEBUG
     bc = YAML.load_file File.join(barclamps, bc_file)
     name =  bc['barclamp']['name']
     cat['barclamps'][name] = {} if cat['barclamps'][name].nil?
     description = bc['barclamp']['description']
     if description.nil?
-      schema = File.join(path, '..', name, 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json")
-      # second try based on different name pattern
-      schema = File.join(path, '..', "barclamp-#{name}", 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json") unless File.exist? schema
-      if File.exist? schema 
-        s = JSON::load File.open(schema, 'r')
+      puts "Trying to find description" if DEBUG
+      [ File.join(path, '..', name, 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
+        File.join(path, '..', "barclamp-#{name}", 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json")].each do |f|
+        next unless File.exist? f
+        s = JSON::load File.open(f, 'r')
         description = s['description'] unless s.nil?
+	break if description
       end
     end
-    # template = File.join path, name, 
-    cat['barclamps'][name]['description'] = description
-    cat['barclamps'][name]['user_managed'] = (bc['barclamp']['user_managed'].nil? ? true : bc['barclamp']['user_managed'])
+    # template = File.join path, name,
+    puts "Adding catalog info for #{bc['barclamp']['name']}" if DEBUG 
+    cat['barclamps'][name]['description'] = description || "No description for #{bc['barclamp']['name']}"
+    cat['barclamps'][name]['user_managed'] = (bc['barclamp']['user_managed'].nil? ? true : bc['barclamp']['user_managed']) 
     puts "#{name} #{bc['barclamp']['user_managed']}" if name === 'dell-branding'
     bc['barclamp']['member'].each do |meta|
       cat['barclamps'][meta] = {} if cat['barclamps'][meta].nil?
       cat['barclamps'][meta]['members'] = {} if cat['barclamps'][meta]['members'].nil?
       cat['barclamps'][meta]['members'][name] = bc['crowbar']['order']
-    end
+    end if bc['barclamp']['member']
   end
   File.open( File.join(CROWBAR_PATH, 'config', 'catalog.yml'), 'w' ) do |out|
     YAML.dump( cat, out )
@@ -461,30 +465,39 @@ end
 def bc_install_layout_1_cache(bc,path,barclamp)
   return unless File.directory?(File.join(path,"cache"))
   Dir.entries(File.join(path,"cache")).each do |ent|
+    puts ent.inspect if DEBUG
     case
-    when ent == "files" 
-      system "cp -r #{path}/cache/#{ent} /tftpboot"
+    when ent == "files"
+      puts "Copying files" if DEBUG  
+      system "cp -r \"#{path}/cache/#{ent}\" /tftpboot"
     when ent == "gems"
       # Symlink the gems into One Flat Directory.
+      puts "Installing gems" if DEBUG
       Dir.entries("#{path}/cache/gems").each do |gem|
         next unless /\.gem$/ =~ gem
-        unless File.directory?("/tftpboot/gemsite/gems")
+        unless File.directory? "/tftpboot/gemsite/gems"
           system "mkdir -p /tftpboot/gemsite/gems"
         end
         unless File.symlink? "/tftpboot/gemsite/gems/#{gem}"
-          File.symlink "#{path}/cache/gems/#{gem}" "/tftpboot/gemsite/gems/#{gem}"
+	  puts "Symlinking #{path}/cache/gems/#{gem} into /tftpboot/gemsite/gems" if DEBUG
+          File.symlink "#{path}/cache/gems/#{gem}", "/tftpboot/gemsite/gems/#{gem}"
         end
       end
+      puts "Done" if DEBUG
     when File.directory?("#{path}/cache/#{ent}/pkgs")
+      puts "Installing packages" if DEBUG
       # We have actual packages here.  They map into the target like so:
       # path/ent/pkgs -> /tftboot/ent/crowbar-extras/bc
-      unless File.directory?("/tftpboot/#{ent}/crowbar-extra/")
-        system "mkdir -p \"/tftpboot/#{ent}/crowbar-extra/"
+      unless File.directory? "/tftpboot/#{ent}/crowbar-extra/"
+        system "mkdir -p \"/tftpboot/#{ent}/crowbar-extra/\""
       end
       # sigh, ubuntu-install and redhat-install.
-      unless File.symlink? "/tftpboot/#{ent}/crowbar-extra/#{path.split("/")[-1]}"
-        File.symlink("#{path}/cache/#{ent}/pkgs" "/tftpboot/#{ent}/crowbar-extra/#{path.split('/')[-1]}")
+      unless File.symlink? "/tftpboot/#{ent}/crowbar-extra/#{path.split('/')[-1]}"
+	puts "Symlinking #{path}/cache/#{ent}/pkgs into /tftpboot/#{ent}/crowbar-extra" if DEBUG
+        File.symlink "#{path}/cache/#{ent}/pkgs", "/tftpboot/#{ent}/crowbar-extra/#{path.split('/')[-1]}"
       end
     end
+    puts "Done" if DEBUG
+    true
   end 
 end
