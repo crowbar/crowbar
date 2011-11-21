@@ -43,7 +43,7 @@ Prerequisites:
 Command Line Parameters:
   * The first command line parameter is the OS you want to 
     stage Crowbar on to.  Crowbar currently understands how to stage on to 
-    ubuntu-10.10, redhat-5.6, and redhat-5.7
+    ubuntu-10.10, redhat-5.6, redhat-5.7, and centos-5.7
 
   --update-cache
     This parameter forces the build to try and update the build cache again.  
@@ -90,6 +90,17 @@ Command Line Parameters:
     the minimal set of packages needed to deploy an admin node.  Currently,
     we only know how to do this on rpm based systems, because Ubuntu installs
     are fairly small to begin with anyways.
+
+  --no-cache-update
+    This tells the build system that it should die instead of trying to update
+    the build cache.  This is useful for automated build processes where you want
+    to build Crowbar with a curated set of packages.  When --no-cache-update is
+    present and the build cache is a Git repository, the current checkout of the
+    build cache will be recorded in the build-info file.
+
+  --no-iso
+    Do everything but actaully build the iso.  This is useful for updating
+    any caches that need updating without actaully forcing a cache update.
 
 Usage:
   * Run build_crowbar.sh from the Crowbar git repository.  
@@ -141,7 +152,7 @@ Customization:
    * VCS_CLEAN_CMD
      This is the command that build_crowbar.sh will run to clean the tree before
      staging the Crowbar build.  
-     Defaults to 'git clean -f -x -d'
+     Defaults to 'git clean -f -d'
 
 The build_crowbar.sh script is heavily commented, please refer to it for more 
 detailed information.
