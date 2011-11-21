@@ -425,11 +425,14 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
     cp -r "$CROWBAR_DIR/extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/$OS_TOKEN-extra"/* "$BUILD_DIR/extra"
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
-    mkdir -p "$BUILD_DIR/dell/barclamps"
+  
+    # Add critical build meta information to build-info
     echo "build-timestamp: $(date '+%F %T %z')" > "$BUILD_DIR/build-info"
     echo "build-os: $OS_TOKEN" >>"$BUILD_DIR/build-info"
     echo "build-os-iso: $ISO" >>"$BUILD_DIR/build-info"
     echo "crowbar: $(get_rev "$CROWBAR_DIR")" >>"$BUILD_DIR/build-info"
+
+    # Make sure that all our barclamps are properly staged.
     for bc in "${BARCLAMPS[@]}"; do
 	is_barclamp "$bc" || die "Cannot find barclamp $bc!"
 	debug "Staging $bc barclamp."
@@ -448,10 +451,12 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 		$updater "$bc"
 	    fi
 	done
-	"$CROWBAR_DIR/package_barclamp.sh" --destdir "$BUILD_DIR/dell/barclamps" \
-	    --os "$OS_TOKEN" "$bc"
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
+    # Once all our barclamps have had their packages staged, create tarballs of them.
+    mkdir -p "$BUILD_DIR/dell/barclamps"
+    "$CROWBAR_DIR/package_barclamp.sh" --destdir "$BUILD_DIR/dell/barclamps" \
+	--os "$OS_TOKEN" "${BARCLAMPS[@]}"
     
     if [[ $ALLOW_CACHE_UPDATE != true && $CURRENT_CACHE_BRANCH ]]; then
 	echo "build-cache: $(get_rev "$CACHE_DIR")" >> "$BUILD_DIR/build-info"
