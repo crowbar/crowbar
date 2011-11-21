@@ -656,10 +656,12 @@ build_iso() (
     mkdir -p "$ISO_DEST"
 	# Save the sha1sums and the build-info files along side the iso.
     cp sha1sums build-info "$ISO_DEST"
-    mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
-	-b isolinux/isolinux.bin -c isolinux/boot.cat \
-	-no-emul-boot --boot-load-size 4 -boot-info-table \
-	-o "$ISO_DEST/$BUILT_ISO" "$IMAGE_DIR" "$BUILD_DIR" 
+    if ! [[ $NO_GENERATE_ISO && $NO_GENERATE_ISO = true ]]; then
+	mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
+	    -b isolinux/isolinux.bin -c isolinux/boot.cat \
+	    -no-emul-boot --boot-load-size 4 -boot-info-table \
+	    -o "$ISO_DEST/$BUILT_ISO" "$IMAGE_DIR" "$BUILD_DIR"
+    fi 
 )
 
 # Have the smoketest framework do its thing with the ISO we just made.
