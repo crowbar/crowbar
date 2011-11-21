@@ -311,6 +311,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 		GENERATE_MINIMAL_INSTALL=true
 		shift;;
 	    --no-cache-update) shift; ALLOW_CACHE_UPDATE=false;;
+	    --no-iso) shift; NO_GENERATE_ISO=true;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
     done

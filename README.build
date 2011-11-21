@@ -94,7 +94,13 @@ Command Line Parameters:
   --no-cache-update
     This tells the build system that it should die instead of trying to update
     the build cache.  This is useful for automated build processes where you want
-    to build Crowbar with a curated set of packages.
+    to build Crowbar with a curated set of packages.  When --no-cache-update is
+    present and the build cache is a Git repository, the current checkout of the
+    build cache will be recorded in the build-info file.
+
+  --no-iso
+    Do everything but actaully build the iso.  This is useful for updating
+    any caches that need updating without actaully forcing a cache update.
 
 Usage:
   * Run build_crowbar.sh from the Crowbar git repository.  
