@@ -24,7 +24,7 @@
       ],
       "run_order": {
         "deployer": 10,
-	"ubuntu_install": 14,
+        "ubuntu_install": 14,
         "ipmi": 17,
         "network": 20,
         "dns": 30,
