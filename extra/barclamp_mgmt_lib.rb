@@ -86,6 +86,9 @@ def catalog(path)
       cat['barclamps'][meta]['members'] = {} if cat['barclamps'][meta]['members'].nil?
       cat['barclamps'][meta]['members'][name] = bc['crowbar']['order']
     end if bc['barclamp']['member']
+
+    cat['barclamps'][name]['order'] = bc['crowbar']['order'] if bc['crowbar']['order']
+    cat['barclamps'][name]['run_order'] = bc['crowbar']['run_order'] if bc['crowbar']['run_order']
   end
   File.open( File.join(CROWBAR_PATH, 'config', 'catalog.yml'), 'w' ) do |out|
     YAML.dump( cat, out )
