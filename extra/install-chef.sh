@@ -17,7 +17,7 @@
 # limitations under the License.
 
 export FQDN="$1"
-export PATH="/opt/dell/bin:$PATH"
+export PATH="/opt/dell/bin:/usr/local/bin:$PATH"
 export DEBUG=true
 [[ ! $HOME || $HOME = / ]] && export HOME="/root"
 mkdir -p "$HOME"
@@ -125,6 +125,13 @@ mkdir -p /tftpboot/gemsite/gems
 find "/opt/dell/barclamps" -path '*/gems/*.gem' \
     -exec ln -sf '{}' /tftpboot/gemsite/gems ';'
 
+# Arrange for all our gem binaries to be installed into /usr/local/bin
+cat >/etc/gemrc <<EOF
+:sources:
+- http://127.0.0.1:3001/
+gem: --no-ri --no-rdoc --bindir /usr/local/bin
+EOF
+
 # This is ugly, but there does not seem to be a better way
 # to tell Chef to just look in a specific location for its gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
@@ -135,14 +142,6 @@ echo "$(date '+%F %T %z'): Arranging for gems to be installed"
     done
     cd ..
     gem generate_index)
-# Make sure that gem-installed binaries are in $PATH for everyone.
-read gem_bin < <(gem environment | awk '-F:' '/EXECUTABLE DIRECTORY/ {print $2}')
-if [[ ! $PATH =~ (^|:)$gem_bin(:|$) ]]; then
-    export PATH="$PATH:$gem_bin"
-    echo $PATH
-    sed -i "/PATH=/ s@PATH=.*@PATH=\"$PATH\"@" /etc/environment
-    echo "PATH=\"$PATH\"" >/etc/environment
-fi
 
 mkdir -p /var/run/bluepill
 mkdir -p /var/lib/bluepill
@@ -163,11 +162,6 @@ fi
 
 bluepill load /etc/bluepill/rubygems-server.pill
 sleep 5
-
-# Stop looking for rubygems.org, just look locally  for gems
-gem source -c
-gem source -a http://localhost:3001/
-gem source -r http://rubygems.org/
     
 if [[ ! -x /etc/init.d/bluepill ]]; then
 
