@@ -38,6 +38,8 @@ bring_up_chef() {
     rl=$(find /usr/lib/ruby -name run_list.rb)
     cp -f "$rl" "$rl.bak"
     cp -f patches/run_list.rb "$rl"
+    # Make the Rubygems provider in Chef respect gemrc files.
+    cp -f patches/rubygems.rb /usr/lib/ruby/vendor_ruby/chef/provider/package
     log_to svc service chef-server restart
 }
 
