@@ -7,7 +7,6 @@
         "deployer": [ "default" ],
         "ipmi": [ "default" ],
         "ubuntu_install": [ "default" ],
-	"redhat_install": [ "default" ],
         "provisioner": [ "default" ],
         "network": [ "default" ],
         "ntp": [ "default" ],
