@@ -278,7 +278,9 @@ fix_up_os_deployer || die "Unable to fix up OS deployer"
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
 mkdir -p "/opt/dell/bin"
+cp "$DVD_PATH/dell/"* /opt/dell/bin
 (cd "$DVD_PATH/extra"; cp barclamp* /opt/dell/bin)
+chmod 755 /opt/dell/bin/*
 
 # Always run crowbar barclamp first
 echo "$(date '+%F %T %z'): Installing Barclamps"
@@ -373,5 +375,5 @@ cd $DVD_PATH/extra
 echo "Admin node deployed."
 
 # Run tests -- currently the host will run this.
-#/opt/dell/bin/barclamp_test.rb -t || \
-#    die "Crowbar validation has errors! Please check the logs and correct."
+/opt/dell/bin/barclamp_test.rb -t || \
+    die "Crowbar validation has errors! Please check the logs and correct."

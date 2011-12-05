@@ -1,0 +1,4 @@
+#!/bin/bash
+host="$1"
+shift
+exec ssh root@"$host" -- "$@"
