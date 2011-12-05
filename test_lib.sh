@@ -8,7 +8,7 @@
 
 # Make sure we know where to find our test binaries
 [[ -d $CROWBAR_DIR/testing/cli ]] || mkdir -p "$CROWBAR_DIR/testing/cli"
-export PATH="$CROWBAR_DIR/testing/cli:$CROWBAR_DIR/test_framework:$CROWBAR_DIR:$PATH:/sbin:/usr/sbin"
+export PATH="$CROWBAR_DIR/testing/cli:$CROWBAR_DIR/test_framework:$CROWBAR_DIR:$CROWBAR_DIR/change-image/dell:$PATH:/sbin:/usr/sbin"
 set -o pipefail
 
 SMOKETEST_RESULTS=()
@@ -364,7 +364,10 @@ wait_for_kvm() {
     local vmname=$1
     shift
     local pidfile="$smoketest_dir/$vmname.pid"
-    [[ -f $pidfile ]] || return 1 # no pidfile? Bad Things happened.
+    [[ -f $pidfile ]] || {
+	smoektest_update_status "$vmanme" "No pid file for KVM."
+	return 1 # no pidfile? Bad Things happened.
+    }
     local kvmpid=$(cat "$pidfile")
     while [[ $1 ]]; do
 	case $1 in
@@ -381,7 +384,10 @@ wait_for_kvm() {
     (   cd "/proc/$kvmpid"
 	# if /proc/$kvmpid/$cmdline does not contain the name of our
 	# VM, something went horrbly wrong.
-	[[ $(cat cmdline) =~ $vmname ]] || return 1
+	[[ -f cmdline && $(cat cmdline) =~ $vmname ]] || {
+	    smoketest_status_update "$vmanme" "/proc/$kvmpid is not for our VM."
+	    return 1
+	}
 	while [[ -f cmdline ]]; do
 	    # If there is a condition on which we should kill the VM
 	    # immediatly, test and see if it is true.
@@ -692,8 +698,6 @@ run_on "$CROWBAR_IP" knife "$@"
 EOF
 	chmod 755 "$CROWBAR_DIR/testing/cli"/*
     ) || :
-    run_on "$CROWBAR_IP" cp /root/.ssh/authorized_keys \
-	/tftpboot/ubuntu_dvd/authorized_keys || :
     # if there are any tests we should run on the admin node, do them now.
     if run_admin_hooks admin_deployed; then
 	smoketest_update_status admin "Admin deploy tests passed"
@@ -902,34 +906,6 @@ deploy_nodes() {
     [[ $overall_status = Passed ]]
 }
 
-barclamp_deployed() {
-    # $1 = barclamp to check for deployed proposals
-    [[ $(crowbar $1 list) != 'No current configurations' ]]
-}
-
-deploy_barclamp() {
-    # $1 = barclamp to deploy proposal for
-    crowbar "$1" proposal create smoketest || \
-	die "Could not create smoketest proposal for $1"
-    crowbar "$1" proposal show smoketest > \
-	"$LOGDIR/$1-default.json" || \
-	die "Could not show smoketest proposal for $1"
-    if [[ -x $CROWBAR_DIR/barclamps/$1/smoketest/modify-json ]]; then
-	"$CROWBAR_DIR/barclamps/$1/smoketest/modify-json" < \
-	    "$LOGDIR/$1-default.json" > \
-	    "$LOGDIR/$1-modified.json" || \
-	    die "Failure editing smoketest proposal for $1"
-	    crowbar "$1" --file "$LOGDIR/$1-modified.json" \
-		proposal edit smoketest || \
-		die "Failed to upload modified smoketest proposal for $1"
-    fi
-    crowbar "$1" proposal commit smoketest || \
-	die "Failed to commit smoketest proposal for $1"
-    debug "Smoketest proposal for $1 committed"
-    crowbar "$1" show smoketest >"$LOGDIR/$1-deployed.json"
-    return 0
-}
-
 # run hooks.  They will be sorted in lexicographic order, 
 # so naming them with numeric prefixes indicating the order 
 # they should run in is a Good Idea.
@@ -948,6 +924,7 @@ run_hooks() {
     fi
     (   sleep 1
 	trap - 0 INT QUIT TERM
+	unset http_proxy https_proxy
 	for hook in "$test_dir"/*."$ext"; do
 	    [[ -x $hook ]] || continue
 	    echo "$(date '+%F %T %z'): Running test hook ${hook##*/}"
@@ -975,29 +952,6 @@ run_hooks() {
     esac
 }
 
-run_test_hooks() {
-    local h
-    for h in ${BC_DEPS[$1]} ${BC_SMOKETEST_DEPS[$1]}; do
-	[[ ! $h || $h = test ]] && continue
-	run_test_hooks "$h" || return 1
-    done
-    if ! barclamp_deployed "$1"; then
-	echo "$(date '+%F %T %z'): Deploying $1."
-	deploy_barclamp "$1" || return 1
-    fi
-    if [[ -d $CROWBAR_DIR/barclamps/$1/smoketest && \
-	! ${test_hook_results["$1"]} ]]; then
-	echo "$(date '+%F %T %z'): Running smoketests for $1."
-	if run_hooks "$1" "$CROWBAR_DIR/barclamps/$1/smoketest" \
-	    "${BC_SMOKETEST_TIMEOUTS[$1]:-300}" test 2>&1 | \
-	    tee "$LOGDIR/$1-smoketest.log" ; then
-          test_hook_results["$1"]="Passed"
-        else
-          test_hook_results["$1"]="Failed"
-          return 1
-        fi
-    fi
-}
 
 run_admin_hooks() {
     run_hooks admin "$SMOKETEST_DIR/admin_deployed" 300 hook
@@ -1140,7 +1094,7 @@ run_test() {
 		echo "$(date '+%F %T %z'): Compute nodes deployed."
 		for this_test in $running_test; do
 		    echo "$(date '+%F %T %z'): Running smoketests for $this_test."
-		    if ! run_test_hooks "$this_test"; then
+		    if ! run_on $CROWBAR_IP /opt/dell/bin/smoketest "$this_test"; then
 			echo "$(date '+%F %T %z'): $this_test tests failed."
 			SMOKETEST_RESULTS+=("$this_test: Failed")
 			smoketest_get_cluster_logs "$running_test-tests-failed"
