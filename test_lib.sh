@@ -867,6 +867,7 @@ deploy_nodes() {
     for node in "${!SMOKETEST_SLAVES[@]}"; do
 	( 
 	    trap - 0 INT QUIT TERM
+	    export TARGET_STATE=discovered 
 	    hname=${SMOKETEST_SLAVES["$node"]}
 	    lastres='' res=''
 	    while [[ -f $smoketest_dir/admin.pid && \
@@ -875,9 +876,6 @@ deploy_nodes() {
 		    smoketest_update_status "$node" "$res"
 		    smoketest_update_status "$node" "Node deployed."
 		    exit 0
-		elif [[ $res =~ [Dd]iscovered ]]; then
-		    smoketest_update_status "$node" "$res"
-		    smoketest_update_status "$node" "$(crowbar machines allocate "$hname")"
 		elif [[ $lastres != $res ]]; then
 		    smoketest_update_status "$node" "$res"
 		    lastres="$res"

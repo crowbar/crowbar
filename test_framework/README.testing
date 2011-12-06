@@ -1,4 +1,3 @@
-This file documents the Crowbar smoketest framework
 
 Prerequisites:
   * An x86_64 system with at least 16 GB of RAM, 8 cores, and 50 GB free 
@@ -463,29 +462,6 @@ From this, you can see the process the smoketest uses to set up Crowbar:
     deploy nodes with just a basic OS install on them.  If the smoketest
     framweork was asked to test a different set of barclamps, it would have 
     tried to deploy them to the cluster as well.
-
-Writing Barclamp Smoketests
-
-  Barclamp smoketests consists of three parts:
-  * Smoketest Metadata.
-    This consists of metadata in the barclamp's crowbar.yml that declares any 
-    smoketest-specific barclamp dependencies and an overall timeout that the
-    smoketest for this barclamp cannot exceed.
-  * smoketest/modify-json
-    This executable should accept the proposal JSON on stdin, make whatever
-    changes are needed to let it run in the framework (changing free space
-    requirements, replication factors, etc), and write the modified JSON to
-    stdout.
-  * smoketest/*.test
-    These executables should each perform a discrete test of the barclamp. The
-    smoketest framework will run them in ascending order, and the first test
-    that exits with a nonzero status will signal that the overall smoketest
-    for this barclamp failed, and the framework will stop processing further
-    tests. The framework does not care what language the tests are written in,
-    as long as the build/test system can run them.
-  
-Any other files will be ignored by the smoketest framework -- you can use them
-for shared libraries, templates, etc. as the needs of your smoketest require.
 
 Additionally, there are several environment variables that the test framework
 sets:
