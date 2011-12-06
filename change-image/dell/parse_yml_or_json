@@ -27,8 +27,7 @@ ARGV[1..-1].each do |key|
   end
   case 
   when t.kind_of?(Array)
-    puts "unset #{keyout}"
-    puts "declare -a #{keyout}"
+    puts "unset #{keyout}; declare -a #{keyout}"
     t.each_index do |i|
       puts "#{keyout}[#{i}]=\"#{t[i].to_s}\""
     end
@@ -37,7 +36,6 @@ ARGV[1..-1].each do |key|
     STDERR.puts "Cannot print #{key} in a format that bash will understand!"
     exit 1
   else
-    puts "unset #{keyout}"
-    puts "#{keyout}=\"#{t.to_s}\""
+    puts "unset #{keyout}; #{keyout}=\"#{t.to_s}\""
   end
 end

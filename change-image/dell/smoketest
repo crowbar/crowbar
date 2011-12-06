@@ -3,6 +3,7 @@
 [[ $DEBUG ]] && {
     set -x
     export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
+    exec 2>/var/log/smoketest.log
 }
 
 found_groups=()
@@ -89,22 +90,29 @@ wait_for_ready() {
     local all_ready=false
     local nodes=() state=""
     local ready_re='ready\.$'
-    while [[ $all_ready != true ]]; do
+    local deadline=$(($(date '+%s') + 2400))
+    while [[ $all_ready != true ]] && (($(date '+%s') < $deadline)) ; do
 	all_ready=true
 	for node in $(knife node list); do
-	    state="$(check_ready "$node")" || continue
-	    if [[ $state =~ [Dd]iscovered ]]; then
-		crowbar machines allocate "$node"
-	    elif [[ $state =~ problem ]]; then
+	    state="$(check_ready "$node")"
+	    [[ $state =~ [Dd]iscovered ]] && \
+		crowbar machines allocate "$node" >&/dev/null
+	    [[ $state =~ problem ]] && \
 		die "$node transitioned into problem state." \
-		    "Smoketests failed."
-	    elif ! [[ $state =~ $ready_re ]]; then
-		all_ready = false
-	    fi
+		"Smoketests failed."
+	    [[ $state =~ $ready_re ]] || all_ready=false
 	done
 	[[ $all_ready = true ]] || sleep 10
     done
-    echo "$(date '+%F %T %z'): All nodes ready."
+    if [[ $all_ready != true ]]; then
+	echo "Some nodes failed to transistion to ready."
+	for node in $(knife node list); do
+	    echo "$(date '+%F %T %z'): $(check_ready "$node")"
+	done
+	exit 1
+    else
+	echo "$(date '+%F %T %z'): All nodes ready."
+    fi
 }
 
 barclamp_deployed() {
@@ -154,12 +162,12 @@ run_hooks() {
 		echo "$(date '+%F %T %z'): $hook not executable, skipping."
 		continue
 	    }
-	    echo -n "$(date '+%F %T %z'): Running test hook ${hook##*/}: "
+	    echo "$(date '+%F %T %z'): Running test hook ${hook##*/}: "
 	    "$hook" && {
-		echo "Passed."
+		echo "$(date '+%F %T %z'): Test hook ${hook##*/} passed."
 		continue
 	    }
-	    echo "Failed."
+	    echo "$(date '+%F %T %z'): Test hook ${hook##*/} failed."
 	    echo "Failed" >"$LOGDIR/$test_name.test"
 	    exit
 	done
