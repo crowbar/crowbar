@@ -91,6 +91,7 @@ wait_for_ready() {
     local nodes=() state=""
     local ready_re='ready\.$'
     local deadline=$(($(date '+%s') + 2400))
+    echo "$(date '+%F %T %z'): Waiting 2400 seconds for all nodes to become ready."
     while [[ $all_ready != true ]] && (($(date '+%s') < $deadline)) ; do
 	all_ready=true
 	for node in $(knife node list); do
@@ -122,12 +123,14 @@ barclamp_deployed() {
 
 deploy_barclamp() {
     # $1 = barclamp to deploy proposal for
-    crowbar "$1" proposal create smoketest || \
+    echo "$(date '+%F %T %z'): Creating smoketest proposal for $1"
+    crowbar "$1" proposal create smoketest >&/dev/null || \
 	die "Could not create smoketest proposal for $1"
     crowbar "$1" proposal show smoketest > \
 	"$LOGDIR/$1-default.json" || \
 	die "Could not show smoketest proposal for $1"
     if [[ -x $bc_dir/smoketest/modify-json ]]; then
+	    echo "$(date '+%F %T %z'): Editing smoketest proposal for $1"
 	"$bc_dir/smoketest/modify-json" < \
 	    "$LOGDIR/$1-default.json" > \
 	    "$LOGDIR/$1-modified.json" || \
@@ -136,6 +139,7 @@ deploy_barclamp() {
 		proposal edit smoketest || \
 		die "Failed to upload modified smoketest proposal for $1"
     fi
+    echo "$(date '+%F %T %z'): Committing smoketest proposal for $1"
     crowbar "$1" proposal commit smoketest || \
 	die "Failed to commit smoketest proposal for $1"
     echo "$(date '+%F %T %z'): Smoketest proposal for $1 committed"
