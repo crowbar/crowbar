@@ -18,7 +18,7 @@ install_base_packages() {
 	    # Link them in.
 	    ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
 	done
-	dpkg-scanpackages . |gzip -9 >Packages.gz)
+	dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz)
     echo "deb file:/tftpboot/$OS_TOKEN/crowbar-extra /" >>/etc/apt/sources.list
     log_to apt apt-get update
     log_to apt apt-get -y remove apparmor
