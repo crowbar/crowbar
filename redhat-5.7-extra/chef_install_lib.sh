@@ -72,16 +72,6 @@ bring_up_chef() {
     log_to svc service chef-server restart
 }
 
-
-# Make sure we use the right OS installer. By default we want to install
-# the same OS as the admin node.
-fix_up_os_deployer() {
-    for t in provisioner deployer; do
-	sed -i '/os_install/ s/os_install/redhat_install/' \
-	    /opt/dell/barclamps/${t}/chef/data_bags/crowbar/bc-template-${t}.json
-    done
-}
-
 pre_crowbar_fixups() {
     #patch bad gemspecs.
     cp $DVD_PATH/extra/patches/*.gemspec \

@@ -270,11 +270,6 @@ VERSION=$(cat $DVD_PATH/dell/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
     /opt/dell/barclamps/crowbar/crowbar_framework/config/environments/production.rb
 
-# Right now, we will only try to deploy the OS that the admin node has
-# installed.  Eventaully this will go away and be replaced by something
-# that is a little mode flexible.
-fix_up_os_deployer || die "Unable to fix up OS deployer"
-
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
 mkdir -p "/opt/dell/bin"
