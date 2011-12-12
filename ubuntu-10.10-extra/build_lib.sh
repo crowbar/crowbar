@@ -165,6 +165,11 @@ final_build_fixups() {
            debug "Adding USB connected DVD support"
            mkdir -p var/lib/dpkg/info
            cp ../cdrom-detect.postinst var/lib/dpkg/info
+	   debug "Enabling bootif support for debian-installer"
+	   mkdir -p lib/debian-installer-startup.d/
+	   cp "$CROWBAR_DIR/$OS_TO_STAGE-extra/patches/bootif" \
+	       lib/debian-installer-startup.d/S32set-bootif
+	   chmod 755 "lib/debian-installer-startup.d/S32-set-bootif" 
            # Append our new gzipped CPIO archive onto the old one.
            find . |cpio --create --format=newc --owner root:root 2>/dev/null | \
                gzip -9 >> "$BUILD_DIR/install/initrd.gz" )
