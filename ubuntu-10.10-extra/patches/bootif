@@ -7,11 +7,11 @@ if [ "$bootif" ]; then
     # bootif is 01-00-19-b9-e1-c6-94, convert to MAC
     mac=${bootif#01-}
     mac=`echo $mac | sed 's/-/:/g'`
-    echo "Found bootif $bootif, looking for MAC $mac"
+    log-output -t ethdetect echo "Found bootif $bootif, looking for MAC $mac"
     cd /sys/class/net
     for interface in *; do
 	if [ `cat $interface/address` = "$mac" ]; then
-	    echo "Found matching interface $interface"
+	    log-output -t ethdetect echo "Found matching interface $interface"
 	    interface_found=$interface
 	    db_set netcfg/choose_interface $interface
             # must mark question as seen otherwise you are reprompted
@@ -19,6 +19,6 @@ if [ "$bootif" ]; then
 	fi
     done
     if [ ! "$interface_found" ]; then
-	echo "No matching interface for MAC $mac"
+	log-output -t ethdetect echo "No matching interface for MAC $mac"
     fi
 fi

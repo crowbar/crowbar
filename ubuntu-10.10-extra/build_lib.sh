@@ -144,36 +144,41 @@ final_build_fixups() {
     # Copy our isolinux and preseed files.
     mv "$BUILD_DIR/extra/isolinux" "$BUILD_DIR/extra/preseed" "$BUILD_DIR"
     # Copy our initrd images
-    (cd "$IMAGE_DIR"; find -name initrd.gz |cpio -o) | \
-       (cd "$BUILD_DIR"; cpio -i --make-directories)
-    chmod -R u+w "$BUILD_DIR"
-    # Fix up the initrd
-    (   cd "$CROWBAR_DIR/initrd"
-       debug "Fixing up initrd"
-       [[ -d scratch ]] && rm -rf scratch
-       mkdir scratch
-        # Grab _all_ the nic drivers. We probably don't need them,
-        # but a little paranoia never hurt anyone.
-       (   cd scratch;
-           debug "Adding all nic drivers"
-           for udeb in "$IMAGE_DIR/pool/main/l/linux/"nic-*-generic-*.udeb; do
-               ar x "$udeb"
-               tar xzf data.tar.gz
-               rm -rf debian-binary *.tar.gz
-           done 
-            # Make sure installing off a USB connected DVD will work
-           debug "Adding USB connected DVD support"
-           mkdir -p var/lib/dpkg/info
-           cp ../cdrom-detect.postinst var/lib/dpkg/info
-	   debug "Enabling bootif support for debian-installer"
-	   mkdir -p lib/debian-installer-startup.d/
-	   cp "$CROWBAR_DIR/$OS_TO_STAGE-extra/patches/bootif" \
-	       lib/debian-installer-startup.d/S32set-bootif
-	   chmod 755 "lib/debian-installer-startup.d/S32-set-bootif" 
-           # Append our new gzipped CPIO archive onto the old one.
-           find . |cpio --create --format=newc --owner root:root 2>/dev/null | \
-               gzip -9 >> "$BUILD_DIR/install/initrd.gz" )
-       rm -rf scratch )
+    debug "Fixing up initrds"
+    [[ -d $BUILD_DIR/initrd ]] && rm -rf initrd
+    mkdir -p "$BUILD_DIR/initrd"
+    # Grab _all_ the nic drivers. We probably don't need them,
+    # but a little paranoia never hurt anyone.
+    (   cd "$BUILD_DIR/initrd";
+        debug "Adding all nic drivers"
+        for udeb in "$IMAGE_DIR/pool/main/l/linux/"nic-*-generic-*.udeb; do
+            ar x "$udeb"
+            tar xzf data.tar.gz
+            rm -rf debian-binary *.tar.gz
+        done 
+        # Make sure installing off a USB connected DVD will work
+        debug "Adding USB connected DVD support"
+        mkdir -p var/lib/dpkg/info
+        cp "$CROWBAR_DIR/initrd/cdrom-detect.postinst" var/lib/dpkg/info
+	debug "Enabling bootif support for debian-installer"
+	mkdir -p lib/debian-installer-startup.d/
+	cp "$CROWBAR_DIR/$OS_TO_STAGE-extra/patches/bootif" \
+	    lib/debian-installer-startup.d/S32set-bootif
+	chmod 755 "lib/debian-installer-startup.d/S32set-bootif"  
+	for initrd in "install/initrd.gz" \
+	    "install/netboot/ubuntu-installer/amd64/initrd.gz"; do
+	    [[ -f $IMAGE_DIR/$initrd ]] || continue
+	    mkdir -p "$BUILD_DIR/${initrd%/*}"
+	    gunzip -c "$IMAGE_DIR/$initrd" >"$BUILD_DIR/initrd.tmp"
+	    find . -type f | \
+		cpio --format newc --owner root:root \
+		-oAF "$BUILD_DIR/initrd.tmp"
+	    cat "$BUILD_DIR/initrd.tmp" | \
+		gzip -9 > "$BUILD_DIR/$initrd"
+	done
+	rm "$BUILD_DIR/initrd.tmp"
+    )
+    # rm -rf "$BUILD_DIR/initrd"
 }
 
 # Check to make sure all our prerequisites are met.
