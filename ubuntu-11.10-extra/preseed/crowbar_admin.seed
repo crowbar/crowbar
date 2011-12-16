@@ -6,8 +6,8 @@ d-i debian-installer/locale string en_US.utf8
 # Keyboard selection.
 # Disable automatic (interactive) keymap detection.
 d-i console-setup/ask_detect boolean false
-#d-i console-setup/modelcode string pc105
-d-i console-setup/layoutcode string us
+d-i keyboard-configuration/layoutcode string us
+d-i keyboard-configuration/modelcode string pc105
 # To select a variant of the selected layout (if you leave this out, the
 # basic form of the layout will be used):
 #d-i console-setup/variantcode string dvorak
