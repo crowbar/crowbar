@@ -31,9 +31,6 @@
 [submodule "barclamps/test"]
 	path = barclamps/test
 	url = http://github.com/dellcloudedge/barclamp-test.git
-[submodule "barclamps/ubuntu-install"]
-	path = barclamps/ubuntu-install
-	url = http://github.com/dellcloudedge/barclamp-ubuntu-install.git
 [submodule "barclamps/nova"]
         path = barclamps/nova
         url = http://github.com/dellcloudedge/barclamp-nova.git
