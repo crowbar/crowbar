@@ -1,7 +1,7 @@
 #!/bin/bash
 # Ubuntu specific chef install functionality
 DVD_PATH="/tftpboot/ubuntu_dvd"
-OS_TOKEN="ubuntu-10.10"
+OS_TOKEN="ubuntu-11.10"
 update_hostname() { update_hostname.sh $FQDN; }
 
 install_base_packages() {

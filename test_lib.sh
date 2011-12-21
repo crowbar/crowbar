@@ -498,9 +498,8 @@ run_kvm() {
       cpu_count=4
       mem_size=4G
     fi
-    local drivestr="file=$smoketest_dir/$vmname.disk,if=scsi,format=raw,cache=$drive_cache"
-    if [[ $driveboot ]]; then
-	drivestr+=",boot=on"
+    if kvm -device \? 2>&1 |grep -q ahci && [[ $(kvm -version) =~ kvm-1 ]]; then
+	local kvm_use_ahci=true
     fi
     local vm_gen="$vmname.${kvm_generations[$vmname]}"
     # create a new log directory for us.  vm_logdir needs to be global
@@ -515,26 +514,36 @@ run_kvm() {
     local kvmargs=(-enable-kvm 
 	-m $mem_size
 	-smp $cpu_count
-	-drive "$drivestr"
 	-pidfile "$pidfile"
 	-serial "file:$vm_logdir/ttyS0.log"
 	-serial "file:$vm_logdir/ttyS1.log"
 	-name "kvm-$vm_gen")
-    # Add appropriate nics based on the contents of vm_nics.
-    for line in "${vm_nics[@]}"; do
-	kvmargs+=(-net "nic,macaddr=${line%%,*},model=e1000")
-	kvmargs+=(-net "tap,ifname=${line##*,},script=no,downscript=no")
-    done
-    if [[ $pxeboot ]]; then
-	kvmargs+=(-boot "order=n" -option-rom "$SMOKETEST_DIR/8086100e.rom")
-    elif [[ $driveboot ]]; then
-	kvmargs+=(-boot "order=c")
+    if [[ $kvm_use_ahci = true ]]; then
+	kvmargs+=(-device "ahci,id=ahci0,bus=pci.0,multifunction=on")
+	kvmargs+=(-drive "file=$smoketest_dir/$vmname.disk,if=none,format=raw,cache=$drive_cache,id=drive-ahci-0")
+	kvmargs+=(-device "ide-drive,bus=ahci0.0,drive=drive-ahci-0,id=drive-0")
+    else
+	local drivestr="file=$smoketest_dir/$vmname.disk,if=scsi,format=raw,cache=$drive_cache"
+	if [[ $driveboot ]]; then
+	    drivestr+=",boot=on"
+	fi
+	kvmargs+=(-drive "$drivestr")
     fi
     # Add additional disks if we have any.
     for image in "$smoketest_dir/$vmname-"*".disk"; do
 	[[ -f $image ]] || continue
 	kvmargs+=(-drive "file=$image,if=scsi,format=qcow2,cache=$drive_cache")
     done
+    # Add appropriate nics based on the contents of vm_nics.
+    for line in "${vm_nics[@]}"; do
+	kvmargs+=(-net "nic,macaddr=${line%%,*},model=e1000")
+	kvmargs+=(-net "tap,ifname=${line##*,},script=no,downscript=no")
+    done
+    if [[ $pxeboot ]]; then
+	kvmargs+=(-boot "order=n")
+    elif [[ $driveboot ]]; then
+	kvmargs+=(-boot "order=c")
+    fi
 
     if [[ $reboot = false ]]; then
 	kvmargs+=(-no-reboot)
