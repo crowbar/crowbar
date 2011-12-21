@@ -27,14 +27,19 @@ set -x
 exec > /root/post-install.log 2>&1
 
 BASEDIR="/tftpboot/ubuntu_dvd"
-OS_TOKEN="ubuntu-11.04"
+[[ -f /etc/lsb-release ]] || {
+    echo "No lsb-release file, cannot determine proper OS information!"
+    exit 1
+}
+. /etc/lsb-release
+OS_TOKEN="ubuntu-${DISTRIB_RELEASE}"
 
 # Make sure /opt is created
 mkdir -p /opt/dell/bin
 
 mkdir -p "/tftpboot/$OS_TOKEN"
 (cd "/tftpboot/$OS_TOKEN"; ln -s ../ubuntu_dvd install)
-echo "deb file:/tftpboot/$OS_TOKEN/install natty main restricted" \
+echo "deb file:/tftpboot/$OS_TOKEN/install ${DISTRIB_CODENAME} main restricted" \
     > /etc/apt/sources.list
 
 # Make a destination for dell finishing scripts

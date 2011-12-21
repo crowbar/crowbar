@@ -1,5 +1,0 @@
-## LEGACY:
-
-# All repo, package, and gem information that was here has been migrated to
-# barclamps/*/crowbar.yml.  Base OS repositories and packages are in
-# barclamps/crowbar/crowbar.yml!
