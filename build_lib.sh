@@ -36,7 +36,10 @@ get_barclamp_info() {
 	[[ -d "$bc" ]] || continue
 	bc=${bc##*/}
 	debug "Reading metadata for $bc barclamp."
-	is_barclamp "$bc" || die "$bc is not a barclamp!"
+	is_barclamp "$bc" || {
+	    echo "$bc is not a barclamp, skipping."
+	    continue
+	}
 	yml_file="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
 	[[ $bc = crowbar ]] || BC_DEPS["$bc"]+="crowbar "
 	for query in "${!BC_QUERY_STRINGS[@]}"; do
