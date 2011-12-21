@@ -157,9 +157,11 @@ final_build_fixups() {
         cp "$CROWBAR_DIR/initrd/cdrom-detect.postinst" var/lib/dpkg/info
 	debug "Enabling bootif support for debian-installer"
 	mkdir -p lib/debian-installer-startup.d/
-	cp "$CROWBAR_DIR/$OS_TO_STAGE-extra/patches/bootif" \
-	    lib/debian-installer-startup.d/S32set-bootif
-	chmod 755 "lib/debian-installer-startup.d/S32set-bootif"  
+	[[ -f $CROWBAR_DIR/$OS_TO_STAGE-extra/patches/bootif ]] && {
+	    cp "$CROWBAR_DIR/$OS_TO_STAGE-extra/patches/bootif" \
+		lib/debian-installer-startup.d/S32set-bootif
+	    chmod 755 "lib/debian-installer-startup.d/S32set-bootif"
+	}  
 	for initrd in "install/initrd.gz" \
 	    "install/netboot/ubuntu-installer/amd64/initrd.gz"; do
 	    [[ -f $IMAGE_DIR/$initrd ]] || continue
