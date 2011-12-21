@@ -1,7 +1,14 @@
 #!/bin/bash
 # Ubuntu specific chef install functionality
 DVD_PATH="/tftpboot/ubuntu_dvd"
-OS_TOKEN="ubuntu-10.10"
+BASEDIR="/tftpboot/ubuntu_dvd"
+[[ -f /etc/lsb-release ]] || {
+    echo "No lsb-release file, cannot determine proper OS information!"
+    exit 1
+}
+. /etc/lsb-release
+OS_TOKEN="ubuntu-${DISTRIB_RELEASE}"
+
 update_hostname() { update_hostname.sh $FQDN; }
 
 install_base_packages() {

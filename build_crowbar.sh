@@ -423,8 +423,10 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
     index_cd_pool
     
     # Copy over the Crowbar bits and their prerequisites
-    cp -r "$CROWBAR_DIR/extra"/* "$BUILD_DIR/extra"
-    cp -r "$CROWBAR_DIR/$OS_TOKEN-extra"/* "$BUILD_DIR/extra"
+    for d in "extra" "$OS-common" "$OS_TOKEN-extra"; do
+	[[ -d $CROWBAR_DIR/$d ]] || continue
+	cp -r "$CROWBAR_DIR/$d"/* "$BUILD_DIR/extra"
+    done
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
   
     # Add critical build meta information to build-info
