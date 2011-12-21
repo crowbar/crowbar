@@ -509,7 +509,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 	mkdir -p "$BUILD_DIR/$d"
 	chmod u+wr "$BUILD_DIR/$d"
 	# We could also use cp -n, but rhel5 and centos5 do not understand it.
-	rsync -rl --ignore-existing --inplace "$IMAGE_DIR/$d/." "$BUILD_DIR/$d/."
+	rsync -rl --ignore-existing --inplace "$IMAGE_DIR/$d" "$BUILD_DIR"
 	chmod -R u+wr "$BUILD_DIR/$d"
 	# Bind mount an empty directory on the $IMAGE_DIR instance.
 	sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/$d"
@@ -517,7 +517,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
     mkdir -p "$BUILD_DIR/isolinux"
     chmod u+wr "$BUILD_DIR/isolinux"
     rsync -rl --ignore-existing --inplace \
-	"$IMAGE_DIR/isolinux/." "$BUILD_DIR/isolinux/."
+	"$IMAGE_DIR/isolinux" "$BUILD_DIR"
     chmod -R u+wr "$BUILD_DIR/isolinux"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/isolinux"
 
