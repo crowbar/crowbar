@@ -498,7 +498,7 @@ run_kvm() {
       cpu_count=4
       mem_size=4G
     fi
-    if kvm -device \? 2>&1 |grep -q ahci; then
+    if kvm -device \? 2>&1 |grep -q ahci && [[ $(kvm -version) =~ kvm-1 ]]; then
 	local kvm_use_ahci=true
     fi
     local vm_gen="$vmname.${kvm_generations[$vmname]}"
@@ -527,7 +527,7 @@ run_kvm() {
 	if [[ $driveboot ]]; then
 	    drivestr+=",boot=on"
 	fi
-	kvmargs+=(-device "$drivestr")
+	kvmargs+=(-drive "$drivestr")
     fi
     # Add additional disks if we have any.
     for image in "$smoketest_dir/$vmname-"*".disk"; do
