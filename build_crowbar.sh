@@ -348,7 +348,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
     [[ $PROXY_PASSWORD ]] || PROXY_PASSWORD=""
 
     # Version for ISO
-    [[ $VERSION ]] || VERSION="$(cd "$CROWBAR_DIR"; git describe --long --tags)-dev"
+    [[ $VERSION ]] || VERSION="$(cd "$CROWBAR_DIR"; git describe --long)-dev"
 
     # Name of the built iso we will build
     [[ $BUILT_ISO ]] || BUILT_ISO="crowbar-${VERSION}.iso"
