@@ -197,7 +197,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 
 {
     # Check to make sure our required commands are installed.
-    for cmd in sudo chroot mkisofs ruby; do
+    for cmd in sudo chroot mkisofs ruby curl; do
 	which "$cmd" &>/dev/null || \
 	    die 1 "Please install $cmd before trying to build Crowbar."
     done
