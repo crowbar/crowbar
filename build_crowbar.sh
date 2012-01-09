@@ -189,11 +189,14 @@ BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
 BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
 BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
 BC_QUERY_STRINGS["raw_pkgs"]="$PKG_TYPE raw_pkgs"
+BC_QUERY_STRINGS["pkg_sources"]="$PKG_TYPE pkg_sources"
 BC_QUERY_STRINGS["os_pkgs"]="$PKG_TYPE $OS_TOKEN pkgs"
 BC_QUERY_STRINGS["os_repos"]="$PKG_TYPE $OS_TOKEN repos"
 BC_QUERY_STRINGS["os_ppas"]="$PKG_TYPE $OS_TOKEN ppas"
 BC_QUERY_STRINGS["os_build_pkgs"]="$PKG_TYPE $OS_TOKEN build_pkgs"
 BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
+BC_QUERY_STRINGS["os_pkg_sources"]="$PKG_TYPE $OS_TOKEN pkg_sources"
+BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 
 {
     # Check to make sure our required commands are installed.
@@ -454,6 +457,21 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 		$updater "$bc"
 	    fi
 	done
+	# Handle building any requests if we call for a custom build 
+	if [[ ${BC_BUILD_CMDS["$bc"]} ]]; then
+	    make_chroot
+	    bind_mount "$CACHE_DIR/barclamps/$bc" "$CHROOT/mnt"
+	    (   export OS_TOKEN
+		cmd=${BC_BUILD_CMDS["$bc"]}
+		install_build_packages "$bc"
+		in_chroot ln -s /mnt/$OS_TOKEN /mnt/current_os
+		[[ -x $CROWBAR_DIR/barclamps/$bc/${cmd%% *} ]] || \
+		    die "Asked to do a custom build for $bc, but build script $cmd not found!"
+		sudo cp "$CROWBAR_DIR/barclamps/$bc/${cmd%% *}" "$CHROOT/tmp"
+		in_chroot /tmp/$cmd
+		in_chroot rm -f /mnt/current_os
+		sudo umount "$CHROOT/mnt" )
+	fi
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
     # Once all our barclamps have had their packages staged, create tarballs of them.
