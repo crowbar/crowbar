@@ -16,7 +16,7 @@
 # Value = whatever interesting thing we are looking for.
 declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
-declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS
+declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
 
 # Build OS independent query strings.
 BC_QUERY_STRINGS["deps"]="barclamp requires"
@@ -60,8 +60,11 @@ get_barclamp_info() {
 			die "Cannot declare a PPA for $PKG_TYPE!"
 			BC_REPOS["$bc"]+="ppa $line\n";;
 		    build_pkgs|os_build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
-		    raw_pkgs|os_raw_pkgs) BC_RAW_PKGS["$bc"]+="$line ";;
+		    raw_pkgs|os_raw_pkgs|pkg_sources|os_pkg_sources) BC_RAW_PKGS["$bc"]+="$line ";;
 		    test_deps) BC_SMOKETEST_DEPS["$bc"]+="$line ";;
+		    os_build_cmd) [[ ${BC_BUILD_CMDS["$bc"]} ]] && \
+			die "Only one os_build_cmd stanza per OS per barclamp allowed!"
+			BC_BUILD_CMDS["$bc"]="$line";;
 		    test_timeouts) BC_SMOKETEST_TIMEOUTS["$bc"]+="$line ";;
 		    *) die "Cannot handle query for $query."
 		esac
@@ -437,6 +440,16 @@ update_barclamp_pkg_cache() {
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
 }
 
+install_build_packages() {
+    for bc in $(all_deps "$1"); do
+	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." ]] && \
+	    sudo cp -a "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." \
+	    "$CHROOT/$CHROOT_PKGDIR"
+    done
+    chroot_install ${BC_BUILD_PKGS["$1"]}
+}
+
+
 # Update the gem cache for a barclamp
 update_barclamp_gem_cache() {
     local -A gems
@@ -447,10 +460,8 @@ update_barclamp_gem_cache() {
     ( cd "$CHROOT/$CHROOT_GEMDIR" && sudo rm -rf * )
     # if we have deb or gem caches, copy them back in.
     # Make sure we copy the caches for all our dependent barclamps.
-    for bc in $(all_deps "$1"); do
-	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." ]] && \
-	    sudo cp -a "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." \
-	    "$CHROOT/$CHROOT_PKGDIR"
+
+   for bc in $(all_deps "$1"); do
 	[[ -d "$CACHE_DIR/barclamps/$bc/gems/." ]] && \
 	    sudo cp -a "$CACHE_DIR/barclamps/$bc/gems/." \
 	    "$CHROOT/$CHROOT_GEMDIR"
@@ -462,7 +473,7 @@ update_barclamp_gem_cache() {
     done < <(find "$CHROOT/$CHROOT_GEMDIR" -type f)
         
     # install any build dependencies we need.
-    chroot_install ${BC_BUILD_PKGS["$1"]}
+    install_build_packages "$1"
     # Grab the gems needed for this barclamp.
     for gem in ${BC_GEMS["$1"]}; do
 	if [[ $gem =~ $GEM_RE ]]; then
@@ -492,7 +503,7 @@ update_barclamp_raw_pkg_cache() {
     local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
     mkdir -p "$bc_cache"
     # Fetch any raw_pkgs we were asked to.
-    for pkg in ${BC_RAW_PKGS["$1"]}; do
+    for pkg in ${BC_RAW_PKGS["$1"]} ${BC_PKG_SOURCES["$1"]}; do
 	[[ -f $bc_cache/${pkg##*/} ]] && continue
 	echo "Caching $pkg:"
 	curl -L -o "$bc_cache/${pkg##*/}" "$pkg"
@@ -574,7 +585,7 @@ barclamp_raw_pkg_cache_needs_update() {
     local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
     mkdir -p "$bc_cache"
     # Third, check to see if we have all the raw_pkgs we need.
-    for pkg in ${BC_RAW_PKGS["$1"]}; do
+    for pkg in ${BC_RAW_PKGS["$1"]} ${BC_PKG_SOURCES["$1"]}; do
 	[[ -f $bc_cache/${pkg##*/} ]] || return 0
     done
     return 1
