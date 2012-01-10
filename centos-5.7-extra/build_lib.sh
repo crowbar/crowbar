@@ -46,13 +46,14 @@ fetch_os_iso() {
 }
 
 # Have the chroot update its package metadata
-chroot_update() { in_chroot /usr/bin/yum -y update; }
+chroot_update() { in_chroot yum -y makecache; }
 
 # Install some packages in the chroot environment.
 chroot_install() { 
     if [[ $1 ]]; then
 	in_chroot /usr/bin/yum -y install "$@"
     fi
+    in_chroot /usr/bin/yum -y update
 }
 
 # Fetch (but do not install) packages into the chroot environment
@@ -60,6 +61,7 @@ chroot_fetch() {
     if [[ $1 ]]; then
 	in_chroot /usr/bin/yum -y --downloadonly install "$@" || :
     fi
+    in_chroot /usr/bin/yum -y update
 }
 
 # Make a repository file in the chroot environment.  We use this when we get a URL
@@ -133,8 +135,8 @@ __make_chroot() {
 		--preserve-modification-time)
 	done
 	if [[ $pkg =~ (centos|redhat)-release ]]; then
-	    mkdir -p "$CHROOT/tmp"
-	    cp "$f" "$CHROOT/tmp/${f##*/}"
+	    sudo mkdir -p "$CHROOT/tmp"
+	    sudo cp "$f" "$CHROOT/tmp/${f##*/}"
 	    postcmds+=("/bin/rpm -ivh --force --nodeps /tmp/${f##*/}")
 	fi
     done
@@ -156,8 +158,6 @@ __make_chroot() {
 	exec ruby -rwebrick -e \
 	    "WEBrick::HTTPServer.new(:BindAddress=>\"127.0.0.1\",:Port=>54321,:DocumentRoot=>\".\").start" &>/dev/null ) &
     webrick_pid=$!
-
-    make_repo_file redhat-base 99 "http://127.0.0.1:54321/"
     for d in proc sys dev dev/pts; do
 	mkdir -p "$CHROOT/$d"
 	sudo mount --bind "/$d" "$CHROOT/$d"
@@ -175,7 +175,7 @@ __make_chroot() {
     done
     # Make sure yum does not throw away our caches for any reason.
     in_chroot /bin/sed -i -e '/keepcache/ s/0/1/' /etc/yum.conf
-    in_chroot /bin/bash -c "echo 'exclude = *.i386' >>/etc/yum.conf"
+    in_chroot /bin/bash -c "echo 'exclude = *.i?86' >>/etc/yum.conf"
 
     [[ $USE_PROXY = "1" ]] && (   
 	cd "$CHROOT"
@@ -192,8 +192,20 @@ __make_chroot() {
 	    : ;
 	done
     )
+    # Make sure that the bootstrap only uses local data off the install DVD.
+    in_chroot mv /etc/yum.repos.d /etc/yum.repos.d.old
+    in_chroot mkdir -p /etc/yum.repos.d/
+    make_repo_file redhat-base 99 "http://127.0.0.1:54321/"
     # have yum bootstrap everything else into usefulness
-    chroot_install yum yum-downloadonly createrepo
+    in_chroot yum -y install yum yum-downloadonly createrepo
+    # Once we have the chroot bootstrapped, restore the CentOS repos.
+    # If we are using a proxy, fastestmirror usually does the Wrong Thing.
+    [[ $USE_PROXY = 1 ]] && \
+	in_chroot sed -ie '/^enabled/ s/1/0/' \
+	/etc/yum/pluginconf.d/fastestmirror.conf
+    in_chroot rm -rf /etc/yum.repos.d
+    in_chroot mv /etc/yum.repos.d.old /etc/yum.repos.d
+    make_repo_file redhat-base 99 "http://127.0.0.1:54321/"
 }
 
 # Extract version information from an RPM file
