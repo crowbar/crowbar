@@ -28,9 +28,11 @@ gpgcheck=0
 EOF
 
     # Make sure we only try to install x86_64 packages.
-    echo 'exclude = *.i386' >>/etc/yum.conf
+    echo 'exclude = *.i?86' >>/etc/yum.conf
+    # Nuke any non-64 bit packages that snuck in.
+    log_to yum yum -y erase '*.i?86'
 
-    echo "$(date '+%F %T %z'): Installing "
+    echo "$(date '+%F %T %z'): Installing updated packages."
     log_to yum yum -q -y update
 
     # Install the rpm and gem packages
