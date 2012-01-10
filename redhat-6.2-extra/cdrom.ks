@@ -43,10 +43,8 @@ set -x
 (
     ls -al /tmp
     mount
-    mount /tmp/cdrom /mnt/sysimage/mnt
     mkdir -p /mnt/sysimage/tftpboot/redhat_dvd/dell
-    cp -a /mnt/sysimage/mnt/. /mnt/sysimage/tftpboot/redhat_dvd/.
-    umount /mnt/sysimage/mnt
+    cp -a /mnt/source/. /mnt/sysimage/tftpboot/redhat_dvd/.
 ) &>/mnt/sysimage/root/post-install-copy.log
 
 %post
