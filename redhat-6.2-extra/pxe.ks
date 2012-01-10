@@ -28,8 +28,7 @@ reboot
 
 @base
 @core
-@editors
-@text-internet
+vim-enhanced
 keyutils
 trousers
 fipscheck

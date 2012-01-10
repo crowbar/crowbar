@@ -26,8 +26,7 @@ reboot
 %packages
 @base
 @core
-@editors
-@text-internet
+vim-enhanced
 keyutils
 trousers
 fipscheck
