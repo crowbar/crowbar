@@ -46,13 +46,14 @@ fetch_os_iso() {
 }
 
 # Have the chroot update its package metadata
-chroot_update() { in_chroot /usr/bin/yum -y update; }
+chroot_update() { in_chroot yum -y makecache; }
 
 # Install some packages in the chroot environment.
 chroot_install() { 
     if [[ $1 ]]; then
 	in_chroot /usr/bin/yum -y install "$@"
     fi
+     in_chroot yum -y upgrade
 }
 
 # Fetch (but do not install) packages into the chroot environment
@@ -60,7 +61,9 @@ chroot_fetch() {
     if [[ $1 ]]; then
 	in_chroot /usr/bin/yum -y --downloadonly install "$@" || :
     fi
+     in_chroot yum -y upgrade
 }
+
 
 # Make a repository file in the chroot environment.  We use this when we get a URL
 # from one of the packages files (as opposed to an RPM that contains repo info.
@@ -133,8 +136,8 @@ __make_chroot() {
 		--preserve-modification-time)
 	done
 	if [[ $pkg =~ (centos|redhat)-release ]]; then
-	    mkdir -p "$CHROOT/tmp"
-	    cp "$f" "$CHROOT/tmp/${f##*/}"
+	    sudo mkdir -p "$CHROOT/tmp"
+	    sudo cp "$f" "$CHROOT/tmp/${f##*/}"
 	    postcmds+=("/bin/rpm -ivh --force --nodeps /tmp/${f##*/}")
 	fi
     done
@@ -159,7 +162,7 @@ __make_chroot() {
 
     make_repo_file redhat-base 99 "http://127.0.0.1:54321/Server/"
     for d in proc sys dev dev/pts; do
-	mkdir -p "$CHROOT/$d"
+	sudo mkdir -p "$CHROOT/$d"
 	sudo mount --bind "/$d" "$CHROOT/$d"
     done
     # third, run any post cmds we got earlier
@@ -194,7 +197,7 @@ __make_chroot() {
     )
 
     # have yum bootstrap everything else into usefulness
-    chroot_install yum yum-downloadonly createrepo
+    in_chroot yum -y install yum yum-downloadonly createrepo
 }
 
 # Extract version information from an RPM file

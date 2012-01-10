@@ -325,8 +325,8 @@ make_chroot() {
     [[ -f $CHROOT/etc/resolv.conf ]] && return 0
     local bc repo
     debug "Making package-fetching chroot"
-    mkdir -p "$CHROOT/$CHROOT_PKGDIR"
-    mkdir -p "$CHROOT/$CHROOT_GEMDIR"
+    sudo mkdir -p "$CHROOT/$CHROOT_PKGDIR"
+    sudo mkdir -p "$CHROOT/$CHROOT_GEMDIR"
     __make_chroot
 
     read_base_repos
