@@ -272,7 +272,8 @@ shrink_iso() {
     done
     make_chroot
     sudo mount --bind "$BUILD_DIR" "$CHROOT/mnt"
-    in_chroot /bin/bash -c 'cd /mnt; createrepo -g /mnt/repodata/comps.xml -o /mnt/repodata CentOS'
+    in_chroot /bin/bash -c 'cd /mnt; createrepo -g /mnt/repodata/comps.xml .'
+    sudo umount -l "$CHROOT/mnt"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/CentOS"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/repodata"
 }
