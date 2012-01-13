@@ -198,6 +198,7 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 BC_QUERY_STRINGS["os_pkg_sources"]="$PKG_TYPE $OS_TOKEN pkg_sources"
 BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 
+
 {
     # Check to make sure our required commands are installed.
     for cmd in sudo chroot mkisofs ruby; do
@@ -459,18 +460,22 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 	done
 	# Handle building any requests if we call for a custom build 
 	if [[ ${BC_BUILD_CMDS["$bc"]} ]]; then
-	    make_chroot
-	    bind_mount "$CACHE_DIR/barclamps/$bc" "$CHROOT/mnt"
-	    (   export OS_TOKEN
-		cmd=${BC_BUILD_CMDS["$bc"]}
-		install_build_packages "$bc"
-		in_chroot ln -s /mnt/$OS_TOKEN /mnt/current_os
-		[[ -x $CROWBAR_DIR/barclamps/$bc/${cmd%% *} ]] || \
-		    die "Asked to do a custom build for $bc, but build script $cmd not found!"
-		sudo cp "$CROWBAR_DIR/barclamps/$bc/${cmd%% *}" "$CHROOT/tmp"
-		in_chroot /tmp/$cmd
-		in_chroot rm -f /mnt/current_os
-		sudo umount "$CHROOT/mnt" )
+	    
+	    [[ -x $CROWBAR_DIR/barclamps/$bc/${BC_BUILD_CMDS["$bc"]%% *} ]] || \
+		die "Asked to do a custom build for $bc, but build script ${BC_BUILD_CMDS["$bc"]%% *} not found!"
+	    (   export BC_DIR=$CROWBAR_DIR/barclamps/$bc
+		export BC_CACHE=$CACHE_DIR/barclamps/$bc
+		. "$BC_DIR"/${BC_BUILD_CMDS["$bc"]}
+		if bc_needs_build; then
+		    make_chroot
+		    bind_mount "$CACHE_DIR/barclamps/$bc" "$CHROOT/mnt"
+		    install_build_packages "$bc"
+		    in_chroot ln -s /mnt/$OS_TOKEN /mnt/current_os
+		    bc_build
+		    in_chroot rm -f /mnt/current_os
+		    sudo umount "$CHROOT/mnt"
+		fi
+	    )	
 	fi
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
