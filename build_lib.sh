@@ -22,6 +22,7 @@ declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
 BC_QUERY_STRINGS["deps"]="barclamp requires"
 BC_QUERY_STRINGS["groups"]="barclamp member"
 BC_QUERY_STRINGS["extra_files"]="extra_files"
+BC_QUERY_STRINGS["build_cmd"]="build_cmd"
 BC_QUERY_STRINGS["os_support"]="barclamp os_support"
 BC_QUERY_STRINGS["gems"]="gems pkgs"
 BC_QUERY_STRINGS["test_deps"]="smoketest requires"
@@ -62,7 +63,7 @@ get_barclamp_info() {
 		    build_pkgs|os_build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
 		    raw_pkgs|os_raw_pkgs|pkg_sources|os_pkg_sources) BC_RAW_PKGS["$bc"]+="$line ";;
 		    test_deps) BC_SMOKETEST_DEPS["$bc"]+="$line ";;
-		    os_build_cmd) [[ ${BC_BUILD_CMDS["$bc"]} ]] && \
+		    os_build_cmd|build_cmd) [[ ${BC_BUILD_CMDS["$bc"]} ]] && \
 			die "Only one os_build_cmd stanza per OS per barclamp allowed!"
 			BC_BUILD_CMDS["$bc"]="$line";;
 		    test_timeouts) BC_SMOKETEST_TIMEOUTS["$bc"]+="$line ";;
@@ -300,6 +301,7 @@ vercmp(){
 	    255) return 1;;
 	esac
     done
+
 }
 
 # Index the pool of packages in the CD.
@@ -328,20 +330,24 @@ make_chroot() {
     sudo mkdir -p "$CHROOT/$CHROOT_PKGDIR"
     sudo mkdir -p "$CHROOT/$CHROOT_GEMDIR"
     __make_chroot
+    
+    if [[ $ALLOW_CACHE_UPDATE = true ]]; then
+	read_base_repos
+        # Add our basic repositories
+	add_repos "${REPOS[@]}" || \
+	    die "Could not add base repositories for $OS_TOKEN chroot!"
 
-    read_base_repos
-    # Add our basic repositories
-    add_repos "${REPOS[@]}" || \
-	die "Could not add base repositories for $OS_TOKEN chroot!"
-
-    # Add the repos from the barclamps.
-    # We do it here because importing the metadata takes forever
-    # if we refresh on every barclamp.
-    for bc in "${BARCLAMPS[@]}"; do
-	while read repo; do
-	    add_repos "$repo"
-	done < <(write_lines "${BC_REPOS[$bc]}")
-    done
+        # Add the repos from the barclamps.
+        # We do it here because importing the metadata takes forever
+        # if we refresh on every barclamp.
+	for bc in "${BARCLAMPS[@]}"; do
+	    while read repo; do
+		add_repos "$repo"
+	    done < <(write_lines "${BC_REPOS[$bc]}")
+	done
+    else
+	add_offline_repos
+    fi
     chroot_update
 }
 

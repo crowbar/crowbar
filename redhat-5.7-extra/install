@@ -17,6 +17,8 @@
 # limitations under the License.
 #
 
+export OS_TOKEN=redhat-5.7
+
 cd /tftpboot/redhat_dvd/extra
 script -f -c "./install-chef.sh $1" /var/log/install.log
 cd -
