@@ -332,6 +332,17 @@ crowbar crowbar proposal commit default || \
 crowbar crowbar show default >/var/log/default.json
 chef_or_die "Chef run after default proposal commit failed!"
 
+# Need to make sure that we have the indexer/expander finished 
+COUNT=0
+VALUE=10000
+while [ $COUNT -lt 60 -a $VALUE -ne 0 ]
+do
+    sleep 1
+    VALUE=`chef-expanderctl queue-depth | grep total | awk -F: '{ print $2 }'`
+    echo "Expander Queue Total = $VALUE"
+    COUNT=`expr $COUNT + 1`
+done
+
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
 # to the next.
