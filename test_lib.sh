@@ -105,11 +105,15 @@ smoketest_make_bridges() {
 	sudo -n brctl show |grep -q "$bridge" || \
 	    sudo -n brctl addbr "$bridge" || \
 	    die "Could not create $bridge bridge!"
-	sudo -n brctl setfd "$bridge" 1 || \
+	# Emulate a switch with STP but no portfast.
+	sudo -n brctl stp "$bridge" on || \
+	    die "Could not enable spanning tree protocol on $bridge!"
+	sudo -n brctl setfd "$bridge" 20 || \
 	    die "Could not set forwarding time on $bridge!"
+	sudo -n brctl sethello "$bridge" 2 || \
+	    die "Could not set hello time for $bridge!"
 	sudo -n ip link set "$bridge" up || \
 	    die "Could not set link on $bridge up!"
-	sudo -n brctl stp "$bridge" on
 	if [[ $bridge =~ $pub_re ]]; then
 	    sudo -n ip addr add 192.168.124.1/24 dev "$bridge"
 	fi
@@ -540,7 +544,7 @@ run_kvm() {
 	kvmargs+=(-net "tap,ifname=${line##*,},script=no,downscript=no")
     done
     if [[ $pxeboot ]]; then
-	kvmargs+=(-boot "order=n")
+	kvmargs+=(-boot "order=n" -option-rom "$SMOKETEST_DIR/8086100e.rom")
     elif [[ $driveboot ]]; then
 	kvmargs+=(-boot "order=c")
     fi
