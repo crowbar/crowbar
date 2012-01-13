@@ -34,6 +34,8 @@ chroot_install() {
 	in_chroot /usr/bin/apt-get -y --force-yes \
 	    --allow-unauthenticated install "$@"
     fi
+    in_chroot /usr/bin/apt-get -y --force-yes \
+	--allow-unauthenticated upgrade
 }
 
 # Fetch (but do not install) packages into the chroot environment
@@ -42,6 +44,8 @@ chroot_fetch() {
 	in_chroot /usr/bin/apt-get -y --force-yes \
 	    --allow-unauthenticated --download-only install "$@"
     fi
+    in_chroot /usr/bin/apt-get-y --force-yes \
+	--allow-unauthenticated upgrade
 }
 
 # Add repositories to the local chroot environment.
@@ -94,12 +98,29 @@ pkg_name() {
     echo "${n%% *}"
 }
 
+add_offline_repos() {
+    in_chroot rm -f /etc/apt/sources.list
+    in_chroot mkdir -p /packages/base
+    in_chroot mkdir -p /packages/barclamps
+    for bc in "${BARCLAMPS[@]}"; do
+	[[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs ]] || continue
+	sudo mkdir -p "$CHROOT/packages/barclamps/$bc"
+	sudo mount --bind "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
+	    "$CHROOT/packages/barclamps/$bc"
+    done
+    sudo mount --bind "$IMAGE_DIR" "$CHROOT/packages/base"
+    add_repos 'deb file:///packages/base maverick main restricted'
+    chroot_update
+    chroot_install dpkg-dev
+    in_chroot /bin/bash -c 'cd /packages/barclamps; dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz'
+    add_repos 'deb file:///packages/barclamps /'
+}
+
 # OS specific part of making our chroot environment.
 __make_chroot() {
     # debootstrap a minimal install of our target version of
     # Ubuntu to ensure that we don't interfere with the host's package cache.
     local d repo bc f
-    sudo mount -t tmpfs -o size=4G "$OS_TOKEN-chroot" "$CHROOT"
     sudo debootstrap "$OS_CODENAME" "$CHROOT" \
 	"file://$IMAGE_DIR" || \
 	die 1 "Could not bootstrap our scratch target!"
@@ -107,8 +128,6 @@ __make_chroot() {
     for d in proc sys dev dev/pts; do
 	bind_mount "/$d" "$CHROOT/$d"
     done
-    in_chroot mkdir -p "/base_repo"
-    sudo mount --bind "$IMAGE_DIR" "$CHROOT/base_repo"
     # make sure the chroot can resolve hostnames
     sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
     # make sure the chroot honors proxies
