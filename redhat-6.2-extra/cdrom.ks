@@ -18,7 +18,7 @@ ignoredisk --only-use=sda
 clearpart --all --drives=sda
 part /boot --fstype ext3 --size=100 --ondisk=sda
 part swap --recommended
-part pv.6 --size=0 --grow --ondisk=sda
+part pv.6 --size=1 --grow --ondisk=sda
 volgroup lv_admin --pesize=32768 pv.6
 logvol / --fstype ext3 --name=lv_root --vgname=lv_admin --size=1 --grow
 reboot
@@ -26,8 +26,7 @@ reboot
 %packages
 @base
 @core
-@editors
-@text-internet
+vim-enhanced
 keyutils
 trousers
 fipscheck
@@ -44,10 +43,8 @@ set -x
 (
     ls -al /tmp
     mount
-    mount /tmp/cdrom /mnt/sysimage/mnt
     mkdir -p /mnt/sysimage/tftpboot/redhat_dvd/dell
-    cp -a /mnt/sysimage/mnt/. /mnt/sysimage/tftpboot/redhat_dvd/.
-    umount /mnt/sysimage/mnt
+    cp -a /mnt/source/. /mnt/sysimage/tftpboot/redhat_dvd/.
 ) &>/mnt/sysimage/root/post-install-copy.log
 
 %post
