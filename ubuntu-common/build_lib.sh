@@ -44,7 +44,7 @@ chroot_fetch() {
 	in_chroot /usr/bin/apt-get -y --force-yes \
 	    --allow-unauthenticated --download-only install "$@"
     fi
-    in_chroot /usr/bin/apt-get-y --force-yes \
+    in_chroot /usr/bin/apt-get -y --force-yes \
 	--allow-unauthenticated upgrade
 }
 
