@@ -186,7 +186,7 @@ cleanup() {
     # Do the same thing as above, but for the build cache instead.
     cd "$CACHE_DIR"
     if [[ $CACHE_NEEDS_COMMIT ]]; then
-	in_cache git commit -m "Updated by build_crowbar.sh @ $(date)"
+	in_cache git commit -m "Updated by build_crowbar.sh @ $(date) for ${OS_TOKEN}"
 	echo "The crowbar build cache has been updated, and the updates have"
 	echo "been comitted back to the cache.  Please push any changes."
     fi
