@@ -44,7 +44,7 @@ chroot_fetch() {
 	in_chroot /usr/bin/apt-get -y --force-yes \
 	    --allow-unauthenticated --download-only install "$@"
     fi
-    in_chroot /usr/bin/apt-get-y --force-yes \
+    in_chroot /usr/bin/apt-get -y --force-yes \
 	--allow-unauthenticated upgrade
 }
 
@@ -109,7 +109,7 @@ add_offline_repos() {
 	    "$CHROOT/packages/barclamps/$bc"
     done
     sudo mount --bind "$IMAGE_DIR" "$CHROOT/packages/base"
-    add_repos 'deb file:///packages/base maverick main restricted'
+    add_repos "deb file:///packages/base $OS_CODENAME main restricted"
     chroot_update
     chroot_install dpkg-dev
     in_chroot /bin/bash -c 'cd /packages/barclamps; dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz'
