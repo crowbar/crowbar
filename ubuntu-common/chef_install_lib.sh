@@ -47,6 +47,10 @@ bring_up_chef() {
     cp -f patches/run_list.rb "$rl"
     # Make the Rubygems provider in Chef respect gemrc files.
     cp -f patches/rubygems.rb /usr/lib/ruby/vendor_ruby/chef/provider/package
+
+    # increase chef-solr index field size
+    perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml 
+
     log_to svc service chef-server restart
 }
 
