@@ -17,11 +17,11 @@ bootloader --location=mbr --driveorder=sda
 zerombr
 ignoredisk --only-use=sda
 clearpart --all --drives=sda
-part /boot --fstype ext3 --size=100 --ondisk=sda
+part /boot --fstype ext4 --size=100 --ondisk=sda
 part swap --recommended
 part pv.6 --size=1 --grow --ondisk=sda
 volgroup lv_admin --pesize=32768 pv.6
-logvol / --fstype ext3 --name=lv_root --vgname=lv_admin --size=1 --grow
+logvol / --fstype ext4 --name=lv_root --vgname=lv_admin --size=1 --grow
 reboot
 
 %packages
