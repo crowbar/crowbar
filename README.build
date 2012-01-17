@@ -154,5 +154,122 @@ Customization:
      staging the Crowbar build.  
      Defaults to 'git clean -f -d'
 
+Build System Walkthrough:
+
+When build_crowbar.sh is invoked, it performs the following processes in order:
+
+ 1: Make sure we are in the C locale, and that $PATH is set to something sane.
+ 2: Pick up any local configuration settings from $HOME/.build_crowbar.conf
+    or ./build_crowbar.conf
+ 3: If USE_PROXY is set to 1, make sure that the HTTP and HTTPS proxy
+    settings are sane.
+ 4: Set any uninitialized config variables to their defaults.
+ 5: Source our generic build and test functions.
+ 6: Figure out what OS we want to stage, and source the build and test
+    libraries.  This will pull in the functions we need to actually stage
+    Crowbar on an OS install ISO.  If we were asked to build on an OS that 
+    we don't have build info for, die and print out the OSes we do know how
+    to stage things on.
+ 7: Make sure that all the commands we will need to stage Crowbar on to an ISO
+    are installed on the system.  If they are not, print a helpful error 
+    message and die.
+ 8: Grab the build lock to make sure that multiple builds do not stomp all
+    over eachother.
+ 9: Do a little bookkeeping to make sure we are on a buildable Git branch.
+    If the build cache is in a git repository, record that information as well.
+10: Parse our commandline options. 
+11: Make sure our essential build-related directories are present (including
+    the directory we will stage the build into, the directory we will mount
+    the ISO image on, and a chroot that will be used as part of the barclamp
+    staging process), and set up any build parameters that have not already 
+    been set up.
+12: If we were not passed a list of barclamps to install on the command line,
+    figure out what barclamps we need based on the submodule information from
+    the git branch we are on.
+13: Pull in metadata from the crowbar.yml files for each barclamp.
+    This metadata will drive the rest of the install -- we need it to
+    figure out dependency relations between barclamps, what packages and files
+    to stage, and how to invoke any external build processes we might need.
+14: Make sure we have a Sledgehammer image handy.
+15: If we don't have the OS ISO to stage on, and we know how to get one, then
+    download the .ISO we will need.
+16: Clean out any leftovers from the last build, and make sure that
+    we don't inadvertently pull in any VCS cruft.
+17: Mount the OS iso as a loopback file system, and index its package
+    pool if we don't already have it cached.
+18: Stage some barclamp-independent build information into the build directory.
+19: Create the build-info file for this build, and start adding useful 
+    metadata into it.
+20: Loop over the list of barclamps want to stage, and stage each one.  
+    This is covered in more detail in the Barclamp Staging Walkthrough below.
+21: Bundle each barclamp and its package cache into a per-barclamp tarball.
+22: Create some legacy symlinks, and stage any custom proposals that this
+    iso will use.
+23: Perform any OS specific fixups that are needed to make this image deploy
+    correctly.
+24: Stage the Sledgehammer image.
+25: Create the Crowbar .ISO by merging the contents of the build and the image
+    directory.  Wherever there is a conflict in file names or contents, the
+    build directory has priority.  If we were asked to generate a shrunken ISO,
+    that happens here.
+26: If we were asked to test the ISO, invoke the test framework on our 
+    newly-created ISO.
+27: Clean up after ourselves.
+
+Barclamp Staging Walkthrough:
+
+build_crowbar will try to stage each barclamp in dependency order (as inferred
+from each barclamp's crowbar.yml file).  Staging a barclamp properly for the
+OS we are staging on to requires the use of a chroot environment to ensure
+that we get all the packages we need and that we don't break the host OS
+in the process.  Each barclamp is staged in 6 phases:
+
+1: Check to see if all the OS packages listed in the pkgs: and build_pkgs: 
+   section of the crowbar.yml are present in this barclamps's OS build cache.
+   If they are not, fetch any missing ones and all their dependencies using
+   a chroot environment, and add any new or updated packages so fetched back
+   into the build cache.
+2: Check to see that all the gems listed in the crowbar.yml are present in
+   the build cache.  If they are not, fetch them and all their dependencies in
+   the chroot environment, and add any new or updated gems to the build cache.
+3: Download and cache any packages pointed to by raw_pkg stanzas in the 
+   crowbar.yml that we are missing.
+4: Download and cache any files required by extra_files stanzas in the
+   crowbar.yml thatwe are missing.
+5: If the crowbar.yml has a build_cmd stanza, source that file and use it
+   to build an external package.  The script pointed to by build_cmd should
+   have two functions declared:
+  
+   bc_needs_build -- This function should return 0 if the external
+   pacakge needs building, and 1 if it does not.
+   
+   bc_build: This function will be invoked after setting up a chroot and
+   bind-mounting the build cache for this barclamp into it.  It is responsible
+   for using the chroot enviromnent to build the external package, and making
+   sure that the output of the build process winds up in the proper location
+   in the build cache so that the rest of the barclamp can properly use it.
+
+   bc-build has access to the following environment variables:
+   BC_DIR = the full path to the root of the barclamp source repository.  
+   BC_CACHE = The full path to the barclamp package cache.
+
+   Any actual building should happen in the chroot environment. 
+   To facilitate this, $BC_CACHE is bind-mounted to /mnt in the chroot,
+   any build_pkgs required by this barclamp will be installed in the chroot,
+   and /mnt/current_os in the chroot will be a symlink to the OS package cache
+   that for the barclamp build cache that is bind mounted to /mnt in the chroot.
+
+   You can use the chroot_install command to install any additional packages
+   you may need, and you can use the in_chroot command to run commands
+   in hte chroot environment.
+
+   For some in-tree examples, refer to the ganglia, provisioner, and deployer
+   barclamps.  All of these have an additional script that is copied into the
+   chroot that handles most of the build tasks.
+
+6: Tar up the source for the barclamp and the build cache into a deployable
+   barclamp tarball.
+   
+
 The build_crowbar.sh script is heavily commented, please refer to it for more 
 detailed information.
