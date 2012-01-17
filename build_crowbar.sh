@@ -180,6 +180,9 @@ fi
 #   process, either as an install from CD or an install via PXE.  This 
 #   usually entails modifying initrd files, adding kickstarts/install seeds,
 #   modifying boot config files, and so on.
+# add_offline_repos(): This function should take whatever steps are needed
+#   to ensure that the OS packages in the crowbar build cache are installable
+#   from the chroot environment.
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
 
 # Build OS dependent query strings
@@ -282,6 +285,8 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 		    shift
 		done;;
 	    --test)
+		# Run tests on the newly-created repository.
+                # The test framework does the heavy lifting.
 		NEED_TEST=true
 		test_params=()
 		shift
@@ -305,6 +310,8 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 		    CI_BRANCH="master"
 		fi;;
 	    --shrink)
+		# Ask that the generated ISO be shrunk down to the mininim 
+		# needed to deploy Crowbar.
 		type shrink_iso >&/dev/null || \
 		    die "The build system does not know how to shrink $OS_TO_STAGE"
 		SHRINK_ISO=true
@@ -314,7 +321,14 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 		    die "The build system does not know how to generate a minimal install list for $OS_TO_STAGE!"
 		GENERATE_MINIMAL_INSTALL=true
 		shift;;
+	    # If we need to perfoem a cache update, die insted.
+	    # This also has the build system ensure that any chroots
+	    # can pull packages straight out of the build cache, allowing
+	    # for fully offline builds.
 	    --no-cache-update) shift; ALLOW_CACHE_UPDATE=false;;
+	    # Go through all the motions, but do not actaully generate
+	    # an ISO at the end.  This is useful for generating barclamp
+	    # tarballs.
 	    --no-iso) shift; NO_GENERATE_ISO=true;;
 	    *) 	die "Unknown command line parameter $1";;
 	esac
@@ -460,13 +474,16 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 	done
 	# Handle building any requests if we call for a custom build 
 	if [[ ${BC_BUILD_CMDS["$bc"]} ]]; then
-	    
 	    [[ -x $CROWBAR_DIR/barclamps/$bc/${BC_BUILD_CMDS["$bc"]%% *} ]] || \
 		die "Asked to do a custom build for $bc, but build script ${BC_BUILD_CMDS["$bc"]%% *} not found!"
+	    # Make sure the actual build runs in a subshell.  This prevents
+	    # cross-barclamp namespace collisions.
 	    (   export BC_DIR=$CROWBAR_DIR/barclamps/$bc
 		export BC_CACHE=$CACHE_DIR/barclamps/$bc
 		. "$BC_DIR"/${BC_BUILD_CMDS["$bc"]}
 		if bc_needs_build; then
+		    # Make sure we have a chroot set up and that it is ready
+		    # to do whatever bc_build needs.
 		    make_chroot
 		    bind_mount "$CACHE_DIR/barclamps/$bc" "$CHROOT/mnt"
 		    install_build_packages "$bc"
@@ -522,8 +539,12 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 
     # Make our image
     debug "Creating new ISO"
-    # Find files and directories that mkisofs will complain about.
-    # Do just top-level overlapping directories for now.
+    # mkisofs can merge multiple directory trees into a single iso
+    # file system.  However, these trees must be disjoint -- if 
+    # any of the filesystem trees collide, mkisofs dies.
+    # To work around that, we merge any colliding top-level trees
+    # and take care to prefer stuff from $BUILD_DIR, and then
+    # bind-mount empty trees on top of the colliding trees in $IMAGE_DIR
     for d in $(cat <(cd "$BUILD_DIR"; find -maxdepth 1 -type d) \
 	           <(cd "$IMAGE_DIR"; find -maxdepth 1 -type d) | \
 	           sort |uniq -d); do
