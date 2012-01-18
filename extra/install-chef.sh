@@ -352,6 +352,7 @@ do
     echo "Expander Queue Total = $VALUE"
     COUNT=$(($COUNT + 1))
 done
+sleep 30 # This is lame - the queue can be empty, but still processing and mess up future operations.
 
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
