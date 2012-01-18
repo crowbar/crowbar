@@ -413,6 +413,15 @@ cache_rm() {
     rm -f "$1"
 }
 
+install_build_packages() {
+    for bc in $(all_deps "$1"); do
+	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." ]] && \
+	    sudo cp -a "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." \
+	    "$CHROOT/$CHROOT_PKGDIR"
+    done
+    chroot_install ${BC_BUILD_PKGS["$1"]}
+}
+
 # Update the package cache for a barclamp.
 update_barclamp_pkg_cache() {
     # $1 = barclamp we are working with
@@ -432,7 +441,8 @@ update_barclamp_pkg_cache() {
 	is_pkg "$pkg" || continue
 	pkgs["$pkg"]="true"
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
-    chroot_fetch ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]} || \
+    [[ ${BC_BUILD_PKGS["$1"]} ]] && install_build_packages "$1"
+    chroot_fetch ${BC_PKGS["$1"]} || \
 	die "Could not fetch packages required by barclamp $1"
     mkdir -p "$bc_cache"
     while read pkg; do
@@ -445,16 +455,6 @@ update_barclamp_pkg_cache() {
 	cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
 }
-
-install_build_packages() {
-    for bc in $(all_deps "$1"); do
-	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." ]] && \
-	    sudo cp -a "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." \
-	    "$CHROOT/$CHROOT_PKGDIR"
-    done
-    chroot_install ${BC_BUILD_PKGS["$1"]}
-}
-
 
 # Update the gem cache for a barclamp
 update_barclamp_gem_cache() {
