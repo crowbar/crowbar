@@ -83,6 +83,9 @@ barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
 
+# Make sure we can actaully install Crowbar
+chmod +x "$BASEDIR/extra/"*
+
 # This directory is the model to help users create new barclamps
 cp -r /opt/dell/barclamps/crowbar/crowbar_framework/barclamp_model /opt/dell
 
