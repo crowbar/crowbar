@@ -345,9 +345,8 @@ make_chroot() {
 		add_repos "$repo"
 	    done < <(write_lines "${BC_REPOS[$bc]}")
 	done
-    else
-	add_offline_repos
     fi
+    add_offline_repos
     chroot_update
 }
 
@@ -413,12 +412,16 @@ cache_rm() {
     rm -f "$1"
 }
 
+make_barclamp_pkg_metadata() {
+    [[ -d $CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs ]] || return 0
+    make_chroot
+    sudo mount --bind "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" "$CHROOT/mnt"
+    __make_barclamp_pkg_metadata
+    sudo umount "$CHROOT/mnt"
+    sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+}
+
 install_build_packages() {
-    for bc in $(all_deps "$1"); do
-	[[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." ]] && \
-	    sudo cp -a "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/." \
-	    "$CHROOT/$CHROOT_PKGDIR"
-    done
     chroot_install ${BC_BUILD_PKGS["$1"]}
 }
 

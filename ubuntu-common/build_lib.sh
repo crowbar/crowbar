@@ -98,22 +98,23 @@ pkg_name() {
     echo "${n%% *}"
 }
 
+__make_barclamp_pkg_metadata() {
+    in_chroot /bin/bash -c 'cd /mnt; dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz'
+}
+
 add_offline_repos() {
     in_chroot rm -f /etc/apt/sources.list
     in_chroot mkdir -p /packages/base
     in_chroot mkdir -p /packages/barclamps
     for bc in "${BARCLAMPS[@]}"; do
-	[[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs ]] || continue
+	[[ -f $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/Packages.gz ]] || continue
 	sudo mkdir -p "$CHROOT/packages/barclamps/$bc"
 	sudo mount --bind "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
 	    "$CHROOT/packages/barclamps/$bc"
+	add_repos "deb file:///packages/barclamps/$bc /"
     done
     sudo mount --bind "$IMAGE_DIR" "$CHROOT/packages/base"
     add_repos "deb file:///packages/base $OS_CODENAME main restricted"
-    chroot_update
-    chroot_install dpkg-dev
-    in_chroot /bin/bash -c 'cd /packages/barclamps; dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz'
-    add_repos 'deb file:///packages/barclamps /'
 }
 
 # OS specific part of making our chroot environment.

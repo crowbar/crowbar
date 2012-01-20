@@ -88,16 +88,19 @@ add_repos() {
 # Check to see if something is a valid RPM package name.
 is_pkg() { [[ $1 = *.rpm ]]; }
 
+__make_barclamp_pkg_metadata () {
+    in_chroot /bin/bash -c "cd /mnt; createrepo -d -q ."
+}
+
 add_offline_repos() (
     in_chroot mkdir -p /etc/yum.repos.d
     for bc in "${BARCLAMPS[@]}"; do
-	[[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs ]] || continue
+	[[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/repodata ]] || continue
 	sudo mkdir -p "$CHROOT/packages/barclamps/$bc"
 	sudo mount --bind "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
 	    "$CHROOT/packages/barclamps/$bc"
+	make_repo_file "barclamp-$bc" 99 "file:///packages/barclamps/$bc"
     done
-    in_chroot /bin/bash -c "cd /packages/barclamps; createrepo -d -q ."
-    make_repo_file crowbar-xtras 99 "file:///packages/barclamps"
 )
 
 # This function makes a functional centos chroot environment.
