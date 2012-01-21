@@ -9,6 +9,7 @@ PKG_TYPE="debs"
 PKG_ALLOWED_ARCHES=("amd64" "all")
 CHROOT_PKGDIR="var/cache/apt/archives"
 CHROOT_GEMDIR="var/lib/gems/1.8/cache"
+OS_METADATA_PKGS="dpkg-dev"
 declare -A SEEN_DEBS
 # The name of the OS iso we are using as a base.
 [[ $ISO ]] || ISO="ubuntu-$OS_VERSION-server-amd64.iso"
@@ -100,6 +101,11 @@ pkg_name() {
 
 __make_barclamp_pkg_metadata() {
     in_chroot /bin/bash -c 'cd /mnt; dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz'
+    sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
+    if [[ $CURRENT_CACHE_BRANCH ]]; then
+	CACHE_NEEDS_COMMIT=true
+	in_cache git add "barclamps/$bc/$OS_TOKEN/pkgs/Packages.gz"
+    fi
 }
 
 add_offline_repos() {

@@ -7,7 +7,7 @@ update_hostname() {
 }
 
 install_base_packages() {
-    yum -q -y install createrepo
+    > /etc/yum.repos.d/crowbar-xtras.repo
     # Make our local cache
     mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra"
     (cd "/tftpboot/$OS_TOKEN/crowbar-extra";
@@ -16,15 +16,14 @@ install_base_packages() {
 	    [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
 	    # Link them in.
 	    ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
-	done
-	createrepo -d -q .)
-
-    cat >/etc/yum.repos.d/crowbar-xtras.repo <<EOF
-[crowbar-xtras]
-name=Crowbar Extra Packages
-baseurl=file:///tftpboot/$OS_TOKEN/crowbar-extra
+	    cat >/etc/yum.repos.d/crowbar-${bc##*/}.repo <<EOF
+[crowbar-${bc##*/}]
+name=Crowbar ${bc##*/} Packages
+baseurl=file:///tftpboot/$OS_TOKEN/crowbar-extra/${bc##*/}
 gpgcheck=0
 EOF
+	done
+    )
 
     # Make sure we only try to install x86_64 packages.
     echo 'exclude = *.i?86' >>/etc/yum.conf

@@ -453,7 +453,6 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
     echo "build-os-iso: $ISO" >>"$BUILD_DIR/build-info"
     echo "crowbar: $(get_rev "$CROWBAR_DIR")" >>"$BUILD_DIR/build-info"
 
-    make_chroot
     # Make sure that all our barclamps are properly staged.
     for bc in "${BARCLAMPS[@]}"; do
 	is_barclamp "$bc" || die "Cannot find barclamp $bc!"
@@ -494,12 +493,6 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 		    sudo umount "$CHROOT/mnt"
 		fi
 	    )	
-	fi
-	# If we are in online mode, arrange for our local barclamp
-	# OS package metadata to be updated.
-	if [[ $ALLOW_CACHE_UPDATE = true && $bc = crowbar ]]; then
-	    make_chroot
-	    install_build_packages "$bc"
 	fi
 	make_barclamp_pkg_metadata "$bc"
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"

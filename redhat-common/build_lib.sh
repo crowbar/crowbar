@@ -9,6 +9,7 @@ PKG_TYPE="rpms"
 PKG_ALLOWED_ARCHES=("x86_64" "noarch")
 CHROOT_PKGDIR="var/cache/yum"
 CHROOT_GEMDIR="usr/lib/ruby/gems/1.8/cache"
+OS_METADATA_PKGS="createrepo"
 declare -A SEEN_RPMS
 
 # we need extglobs, so enable them.
@@ -90,6 +91,11 @@ is_pkg() { [[ $1 = *.rpm ]]; }
 
 __make_barclamp_pkg_metadata () {
     in_chroot /bin/bash -c "cd /mnt; createrepo -d -q ."
+    sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
+    if [[ $CURRENT_CACHE_BRANCH ]]; then
+	CACHE_NEEDS_COMMIT=true
+	in_cache git add "barclamps/$bc/$OS_TOKEN/pkgs/repodata"
+    fi
 }
 
 add_offline_repos() (

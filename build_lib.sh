@@ -326,7 +326,7 @@ index_cd_pool() {
 make_chroot() {
     [[ -f $CHROOT/etc/resolv.conf ]] && return 0
     local bc repo
-    debug "Making package-fetching chroot"
+    debug "Making utility chroot"
     sudo mkdir -p "$CHROOT/$CHROOT_PKGDIR"
     sudo mkdir -p "$CHROOT/$CHROOT_GEMDIR"
     __make_chroot
@@ -348,6 +348,7 @@ make_chroot() {
     fi
     add_offline_repos
     chroot_update
+    chroot_install $OS_METADATA_PKGS
 }
 
 stage_pkgs() {
@@ -414,11 +415,16 @@ cache_rm() {
 
 make_barclamp_pkg_metadata() {
     [[ -d $CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs ]] || return 0
+    [[ $CACHE_DIR/barclamps/$1/$OS_TOKEN -nt \
+	$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs ]] && return 0
+    local bc=$1
+    debug "Updating package cache metadata for $bc"
     make_chroot
-    sudo mount --bind "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" "$CHROOT/mnt"
+    sudo mount --bind "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" "$CHROOT/mnt"
     __make_barclamp_pkg_metadata
     sudo umount "$CHROOT/mnt"
-    sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    sleep 1
+    touch "$CACHE_DIR/barclamps/$bc/$OS_TOKEN"
 }
 
 install_build_packages() {
@@ -457,6 +463,7 @@ update_barclamp_pkg_cache() {
 	fi 
 	cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
+    touch "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
 }
 
 # Update the gem cache for a barclamp
@@ -518,6 +525,7 @@ update_barclamp_raw_pkg_cache() {
 	curl -L -o "$bc_cache/${pkg##*/}" "$pkg"
 	[[ $CURRENT_CACHE_BRANCH ]] && in_cache git add "$bc_cache/${pkg##*/}"
     done
+    touch "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
 }
 
 # Fetch any bare files that we do not already have.
