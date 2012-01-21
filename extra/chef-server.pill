@@ -18,7 +18,7 @@ Bluepill.application("chef-server") do |app|
     process.daemonize = true
   end
   app.process("chef-server") do |process|
-    process.start_command = "chef-server -p 4000 -e production -a thin -C /etc/chef/server.rb -N -L /var/log/chef/server.log"
+    process.start_command = "chef-server -c 16 -p 4000 -e production -a thin -C /etc/chef/server.rb -N -L /var/log/chef/server.log"
     process.uid = "chef"
     process.gid = "chef"
     process.stop_grace_time = 5.seconds
