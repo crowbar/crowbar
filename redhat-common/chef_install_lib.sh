@@ -72,6 +72,8 @@ bring_up_chef() {
     cp -f patches/kwalify /usr/bin/kwalify
     cp -f patches/rake /usr/bin/rake
 
+    # increase chef-solr index field size
+    perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/chef/solr/conf/solrconfig.xml
     log_to svc service chef-server restart
 }
 
