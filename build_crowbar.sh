@@ -326,6 +326,7 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 	    # can pull packages straight out of the build cache, allowing
 	    # for fully offline builds.
 	    --no-cache-update) shift; ALLOW_CACHE_UPDATE=false;;
+	    --no-metadata-update) shift; ALLOW_CACHE_METADATA_UPDATE=false;;
 	    # Go through all the motions, but do not actaully generate
 	    # an ISO at the end.  This is useful for generating barclamp
 	    # tarballs.
@@ -494,6 +495,7 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 		fi
 	    )	
 	fi
+	make_barclamp_pkg_metadata "$bc"
 	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
     # Once all our barclamps have had their packages staged, create tarballs of them.

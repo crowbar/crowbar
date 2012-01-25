@@ -15,18 +15,18 @@ install_base_packages() {
     cp apt.conf /etc/apt
     log_to apt sed -i "s/__HOSTNAME__/$FQDN/g" ./debsel.conf
     log_to apt /usr/bin/debconf-set-selections ./debsel.conf
-     # First, make a repo for crowbar-extras
-    apt-get -y install dpkg-dev
     mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra"
+    mkdir -p /etc/apt/sources.list.d
     (cd "/tftpboot/$OS_TOKEN/crowbar-extra";
 	# Find all the staged barclamps
 	for bc in "/opt/dell/barclamps/"*; do
 	    [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
 	    # Link them in.
 	    ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
+	    echo "deb file:/tftpboot/$OS_TOKEN/crowbar-extra/${bc##*/} /" > \
+		/etc/apt/sources.list.d/10-barclamp-${bc##*/}.list
 	done
-	dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz)
-    echo "deb file:/tftpboot/$OS_TOKEN/crowbar-extra /" >>/etc/apt/sources.list
+    )
     log_to apt apt-get update
     log_to apt apt-get -y remove apparmor
     log_to apt apt-get -y install rubygems gcc ruby \
