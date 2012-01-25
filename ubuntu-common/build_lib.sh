@@ -9,6 +9,7 @@ PKG_TYPE="debs"
 PKG_ALLOWED_ARCHES=("amd64" "all")
 CHROOT_PKGDIR="var/cache/apt/archives"
 CHROOT_GEMDIR="var/lib/gems/1.8/cache"
+OS_METADATA_PKGS="dpkg-dev"
 declare -A SEEN_DEBS
 # The name of the OS iso we are using as a base.
 [[ $ISO ]] || ISO="ubuntu-$OS_VERSION-server-amd64.iso"
@@ -98,22 +99,37 @@ pkg_name() {
     echo "${n%% *}"
 }
 
+__barclamp_pkg_metadata_needs_update() (
+    cd "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    [[ -f Packages.gz ]] || return 0
+    while read fname; do
+	[[ $fname -nt . ]] && return 0
+    done < <(find . -name '*.deb' -type f)
+    return 1
+)
+
+__make_barclamp_pkg_metadata() {
+    in_chroot /bin/bash -c 'cd /mnt; dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz'
+    sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
+    if [[ $CURRENT_CACHE_BRANCH ]]; then
+	CACHE_NEEDS_COMMIT=true
+	in_cache git add "barclamps/$bc/$OS_TOKEN/pkgs/Packages.gz"
+    fi
+}
+
 add_offline_repos() {
     in_chroot rm -f /etc/apt/sources.list
     in_chroot mkdir -p /packages/base
     in_chroot mkdir -p /packages/barclamps
     for bc in "${BARCLAMPS[@]}"; do
-	[[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs ]] || continue
+	[[ -f $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/Packages.gz ]] || continue
 	sudo mkdir -p "$CHROOT/packages/barclamps/$bc"
 	sudo mount --bind "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
 	    "$CHROOT/packages/barclamps/$bc"
+	add_repos "deb file:///packages/barclamps/$bc /"
     done
     sudo mount --bind "$IMAGE_DIR" "$CHROOT/packages/base"
     add_repos "deb file:///packages/base $OS_CODENAME main restricted"
-    chroot_update
-    chroot_install dpkg-dev
-    in_chroot /bin/bash -c 'cd /packages/barclamps; dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz'
-    add_repos 'deb file:///packages/barclamps /'
 }
 
 # OS specific part of making our chroot environment.

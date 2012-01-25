@@ -9,6 +9,7 @@ PKG_TYPE="rpms"
 PKG_ALLOWED_ARCHES=("x86_64" "noarch")
 CHROOT_PKGDIR="var/cache/yum"
 CHROOT_GEMDIR="usr/lib/ruby/gems/1.8/cache"
+OS_METADATA_PKGS="createrepo"
 declare -A SEEN_RPMS
 
 # we need extglobs, so enable them.
@@ -88,16 +89,34 @@ add_repos() {
 # Check to see if something is a valid RPM package name.
 is_pkg() { [[ $1 = *.rpm ]]; }
 
+__barclamp_pkg_metadata_needs_update() (
+    cd "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    [[ -d repodata ]] || return 0
+    while read fname; do
+	[[ $fname -nt repodata ]] && return 0
+    done < <(find . -name '*.rpm' -type f)
+    return 1
+)
+
+__make_barclamp_pkg_metadata () {
+    in_chroot /bin/bash -c "cd /mnt; createrepo -d -q ."
+    sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
+    touch "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/repodata"
+    if [[ $CURRENT_CACHE_BRANCH ]]; then
+	CACHE_NEEDS_COMMIT=true
+	in_cache git add "barclamps/$bc/$OS_TOKEN/pkgs/repodata"
+    fi
+}
+
 add_offline_repos() (
     in_chroot mkdir -p /etc/yum.repos.d
     for bc in "${BARCLAMPS[@]}"; do
-	[[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs ]] || continue
+	[[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/repodata ]] || continue
 	sudo mkdir -p "$CHROOT/packages/barclamps/$bc"
 	sudo mount --bind "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" \
 	    "$CHROOT/packages/barclamps/$bc"
+	make_repo_file "barclamp-$bc" 99 "file:///packages/barclamps/$bc"
     done
-    in_chroot /bin/bash -c "cd /packages/barclamps; createrepo -d -q ."
-    make_repo_file crowbar-xtras 99 "file:///packages/barclamps"
 )
 
 # This function makes a functional centos chroot environment.
