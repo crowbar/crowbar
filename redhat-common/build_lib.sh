@@ -89,9 +89,19 @@ add_repos() {
 # Check to see if something is a valid RPM package name.
 is_pkg() { [[ $1 = *.rpm ]]; }
 
+__barclamp_pkg_metadata_needs_update() (
+    cd "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    [[ -d repodata ]] || return 0
+    while read fname; do
+	[[ $fname -nt repodata ]] && return 0
+    done < <(find . -name '*.rpm' -type f)
+    return 1
+)
+
 __make_barclamp_pkg_metadata () {
     in_chroot /bin/bash -c "cd /mnt; createrepo -d -q ."
     sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
+    touch "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/repodata"
     if [[ $CURRENT_CACHE_BRANCH ]]; then
 	CACHE_NEEDS_COMMIT=true
 	in_cache git add "barclamps/$bc/$OS_TOKEN/pkgs/repodata"

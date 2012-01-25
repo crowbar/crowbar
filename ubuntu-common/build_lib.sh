@@ -99,6 +99,15 @@ pkg_name() {
     echo "${n%% *}"
 }
 
+__barclamp_pkg_metadata_needs_update() (
+    cd "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    [[ -f Packages.gz ]] || return 0
+    while read fname; do
+	[[ $fname -nt . ]] && return 0
+    done < <(find . -name '*.deb' -type f)
+    return 1
+)
+
 __make_barclamp_pkg_metadata() {
     in_chroot /bin/bash -c 'cd /mnt; dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz'
     sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"

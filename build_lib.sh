@@ -415,16 +415,15 @@ cache_rm() {
 
 make_barclamp_pkg_metadata() {
     [[ -d $CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs ]] || return 0
-    [[ $CACHE_DIR/barclamps/$1/$OS_TOKEN -nt \
-	$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs ]] && return 0
+    __barclamp_pkg_metadata_needs_update "$bc" || return 0
+    [[ $ALLOW_CACHE_METADATA_UPDATE = false ]] && \
+	die "Need to update cache metadata for $1, but --no-metadata-update passed."
     local bc=$1
     debug "Updating package cache metadata for $bc"
     make_chroot
     sudo mount --bind "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" "$CHROOT/mnt"
     __make_barclamp_pkg_metadata
     sudo umount "$CHROOT/mnt"
-    sleep 1
-    touch "$CACHE_DIR/barclamps/$bc/$OS_TOKEN"
 }
 
 install_build_packages() {
