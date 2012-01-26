@@ -185,7 +185,7 @@ cleanup() {
     [[ $THROWAWAY_STASH ]] && git stash apply "$THROWAWAY_STASH" &>/dev/null
     # Do the same thing as above, but for the build cache instead.
     cd "$CACHE_DIR"
-    if [[ $CACHE_NEEDS_COMMIT ]]; then
+    if ! in_cache git diff-index --cached --quiet HEAD; then
 	in_cache git commit -m "Updated by build_crowbar.sh @ $(date) for ${OS_TOKEN}"
 	echo "The crowbar build cache has been updated, and the updates have"
 	echo "been comitted back to the cache.  Please push any changes."
