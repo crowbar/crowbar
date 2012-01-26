@@ -348,7 +348,6 @@ make_chroot() {
     fi
     add_offline_repos
     chroot_update
-    chroot_install $OS_METADATA_PKGS
 }
 
 stage_pkgs() {
@@ -421,6 +420,10 @@ make_barclamp_pkg_metadata() {
     local bc=$1
     debug "Updating package cache metadata for $bc"
     make_chroot
+    [[ $OS_METADATA_PKGS ]] && {
+	chroot_install $OS_METADATA_PKGS
+	unset OS_METADATA_PKGS
+    }
     sudo mount --bind "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" "$CHROOT/mnt"
     __make_barclamp_pkg_metadata
     sudo umount "$CHROOT/mnt"
