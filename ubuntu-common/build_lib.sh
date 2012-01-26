@@ -36,7 +36,7 @@ chroot_install() {
 	    --allow-unauthenticated install "$@"
     fi
     in_chroot /usr/bin/apt-get -y --force-yes \
-	--allow-unauthenticated upgrade
+	--allow-unauthenticated --download-only upgrade
 }
 
 # Fetch (but do not install) packages into the chroot environment
@@ -46,7 +46,7 @@ chroot_fetch() {
 	    --allow-unauthenticated --download-only install "$@"
     fi
     in_chroot /usr/bin/apt-get -y --force-yes \
-	--allow-unauthenticated upgrade
+	--allow-unauthenticated --download-only upgrade
 }
 
 # Add repositories to the local chroot environment.
