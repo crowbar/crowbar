@@ -60,22 +60,6 @@ for i in "$BASEDIR/dell/barclamps/"*".tar.gz"; do
     ( cd "/opt/dell/barclamps"; tar xzf "$i"; )
 done
 
-# If we have Sun/Oracle java packages, extract their RPMs
-# into our pool.
-
-# This eventually needs to migrate into barclamp_mgmt_lib.rb
-find /opt/dell/barclamps -name 'jdk*x64-rpm.bin' |while read jdk; do
-    [[ -f /tmp/${jdk##*/} ]] && continue
-    cp "$jdk" /tmp
-    jdk=${jdk##*/}
-    (   cd /tmp
-	chmod 755 "$jdk"
-	"./$jdk" -x
-	mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra/oracle-java"
-	mv *.rpm "/tftpboot/$OS_TOKEN/crowbar-extra/oracle-java" )
-done
-rm -f /tmp/jdk*x64-rpm.bin
-
 barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
 ( cd "/opt/dell/barclamps/crowbar/bin"; \
     cp "${barclamp_scripts[@]}" /opt/dell/bin; )
