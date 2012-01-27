@@ -110,10 +110,9 @@ __barclamp_pkg_metadata_needs_update() (
 
 __make_barclamp_pkg_metadata() {
     in_chroot /bin/bash -c 'cd /mnt; dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz'
-    sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
+    sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
     if [[ $CURRENT_CACHE_BRANCH ]]; then
-	CACHE_NEEDS_COMMIT=true
-	in_cache git add "barclamps/$bc/$OS_TOKEN/pkgs/Packages.gz"
+	in_cache git add "barclamps/$1/$OS_TOKEN/pkgs/Packages.gz"
     fi
 }
 
@@ -121,6 +120,7 @@ add_offline_repos() {
     in_chroot rm -f /etc/apt/sources.list
     in_chroot mkdir -p /packages/base
     in_chroot mkdir -p /packages/barclamps
+    local bc
     for bc in "${BARCLAMPS[@]}"; do
 	[[ -f $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/Packages.gz ]] || continue
 	sudo mkdir -p "$CHROOT/packages/barclamps/$bc"
