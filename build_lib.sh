@@ -414,18 +414,17 @@ cache_rm() {
 
 make_barclamp_pkg_metadata() {
     [[ -d $CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs ]] || return 0
-    __barclamp_pkg_metadata_needs_update "$bc" || return 0
+    __barclamp_pkg_metadata_needs_update "$1" || return 0
     [[ $ALLOW_CACHE_METADATA_UPDATE = false ]] && \
 	die "Need to update cache metadata for $1, but --no-metadata-update passed."
-    local bc=$1
-    debug "Updating package cache metadata for $bc"
+    debug "Updating package cache metadata for $1"
     make_chroot
     [[ $OS_METADATA_PKGS ]] && {
 	chroot_install $OS_METADATA_PKGS
 	unset OS_METADATA_PKGS
     }
-    sudo mount --bind "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" "$CHROOT/mnt"
-    __make_barclamp_pkg_metadata
+    sudo mount --bind "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" "$CHROOT/mnt"
+    __make_barclamp_pkg_metadata "$1"
     sudo umount "$CHROOT/mnt"
 }
 
@@ -550,7 +549,7 @@ update_barclamp_file_cache() {
 
 # Check to see if the barclamp package cache needs update.
 barclamp_pkg_cache_needs_update() {
-    local pkg pkgname arch bcs=()
+    local pkg pkgname arch bcs=() bc
     local -A pkgs
     
     [[ $need_update = true || ${FORCE_BARCLAMP_UPDATE["$1"]} = true ]] && return 0
@@ -584,7 +583,7 @@ barclamp_pkg_cache_needs_update() {
 
 # Check to see if the barclamp gem cache needs an update.
 barclamp_gem_cache_needs_update() {
-    local pkg pkgname 
+    local pkg pkgname bc 
     local -A pkgs
     # Second, check to see if we have all the gems we need.
     for pkg in ${BC_GEMS["$1"]}; do
