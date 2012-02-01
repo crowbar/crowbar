@@ -539,10 +539,13 @@ run_kvm() {
 	kvmargs+=(-drive "file=$image,if=scsi,format=qcow2,cache=$drive_cache")
     done
     # Add appropriate nics based on the contents of vm_nics.
+    local vlan=0
     for line in "${vm_nics[@]}"; do
-	kvmargs+=(-net "nic,macaddr=${line%%,*},model=e1000")
+	kvmargs+=(-net "nic,macaddr=${line%%,*},model=e1000,vlan=$vlan")
 	kvmargs+=(-net "tap,ifname=${line##*,},script=no,downscript=no")
+	vlan=$(($vlan + 1))
     done
+    unset vlan
     if [[ $pxeboot ]]; then
 	kvmargs+=(-boot "order=n" -option-rom "$SMOKETEST_DIR/8086100e.rom")
     elif [[ $driveboot ]]; then
