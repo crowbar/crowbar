@@ -1,0 +1,69 @@
+#!/bin/bash
+
+export LANG="C"
+export LC_ALL="C"
+
+GEM_RE='([^0-9].*)-([0-9].*)'
+
+readonly currdir="$PWD"
+export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
+declare -A CROWBAR_BRANCHES
+CROWBAR_BRANCHES["master"]="master"
+
+# Source our config file if we have one
+[[ -f $HOME/.build-crowbar.conf ]] && \
+    . "$HOME/.build-crowbar.conf"
+
+# Look for a local one.
+[[ -f build-crowbar.conf ]] && \
+    . "build-crowbar.conf"
+
+# Set up our proxies if we were asked to.
+if [[ $USE_PROXY = "1" && $PROXY_HOST ]]; then
+    proxy_str="http://"
+    if [[ $PROXY_PASSWORD && $PROXY_USER ]]; then
+	proxy_str+="$PROXY_USER:$PROXY_PASSWORD@"
+    elif [[ $PROXY_USER ]]; then
+	proxy_str+="$PROXY_USER@"
+    fi
+    proxy_str+="$PROXY_HOST"
+    [[ $PROXY_PORT ]] && proxy_str+=":$PROXY_PORT"
+    [[ $no_proxy ]] || no_proxy="localhost,localhost.localdomain,127.0.0.0/8,$PROXY_HOST" 
+    [[ $http_proxy ]] || http_proxy="$proxy_str/" 
+    [[ $https_proxy ]] || https_proxy="$http_proxy"
+    export no_proxy http_proxy https_proxy
+else
+    unset no_proxy http_proxy https_proxy
+fi
+
+# Location of the Crowbar checkout we are building from.
+[[ $CROWBAR_DIR ]] || CROWBAR_DIR="${0%/*}"
+[[ $CROWBAR_DIR = /* ]] || CROWBAR_DIR="$currdir/$CROWBAR_DIR"
+[[ -f $CROWBAR_DIR/build_crowbar.sh && -d $CROWBAR_DIR/.git ]] || \
+    die "$CROWBAR_DIR is not a git checkout of Crowbar!" 
+export CROWBAR_DIR
+
+. "$CROWBAR_DIR/build_lib.sh" || exit 1
+
+# If we have openstack-os-build and hadoop-os-build brancehs locally,
+# let the merge engine know about them.
+
+for branch in openstack-os-build hadoop-os-build; do
+    [[ ${CROWBAR_BRANCHES[$branch]} ]] && continue
+    in_repo branch_exists "$branch" || continue
+    CROWBAR_BRANCHES[$branch]="master"
+done
+
+# Sanity-check our dependency hash
+
+for branch in "${!CROWBAR_BRANCHES[@]}"; do
+    in_repo branch_exists "$branch" || \
+	die "$branch is specified in \$CROWBAR_BRANCHES, but does not exist!"
+    in_repo branch_exists "${CROWBAR_BRANCHES[$branch]}" || \
+	die "${CROWBAR_BRANCHES[$branch]} dies not exist, but it is specified as the parent of $branch!"
+done
+
+case $1 in
+    is_clean) in_repo git_is_clean;;
+    *) die "Unknown command $1";;
+esac
