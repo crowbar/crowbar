@@ -7,8 +7,12 @@ GEM_RE='([^0-9].*)-([0-9].*)'
 
 readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
-declare -A CROWBAR_BRANCHES
-CROWBAR_BRANCHES["master"]="master"
+declare -A DEV_BRANCHES DEV_REMOTES DEV_REMOTE_BRANCHES
+DEV_BRANCHES["master"]="master"
+DEV_BRANCHES["openstack-os-build"]="master"
+DEV_BRANCHES["hadoop-os-build"]="master"
+DEV_REMOTES["origin"]="http://github.com/dellcloudedge/"
+DEV_REMOTE_BRANCHES["origin"]="master openstack-os-build hadoop-os-build"
 
 # Source our config file if we have one
 [[ -f $HOME/.build-crowbar.conf ]] && \
@@ -44,26 +48,57 @@ fi
 export CROWBAR_DIR
 
 . "$CROWBAR_DIR/build_lib.sh" || exit 1
+trap - 0 INT QUIT TERM
 
 # If we have openstack-os-build and hadoop-os-build brancehs locally,
 # let the merge engine know about them.
 
 for branch in openstack-os-build hadoop-os-build; do
-    [[ ${CROWBAR_BRANCHES[$branch]} ]] && continue
+    [[ ${DEV_BRANCHES[$branch]} ]] && continue
     in_repo branch_exists "$branch" || continue
-    CROWBAR_BRANCHES[$branch]="master"
 done
 
 # Sanity-check our dependency hash
 
-for branch in "${!CROWBAR_BRANCHES[@]}"; do
+for branch in "${!DEV_BRANCHES[@]}"; do
     in_repo branch_exists "$branch" || \
-	die "$branch is specified in \$CROWBAR_BRANCHES, but does not exist!"
-    in_repo branch_exists "${CROWBAR_BRANCHES[$branch]}" || \
-	die "${CROWBAR_BRANCHES[$branch]} dies not exist, but it is specified as the parent of $branch!"
+	die "$branch is specified in \$DEV_BRANCHES, but does not exist!"
+    in_repo branch_exists "${DEV_BRANCHES[$branch]}" || \
+	die "${DEV_BRANCHES[$branch]} dies not exist, but it is specified as the parent of $branch!"
 done
+
+# Make sure the version of git we are using knows about --push for remotes.
+
+git remote set-url 2>&1 |grep -q -- --push || \
+    die "git remote set-url does not know about --push. Please update git."
+
+fetch_all() {
+    local remote branch mode objtype commit path
+    local -A barclamps
+    for remote in "${!DEV_REMOTES[@]}"; do
+	in_repo git fetch --tags "$remote" || continue
+	echo "Fetched updates from ${DEV_REMOTES[$remote]}crowbar.git"
+	for branch in ${DEV_REMOTE_BRANCHES[$remote]}; do
+	    in_repo branch_exists "$branch" || {
+		echo "Branch $branch from remote $remote does not exist locally."
+		continue
+	    }
+	    echo "Fetching updates for barclamps rooted in $branch:"
+	    while read mode objtype commit path; do
+		[[ $mode = '160000' && $objtype = 'commit' ]] || continue
+		[[ -d $CROWBAR_DIR/$path/.git ]] || continue
+		[[ ${barclamps[$path]} = true ]] && continue
+		(cd "$CROWBAR_DIR/$path"; git fetch --tags "$remote") && {
+		    echo "Fetched updates for $path" 
+		    barclamps["$path"]="true"
+		}
+	    done < <(git ls-tree -r "refs/remotes/$remote/$branch" barclamps)
+	done
+    done
+}
 
 case $1 in
     is_clean) in_repo git_is_clean;;
+    fetch) fetch_all;;
     *) die "Unknown command $1";;
 esac
