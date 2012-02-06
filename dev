@@ -1,0 +1,335 @@
+#!/bin/bash
+
+export LANG="C"
+export LC_ALL="C"
+
+GEM_RE='([^0-9].*)-([0-9].*)'
+
+readonly currdir="$PWD"
+export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
+declare -A DEV_BRANCHES DEV_REMOTES DEV_REMOTE_BRANCHES
+DEV_BRANCHES["master"]="master"
+DEV_BRANCHES["openstack-os-build"]="master"
+DEV_BRANCHES["hadoop-os-build"]="master"
+DEV_REMOTES["origin"]="http://github.com/dellcloudedge/"
+DEV_REMOTE_BRANCHES["origin"]="master openstack-os-build hadoop-os-build"
+
+# Source our config file if we have one
+[[ -f $HOME/.build-crowbar.conf ]] && \
+    . "$HOME/.build-crowbar.conf"
+
+# Look for a local one.
+[[ -f build-crowbar.conf ]] && \
+    . "build-crowbar.conf"
+
+# Set up our proxies if we were asked to.
+if [[ $USE_PROXY = "1" && $PROXY_HOST ]]; then
+    proxy_str="http://"
+    if [[ $PROXY_PASSWORD && $PROXY_USER ]]; then
+	proxy_str+="$PROXY_USER:$PROXY_PASSWORD@"
+    elif [[ $PROXY_USER ]]; then
+	proxy_str+="$PROXY_USER@"
+    fi
+    proxy_str+="$PROXY_HOST"
+    [[ $PROXY_PORT ]] && proxy_str+=":$PROXY_PORT"
+    [[ $no_proxy ]] || no_proxy="localhost,localhost.localdomain,127.0.0.0/8,$PROXY_HOST" 
+    [[ $http_proxy ]] || http_proxy="$proxy_str/" 
+    [[ $https_proxy ]] || https_proxy="$http_proxy"
+    export no_proxy http_proxy https_proxy
+else
+    unset no_proxy http_proxy https_proxy
+fi
+
+# Location of the Crowbar checkout we are building from.
+[[ $CROWBAR_DIR ]] || CROWBAR_DIR="${0%/*}"
+[[ $CROWBAR_DIR = /* ]] || CROWBAR_DIR="$currdir/$CROWBAR_DIR"
+[[ -f $CROWBAR_DIR/build_crowbar.sh && -d $CROWBAR_DIR/.git ]] || \
+    die "$CROWBAR_DIR is not a git checkout of Crowbar!" 
+export CROWBAR_DIR
+
+. "$CROWBAR_DIR/build_lib.sh" || exit 1
+trap - 0 INT QUIT TERM
+
+set -o pipefail
+
+# If we have openstack-os-build and hadoop-os-build brancehs locally,
+# let the merge engine know about them.
+
+for branch in openstack-os-build hadoop-os-build; do
+    [[ ${DEV_BRANCHES[$branch]} ]] && continue
+    in_repo branch_exists "$branch" || continue
+done
+
+# Sanity-check our dependency hash
+
+for branch in "${!DEV_BRANCHES[@]}"; do
+    in_repo branch_exists "$branch" || \
+	die "$branch is specified in \$DEV_BRANCHES, but does not exist!"
+    in_repo branch_exists "${DEV_BRANCHES[$branch]}" || \
+	die "${DEV_BRANCHES[$branch]} dies not exist, but it is specified as the parent of $branch!"
+done
+
+git_is_clean() {
+    local line hpath ret=0
+    while read line; do
+	case $line in
+	    # Untracked file.  Ignore it if it is also a git repo, 
+	    # complain otherwise.
+	    '??'*) hpath=${line%% ->*}
+                   hpath=${hpath#* }
+		   [[ -d $hpath && -d $hpath.git ]] && continue
+                   ret=1;;
+	    '') continue;;
+	    *) ret=1;
+	esac
+    done < <(git status --porcelain --ignore-submodules)
+    [[ $ret = 0 ]] && return
+    git status
+    return 1
+}
+
+barclamp_is_clean() { in_barclamp "$1" git_is_clean; }
+
+barclamps_are_clean() {
+    local bc
+    for bc in "$CROWBAR_DIR/barclamps/"*; do
+	is_barclamp "${bc##*/}" || continue
+	(cd "$bc"; git_is_clean) || return 1
+    done
+}
+
+crowbar_is_clean() { barclamps_are_clean && in_repo git_is_clean; }
+
+barclamps_in_branch() {
+    local b
+    for b in "$@"; do
+	in_repo branch_exists "$b" || \
+	    die "Branch $b does not exist in the Crowbar repo!"
+    done
+    for b in "$@"; do in_repo git ls-tree -r \
+	"refs/remotes/origin/$b" barclamps; done | \
+	awk '/160000 commit/ {print $4}' |sort -u
+}
+
+fetch_all() {
+    local remote barclamps b
+    for remote in "${!DEV_REMOTES[@]}"; do
+	in_repo git fetch --tags "$remote" || continue
+    done
+    echo "Fetched updates from ${DEV_REMOTES[$remote]}crowbar.git"
+    local barclamps="$(barclamps_in_branch "${!DEV_BRANCHES[@]}")" || \
+	exit 1
+    for b in $barclamps; do
+	[[ -d $CROWBAR_DIR/$b/.git ]] || continue
+	(cd "$CROWBAR_DIR/$b"; git fetch --tags) || \
+	    die "Cound not fetch updates for $b"
+    done
+}
+
+curl_and_res() {
+    curl "$@"
+    case $? in
+	0) return 0;;
+	7) echo "Unable to contact Github, please try again later." >&2
+	    return 1;;
+	22) return 1;;
+	*) echo "Curl reported error ${?}!." >&2
+	    return 1;;
+    esac
+}
+
+[[ ( $DEV_GITHUB_ID && $DEV_GITHUB_PASSWD) || $1 = setup ]] || \
+    die "dev has not been configured. Please run $CROWBAR_DIR/dev setup first."
+
+github_fork() {
+    # $1 = user to fork from
+    # $2 = repo to fork
+    curl_and_res -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" -X POST \
+	"https://api.github.com/repos/$1/$2/forks" >&/dev/null || \
+	die "Could not fork $1/$2!"
+}
+
+setup() {
+    local p
+    crowbar_is_clean &>/dev/null || \
+    	die "Crowbar repo must be clean before trying to set things up!"
+    [[ $DEV_GITHUB_ID && $DEV_GITHUB_PASSWD ]] || {
+	read -p "Enter your Github username: " DEV_GITHUB_ID
+	curl_and_res -f \
+	    "https://api.github.com/users/$DEV_GITHUB_ID" &>/dev/null || \
+	    die "Could not verify that $DEV_GITHUB_ID is a valid Github user.."
+	while [[ $p != $DEV_GITHUB_PASSWD || ! $p ]]; do
+	    [[ $p ]] && echo "Passwords did not match, try again."
+	    read -s -p "Enter your Github password: " DEV_GITHUB_PASSWD
+	    echo
+	    read -s -p "Enter your Github password again: " p
+	    echo
+	done
+	curl_and_res -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+	    https://api.github.com/user &>/dev/null || {
+	    echo "Unable to authenticate with Github as user $DEV_GITHUB_ID." >&2
+	    die "Please try again when you have Github access."
+	}
+	echo "DEV_GITHUB_ID=\"$DEV_GITHUB_ID\"" >> "$HOME/.build-crowbar.conf"
+	echo "DEV_GITHUB_PASSWD=\"$DEV_GITHUB_PASSWD\"" >> "$HOME/.build-crowbar.conf"
+    }
+
+    echo "Finding Github repos..."
+    local repos=($(
+	    eval "$(curl -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+		https://api.github.com/user/repos 2>/dev/null | \
+		parse_yml_or_json - name)" 
+	    echo "${name[@]}"))
+    if ! is_in crowbar "${repos[*]}"; then
+	echo "Creating your fork of Crowbar on Github."
+	github_fork dellcloudedge crowbar || die "Unable to create your fork of Crowbar."
+    fi
+    if ! in_repo git config --get remote.personal.url &>/dev/null; then
+	echo "Adding remote for personal fork of crowbar on Github."
+	in_repo git remote add personal \
+	    "http://$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD@github.com/$DEV_GITHUB_ID/crowbar.git"
+	in_repo git fetch personal || \
+	    die "Cannot fetch repository info for your Crowbar fork on Github!"
+	in_repo git remote set-head -a personal
+    fi
+    
+    for b in ${DEV_REMOTE_BRANCHES["origin"]}; do
+	in_repo git checkout "$b" || \
+	    die "Cannot checkout $b"
+	in_repo git merge "origin/$b" || \
+	    die "Cannot merge origin/$b into $b"
+	in_repo git submodule update --init || \
+	    die "Cannot check out submodules for branch $b"
+	in_repo git submodule sync || \
+	    die "Cannot sync origin URLs for branch $b"
+    done
+    in_repo git checkout master
+    for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES["origin"]}); do
+	(   cd "$CROWBAR_DIR/$b"
+	    repo="$(git config --get remote.origin.url)"
+	    [[ $repo =~ /dellcloudedge/ ]] || continue
+	    repo="${repo##*/}"
+	    repo="${repo%.git}"
+	    is_in "$repo" "${repos[*]}" || \
+		github_fork dellcloudedge "$repo" || \
+		die "Could not create a personal fork of $repo"
+	    if ! git config --get remote.personal.url &>/dev/null; then
+		git remote add personal \
+		    "http://$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD@github.com/$DEV_GITHUB_ID/$repo.git"
+		in_repo git fetch personal || \
+		    die "Cannot fetch repositroy info for your fork of $repo on Github."
+		in_repo git remote set-head -a personal
+	    fi
+	) || exit 1
+    done
+}
+
+backup_everything() {
+    for bc in "$CROWBAR_DIR/barclamps/"*; do
+	[[ -d $bc && -d $bc/.git ]] || continue
+	(   cd "$bc"
+	    git config --get remote.personal.url &>/dev/null || continue
+	    echo "Pushing barclamp ${bc##*/} to your Github fork" >&2
+	    git push --all -f personal || \
+		die "Could not push barclamp ${bc##*/} to your Github fork."
+	) || exit 1
+    done
+    if in_repo git config --get remote.personal.url &>/dev/null; then
+	echo "Pushing Crowbar to your Github fork" >&2
+	in_repo git push -f personal ${DEV_REMOTE_BRANCHES["origin"]} || \
+	    die "Could not push Crowbar to your Github fork."
+    fi
+}
+
+sync_repo() (
+    # $1 = dir to CD to initially.
+    # Assumes that origin has already been fetched.
+    cd "$1"
+    # master is the same as origin/master, nothing to merge.
+    [[ $(git rev-parse master) = $(git rev-parse origin/master) ]] && return 0
+    # Test to see if there are any commits in origin/master that do not
+    # exist in master.  If there are not, then we have no need to sync.
+    [[ $(git rev-list master..origin/master) ]] || return 0
+    # Repo is not clean, we will refuse to merge in any case.
+    git_is_clean || {
+	echo "$1 is not clean." >&2
+	return 1
+    }
+    # Grab our current branch to remember it.
+    head=$(git symbolic-ref HEAD) || {
+	# Oh, boy, we are in detached HEAD.
+	# Try some recovery options.
+	if [[ $(git rev-list master..HEAD) ]]; then
+	    # We have made commits to this detached HEAD.  Just quit
+	    echo "$1 has had commits to a detached HEAD."
+	    return 1
+	else
+	    echo "$1: HEAD is detached, and is fast-forwardable to master." >&2
+	    echo "git submodule update probably left it in this state" >&2
+	    echo "Checking out master..." >&2
+	    git checkout master || {
+		echo "$bc: unable to check out master, even though it should be clean." >&2
+		return 1
+	    }
+	    head=$(git symbolic-ref HEAD)
+	fi
+    }
+    # If we are not on master, check out master first.
+    # We already know that the current branch is clean, so there should be no
+    # problem.  Assume that the developer will merge master into this 
+    # branch after the fact.
+    if [[ $head != refs/heads/master ]]; then
+	echo "$1: On branch ${head##*/} instead of master." >&2
+	echo "Will checkout master, merge in upstream changes, and checkout ${head##*}." >&2
+	echo "master will NOT be merged into ${head##*/}, you will need to do that manually."
+	git checkout master || {
+	    echo "$bc: Unable to checkout master!" >&2
+	    return 1
+	}
+    fi
+    git merge origin/master || {
+	echo "$1: Unable to merge origin/master into master, will unwind." >&2
+	git reset --hard
+	return 1
+    }
+    if [[ $head != refs/heads/master ]]; then
+	git checkout "${head##*/}" || {
+	    echo "$1: Unable to check out ${head##*/}"
+	    return 1
+	}
+    fi
+)
+
+sync_everything() {
+    local unsynced_barclamps=()
+    local b head res=0
+    local thisdir="$PWD"
+    # Do barclamps first.
+    for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES["origin"]}); do
+	sync_repo "$CROWBAR_DIR/$b" && continue
+	unsynced_barclamps+=("$b")
+    done
+    # Finished with barclamps, now for crowbar.
+    sync_repo "$CROWBAR_DIR" || {
+	echo "Could not merge changes from origin into master branch of Crowbar." >&2
+	res=1
+    }
+    if [[ $unsynced_barclamps ]]; then
+	echo "Unable to sync origin with current master in:" >&2
+	echo "  ${unsynced_barclamps[*]}"
+	res=1
+    fi
+    [[ $res = 0 ]] && return 0
+    echo 
+    echo "Please fix things up and rerun sync."
+    return 1
+}
+	
+case $1 in
+    is_clean) crowbar_is_clean;;
+    fetch) fetch_all;;
+    sync) sync_everything;;
+    setup) setup;;
+    backup) backup_everything;;
+    *) die "Unknown command $1";;
+esac
