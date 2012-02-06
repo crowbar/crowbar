@@ -247,6 +247,9 @@ sync_repo() (
     cd "$1"
     # master is the same as origin/master, nothing to merge.
     [[ $(git rev-parse master) = $(git rev-parse origin/master) ]] && return 0
+    # Test to see if there are any commits in origin/master that do not
+    # exist in master.  If there are not, then we have no need to sync.
+    [[ $(git rev-list master..origin/master) ]] || return 0
     # Repo is not clean, we will refuse to merge in any case.
     git_is_clean || {
 	echo "$1 is not clean." >&2
