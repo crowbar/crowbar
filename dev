@@ -11,7 +11,7 @@ declare -A DEV_BRANCHES DEV_REMOTES DEV_REMOTE_BRANCHES
 DEV_BRANCHES["master"]="master"
 DEV_BRANCHES["openstack-os-build"]="master"
 DEV_BRANCHES["hadoop-os-build"]="master"
-DEV_REMOTES["origin"]="http://github.com/dellcloudedge/"
+DEV_REMOTES["origin"]="https://github.com/dellcloudedge/"
 DEV_REMOTE_BRANCHES["origin"]="master openstack-os-build hadoop-os-build"
 
 # Source our config file if we have one
@@ -187,7 +187,7 @@ setup() {
     if ! in_repo git config --get remote.personal.url &>/dev/null; then
 	echo "Adding remote for personal fork of crowbar on Github."
 	in_repo git remote add personal \
-	    "http://$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD@github.com/$DEV_GITHUB_ID/crowbar.git"
+	    "https://$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD@github.com/$DEV_GITHUB_ID/crowbar.git"
 	in_repo git fetch personal || \
 	    die "Cannot fetch repository info for your Crowbar fork on Github!"
 	in_repo git remote set-head -a personal
@@ -215,7 +215,7 @@ setup() {
 		die "Could not create a personal fork of $repo"
 	    if ! git config --get remote.personal.url &>/dev/null; then
 		git remote add personal \
-		    "http://$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD@github.com/$DEV_GITHUB_ID/$repo.git"
+		    "https://$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD@github.com/$DEV_GITHUB_ID/$repo.git"
 		in_repo git fetch personal || \
 		    die "Cannot fetch repositroy info for your fork of $repo on Github."
 		in_repo git remote set-head -a personal
