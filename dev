@@ -69,6 +69,37 @@ for branch in "${!DEV_BRANCHES[@]}"; do
 	die "${DEV_BRANCHES[$branch]} dies not exist, but it is specified as the parent of $branch!"
 done
 
+git_is_clean() {
+    local line hpath ret=0
+    while read line; do
+	case $line in
+	    # Untracked file.  Ignore it if it is also a git repo, 
+	    # complain otherwise.
+	    '??'*) hpath=${line%% ->*}
+                   hpath=${hpath#* }
+		   [[ -d $hpath && -d $hpath.git ]] && continue
+                   ret=1;;
+	    '') continue;;
+	    *) ret=1;
+	esac
+    done < <(git status --porcelain --ignore-submodules)
+    [[ $ret = 0 ]] && return
+    git status
+    return 1
+}
+
+barclamp_is_clean() { in_barclamp "$1" git_is_clean; }
+
+barclamps_are_clean() {
+    local bc
+    for bc in "$CROWBAR_DIR/barclamps/"*; do
+	is_barclamp "${bc##*/}" || continue
+	(cd "$bc"; git_is_clean) || return 1
+    done
+}
+
+crowbar_is_clean() { barclamps_are_clean && in_repo git_is_clean; }
+
 barclamps_in_branch() {
     local b
     for b in "$@"; do
@@ -120,7 +151,7 @@ github_fork() {
 
 setup() {
     local p
-    in_repo git_is_clean &>/dev/null || \
+    crowbar_is_clean &>/dev/null || \
     	die "Crowbar repo must be clean before trying to set things up!"
     [[ $DEV_GITHUB_ID && $DEV_GITHUB_PASSWD ]] || {
 	read -p "Enter your Github username: " DEV_GITHUB_ID
@@ -211,7 +242,7 @@ backup_everything() {
 }
 	
 case $1 in
-    is_clean) in_repo git_is_clean;;
+    is_clean) crowbar_is_clean;;
     fetch) fetch_all;;
     setup) setup;;
     backup) backup_everything;;

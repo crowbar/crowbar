@@ -647,25 +647,6 @@ branch_exists() { git show-ref --quiet --verify --heads -- "refs/heads/$1"; }
 # Run a git command in the crowbar repo.
 in_repo() ( cd "$CROWBAR_DIR"; "$@")
 
-git_is_clean() {
-    local line hpath ret=0
-    while read line; do
-	case $line in
-	    # Untracked file.  Ignore it if it is also a git repo, 
-	    # complain otherwise.
-	    '??'*) hpath=${line%% ->*}
-                   hpath=${hpath#* }
-		   [[ -d $hpath && -d $hpath.git ]] && continue
-                   ret=1;;
-	    '') continue;;
-	    *) ret=1;
-	esac
-    done < <(git status --porcelain)
-    [[ $ret = 0 ]] && return
-    git status
-    return 1
-}
-
 # Get the head revision of a git repository.
 get_rev() (
     cd "$1"
