@@ -121,23 +121,22 @@ setup() {
     local p
     in_repo git_is_clean &>/dev/null || \
 	die "Crowbar repo must be clean before trying to set things up!"
-    while [[ a = a ]]; do
-	read -p "Enter your Github username: " DEV_GITHUB_ID
-	curl_and_res -f \
-	    "https://api.github.com/users/$DEV_GITHUB_ID" &>/dev/null || \
-	    die "Could not verify that $DEV_GITHUB_ID is a valid Github user.."
-		
-	while [[ $p != $DEV_GITHUB_PASSWD || ! $p ]]; do
-	    [[ $p ]] && echo "Passwords did not match, try again."
-	    read -s -p "Enter your Github password: " DEV_GITHUB_PASSWD
-	    echo
-	    read -s -p "Enter your Github password again: " p
-	    echo
-	done
-	curl_and_res -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
-	    https://api.github.com/user &>/dev/null || \
-	    die "Unable to authenticate with Github as user $DEV_GITHUB_ID."
+    read -p "Enter your Github username: " DEV_GITHUB_ID
+    curl_and_res -f \
+	"https://api.github.com/users/$DEV_GITHUB_ID" &>/dev/null || \
+	die "Could not verify that $DEV_GITHUB_ID is a valid Github user.."
+    while [[ $p != $DEV_GITHUB_PASSWD || ! $p ]]; do
+	[[ $p ]] && echo "Passwords did not match, try again."
+	read -s -p "Enter your Github password: " DEV_GITHUB_PASSWD
+	echo
+	read -s -p "Enter your Github password again: " p
+	echo
     done
+    curl_and_res -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+	https://api.github.com/user &>/dev/null || {
+	echo "Unable to authenticate with Github as user $DEV_GITHUB_ID." >&2
+	die "Please try again when you have Github access."
+    }
     echo "DEV_GITHUB_ID=\"$DEV_GITHUB_ID\"" >> "$HOME/.build_crowbar.conf"
     echo "DEV_GITHUB_PASSWD=\"$DEV_GITHUB_PASSWD\"" >> "$HOME/.build_crowbar.conf"
 
