@@ -75,7 +75,8 @@ barclamps_in_branch() {
 	in_repo branch_exists "$b" || \
 	    die "Branch $b does not exist in the Crowbar repo!"
     done
-    for b in "$@"; do in_repo git ls-tree -r barclamps; done | \
+    for b in "$@"; do in_repo git ls-tree -r \
+	"refs/remotes/origin/$b" barclamps; done | \
 	awk '/160000 commit/ {print $4}' |sort -u
 }
 
@@ -113,38 +114,40 @@ github_fork() {
     # $1 = user to fork from
     # $2 = repo to fork
     curl_and_res -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" -X POST \
-	"https://api.github.com/repos/$1/$2/repos" &>/dev/null || \
+	"https://api.github.com/repos/$1/$2/forks" >&/dev/null || \
 	die "Could not fork $1/$2!"
 }
 
 setup() {
     local p
-    in_repo git_is_clean &>/dev/null || \
-	die "Crowbar repo must be clean before trying to set things up!"
-    read -p "Enter your Github username: " DEV_GITHUB_ID
-    curl_and_res -f \
-	"https://api.github.com/users/$DEV_GITHUB_ID" &>/dev/null || \
-	die "Could not verify that $DEV_GITHUB_ID is a valid Github user.."
-    while [[ $p != $DEV_GITHUB_PASSWD || ! $p ]]; do
-	[[ $p ]] && echo "Passwords did not match, try again."
-	read -s -p "Enter your Github password: " DEV_GITHUB_PASSWD
-	echo
-	read -s -p "Enter your Github password again: " p
-	echo
-    done
-    curl_and_res -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
-	https://api.github.com/user &>/dev/null || {
-	echo "Unable to authenticate with Github as user $DEV_GITHUB_ID." >&2
-	die "Please try again when you have Github access."
+    #in_repo git_is_clean &>/dev/null || \
+    #	die "Crowbar repo must be clean before trying to set things up!"
+    [[ $DEV_GITHUB_ID && $DEV_GITHUB_PASSWD ]] || {
+	read -p "Enter your Github username: " DEV_GITHUB_ID
+	curl_and_res -f \
+	    "https://api.github.com/users/$DEV_GITHUB_ID" &>/dev/null || \
+	    die "Could not verify that $DEV_GITHUB_ID is a valid Github user.."
+	while [[ $p != $DEV_GITHUB_PASSWD || ! $p ]]; do
+	    [[ $p ]] && echo "Passwords did not match, try again."
+	    read -s -p "Enter your Github password: " DEV_GITHUB_PASSWD
+	    echo
+	    read -s -p "Enter your Github password again: " p
+	    echo
+	done
+	curl_and_res -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+	    https://api.github.com/user &>/dev/null || {
+	    echo "Unable to authenticate with Github as user $DEV_GITHUB_ID." >&2
+	    die "Please try again when you have Github access."
+	}
+	echo "DEV_GITHUB_ID=\"$DEV_GITHUB_ID\"" >> "$HOME/.build-crowbar.conf"
+	echo "DEV_GITHUB_PASSWD=\"$DEV_GITHUB_PASSWD\"" >> "$HOME/.build-crowbar.conf"
     }
-    echo "DEV_GITHUB_ID=\"$DEV_GITHUB_ID\"" >> "$HOME/.build_crowbar.conf"
-    echo "DEV_GITHUB_PASSWD=\"$DEV_GITHUB_PASSWD\"" >> "$HOME/.build_crowbar.conf"
 
     echo "Finding Github repos..."
     local repos=($(
-	    . $(curl -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+	    eval "$(curl -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
 		https://api.github.com/user/repos 2>/dev/null | \
-		parse_yml_or_json - name) 
+		parse_yml_or_json - name)" 
 	    echo "${name[@]}"))
     if ! is_in crowbar "${repos[*]}"; then
 	echo "Creating your fork of Crowbar on Github."
@@ -159,7 +162,7 @@ setup() {
 	in_repo git remote set-head -a personal
     fi
     
-    for b in "${DEV_REMOTE_BRANCHES["origin"]}"; do
+    for b in ${DEV_REMOTE_BRANCHES["origin"]}; do
 	in_repo git checkout "$b" || \
 	    die "Cannot checkout $b"
 	in_repo git merge "origin/$b" || \
@@ -170,7 +173,7 @@ setup() {
 	    die "Cannot sync origin URLs for branch $b"
     done
     in_repo git checkout master
-    for b in $(barclamps_in_branch "${DEV_REMOTE_BRANCHES["origin"]}"); do
+    for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES["origin"]}); do
 	(   cd "$CROWBAR_DIR/$b"
 	    repo="$(git config --get remote.origin.url)"
 	    [[ $repo =~ /dellcloudedge/ ]] || continue
