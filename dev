@@ -240,10 +240,92 @@ backup_everything() {
 	    die "Could not push Crowbar to your Github fork."
     fi
 }
+
+sync_repo() (
+    # $1 = dir to CD to initially.
+    # Assumes that origin has already been fetched.
+    cd "$1"
+    # master is the same as origin/master, nothing to merge.
+    [[ $(git rev-parse master) = $(git rev-parse origin/master) ]] && return 0
+    # Repo is not clean, we will refuse to merge in any case.
+    git_is_clean || {
+	echo "$1 is not clean." >&2
+	return 1
+    }
+    # Grab our current branch to remember it.
+    head=$(git symbolic-ref HEAD) || {
+	# Oh, boy, we are in detached HEAD.
+	# Try some recovery options.
+	if [[ $(git rev-list master..HEAD) ]]; then
+	    # We have made commits to this detached HEAD.  Just quit
+	    echo "$1 has had commits to a detached HEAD."
+	    return 1
+	else
+	    echo "$1: HEAD is detached, and is fast-forwardable to master." >&2
+	    echo "git submodule update probably left it in this state" >&2
+	    echo "Checking out master..." >&2
+	    git checkout master || {
+		echo "$bc: unable to check out master, even though it should be clean." >&2
+		return 1
+	    }
+	    head=$(git symbolic-ref HEAD)
+	fi
+    }
+    # If we are not on master, check out master first.
+    # We already know that the current branch is clean, so there should be no
+    # problem.  Assume that the developer will merge master into this 
+    # branch after the fact.
+    if [[ $head != refs/heads/master ]]; then
+	echo "$1: On branch ${head##*/} instead of master." >&2
+	echo "Will checkout master, merge in upstream changes, and checkout ${head##*}." >&2
+	echo "master will NOT be merged into ${head##*/}, you will need to do that manually."
+	git checkout master || {
+	    echo "$bc: Unable to checkout master!" >&2
+	    return 1
+	}
+    fi
+    git merge origin/master || {
+	echo "$1: Unable to merge origin/master into master, will unwind." >&2
+	git reset --hard
+	return 1
+    }
+    if [[ $head != refs/heads/master ]]; then
+	git checkout "${head##*/}" || {
+	    echo "$1: Unable to check out ${head##*/}"
+	    return 1
+	}
+    fi
+)
+
+sync_everything() {
+    local unsynced_barclamps=()
+    local b head res=0
+    local thisdir="$PWD"
+    # Do barclamps first.
+    for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES["origin"]}); do
+	sync_repo "$CROWBAR_DIR/$b" && continue
+	unsynced_barclamps+=("$b")
+    done
+    # Finished with barclamps, now for crowbar.
+    sync_repo "$CROWBAR_DIR" || {
+	echo "Could not merge changes from origin into master branch of Crowbar." >&2
+	res=1
+    }
+    if [[ $unsynced_barclamps ]]; then
+	echo "Unable to sync origin with current master in:" >&2
+	echo "  ${unsynced_barclamps[*]}"
+	res=1
+    fi
+    [[ $res = 0 ]] && return 0
+    echo 
+    echo "Please fix things up and rerun sync."
+    return 1
+}
 	
 case $1 in
     is_clean) crowbar_is_clean;;
     fetch) fetch_all;;
+    sync) sync_everything;;
     setup) setup;;
     backup) backup_everything;;
     *) die "Unknown command $1";;
