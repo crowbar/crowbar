@@ -192,10 +192,28 @@ setup() {
 	) || exit 1
     done
 }
+
+backup_everything() {
+    for bc in "$CROWBAR_DIR/barclamps/"*; do
+	[[ -d $bc && -d $bc/.git ]] || continue
+	(   cd "$bc"
+	    git config --get remote.personal.url &>/dev/null || continue
+	    echo "Pushing barclamp ${bc##*/} to your Github fork" >&2
+	    git push --all -f personal || \
+		die "Could not push barclamp ${bc##*/} to your Github fork."
+	) || exit 1
+    done
+    if in_repo git config --get remote.personal.url &>/dev/null; then
+	echo "Pushing Crowbar to your Github fork" >&2
+	in_repo git push -f personal ${DEV_REMOTE_BRANCHES["origin"]} || \
+	    die "Could not push Crowbar to your Github fork."
+    fi
+}
 	
 case $1 in
     is_clean) in_repo git_is_clean;;
     fetch) fetch_all;;
     setup) setup;;
+    backup) backup_everything;;
     *) die "Unknown command $1";;
 esac
