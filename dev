@@ -325,11 +325,47 @@ sync_everything() {
     return 1
 }
 	
+dev_help () {
+    cat <<EOF
+$0: Development helper for Crowbar.
+
+Command line options:
+
+  setup -- Sets up your local Crowbar repositories for working with the 
+           new Github regime.  This command will prompt for your Github
+           login information, make sure you have local copies of all the
+           barclamp repos that Crowbar references checked out, create personal
+           forks of all the crowbar repos from the dellcloudedge account on
+           github, and create the appropriate remotes needed for day-to-day
+           operation.
+
+  is_clean -- Check to see if the barclamps have everything committed
+              with no untracked files, and check to see if the main
+              Crowbar repository is clean while ignoring submodule references.
+
+  fetch -- Fetch all changes from the dellcloudedge Crowbar repositories.
+           Does not try to merge any changes into your local repository.
+           You can run a fetch at any time without disturbing your working
+           code, provided you have network connectivity.
+
+  backup -- Push any locally committed changes in any repositories that were
+            initially forked from dellcloudedge into your personal Github forks.
+            You can run a backup at any time without disturbing your working
+            code, provided you have network connectivity.
+
+  sync -- Merge any changes that have been fetched into the current
+          repositories.  dev is_clean should exit without any messages before
+          running this command.
+
+EOF
+}
+
 case $1 in
     is_clean) crowbar_is_clean;;
     fetch) fetch_all;;
     sync) sync_everything;;
     setup) setup;;
     backup) backup_everything;;
-    *) die "Unknown command $1";;
+    help) dev_help;;
+    *) die "Unknown command $1.  Please use \"help\" for help.";;
 esac
