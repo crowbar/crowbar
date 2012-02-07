@@ -419,6 +419,8 @@ Command line options:
   push -- Unconditionally push a branch (or branches) to your crowbar Github
           fork.  Any arguments are interpreted as branch names to push, and
           if there are no arguments it pushes the branch you are currently on.
+          Any branches pushed using this command will automatically be backed
+          up when dev backup is run as well.
 
 EOF
 }
