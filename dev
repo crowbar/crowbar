@@ -353,8 +353,8 @@ sync_everything() {
 			die "Could not save the current branch!"
 		fi
 		in_repo git checkout "$b"
-		in_repo git merge "origin/$b" || \
-		    die "Merge origin/$b into $b branch of Crowbar failed."
+		in_repo git merge "$u" || \
+		    die "Merge $u into $b branch of Crowbar failed."
 	    fi
 	done
     done
