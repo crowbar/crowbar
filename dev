@@ -649,7 +649,7 @@ switch_release() {
   elif [ "$release" == "stable" ] ; then
     REL_BASE="stable/"
   else
-    REL_BASE="release/$context/"
+    REL_BASE="release/$release/"
   fi
 
   b=$(in_repo git symbolic-ref HEAD) || die "switch: Crowbar not on a branch."
