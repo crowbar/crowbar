@@ -460,8 +460,9 @@ pull_requests_prep() {
 push_branches() {
     # $@ = Local branches to push
     local branches=("$@") br
-    [[ $branches ]] || branches=($(in_repo git symbolic-ref HEAD)) || \
+    [[ $branches ]] || br=($(in_repo git symbolic-ref HEAD)) || \
 	die "Main Crowbar repo is not on a branch we can push!"
+    [[ $br ]] && branches=("${br#refs/heads/}")
     for br in "${branches[@]}"; do
 	if in_repo git rev-parse --verify -q "$br" &>/dev/null; then
 	    echo "Pushing $br to your Github fork of Crowbar."
