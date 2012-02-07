@@ -404,6 +404,15 @@ Command line options:
           repositories.  dev is_clean should exit without any messages before
           running this command.
 
+  pull-requests-prep -- Fetches, Syncs, and backs up all changes.  Then figures out
+                        The set of barclamps and crowbar branches that need to have 
+                        pull requests created.  The output is a command line that can
+                        be copied and executed.
+
+  pull-requests-gen -- Creates a set of pull requests with similar ids and links based
+                       upon the barclamps dependency trees.  These will be automatically 
+                       sent to Github for processing and review by others on the team.
+
 EOF
 }
 
@@ -454,6 +463,6 @@ case $1 in
     pull-requests-prep) pull_requests_prep;;
     pull-requests-gen) die "$1 is not implemented yet.";;
     help) dev_help;;
-    *) die "Unknown command $1.  Please use \"help\" for help.";;
+    *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
 
