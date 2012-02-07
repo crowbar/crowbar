@@ -250,7 +250,7 @@ backup_everything() {
 	(   cd "$bc"
 	    git config --get remote.personal.url &>/dev/null || continue
 	    while read ref branch; do
-		branch="${branch##*/}"
+		branch="${branch#refs/heads/}"
 		# If we have a ref for this branch on the personal remote
 		# and the local branch does not contain any commits that 
 		# the one on the personal remote does, then it is already
@@ -268,7 +268,7 @@ backup_everything() {
     if in_repo git config --get remote.personal.url &>/dev/null; then
 	# Push branches that have been pushed to personal in the past
 	while read ref branch; do
-	    branch="${branch##*/}"
+	    branch="${branch#refs/heads/}"
 	    # If we do not have a ref for this branch on the personal remote
 	    # or on the origin remote, this branch should not be backed up.
 	    ( git rev-parse --verify -q \
@@ -324,9 +324,9 @@ sync_repo() (
     # problem.  Assume that the developer will merge master into this 
     # branch after the fact.
     if [[ $head != refs/heads/master ]]; then
-	echo "$1: On branch ${head##*/} instead of master." >&2
-	echo "Will checkout master, merge in upstream changes, and checkout ${head##*}." >&2
-	echo "master will NOT be merged into ${head##*/}, you will need to do that manually."
+	echo "$1: On branch ${head#refs/heads/} instead of master." >&2
+	echo "Will checkout master, merge in upstream changes, and checkout ${head#refs/heads/}." >&2
+	echo "master will NOT be merged into ${head#refs/heads/}, you will need to do that manually."
 	git checkout master || {
 	    echo "$bc: Unable to checkout master!" >&2
 	    return 1
@@ -338,8 +338,8 @@ sync_repo() (
 	return 1
     }
     if [[ $head != refs/heads/master ]]; then
-	git checkout "${head##*/}" || {
-	    echo "$1: Unable to check out ${head##*/}"
+	git checkout "${head#refs/heads/}" || {
+	    echo "$1: Unable to check out ${head#refs/heads/}"
 	    return 1
 	}
     fi
@@ -372,7 +372,7 @@ sync_everything() {
 	    fi
 	done
     done
-    [[ $head ]] && in_repo git checkout "${head##*/}"
+    [[ $head ]] && in_repo git checkout "${head#refs/heads/}"
     if [[ $unsynced_barclamps ]]; then
 	echo "Unable to sync origin with current master in:" >&2
 	echo "  ${unsynced_barclamps[*]}"
