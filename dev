@@ -345,6 +345,8 @@ sync_everything() {
     done
     # Finished with barclamps, now for crowbar.
     for b in ${DEV_REMOTE_BRANCHES["origin"]}; do
+	# If there are updates from origin, merge them first, followed
+	# by updates from our "parent" branch, if any.
 	for u in "origin/$b" "${DEV_BRANCHES[$b]}"; do
 	    if ! remote_branches_synced "$CROWBAR_DIR" "$b" "$u"
 	    then
@@ -409,10 +411,29 @@ pull_requests_prep() {
     crowbar_is_clean && fetch_all && sync_everything && backup_everything || \
 	die "Unable to prepare for pull requests"
     local -A barclamps_to_push
+    local -a branches_to_push
     local branch bc
     for branch in ${DEV_REMOTE_BRANCHES["origin"]}; do
-	:
+	for bc in $(barclamps_in_branch "$branch"); do
+	    # If we have already looked at this barclamp, skip it.
+	    [[ ${barclamps_to_push["$bc"]} ]] && continue
+	    # If there are no commits in master that are not already in 
+	    # origin/master, skip it.
+	    in_barclamp "${bc##*/}" \
+		remote_branches_synced '.' "origin/master" "master" && \
+		continue
+	    barclamps_to_push["$bc"]="$branch"
+	    is_in "$branch" "${branches_to_push[*]}" || \
+		branches_to_push+=("$branch")
+	done
+	remote_branches_synced "$CROWBAR_DIR" "origin/$branch" "$branch" || \
+	    is_in "$branch" "${branches_to_push[*]}" || \
+	    branches_to_push+=("$branch")
     done
+    echo "Barclamps to update: ${!barclamps_to_push[@]}"
+    echo "Branches to update: ${branches_to_push[@]}"
+    echo "Command to generate pull requests for these branches and barclamps is:"
+    echo "  $0 pull-requests-gen --branches ${branches_to_push[@]} --barclamps ${!barclamps_to_push[@]}"
 }
     
 case $1 in
@@ -421,6 +442,7 @@ case $1 in
     sync) sync_everything;;
     setup) setup;;
     backup) backup_everything;;
+    pull-requests-prep) pull_requests_prep;;
     help) dev_help;;
     *) die "Unknown command $1.  Please use \"help\" for help.";;
 esac
