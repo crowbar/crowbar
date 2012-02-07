@@ -446,6 +446,12 @@ Command line options:
 
   releases -- Lists the releases to choose from.
 
+  switch -- Change current release to the specified release.
+
+  cut_release -- DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING! Makes a new set
+                 of branches and barclamp branches from the current release into
+                 the new named release.  Must provide a unique new name.
+
 EOF
 }
 
