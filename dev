@@ -332,7 +332,7 @@ sync_everything() {
 	    for b in ${DEV_REMOTE_BRANCHES["origin"]}; do
 		if ! remote_branches_synced "$CROWBAR_DIR" "$b" "origin/$b"
 		then
-		    in_repo git checkout "$b" ||
+		    in_repo git checkout "$b"
 		    in_repo git merge "origin/$b" || \
 			die "Merge origin/$b into $b branch of Crowbar failed."
 		fi
@@ -347,7 +347,7 @@ sync_everything() {
 		die "Merge ${DEV_BRANCHES[$b]} into $b branch of Crowbar failed."
 	fi
     done
-    in_reop git checkout "${head##*/}"
+    in_repo git checkout "${head##*/}"
     if [[ $unsynced_barclamps ]]; then
 	echo "Unable to sync origin with current master in:" >&2
 	echo "  ${unsynced_barclamps[*]}"
@@ -358,7 +358,7 @@ sync_everything() {
     echo "Please fix things up and rerun sync."
     return 1
 }
-	
+
 dev_help () {
     cat <<EOF
 $0: Development helper for Crowbar.
