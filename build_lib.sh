@@ -178,7 +178,7 @@ cleanup() {
     if [[ $THROWAWAY_BRANCH ]]; then
 	# Check out the branch we started the build process, and then 
 	# nuke whatever throwaway branch we may have created.
-	git checkout -f "${CURRENT_BRANCH##*/}" &>/dev/null
+	git checkout -f "${CURRENT_BRANCH#refs/heads/}" &>/dev/null
 	git branch -D "$THROWAWAY_BRANCH" &>/dev/null
     fi
     # If we saved unadded changes, resurrect them.
