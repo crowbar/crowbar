@@ -247,9 +247,9 @@ remote_branches_synced() {
     # $3 = remote branch to test
     [[ -d $1/.git ]] || \
 	die "remote_branches_synced: $1 is not a git repo"
-    (cd "$1"; git rev-parse -q "$2") || \
+    (cd "$1"; git rev-parse --verify -q "$2") || \
 	die "remote_branches_synced: $2 does not resolve to a git commit"
-    (cd "$1"; git rev-parse -q "$3") || \
+    (cd "$1"; git rev-parse --verify -q "$3") || \
 	die "remote_branches_synced: $3 does not resolve to a git commit"
     # $2 and $3 resolve to the same commit, they are in sync.
     (cd "$1"; [[ $(git rev-parse "$2") = $(git rev-parse "$3") ]] ) && return 0
