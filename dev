@@ -430,10 +430,19 @@ pull_requests_prep() {
 	    is_in "$branch" "${branches_to_push[*]}" || \
 	    branches_to_push+=("$branch")
     done
+    [[ ${branches_to_push} && ${!barclamps_to_push[*]} ]] || {
+	echo "Everything up to date, no pull requests are possible."
+	return 0
+    }
     echo "Barclamps to update: ${!barclamps_to_push[@]}"
     echo "Branches to update: ${branches_to_push[@]}"
-    echo "Command to generate pull requests for these branches and barclamps is:"
-    echo "  $0 pull-requests-gen --branches ${branches_to_push[@]} --barclamps ${!barclamps_to_push[@]}"
+    echo "Command to generate pull requests:"
+    echo -n "  $0 pull-requests-gen"
+    [[ ${branches_to_push} ]] && \
+	echo -n " --branches ${branches_to_push[@]}"
+    [[ ${!barclamps_to_push[*]} ]] && \
+	echo -n " --barclamps ${!barclamps_to_push[@]}"
+    echo
 }
     
 case $1 in
