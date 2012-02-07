@@ -90,8 +90,22 @@ git_is_clean() {
 
 get_context() {
   local ans
-  ans=$(in_repo git symbolic-ref HEAD)
-  echo "${ans#refs/heads/}"
+  if [ "$1" == "" ] ; then
+    ans=$(in_repo git symbolic-ref HEAD)
+  else
+    ans=$1
+  fi
+  ans=${ans#refs/heads/}
+  rel=${ans#release/} ; rel=${rel%%/*}
+  stable=${ans%%/*}
+
+  if [ "$stable" == "stable" ] ; then
+    echo "stable"
+  elif [ "$stable" == "release" ] ; then
+    echo "$rel"
+  else
+    echo "development"
+  fi
 }
 
 barclamp_is_clean() { in_barclamp "$1" git_is_clean; }
@@ -533,7 +547,15 @@ push_branches() {
 }
 
 show_contexts() {
-  echo "JJKLJ"
+  local -A br
+  local b
+  while read sum ref ; do
+    a=$(get_context $ref)
+    br["$a"]="$a"
+  done < <(git show-ref --heads) 
+  for b in "${!br[@]}"; do
+    echo "$b"
+  done
 }
 
 case $1 in
@@ -546,7 +568,7 @@ case $1 in
     pull-requests-prep) pull_requests_prep;;
     pull-requests-gen) shift; pull_requests_gen "$@";;
     help) dev_help;;
-    context) echo "Context: $(get_context)";;
+    context) get_context;;
     contexts) show_contexts;;
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
