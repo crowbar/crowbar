@@ -456,6 +456,22 @@ pull_requests_prep() {
 	echo -n " --barclamps ${!barclamps_to_push[@]}"
     echo
 }
+
+push_branches() {
+    # $@ = Local branches to push
+    local branches=("$@") br
+    [[ $branches ]] || branches=($(in_repo git symbolic-ref HEAD)) || \
+	die "Main Crowbar repo is not on a branch we can push!"
+    for br in "${branches[@]}"; do
+	if in_repo git rev-parse --verify -q "$br" &>/dev/null; then
+	    echo "Pushing $br to your Github fork of Crowbar."
+	    git push personal "$br:$br"
+	else
+	    echo "$br is not a branch I can push!"
+	fi
+    done
+}
+	    
     
 case $1 in
     is_clean) crowbar_is_clean;;
@@ -463,6 +479,7 @@ case $1 in
     sync) sync_everything;;
     setup) setup;;
     backup) backup_everything;;
+    push) shift; push_branches "$@";;
     pull-requests-prep) pull_requests_prep;;
     pull-requests-gen) die "$1 is not implemented yet.";;
     help) dev_help;;
