@@ -434,8 +434,8 @@ pull_requests_prep() {
 	echo "Everything up to date, no pull requests are possible."
 	return 0
     }
-    echo "Barclamps to update: ${!barclamps_to_push[@]}"
-    echo "Branches to update: ${branches_to_push[@]}"
+    echo "Barclamps to update: ${!barclamps_to_push[@]-(none)}"
+    echo "Branches to update: ${branches_to_push[@]-(none)}"
     echo "Command to generate pull requests:"
     echo -n "  $0 pull-requests-gen"
     [[ ${branches_to_push} ]] && \
