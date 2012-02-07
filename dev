@@ -266,15 +266,27 @@ backup_everything() {
 	) || exit 1
     done
     if in_repo git config --get remote.personal.url &>/dev/null; then
-	for branch in ${DEV_REMOTE_BRANCHES["origin"]}; do
-	    in_repo git rev-parse --verify -q \
+	# Push branches that have been pushed to personal in the past
+	while read ref branch; do
+	    branch="${branch##*/}"
+	    # If we do not have a ref for this branch on the personal remote
+	    # or on the origin remote, this branch should not be backed up.
+	    ( git rev-parse --verify -q \
+		refs/remotes/personal/$branch &>/dev/null || \
+		git rev-parse --verify -q \
+		refs/remotes/origin/$branch &>/dev/null) || continue
+	    # If this branch has a personal remote and the local branch 
+            # does not contain any commits that the one on the personal 
+	    # remote does, then it is already synced and we can skip 
+	    # the actual network communication.
+	    git rev-parse --verify -q \
 		refs/remotes/personal/$branch &>/dev/null && \
-		in_repo remote_branches_synced "." \
-		personal/$branch $branch && continue
+		remote_branches_synced "." personal/$branch $branch && \
+		continue
 	    echo "Pushing $branch to your Crowbar fork on Github"
 	    in_repo git push -qf personal "$branch:$branch" || \
 		die "Could not push $branch to your Crowbar fork on Github"
-	done
+	done < <(git show-ref --heads)
     fi
 }
 
@@ -413,6 +425,12 @@ Command line options:
                        upon the barclamps dependency trees.  These will be automatically 
                        sent to Github for processing and review by others on the team.
 
+  push -- Unconditionally push a branch (or branches) to your crowbar Github
+          fork.  Any arguments are interpreted as branch names to push, and
+          if there are no arguments it pushes the branch you are currently on.
+          Any branches pushed using this command will automatically be backed
+          up when dev backup is run as well.
+
 EOF
 }
 
@@ -453,6 +471,23 @@ pull_requests_prep() {
 	echo -n " --barclamps ${!barclamps_to_push[@]}"
     echo
 }
+
+push_branches() {
+    # $@ = Local branches to push
+    local branches=("$@") br
+    [[ $branches ]] || br=($(in_repo git symbolic-ref HEAD)) || \
+	die "Main Crowbar repo is not on a branch we can push!"
+    [[ $br ]] && branches=("${br#refs/heads/}")
+    for br in "${branches[@]}"; do
+	if in_repo git rev-parse --verify -q "$br" &>/dev/null; then
+	    echo "Pushing $br to your Github fork of Crowbar."
+	    git push personal "$br:$br"
+	else
+	    echo "$br is not a branch I can push!"
+	fi
+    done
+}
+	    
     
 case $1 in
     is_clean) crowbar_is_clean;;
@@ -460,6 +495,7 @@ case $1 in
     sync) sync_everything;;
     setup) setup;;
     backup) backup_everything;;
+    push) shift; push_branches "$@";;
     pull-requests-prep) pull_requests_prep;;
     pull-requests-gen) die "$1 is not implemented yet.";;
     help) dev_help;;
