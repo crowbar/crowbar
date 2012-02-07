@@ -702,4 +702,6 @@ test_iso() {
 	die "$(date '+%F %T %z'): Smoketest of $ISO_DEST/$BUILT_ISO failed."
 }
 
+export PATH="$PATH:$CROWBAR_DIR:$CROWBAR_DIR/extra:$CROWBAR_DIR/change-image/dell:$CROWBAR_DIR/test_framework"
+
 CROWBAR_BUILD_SOURCED=true
