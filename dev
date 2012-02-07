@@ -345,6 +345,8 @@ sync_everything() {
     done
     # Finished with barclamps, now for crowbar.
     for b in ${DEV_REMOTE_BRANCHES["origin"]}; do
+	# If there are updates from origin, merge them first, followed
+	# by updates from our "parent" branch, if any.
 	for u in "origin/$b" "${DEV_BRANCHES[$b]}"; do
 	    if ! remote_branches_synced "$CROWBAR_DIR" "$b" "$u"
 	    then
