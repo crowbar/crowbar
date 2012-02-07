@@ -273,7 +273,7 @@ backup_everything() {
 		personal/$branch $branch && continue
 	    echo "Pushing $branch to your Crowbar fork on Github"
 	    in_repo git push -qf personal "$branch:$branch" || \
-		die "Could not $branch to your Crowbar fork on Github"
+		die "Could not push $branch to your Crowbar fork on Github"
 	done
     fi
 }
