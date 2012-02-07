@@ -335,7 +335,7 @@ sync_repo() (
 
 sync_everything() {
     local unsynced_barclamps=()
-    local b head res=0
+    local b u head res=0
     crowbar_is_clean || \
 	die "Will not try to sync local repo with origin when working tree is dirty."
     # Do barclamps first.
@@ -344,29 +344,21 @@ sync_everything() {
 	unsynced_barclamps+=("$b")
     done
     # Finished with barclamps, now for crowbar.
-    head=$(in_repo git symbolic-ref HEAD) || \
-	die "Could not save the current branch!"
-    if ! remote_branches_synced "$CROWBAR_DIR" master origin/master; then
-	if sync_repo "$CROWBAR_DIR"; then
-	    for b in ${DEV_REMOTE_BRANCHES["origin"]}; do
-		if ! remote_branches_synced "$CROWBAR_DIR" "$b" "origin/$b"
-		then
-		    in_repo git checkout "$b"
-		    in_repo git merge "origin/$b" || \
-			die "Merge origin/$b into $b branch of Crowbar failed."
-		fi
-	    done
-	fi
-    fi
     for b in ${DEV_REMOTE_BRANCHES["origin"]}; do
-	if ! remote_branches_synced "$CROWBAR_DIR" "$b" "${DEV_BRANCHES[$b]}"
-	then
-	    in_repo git checkout "$b"
-	    in_repo git merge "${DEV_BRANCHES[$b]}" || \
-		die "Merge ${DEV_BRANCHES[$b]} into $b branch of Crowbar failed."
-	fi
+	for u in "origin/$b" "${DEV_BRANCHES[$b]}"; do
+	    if ! remote_branches_synced "$CROWBAR_DIR" "$b" "$u"
+	    then
+		if [[ ! $head ]]; then
+		    head=$(in_repo git symbolic-ref HEAD) || \
+			die "Could not save the current branch!"
+		fi
+		in_repo git checkout "$b"
+		in_repo git merge "$u" || \
+		    die "Merge $u into $b branch of Crowbar failed."
+	    fi
+	done
     done
-    in_repo git checkout "${head##*/}"
+    [[ $head ]] && in_repo git checkout "${head##*/}"
     if [[ $unsynced_barclamps ]]; then
 	echo "Unable to sync origin with current master in:" >&2
 	echo "  ${unsynced_barclamps[*]}"
