@@ -88,7 +88,7 @@ git_is_clean() {
     return 1
 }
 
-get_context() {
+get_release() {
   local ans
   if [ "$1" == "" ] ; then
     ans=$(in_repo git symbolic-ref HEAD)
@@ -442,9 +442,9 @@ Command line options:
           Any branches pushed using this command will automatically be backed
           up when dev backup is run as well.
 
-  context -- Shows the current release context that dev is operating on.
+  release -- Shows the current release that dev is operating on.
 
-  contexts -- Lists the contexts to choose from.
+  releases -- Lists the releases to choose from.
 
 EOF
 }
@@ -556,22 +556,110 @@ push_branches() {
     for br in "${branches[@]}"; do
 	if in_repo git rev-parse --verify -q "$br" &>/dev/null; then
 	    echo "Pushing $br to your Github fork of Crowbar."
-	    git push personal "$br:$br"
+	    in_repo git push personal "$br:$br"
 	else
 	    echo "$br is not a branch I can push!"
 	fi
     done
 }
 
-show_contexts() {
+show_releases() {
   local -A br
   local b
   while read sum ref ; do
-    a=$(get_context $ref)
+    a=$(get_release $ref)
     br["$a"]="$a"
-  done < <(git show-ref --heads) 
+  done < <(in_repo git show-ref --heads) 
   for b in "${!br[@]}"; do
     echo "$b"
+  done
+}
+
+cut_release() {
+  local b
+
+  context=$(get_release)
+  release=$1
+
+  if [ "$release" == "" ] ; then
+    die "cut_release: Please specify a name"
+  fi
+
+  # Test to see if release exists.
+  while read rel ; do
+    if [ "$rel" == "$release" ] ; then
+      die "cut_release: Name already exists"
+    fi
+  done < <(show_releases)
+
+  crowbar_is_clean &>/dev/null || \
+  	die "Crowbar repo must be clean before trying to cut a release!"
+
+  # Make release copy of all branches.
+  if [ "$context" == "development" ] ; then
+    REL_BASE=""
+  elif [ "$context" == "stable" ] ; then
+    REL_BASE="stable/"
+  else
+    REL_BASE="release/$context/"
+  fi
+
+  if [ "${release}" == "stable" ] ; then
+    NEW_BASE="stable/"
+  else
+    NEW_BASE="release/${release}/"
+  fi
+
+  for b in "${!DEV_BRANCHES[@]}"; do
+    in_repo git branch ${NEW_BASE}${b} ${REL_BASE}${b}
+  done
+
+  local barclamps="$(barclamps_in_branch "${!DEV_BRANCHES[@]}")" || \
+    exit 1
+  for b in $barclamps; do
+    in_barclamp "$b" git branch ${NEW_BASE}master ${REL_BASE}master
+  done
+}
+
+switch_release() {
+  local b
+
+  release=$1
+  if [ "$release" == "" ] ; then
+    die "switch: Please specify a name"
+  fi
+
+  # Test to see if release exists.
+  found=0
+  while read rel ; do
+    if [ "$rel" == "$release" ] ; then
+      found=1
+    fi
+  done < <(show_releases)
+  if [[ $found == 0 ]] ; then 
+    die "switch: Name doesn't exists" 
+  fi
+
+  crowbar_is_clean &>/dev/null || \
+  	die "Crowbar repo must be clean before trying to switch releases!"
+
+  # Make release copy of all branches.
+  if [ "$release" == "development" ] ; then
+    REL_BASE=""
+  elif [ "$release" == "stable" ] ; then
+    REL_BASE="stable/"
+  else
+    REL_BASE="release/$context/"
+  fi
+
+  b=$(in_repo git symbolic-ref HEAD) || die "switch: Crowbar not on a branch."
+  b=${b##*/}
+
+  in_repo git checkout ${REL_BASE}${b}
+  local barclamps="$(barclamps_in_branch "${!DEV_BRANCHES[@]}")" || \
+    exit 1
+  for b in $barclamps; do
+    in_barclamp "$b" git checkout ${REL_BASE}master
   done
 }
 
@@ -585,8 +673,10 @@ case $1 in
     pull-requests-prep) pull_requests_prep;;
     pull-requests-gen) shift; pull_requests_gen "$@";;
     help) dev_help;;
-    context) get_context;;
-    contexts) show_contexts;;
+    release) get_release;;
+    releases) show_releases;;
+    cut_release) shift; cut_release "$@";;
+    switch) shift; switch_release "$@";;
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
 
