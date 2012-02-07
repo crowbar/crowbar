@@ -416,6 +416,10 @@ Command line options:
           repositories.  dev is_clean should exit without any messages before
           running this command.
 
+  push -- Unconditionally push a branch (or branches) to your crowbar Github
+          fork.  Any arguments are interpreted as branch names to push, and
+          if there are no arguments it pushes the branch you are currently on.
+
 EOF
 }
 
