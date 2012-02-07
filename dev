@@ -452,6 +452,7 @@ case $1 in
     setup) setup;;
     backup) backup_everything;;
     pull-requests-prep) pull_requests_prep;;
+    pull-requests-gen) die "$1 is not implemented yet.";;
     help) dev_help;;
     *) die "Unknown command $1.  Please use \"help\" for help.";;
 esac
