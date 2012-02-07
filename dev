@@ -256,7 +256,7 @@ backup_everything() {
 	(   cd "$bc"
 	    git config --get remote.personal.url &>/dev/null || continue
 	    while read ref branch; do
-		branch="${branch##*/}"
+		branch="${branch#refs/heads/}"
 		# If we have a ref for this branch on the personal remote
 		# and the local branch does not contain any commits that 
 		# the one on the personal remote does, then it is already
@@ -274,7 +274,7 @@ backup_everything() {
     if in_repo git config --get remote.personal.url &>/dev/null; then
 	# Push branches that have been pushed to personal in the past
 	while read ref branch; do
-	    branch="${branch##*/}"
+	    branch="${branch#refs/heads/}"
 	    # If we do not have a ref for this branch on the personal remote
 	    # or on the origin remote, this branch should not be backed up.
 	    ( git rev-parse --verify -q \
@@ -330,9 +330,9 @@ sync_repo() (
     # problem.  Assume that the developer will merge master into this 
     # branch after the fact.
     if [[ $head != refs/heads/master ]]; then
-	echo "$1: On branch ${head##*/} instead of master." >&2
-	echo "Will checkout master, merge in upstream changes, and checkout ${head##*}." >&2
-	echo "master will NOT be merged into ${head##*/}, you will need to do that manually."
+	echo "$1: On branch ${head#refs/heads/} instead of master." >&2
+	echo "Will checkout master, merge in upstream changes, and checkout ${head#refs/heads/}." >&2
+	echo "master will NOT be merged into ${head#refs/heads/}, you will need to do that manually."
 	git checkout master || {
 	    echo "$bc: Unable to checkout master!" >&2
 	    return 1
@@ -344,8 +344,8 @@ sync_repo() (
 	return 1
     }
     if [[ $head != refs/heads/master ]]; then
-	git checkout "${head##*/}" || {
-	    echo "$1: Unable to check out ${head##*/}"
+	git checkout "${head#refs/heads/}" || {
+	    echo "$1: Unable to check out ${head#refs/heads/}"
 	    return 1
 	}
     fi
@@ -378,7 +378,7 @@ sync_everything() {
 	    fi
 	done
     done
-    [[ $head ]] && in_repo git checkout "${head##*/}"
+    [[ $head ]] && in_repo git checkout "${head#refs/heads/}"
     if [[ $unsynced_barclamps ]]; then
 	echo "Unable to sync origin with current master in:" >&2
 	echo "  ${unsynced_barclamps[*]}"
@@ -445,8 +445,8 @@ EOF
 }
 
 pull_requests_prep() {
-    crowbar_is_clean && fetch_all && sync_everything && backup_everything || \
-	die "Unable to prepare for pull requests"
+    #crowbar_is_clean && fetch_all && sync_everything && backup_everything || \
+    #	die "Unable to prepare for pull requests"
     local -A barclamps_to_push
     local -a branches_to_push
     local branch bc
@@ -478,8 +478,42 @@ pull_requests_prep() {
     [[ ${branches_to_push} ]] && \
 	echo -n " --branches ${branches_to_push[@]}"
     [[ ${!barclamps_to_push[*]} ]] && \
-	echo -n " --barclamps ${!barclamps_to_push[@]}"
+	echo -n " --barclamps ${!barclamps_to_push[@]#barclamps/}"
     echo
+}
+
+pull_requests_gen() {
+    # $@ = options to parse
+    local -A barclamps pull_requests
+    local -a branches
+    local bc br title body option
+    for option in "$@"; do
+	case $option in
+	    --branches) 
+		shift
+		while [[ $1 != '--'* ]]; do
+		    br="$1"
+		    shift
+		    in_repo branch_exists "$1" || \
+			die "$br is not a branch in Crowbar!"
+		    is_in "$1" "${branches[*]}" || branches+="$1"
+		done;;
+	    --barclamps)
+		shift
+		while [[ $1 != '--'* ]]; do
+		    bc="${1%%/*}"
+		    br="${1#*/}"
+		    [[ $bc = $br ]] && br="master"
+		    shift
+		    is_barclamp "$bc" || die "$bc is not a barclamp!"
+		    in_barclamp "$bc" branch_exists "$br" || \
+			die "$br is not a branch in barclamp $bc!"
+		    barclamps["$bc/$br"]="unclassified"
+		done;;
+	    *) die "Unknown option $1 to $0 pull-requests-gen!";;
+	esac
+    done
+    die "pull-requests-gen: Not implimented yet."
 }
 
 push_branches() {
@@ -510,7 +544,7 @@ case $1 in
     backup) backup_everything;;
     push) shift; push_branches "$@";;
     pull-requests-prep) pull_requests_prep;;
-    pull-requests-gen) die "$1 is not implemented yet.";;
+    pull-requests-gen) shift; pull_requests_gen "$@";;
     help) dev_help;;
     context) echo "Context: $(get_context)";;
     contexts) show_contexts;;
