@@ -266,15 +266,27 @@ backup_everything() {
 	) || exit 1
     done
     if in_repo git config --get remote.personal.url &>/dev/null; then
-	for branch in ${DEV_REMOTE_BRANCHES["origin"]}; do
-	    in_repo git rev-parse --verify -q \
+	# Push branches that have been pushed to personal in the past
+	while read ref branch; do
+	    branch="${branch##*/}"
+	    # If we do not have a ref for this branch on the personal remote
+	    # or on the origin remote, this branch should not be backed up.
+	    ( git rev-parse --verify -q \
+		refs/remotes/personal/$branch &>/dev/null || \
+		git rev-parse --verify -q \
+		refs/remotes/origin/$branch &>/dev/null) || continue
+	    # If this branch has a personal remote and the local branch 
+            # does not contain any commits that the one on the personal 
+	    # remote does, then it is already synced and we can skip 
+	    # the actual network communication.
+	    git rev-parse --verify -q \
 		refs/remotes/personal/$branch &>/dev/null && \
-		in_repo remote_branches_synced "." \
-		personal/$branch $branch && continue
+		remote_branches_synced "." personal/$branch $branch && \
+		continue
 	    echo "Pushing $branch to your Crowbar fork on Github"
 	    in_repo git push -qf personal "$branch:$branch" || \
 		die "Could not push $branch to your Crowbar fork on Github"
-	done
+	done < <(git show-ref --heads)
     fi
 }
 
