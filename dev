@@ -519,9 +519,10 @@ pull_requests_prep() {
 
 pull_requests_gen() {
     # $@ = options to parse
-    local -A barclamps pull_requests
+    local -A barclamps pull_requests barclamp_branches
     local -a branches
     local bc br title body option
+    local pull_request_count=0 n=1
     while [[ "$1" ]]; do
 	case $1 in
 	    --branches) 
@@ -531,7 +532,10 @@ pull_requests_gen() {
 		    shift
 		    in_repo branch_exists "$br" || \
 			die "$br is not a branch in Crowbar!"
-		    is_in "$br" "${branches[*]}" || branches+=("$br")
+		    is_in "$br" "${branches[*]}" || {
+			branches+=("$br")
+			pull_request_count=$((pull_request_count + 1))
+		    }
 		done;;
 	    --barclamps)
 		shift
@@ -545,11 +549,30 @@ pull_requests_gen() {
 			die "$br is not a branch in barclamp $bc!"
 		    [[ $br = master ]] || \
 			die "Non-master branch for a barclamp passed.  Not valid for now."
-		    barclamps["$bc/$br"]="unclassified"
+		    [[ ${barclamps["$bc"]} ]] || barclamps["$bc"]="unclassified"
+		    is_in "$br" "${barclamp_branches["$bc"]}" || {
+			barclamp_branches["$bc"]+=" $bc"
+			pull_request_count=$((pull_request_count + 1))
+		    }
 		done;;
 	    *) die "Unknown option $1 to $0 pull-requests-gen!";;
 	esac
     done
+    classify_barclamps
+    echo "Enter a title for this pull request series."
+    echo "After you have entered a title, an editor will open, and you can"
+    echo "enter anything you want for the body of the pull requests."
+    read -p "Title: " title
+    body="$(mktemp /tmp/crowbar-pull-req-XXXXXXXX)"
+    if [[ $EDITOR ]]; then
+	$EDITOR "$body"
+    else
+	nano "$body"
+    fi
+    
+    # Insert Ruby-based helper here.
+    
+    rm -f "$body"
     die "pull-requests-gen: Not implimented yet."
 }
 
