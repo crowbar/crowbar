@@ -88,6 +88,26 @@ git_is_clean() {
     return 1
 }
 
+get_context() {
+  local ans
+  if [ "$1" == "" ] ; then
+    ans=$(in_repo git symbolic-ref HEAD)
+  else
+    ans=$1
+  fi
+  ans=${ans#refs/heads/}
+  rel=${ans#release/} ; rel=${rel%%/*}
+  stable=${ans%%/*}
+
+  if [ "$stable" == "stable" ] ; then
+    echo "stable"
+  elif [ "$stable" == "release" ] ; then
+    echo "$rel"
+  else
+    echo "development"
+  fi
+}
+
 barclamp_is_clean() { in_barclamp "$1" git_is_clean; }
 
 barclamps_are_clean() {
@@ -422,6 +442,10 @@ Command line options:
           Any branches pushed using this command will automatically be backed
           up when dev backup is run as well.
 
+  context -- Shows the current release context that dev is operating on.
+
+  contexts -- Lists the contexts to choose from.
+
 EOF
 }
 
@@ -561,8 +585,19 @@ push_branches() {
 	fi
     done
 }
-	    
-    
+
+show_contexts() {
+  local -A br
+  local b
+  while read sum ref ; do
+    a=$(get_context $ref)
+    br["$a"]="$a"
+  done < <(git show-ref --heads) 
+  for b in "${!br[@]}"; do
+    echo "$b"
+  done
+}
+
 case $1 in
     is_clean) crowbar_is_clean;;
     fetch) fetch_all;;
@@ -573,5 +608,8 @@ case $1 in
     pull-requests-prep) pull_requests_prep;;
     pull-requests-gen) shift; pull_requests_gen "$@";;
     help) dev_help;;
-    *) die "Unknown command $1.  Please use \"help\" for help.";;
+    context) get_context;;
+    contexts) show_contexts;;
+    *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
+
