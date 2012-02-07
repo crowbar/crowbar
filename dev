@@ -430,7 +430,7 @@ pull_requests_prep() {
 	    is_in "$branch" "${branches_to_push[*]}" || \
 	    branches_to_push+=("$branch")
     done
-    [[ ${branches_to_push} && ${!barclamps_to_push[*]} ]] || {
+    [[ ${branches_to_push} || ${!barclamps_to_push[*]} ]] || {
 	echo "Everything up to date, no pull requests are possible."
 	return 0
     }
