@@ -317,10 +317,10 @@ sync_repo() (
     # Assumes that origin has already been fetched.
     cd "$1"
     # Repo is not clean, we will refuse to merge in any case.
-    git_is_clean || {
-	echo "$1 is not clean." >&2
-	return 1
-    }
+#    git_is_clean || {
+#	echo "$1 is not clean." >&2
+#	return 1
+#    }
     # Find 
     while read ref branch; do
 	branch=${branch#refs/heads/}
@@ -349,9 +349,9 @@ sync_repo() (
 
 sync_everything() {
     local unsynced_barclamps=()
-    local b u head res=0 ref branch
-    crowbar_is_clean || \
-	die "Will not try to sync local repo with origin when working tree is dirty."
+    local b u head res=0 ref branch rel
+#    crowbar_is_clean || \
+#	die "Will not try to sync local repo with origin when working tree is dirty."
     # Do barclamps first.
     for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES["origin"]}); do
 	sync_repo "$CROWBAR_DIR/barclamps/$b" && continue
@@ -363,10 +363,13 @@ sync_everything() {
     # Now for the branch-rippling merges of doom
     while read ref branch; do
 	branch=${branch#refs/heads/}
-	b="${branch%/*}"
+	rel="${branch%/*}"
+	b="${branch##*/}"
+echo "GREG: $rel $b $branch"
 	[[ $b != $branch ]] && \
-	    b="$b/${DEV_BRANCHES[$b]}" || \
+	    b="$rel/${DEV_BRANCHES[$b]}" || \
 	    b="${DEV_BRANCHES[$b]}"
+echo "GREG2: $rel $b $branch"
 	remote_branches_synced "$CROWBAR_DIR" "$branch" "$b" && continue
 	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
 	    die "Could not save the current branch!"
