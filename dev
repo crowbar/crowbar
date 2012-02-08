@@ -540,7 +540,7 @@ do_pull_request() {
 pull_requests_gen() {
     # $@ = options to parse
     local -A barclamps pull_requests barclamp_branches branches
-    local bc br bcr title body option handled_branches=()
+    local bc br bcr title body option handled_branches=() bc_name
     local pull_request_count=0 n=1
     while [[ "$1" ]]; do
 	case $1 in
@@ -616,7 +616,11 @@ pull_requests_gen() {
 	    for bc in "${!barclamps[@]}"; do
 		[[ ${DEV_BRANCH_PREFIX}${barclamps["$bc"]} = $br ]] || continue
 		for bcr in ${barclamp_branches["$bc"]}; do
-		    do_pull_request "https://api.github.com/repos/dellcloudedge/$bc/pulls" \
+                    bc_name=$(in_barclamp $bc git config --get remote.origin.url)
+                    bc_name=${bc_name##*/}
+                    bc_name=${bc_name##*:}
+                    bc_name=${bc_name%.git}
+		    do_pull_request "https://api.github.com/repos/dellcloudedge/$bc_name/pulls" \
 			--title "$title [$n/$pull_request_count]" \
 			--base "$bcr" \
 			--head "$DEV_GITHUB_ID:$(in_barclamp "$bc" git rev-parse "$bcr")" \
@@ -660,16 +664,28 @@ push_branches() {
 }
 
 show_releases() {
-    local sum ref
+    local sum ref r
+    local br_re='^(refs/(heads|remotes/([^/]+))/)'
+    local -A releases
     while read sum ref; do
-	case ${ref#refs/heads/} in
-	    master) echo "development";;
-	    stable/master) echo "stable";;
+	[[ $ref =~ $br_re ]] || continue
+	ref=${ref#${BASH_REMATCH[1]}}
+	# Filter out "extra" remotes.
+	if [[ ${BASH_REMATCH[3]} ]]; then
+	    is_in "${BASH_REMATCH[3]}" "${!DEV_REMOTE_BRANCHES[*]}" || \
+		continue
+	fi
+	case ${ref} in
+	    master) r=development;;
+	    stable/master) r=stable;;
 	    release/*)
-		ref="${ref#refs/heads/release/}"
-		echo "${ref%%/*}";;
+		r="${ref#release/}"
+		r=${r%%/*};;
 	esac
-    done < <(in_repo git show-ref --heads master) 
+	[[ ${releases["$r"]} ]] || releases["$r"]="$r"
+    done < <(in_repo git show-ref master)
+    echo "${releases[*]}"
+    
 }
 
 release_branch_prefix() {
