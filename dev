@@ -332,7 +332,7 @@ sync_repo() (
     # Find 
     while read ref branch; do
 	branch=${branch#refs/heads/}
-	branch_exists "origin/$branch" || continue
+	git rev-parse --verify -q "origin/$branch" &>/dev/null || continue
 	remote_branches_synced "$1" "$branch" "origin/$branch" && continue
 	[[ $head ]] || head=$(git symbolic-ref HEAD) || {
 	    # Oh, boy, we are in detached HEAD.
