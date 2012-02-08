@@ -425,6 +425,15 @@ Command line options:
           Any branches pushed using this command will automatically be backed
           up when dev backup is run as well.
 
+  pull-requests-prep -- Fetches, Syncs, and backs up all changes.  Then figures out
+                        The set of barclamps and crowbar branches that need to have
+                        pull requests created.  The output is a command line that can
+                        be copied and executed.
+
+  pull-requests-gen -- Creates a set of pull requests with similar ids and links based
+                       upon the barclamps dependency trees.  These will be automatically
+                       sent to Github for processing and review by others on the team.
+
   release -- Shows the current release that dev is operating on.
 
   releases -- Lists the releases to choose from.
