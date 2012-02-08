@@ -96,7 +96,7 @@ current_release() {
     case $ans in
 	stable/*) echo "stable";;
 	release/*)
-	    ans="${ans#release}"
+	    ans="${ans#release/}"
 	    echo "${ans%%/*}";;
 	*) echo "development";;
     esac
