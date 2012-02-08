@@ -530,7 +530,7 @@ pull_requests_gen() {
 		    in_repo branch_exists "$br" || \
 			die "$br is not a branch in Crowbar!"
 		    [[ ${branches["$br"]} ]] || {
-			branches["$br"]="${DEV_BRANCHES["$br"]}"
+			branches["$br"]="${DEV_BRANCHES["${br##*/}"]}"
 			pull_request_count=$((pull_request_count + 1))
 		    }
 		done;;
@@ -539,12 +539,12 @@ pull_requests_gen() {
 		while [[ $1 && $1 != '--'* ]]; do
 		    bc="${1%%/*}"
 		    br="${1#*/}"
-		    [[ $bc = $br ]] && br="master"
+		    [[ $bc = $br ]] && br="${DEV_BRANCH_PREFIX}master"
 		    shift
 		    is_barclamp "$bc" || die "$bc is not a barclamp!"
 		    in_barclamp "$bc" branch_exists "$br" || \
 			die "$br is not a branch in barclamp $bc!"
-		    [[ $br = master ]] || \
+		    [[ $br = *master ]] || \
 			die "Non-master branch for a barclamp passed.  Not valid for now."
 		    [[ ${barclamps["$bc"]} ]] || barclamps["$bc"]="unclassified"
 		    is_in "$br" "${barclamp_branches["$bc"]}" || {
@@ -557,11 +557,11 @@ pull_requests_gen() {
     done
     classify_barclamps
     for bc in "${!barclamps[@]}"; do
-	br=${barclamps["$bc"]}
-	[[ $br = "unclassified" ]] && \
+	br=${DEV_BRANCH_PREFIX}${barclamps["$bc"]}
+	[[ $br = "${DEV_BRANCH_PREFIX}unclassified" ]] && \
 	    die "pull_requests_gen: Encountered unclassified barclamp $bc."
 	[[ ${branches["$br"]} ]] || {
-	    branches["$br"]="${DEV_BRANCHES["$br"]}"
+	    branches["$br"]="${DEV_BRANCH_PREFIX}${DEV_BRANCHES["${br##*/}"]}"
 	    pull_request_count=$((pull_request_count + 1))
 	}
     done
@@ -586,7 +586,8 @@ pull_requests_gen() {
 	for br in "${!branches[@]}"; do
 	    # If our parent branch is not ourself, or the hash for our 
 	    # parent is not unset, skip past this branch for now.
-	    if [[ ${branches["$br"]} != $br && ${branches[${branches[$br]}]} ]]
+	    if [[ ${branches["$br"]} != ${DEV_BRANCH_PREFIX}$br && \
+		${branches[${DEV_BRANCH_PREFIX}${branches[$br]}]} ]]
 	    then
 		continue
 	    fi	
