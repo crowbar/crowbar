@@ -622,7 +622,7 @@ pull_requests_gen() {
 		--title "$title [$n/$pull_request_count]" \
 		--base "$br" \
 		--head "$DEV_GITHUB_ID:$(in_repo git rev-parse "$br")" \
-		--body "$(if in_repo git rev-parse -q --verify "origin/$br" &>/dev/nill; then git diff --stat origin/$br $br; else echo "No origin to generate diffstat."; fi)" \
+		--body "$(if in_repo git rev-parse -q --verify "origin/$br" &>/dev/null; then git diff --stat origin/$br $br; else echo "No origin to generate diffstat."; fi)" \
 		--body "$body" 
 	    n=$(($n + 1))
 	    # We are done with this branch.  Unset its hash entry.
