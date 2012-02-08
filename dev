@@ -362,10 +362,11 @@ sync_everything() {
 	die "Could not sync Crowbar with origin branches"
     # Now for the branch-rippling merges of doom
     while read ref branch; do
-	branch=${branch#refs/heads/}
-	b="${branch##*/}"
+	branch=${branch#refs/heads/} # master or release/fred/hadoop-os-build
+	b="${branch##*/}"            # master or hadoop-os-build
+    rel="${branch%/*}"           # master or release/fred/
 	[[ $b != $branch ]] && \
-	    b="$b/${DEV_BRANCHES[${branch##*/}]}" || \
+	    b="$rel/${DEV_BRANCHES[${branch##*/}]}" || \
 	    b="${DEV_BRANCHES[${branch##*/}]}"
 	remote_branches_synced "$CROWBAR_DIR" "$branch" "$b" && continue
 	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
