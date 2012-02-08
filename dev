@@ -11,8 +11,12 @@ declare -A DEV_BRANCHES DEV_REMOTES DEV_REMOTE_BRANCHES
 DEV_BRANCHES["master"]="master"
 DEV_BRANCHES["openstack-os-build"]="master"
 DEV_BRANCHES["hadoop-os-build"]="master"
+DEV_BRANCHES["openstack-build"]="openstack-os-build"
+DEV_BRANCHES["hadoop-build"]="hadoop-os-build"
 DEV_REMOTES["origin"]="https://github.com/dellcloudedge/"
+DEV_REMOTES["dell"]="gitolite@10.9.244.31:"
 DEV_REMOTE_BRANCHES["origin"]="master openstack-os-build hadoop-os-build"
+DEV_REMOTE_BRANCHES["dell"]="openstack-build hadoop-build"
 
 # Source our config file if we have one
 [[ -f $HOME/.build-crowbar.conf ]] && \
@@ -126,7 +130,7 @@ barclamps_in_branch() {
 	    die "Branch $b does not exist in the Crowbar repo!"
     done
     local res=($(for b in "$@"; do in_repo git ls-tree -r \
-	"refs/remotes/origin/$b" barclamps; done | \
+	"$b" barclamps; done | \
 	awk '/160000 commit/ {print $4}' |sort -u))
     echo "${res[@]#barclamps/}"
 }
@@ -136,7 +140,6 @@ fetch_all() {
     for remote in "${!DEV_REMOTES[@]}"; do
 	in_repo git fetch --tags "$remote" || continue
     done
-    echo "Fetched updates from ${DEV_REMOTES[$remote]}crowbar.git"
     local barclamps="$(barclamps_in_branch "${!DEV_BRANCHES[@]}")" || \
 	exit 1
     for b in $barclamps; do
@@ -367,10 +370,11 @@ sync_everything() {
 	die "Could not sync Crowbar with origin branches"
     # Now for the branch-rippling merges of doom
     while read ref branch; do
-	branch=${branch#refs/heads/}
-	b="${branch##*/}"
+	branch=${branch#refs/heads/} # master or release/fred/hadoop-os-build
+	b="${branch##*/}"            # master or hadoop-os-build
+    rel="${branch%/*}"           # master or release/fred/
 	[[ $b != $branch ]] && \
-	    b="$b/${DEV_BRANCHES[${branch##*/}]}" || \
+	    b="$rel/${DEV_BRANCHES[${branch##*/}]}" || \
 	    b="${DEV_BRANCHES[${branch##*/}]}"
 	remote_branches_synced "$CROWBAR_DIR" "$branch" "$b" && continue
 	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
