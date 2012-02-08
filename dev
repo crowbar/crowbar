@@ -246,9 +246,9 @@ remote_branches_synced() {
     [[ -d $1/.git ]] || \
 	die "remote_branches_synced: $1 is not a git repo"
     (cd "$1"; git rev-parse --verify -q "$2" &>/dev/null) || \
-	die "remote_branches_synced: $2 does not resolve to a git commit"
+	return 1 # die "remote_branches_synced: $2 does not resolve to a git commit"
     (cd "$1"; git rev-parse --verify -q "$3" &>/dev/null) || \
-	die "remote_branches_synced: $3 does not resolve to a git commit"
+	return 1 # die "remote_branches_synced: $3 does not resolve to a git commit"
     # $2 and $3 resolve to the same commit, they are in sync.
     (cd "$1"; [[ $(git rev-parse "$2") = $(git rev-parse "$3") ]] ) && return 0
     # Test to see if there are any commits in $3 that are not
