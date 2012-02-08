@@ -138,12 +138,12 @@ barclamps_in_branch() {
 fetch_all() {
     local remote barclamps b
     for remote in "${!DEV_REMOTES[@]}"; do
-	in_repo git fetch --tags "$remote" || continue
+	in_repo git fetch "$remote" || continue
     done
     local barclamps="$(barclamps_in_branch "${!DEV_BRANCHES[@]}")" || \
 	exit 1
     for b in $barclamps; do
-	in_barclamp "$b" git fetch --tags || \
+	in_barclamp "$b" git fetch || \
 	    die "Cound not fetch updates for $b"
     done
 }
@@ -332,7 +332,7 @@ sync_repo() (
     # Find 
     while read ref branch; do
 	branch=${branch#refs/heads/}
-	branch_exists "origin/$branch" || continue
+	git rev-parse --verify -q "origin/$branch" &>/dev/null || continue
 	remote_branches_synced "$1" "$branch" "origin/$branch" && continue
 	[[ $head ]] || head=$(git symbolic-ref HEAD) || {
 	    # Oh, boy, we are in detached HEAD.
