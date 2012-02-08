@@ -365,8 +365,8 @@ sync_everything() {
 	branch=${branch#refs/heads/}
 	b="${branch%/*}"
 	[[ $b != $branch ]] && \
-	    b="$b/${DEV_BRANCHES[$b]}" || \
-	    b="${DEV_BRANCHES[$b]}"
+	    b="$b/${DEV_BRANCHES[${branch##*/}]}" || \
+	    b="${DEV_BRANCHES[${branch##*/}]}"
 	remote_branches_synced "$CROWBAR_DIR" "$branch" "$b" && continue
 	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
 	    die "Could not save the current branch!"
