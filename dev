@@ -365,11 +365,9 @@ sync_everything() {
 	branch=${branch#refs/heads/}
 	rel="${branch%/*}"
 	b="${branch##*/}"
-echo "GREG: $rel $b $branch"
 	[[ $b != $branch ]] && \
 	    b="$rel/${DEV_BRANCHES[$b]}" || \
 	    b="${DEV_BRANCHES[$b]}"
-echo "GREG2: $rel $b $branch"
 	remote_branches_synced "$CROWBAR_DIR" "$branch" "$b" && continue
 	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
 	    die "Could not save the current branch!"
