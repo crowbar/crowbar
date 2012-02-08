@@ -528,7 +528,7 @@ do_pull_request() {
     local posturl="$1"
     shift
     make_pull_request "$@" | \
-    	curl -X POST --data-urlencode @- -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+    	curl -X POST --data @- -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
     	"$posturl"
 }
 
