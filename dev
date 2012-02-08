@@ -660,16 +660,28 @@ push_branches() {
 }
 
 show_releases() {
-    local sum ref
+    local sum ref r
+    local br_re='^(refs/(heads|remotes/([^/]+))/)'
+    local -A releases
     while read sum ref; do
-	case ${ref#refs/heads/} in
-	    master) echo "development";;
-	    stable/master) echo "stable";;
+	[[ $ref =~ $br_re ]] || continue
+	ref=${ref#${BASH_REMATCH[1]}}
+	# Filter out "extra" remotes.
+	if [[ ${BASH_REMATCH[3]} ]]; then
+	    is_in "${BASH_REMATCH[3]}" "${!DEV_REMOTE_BRANCHES[*]}" || \
+		continue
+	fi
+	case ${ref} in
+	    master) r=development;;
+	    stable/master) r=stable;;
 	    release/*)
-		ref="${ref#refs/heads/release/}"
-		echo "${ref%%/*}";;
+		r="${ref#release/}"
+		r=${r%%/*};;
 	esac
-    done < <(in_repo git show-ref --heads master) 
+	[[ ${releases["$r"]} ]] || releases["$r"]="$r"
+    done < <(in_repo git show-ref master)
+    echo "${releases[*]}"
+    
 }
 
 release_branch_prefix() {
