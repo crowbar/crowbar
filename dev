@@ -54,6 +54,12 @@ export CROWBAR_DIR
 . "$CROWBAR_DIR/build_lib.sh" || exit 1
 trap - 0 INT QUIT TERM
 
+which gem &>/dev/null || \
+    die "Rubygems not installed, and some of our helpers need a JSON gem."
+
+gem list -i json &>/dev/null || \
+    die "JSON gem not installed.  Please install it with gem install json."
+
 set -o pipefail
 
 # If we have openstack-os-build and hadoop-os-build brancehs locally,
@@ -525,11 +531,10 @@ do_pull_request() {
     # rest of args passed verbatim to make_pull_request helper.
     local posturl="$1"
     shift
-    echo "do_pull_request: $posturl: $@"
-    return
     make_pull_request "$@" | \
-	curl -X POST -d - -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
-	"$posturl"
+    	curl -X POST --data @- -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+	-H "Content-Type: application/vnd.github.beta.raw+json" \
+    	"$posturl"
 }
 
 pull_requests_gen() {
@@ -585,13 +590,13 @@ pull_requests_gen() {
     echo "Enter a title for this pull request series."
     echo "After you have entered a title, an editor will open, and you can"
     echo "enter anything you want for the body of the pull requests."
-    #read -p "Title: " title
-    #body="$(mktemp /tmp/crowbar-pull-req-XXXXXXXX)"
-    #if [[ $EDITOR ]]; then
-#	$EDITOR "$body"
- #   else
-#	nano "$body"
- #   fi
+    read -p "Title: " title
+    body="$(mktemp /tmp/crowbar-pull-req-XXXXXXXX)"
+    if [[ $EDITOR ]]; then
+	$EDITOR "$body"
+    else
+	nano "$body"
+    fi
     
     # The logic here is:
     # Find the "most central" branch for the current set of pull reqs.
@@ -615,8 +620,8 @@ pull_requests_gen() {
 			--title "$title [$n/$pull_request_count]" \
 			--base "$bcr" \
 			--head "$DEV_GITHUB_ID:$(in_barclamp "$bc" git rev-parse "$bcr")" \
-			--body "$(if in_barclamp "$bc" git rev-parse --verify -q "origin/$bcr" &>/dev/null; then in_barclamp "$bc" git diff --stat "origin/$bcr" $bcr; else echo "No origin to generate diffstat"; fi)" \
-			--body "$body"
+			--body "@$body" \
+			--body "$(if in_barclamp "$bc" git rev-parse --verify -q "origin/$bcr" &>/dev/null; then in_barclamp "$bc" git diff --stat "origin/$bcr" $bcr; else echo "No origin to generate diffstat"; fi)" 
 		    n=$(($n + 1))
 		done
 	    done
@@ -624,8 +629,8 @@ pull_requests_gen() {
 		--title "$title [$n/$pull_request_count]" \
 		--base "$br" \
 		--head "$DEV_GITHUB_ID:$(in_repo git rev-parse "$br")" \
-		--body "$(if in_repo git rev-parse -q --verify "origin/$br" &>/dev/null; then git diff --stat origin/$br $br; else echo "No origin to generate diffstat."; fi)" \
-		--body "$body" 
+		--body "@$body" \
+		--body "$(if in_repo git rev-parse -q --verify origin/$br &>/dev/null; then git diff --stat origin/$br $br; else echo "No origin to generate diffstat."; fi)"
 	    n=$(($n + 1))
 	    # We are done with this branch.  Unset its hash entry.
 	    unset branches["$br"]
