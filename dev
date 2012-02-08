@@ -503,11 +503,22 @@ pull_requests_prep() {
     echo
 }
 
+do_pull_request() {
+    # $1 = url to POST to
+    # rest of args passed verbatim to make_pull_request helper.
+    local posturl="$1"
+    shift
+    echo "do_pull_request: $posturl: $@"
+    return
+    make_pull_request "$@" | \
+	curl -X POST -d - -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+	"$posturl"
+}
+
 pull_requests_gen() {
     # $@ = options to parse
-    local -A barclamps pull_requests barclamp_branches
-    local -a branches
-    local bc br title body option
+    local -A barclamps pull_requests barclamp_branches branches
+    local bc br bcr title body option handled_branches=()
     local pull_request_count=0 n=1
     while [[ "$1" ]]; do
 	case $1 in
@@ -518,8 +529,8 @@ pull_requests_gen() {
 		    shift
 		    in_repo branch_exists "$br" || \
 			die "$br is not a branch in Crowbar!"
-		    is_in "$br" "${branches[*]}" || {
-			branches+=("$br")
+		    [[ ${branches["$br"]} ]] || {
+			branches["$br"]="${DEV_BRANCHES["$br"]}"
 			pull_request_count=$((pull_request_count + 1))
 		    }
 		done;;
@@ -545,18 +556,64 @@ pull_requests_gen() {
 	esac
     done
     classify_barclamps
+    for bc in "${!barclamps[@]}"; do
+	br=${barclamps["$bc"]}
+	[[ $br = "unclassified" ]] && \
+	    die "pull_requests_gen: Encountered unclassified barclamp $bc."
+	[[ ${branches["$br"]} ]] || {
+	    branches["$br"]="${DEV_BRANCHES["$br"]}"
+	    pull_request_count=$((pull_request_count + 1))
+	}
+    done
     echo "Enter a title for this pull request series."
     echo "After you have entered a title, an editor will open, and you can"
     echo "enter anything you want for the body of the pull requests."
-    read -p "Title: " title
-    body="$(mktemp /tmp/crowbar-pull-req-XXXXXXXX)"
-    if [[ $EDITOR ]]; then
-	$EDITOR "$body"
-    else
-	nano "$body"
-    fi
+    #read -p "Title: " title
+    #body="$(mktemp /tmp/crowbar-pull-req-XXXXXXXX)"
+    #if [[ $EDITOR ]]; then
+#	$EDITOR "$body"
+ #   else
+#	nano "$body"
+ #   fi
     
-    # Insert Ruby-based helper here.
+    # The logic here is:
+    # Find the "most central" branch for the current set of pull reqs.
+    # Generate pull requests for branches on its barclamps next.
+    # Generate a pull request for that branch next.
+    # Find the next most central branch.
+    # lather, rinse, repeat until we are out of branches.
+    while [[ ${!branches[*]} ]]; do
+	for br in "${!branches[@]}"; do
+	    # If our parent branch is not ourself, or the hash for our 
+	    # parent is not unset, skip past this branch for now.
+	    if [[ ${branches["$br"]} != $br && ${branches[${branches[$br]}]} ]]
+	    then
+		continue
+	    fi	
+	    for bc in "${!barclamps[@]}"; do
+		[[ ${barclamps["$bc"]} = $br ]] || continue
+		for bcr in ${barclamp_branches["$bc"]}; do
+		    do_pull_request "https://api.github.com/repos/dellcloudedge/$bc/pulls" \
+			--title "$title [$n/$pull_request_count]" \
+			--base "$bcr" \
+			--head "$DEV_GITHUB_ID:$(in_barclamp "$bc" git rev-parse "$bcr")" \
+			--body "$(in_barclamp "$bc" git diff --stat origin/$bcr $bcr)" \
+			--body "$body"
+		    n=$(($n + 1))
+		done
+	    done
+	    do_pull_request "https://api.github.com/repos/dellcloudedge/crowbar/pulls" \
+		--title "$title [$n/$pull_request_count]" \
+		--base "$br" \
+		--head "$DEV_GITHUB_ID:$(in_repo git rev-parse "$br")" \
+		--body "$(in_repo git diff --stat origin/$br $br)" \
+		--body "$body" 
+	    n=$(($n + 1))
+	    # We are done with this branch.  Unset its hash entry.
+	    unset branches["$br"]
+	    break
+	done
+    done
     
     rm -f "$body"
     die "pull-requests-gen: Not implimented yet."
