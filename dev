@@ -11,7 +11,7 @@ declare -A DEV_BRANCHES DEV_REMOTES DEV_REMOTE_BRANCHES
 DEV_BRANCHES["master"]="master"
 DEV_BRANCHES["openstack-os-build"]="master"
 DEV_BRANCHES["hadoop-os-build"]="master"
-DEV_REMOTES["origin"]="http://github.com/dellcloudedge/"
+DEV_REMOTES["origin"]="https://github.com/dellcloudedge/"
 DEV_REMOTE_BRANCHES["origin"]="master openstack-os-build hadoop-os-build"
 
 
@@ -201,7 +201,7 @@ setup() {
     if ! in_repo git config --get remote.personal.url &>/dev/null; then
 	echo "Adding remote for personal fork of crowbar on Github."
 	in_repo git remote add personal \
-	    "http://$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD@github.com/$DEV_GITHUB_ID/crowbar.git"
+	    "https://$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD@github.com/$DEV_GITHUB_ID/crowbar.git"
 	in_repo git fetch personal || \
 	    die "Cannot fetch repository info for your Crowbar fork on Github!"
 	in_repo git remote set-head -a personal
@@ -229,7 +229,7 @@ setup() {
 		die "Could not create a personal fork of $repo"
 	    if ! git config --get remote.personal.url &>/dev/null; then
 		git remote add personal \
-		    "http://$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD@github.com/$DEV_GITHUB_ID/$repo.git"
+		    "https://$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD@github.com/$DEV_GITHUB_ID/$repo.git"
 		in_repo git fetch personal || \
 		    die "Cannot fetch repositroy info for your fork of $repo on Github."
 		in_repo git remote set-head -a personal
@@ -246,9 +246,9 @@ remote_branches_synced() {
     [[ -d $1/.git ]] || \
 	die "remote_branches_synced: $1 is not a git repo"
     (cd "$1"; git rev-parse --verify -q "$2" &>/dev/null) || \
-	die "remote_branches_synced: $2 does not resolve to a git commit"
+	return 1
     (cd "$1"; git rev-parse --verify -q "$3" &>/dev/null) || \
-	die "remote_branches_synced: $3 does not resolve to a git commit"
+	return 1
     # $2 and $3 resolve to the same commit, they are in sync.
     (cd "$1"; [[ $(git rev-parse "$2") = $(git rev-parse "$3") ]] ) && return 0
     # Test to see if there are any commits in $3 that are not
@@ -349,7 +349,7 @@ sync_repo() (
 
 sync_everything() {
     local unsynced_barclamps=()
-    local b u head res=0 ref branch
+    local b u head res=0 ref branch rel
     crowbar_is_clean || \
 	die "Will not try to sync local repo with origin when working tree is dirty."
     # Do barclamps first.
@@ -363,7 +363,7 @@ sync_everything() {
     # Now for the branch-rippling merges of doom
     while read ref branch; do
 	branch=${branch#refs/heads/}
-	b="${branch%/*}"
+	b="${branch##*/}"
 	[[ $b != $branch ]] && \
 	    b="$b/${DEV_BRANCHES[${branch##*/}]}" || \
 	    b="${DEV_BRANCHES[${branch##*/}]}"
@@ -423,6 +423,15 @@ Command line options:
           if there are no arguments it pushes the branch you are currently on.
           Any branches pushed using this command will automatically be backed
           up when dev backup is run as well.
+
+  pull-requests-prep -- Fetches, Syncs, and backs up all changes.  Then figures out
+                        The set of barclamps and crowbar branches that need to have
+                        pull requests created.  The output is a command line that can
+                        be copied and executed.
+
+  pull-requests-gen -- Creates a set of pull requests with similar ids and links based
+                       upon the barclamps dependency trees.  These will be automatically
+                       sent to Github for processing and review by others on the team.
 
   release -- Shows the current release that dev is operating on.
 
@@ -649,7 +658,7 @@ show_releases() {
 	    master) echo "development";;
 	    stable/master) echo "stable";;
 	    release/*)
-		ref=${ref#refs/heads/release/}
+		ref="${ref#refs/heads/release/}"
 		echo "${ref%%/*}";;
 	esac
     done < <(in_repo git show-ref --heads master) 
