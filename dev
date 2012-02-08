@@ -276,9 +276,11 @@ backup_everything() {
 		    continue
 		branches+=("$branch")
 	    done < <(git show-ref --heads)
-	    echo "Pushing ${branches[*]}to barclamp ${bc##*/} in your Github fork." >&2
-	    git push -qf personal "${branches[@]}" || \
-		die "Could not push ${branches[*]} to barclamp ${bc##*/} to your Github fork."
+	    if [[ $branches ]]; then
+		echo "Pushing ${branches[*]}to personal barclamp ${bc##*/}" >&2
+		git push -qf personal "${branches[@]}" || \
+		    die "Could not push ${branches[*]} to personal barclamp ${bc##*/}"
+	    fi
 	) || exit 1
     done
     if in_repo git config --get remote.personal.url &>/dev/null; then
@@ -301,9 +303,11 @@ backup_everything() {
 		continue
 	    branches+=("$branch")
 	done < <(git show-ref --heads)
-	echo "Pushing ${branches[*]} to your Crowbar fork on Github"
-	in_repo git push -qf personal "${branches[@]}" || \
-	    die "Could not push ${branches[*]} to your Crowbar fork on Github"
+	if [[ $branches ]]; then
+	    echo "Pushing ${branches[*]} to personal Crowbar"
+	    in_repo git push -qf personal "${branches[@]}" || \
+		die "Could not push ${branches[*]} to personal Crowbar!"
+	fi
 	
     fi
 }
@@ -556,18 +560,19 @@ pull_requests_gen() {
 
 push_branches() {
     # $@ = Local branches to push
-    local branches=("$@") br
+    local branches=("$@") br btp=()
     [[ $branches ]] || br=($(in_repo git symbolic-ref HEAD)) || \
 	die "Main Crowbar repo is not on a branch we can push!"
     [[ $br ]] && branches=("${br#refs/heads/}")
     for br in "${branches[@]}"; do
 	if in_repo git rev-parse --verify -q "$br" &>/dev/null; then
-	    echo "Pushing $br to your Github fork of Crowbar."
-	    in_repo git push personal "$br:$br"
+	    btp+=("$br")
 	else
 	    echo "$br is not a branch I can push!"
 	fi
     done
+    echo "Pushing ${btp[*]} to your Github fork of Crowbar."
+    in_repo git push personal "${btp[@]}"
 }
 
 show_releases() {
