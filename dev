@@ -458,8 +458,8 @@ classify_barclamps() {
 }
 
 pull_requests_prep() {
-    #crowbar_is_clean && fetch_all && sync_everything && backup_everything || \
-    #	die "Unable to prepare for pull requests"
+    crowbar_is_clean && fetch_all && sync_everything && backup_everything || \
+    	die "Unable to prepare for pull requests"
     local -A barclamps
     local branches_to_push=() barclamps_to_push=()
     local branch bc
