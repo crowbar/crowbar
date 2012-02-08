@@ -218,7 +218,7 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
     # other branches in to the iso to create our build.  
     CURRENT_BRANCH="$(in_repo git symbolic-ref HEAD)" || \
 	die "Not on a branch we can build from!"
-    CURRENT_BRANCH=${CURRENT_BRANCH##*/}
+    CURRENT_BRANCH=${CURRENT_BRANCH#refs/heads/}
     [[ $CURRENT_BRANCH ]] || die "Not on a branch we can merge from!"
     
     # Check and see if our local build repository is a git repo. If it is,
