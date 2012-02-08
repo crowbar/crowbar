@@ -644,7 +644,7 @@ show_releases() {
 	    master) echo "development";;
 	    stable/master) echo "stable";;
 	    release/*)
-		ref=${ref#release/}
+		ref=${ref#refs/heads/release/}
 		echo "${ref%%/*}";;
 	esac
     done < <(in_repo git show-ref --heads master) 
