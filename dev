@@ -258,10 +258,11 @@ remote_branches_synced() {
 }
 
 backup_everything() {
-    local bc branch
+    local bc branch branches=()
     for bc in "$CROWBAR_DIR/barclamps/"*; do
 	[[ -d $bc && -d $bc/.git ]] || continue
 	(   cd "$bc"
+	    branches=()
 	    git config --get remote.personal.url &>/dev/null || continue
 	    while read ref branch; do
 		branch="${branch#refs/heads/}"
@@ -273,10 +274,11 @@ backup_everything() {
 		    refs/remotes/personal/$branch &>/dev/null && \
 		    remote_branches_synced "." personal/$branch $branch && \
 		    continue
-		echo "Pushing $branch to barclamp ${bc##*/} in your Github fork." >&2
-		git push -qf personal "$branch:$branch" || \
-		die "Could not push $branch to barclamp ${bc##*/} to your Github fork."
-		done < <(git show-ref --heads)
+		branches+=("$branch")
+	    done < <(git show-ref --heads)
+	    echo "Pushing ${branches[*]}to barclamp ${bc##*/} in your Github fork." >&2
+	    git push -qf personal "${branches[@]}" || \
+		die "Could not push ${branches[*]} to barclamp ${bc##*/} to your Github fork."
 	) || exit 1
     done
     if in_repo git config --get remote.personal.url &>/dev/null; then
@@ -297,10 +299,12 @@ backup_everything() {
 		refs/remotes/personal/$branch &>/dev/null && \
 		remote_branches_synced "." personal/$branch $branch && \
 		continue
-	    echo "Pushing $branch to your Crowbar fork on Github"
-	    in_repo git push -qf personal "$branch:$branch" || \
-		die "Could not push $branch to your Crowbar fork on Github"
+	    branches+=("$branch")
 	done < <(git show-ref --heads)
+	echo "Pushing ${branches[*]} to your Crowbar fork on Github"
+	in_repo git push -qf personal "${branches[@]}" || \
+	    die "Could not push ${branches[*]} to your Crowbar fork on Github"
+	
     fi
 }
 
