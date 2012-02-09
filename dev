@@ -80,9 +80,11 @@ for branch in "${!DEV_BRANCHES[@]}"; do
 done
 
 child_branches() {
-    local b=${1#$DEV_BRANCH_PREFIX}
+    local p=${1#$DEV_BRANCH_PREFIX} b
     for b in "${!DEV_BRANCHES[@]}"; do 
-	[[ ${DEV_BRANCHES[$b]} && $b != ${DEV_BRANCHES[$b]} ]] || continue
+	[[ ${DEV_BRANCHES[$b]} && \
+	    ${DEV_BRANCHES[$b]} != $b && \
+	    ${DEV_BRANCHES[$b]} = $p ]] || continue
 	echo "$DEV_BRANCH_PREFIX$b"
     done
     return 0
@@ -388,6 +390,27 @@ sync_repo() (
     if [[ $head ]]; then git checkout "${head#refs/heads/}"; fi
 )
 
+ripple_changes_out() {
+    # $1 branch to ripple changes from. Changes will be rippled to all 
+    # children of $1.
+    local parent="$1" child
+    in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
+	die "ripple_changes_out: $parent is not a branch in Crowbar!"
+    for child in $(child_branches "$parent"); do
+	echo " $parent -> $child"
+	in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
+	    die "ripple_changes_out: $child is not a branch in Crowbar!"
+	remote_branches_synced "$CROWBAR_DIR" "$child" "$parent" && continue
+	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
+	    die "Could not save the current branch!"
+	[[ $(in_repo git symbolic-ref HEAD) = refs/heads/$child ]] || \
+	    in_repo git checkout "$child"
+	in_repo git merge "$parent" || \
+	    die "Merge $parent into $child branch of Crowbar failed."
+	ripple_changes_out "$child"
+    done
+}
+
 sync_everything() {
     local unsynced_barclamps=()
     local b u head res=0 ref branch rel
@@ -402,20 +425,9 @@ sync_everything() {
     sync_repo "$CROWBAR_DIR" || \
 	die "Could not sync Crowbar with origin branches"
     # Now for the branch-rippling merges of doom
-    while read ref branch; do
-	branch=${branch#refs/heads/} # master or release/fred/hadoop-os-build
-	b="${branch##*/}"            # master or hadoop-os-build
-    rel="${branch%/*}"           # master or release/fred/
-	[[ $b != $branch ]] && \
-	    b="$rel/${DEV_BRANCHES[${branch##*/}]}" || \
-	    b="${DEV_BRANCHES[${branch##*/}]}"
-	remote_branches_synced "$CROWBAR_DIR" "$branch" "$b" && continue
-	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
-	    die "Could not save the current branch!"
-	in_repo git checkout "$branch"
-	in_repo git merge "$b" || \
-	    die "Merge $b into $branch branch of Crowbar failed."
-    done < <(git show-ref --heads ${DEV_REMOTE_BRANCHES["origin"]})
+    for branch in $(root_branches); do
+	ripple_changes_out "$branch"
+    done
     [[ $head ]] && in_repo git checkout "${head#refs/heads/}"
     if [[ $unsynced_barclamps ]]; then
 	echo "Unable to sync origin with current master in:" >&2
