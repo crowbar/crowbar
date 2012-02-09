@@ -80,9 +80,11 @@ for branch in "${!DEV_BRANCHES[@]}"; do
 done
 
 child_branches() {
-    local b=${1#$DEV_BRANCH_PREFIX}
+    local p=${1#$DEV_BRANCH_PREFIX} b
     for b in "${!DEV_BRANCHES[@]}"; do 
-	[[ ${DEV_BRANCHES[$b]} && $b != ${DEV_BRANCHES[$b]} ]] || continue
+	[[ ${DEV_BRANCHES[$b]} && \
+	    ${DEV_BRANCHES[$b]} != $b && \
+	    ${DEV_BRANCHES[$b]} = $p ]] || continue
 	echo "$DEV_BRANCH_PREFIX$b"
     done
     return 0
@@ -395,6 +397,7 @@ ripple_changes_out() {
     in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
 	die "ripple_changes_out: $parent is not a branch in Crowbar!"
     for child in $(child_branches "$parent"); do
+	echo " $parent -> $child"
 	in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
 	    die "ripple_changes_out: $child is not a branch in Crowbar!"
 	remote_branches_synced "$CROWBAR_DIR" "$child" "$parent" && continue
