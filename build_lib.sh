@@ -690,7 +690,7 @@ build_iso() (
     cp sha1sums build-info "$ISO_DEST"
     if ! [[ $NO_GENERATE_ISO && $NO_GENERATE_ISO = true ]]; then
 	mkisofs -r -V "${VERSION:0:30}" -cache-inodes -J -l -quiet \
-	    -b isolinux/isolinux.bin -c isolinux/boot.cat \
+	    -b isolinux/isolinux.bin -c isolinux/boot.cat -joliet-long \
 	    -no-emul-boot --boot-load-size 4 -boot-info-table \
 	    -o "$ISO_DEST/$BUILT_ISO" "$IMAGE_DIR" "$BUILD_DIR"
     fi 
