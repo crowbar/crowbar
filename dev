@@ -397,7 +397,6 @@ ripple_changes_out() {
     in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
 	die "ripple_changes_out: $parent is not a branch in Crowbar!"
     for child in $(child_branches "$parent"); do
-	echo " $parent -> $child"
 	in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
 	    die "ripple_changes_out: $child is not a branch in Crowbar!"
 	remote_branches_synced "$CROWBAR_DIR" "$child" "$parent" && continue
