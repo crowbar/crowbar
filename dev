@@ -79,6 +79,33 @@ for branch in "${!DEV_BRANCHES[@]}"; do
 	die "${DEV_BRANCHES[$branch]} dies not exist, but it is specified as the parent of $branch!"
 done
 
+child_branches() {
+    local p=${1#$DEV_BRANCH_PREFIX} b
+    for b in "${!DEV_BRANCHES[@]}"; do 
+	[[ ${DEV_BRANCHES[$b]} && \
+	    ${DEV_BRANCHES[$b]} != $b && \
+	    ${DEV_BRANCHES[$b]} = $p ]] || continue
+	echo "$DEV_BRANCH_PREFIX$b"
+    done
+    return 0
+}
+	
+parent_branch() {
+    local p="${DEV_BRANCHES[${1##*/}]}"
+    [[ $p && $p != ${1##*/} ]] && echo "${DEV_BRANCH_PREFIX}${p}"
+    return 0
+}
+
+root_branches() {
+    local b
+    for b in "${!DEV_BRANCHES[@]}"; do
+	[[ $b = ${DEV_BRANCHES[$b]} ]] || continue
+	echo "${DEV_BRANCH_PREFIX}$b"
+    done
+    return 0
+}
+
+
 git_is_clean() {
     local line hpath ret=0
     while read line; do
@@ -325,6 +352,7 @@ backup_everything() {
 }
 
 sync_repo() (
+    local branch head b bc origin ref
     # $1 = dir to CD to initially.
     # Assumes that origin has already been fetched.
     cd "$1"
@@ -333,39 +361,64 @@ sync_repo() (
 	echo "$1 is not clean." >&2
 	return 1
     }
-    # Find 
+    # Merge upstream branches from all origins, but only if the branch
+    # is listed in DEV_REMOTE_BRANCHES for that origin, 
+    # unless $origin is actually "origin"
     while read ref branch; do
 	branch=${branch#refs/heads/}
-        remote=$(git config branch.${branch}.remote)
-        [[ $remote ]] || continue
-	git rev-parse --verify -q "$remote/$branch" &>/dev/null || continue
-	remote_branches_synced "$1" "$branch" "$remote/$branch" && continue
-	[[ $head ]] || head=$(git symbolic-ref HEAD) || {
+	for origin in "${!DEV_REMOTE_BRANCHES[@]}"; do
+            remote=$(git config branch.${branch}.remote)
+	    [[ $origin = origin ]] || \
+                [[ $remote ]] || \
+		is_in "${branch##*/}" "${DEV_REMOTE_BRANCHES[$origin]}" || \
+		continue
+	    git rev-parse --verify -q "$origin/$branch" &>/dev/null || continue
+	    remote_branches_synced "$1" "$branch" "$origin/$branch" && continue
+	    [[ $head ]] || head=$(git symbolic-ref HEAD) || {
 	    # Oh, boy, we are in detached HEAD.
 	    # Die with a possibly-helpful error message.
-	    echo "$1 has had commits to a detached HEAD." >&2
-	    echo "git submodule update probably left it in this state." >&2
-	    echo "It should probably be on ${DEV_BRANCH_PREFIX}master, but you need to fix it."
-	    return 1 
-	}
-        [[ $VERBOSE ]] && echo "Checking out $branch"
-	git checkout "$branch" || {
-	    echo "$bc: Unable to checkout $branch!" >&2
-	    return 1
-	}
-        [[ $VERBOSE ]] && echo "Merging $remote/$branch into $branch"
-	git merge "$remote/$branch" || {
-	    echo "$1: Unable to merge $remote/$branch into $branch, will unwind." >&2
-	    git reset --hard
-	    return 1
-	}
+		echo "$1 has had commits to a detached HEAD." >&2
+		echo "git submodule update probably left it in this state." >&2
+		echo "It should probably be on ${DEV_BRANCH_PREFIX}master, but you need to fix it."
+		return 1 
+	    }
+            [[ $VERBOSE ]] && echo "Checking out $branch"
+	    git checkout "$branch" || {
+		echo "$bc: Unable to checkout $branch!" >&2
+		return 1
+	    }
+            [[ $VERBOSE ]] && echo "Merging $origin/$branch into $branch"
+	    git merge "$origin/$branch" || {
+		echo "$1: Unable to merge $origin/$branch into $branch, will unwind." >&2
+		git reset --hard
+		return 1
+	    }
+	done 
     done < <(git show-ref --heads)
     if [[ $head ]]; then git checkout "${head#refs/heads/}"; fi
 )
 
-get_heads_in_order() {
-    git show-ref --heads ${DEV_REMOTE_BRANCHES["origin"]}
-    git show-ref --heads ${DEV_REMOTE_BRANCHES["dell"]}
+ripple_changes_out() {
+    # $1 branch to ripple changes from. Changes will be rippled to all 
+    # children of $1.
+    local parent="$1" child
+    in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
+	die "ripple_changes_out: $parent is not a branch in Crowbar!"
+    for child in $(child_branches "$parent"); do
+	in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
+	    die "ripple_changes_out: $child is not a branch in Crowbar!"
+        [[ $VERBOSE ]] && echo "Testing $parent -> $child"
+	remote_branches_synced "$CROWBAR_DIR" "$child" "$parent" && continue
+	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
+	    die "Could not save the current branch!"
+        [[ $VERBOSE ]] && echo "Checking out $child"
+	[[ $(in_repo git symbolic-ref HEAD) = refs/heads/$child ]] || \
+	    in_repo git checkout "$child"
+        [[ $VERBOSE ]] && echo "Merging $parent into $child"
+	in_repo git merge "$parent" || \
+	    die "Merge $parent into $child branch of Crowbar failed."
+	ripple_changes_out "$child"
+    done
 }
 
 sync_everything() {
@@ -384,23 +437,9 @@ sync_everything() {
     sync_repo "$CROWBAR_DIR" || \
 	die "Could not sync Crowbar with origin branches"
     # Now for the branch-rippling merges of doom
-    while read ref branch; do
-	branch=${branch#refs/heads/} # master or release/fred/hadoop-os-build
-	b="${branch##*/}"            # master or hadoop-os-build
-        rel="${branch%/*}"           # master or release/fred/
-	[[ $b != $branch ]] && \
-	    b="$rel/${DEV_BRANCHES[${branch##*/}]}" || \
-	    b="${DEV_BRANCHES[${branch##*/}]}"
-        [[ $VERBOSE ]] && echo "Testing $b -> $branch"
-	remote_branches_synced "$CROWBAR_DIR" "$branch" "$b" && continue
-	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
-	    die "Could not save the current branch!"
-        [[ $VERBOSE ]] && echo "Checking out $branch"
-	in_repo git checkout "$branch"
-        [[ $VERBOSE ]] && echo "Merging $b into $branch"
-	in_repo git merge "$b" || \
-	    die "Merge $b into $branch branch of Crowbar failed."
-    done < <(get_heads_in_order)
+    for branch in $(root_branches); do
+	ripple_changes_out "$branch"
+    done
     [[ $head ]] && in_repo git checkout "${head#refs/heads/}"
     if [[ $unsynced_barclamps ]]; then
 	echo "Unable to sync origin with current master in:" >&2
@@ -755,7 +794,7 @@ switch_release() {
     b=$(in_repo git symbolic-ref HEAD) || die "switch: Crowbar not on a branch."
     b=${b##*/}
     in_repo branch_exists "${new_base}${b}" || {
-	echo "$1 does not have branch $b, will checkout master instead."
+            echo "$1 does not have branch $b, will checkout master instead."
 	b=master
     }
 
