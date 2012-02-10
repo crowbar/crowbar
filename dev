@@ -95,6 +95,7 @@ git_is_clean() {
     done < <(git status --porcelain --ignore-submodules)
     [[ $ret = 0 ]] && return
     git status
+    [[ $IGNORE_CLEAN ]] && return 0
     return 1
 }
 
@@ -138,11 +139,13 @@ barclamps_in_branch() {
 fetch_all() {
     local remote barclamps b
     for remote in "${!DEV_REMOTES[@]}"; do
+        [[ $VERBOSE ]] && echo "Fetching $remote"
 	in_repo git fetch "$remote" || continue
     done
     local barclamps="$(barclamps_in_branch "${!DEV_BRANCHES[@]}")" || \
 	exit 1
     for b in $barclamps; do
+        [[ $VERBOSE ]] && echo "Fetching $b"
 	in_barclamp "$b" git fetch || \
 	    die "Cound not fetch updates for $b"
     done
@@ -253,6 +256,7 @@ remote_branches_synced() {
     # $3 = remote branch to test
     [[ -d $1/.git ]] || \
 	die "remote_branches_synced: $1 is not a git repo"
+    [[ $VERBOSE2 ]] && echo "Checking to see if out of sync: $2 $3"
     (cd "$1"; git rev-parse --verify -q "$2" &>/dev/null) || \
 	return 1
     (cd "$1"; git rev-parse --verify -q "$3" &>/dev/null) || \
@@ -332,8 +336,10 @@ sync_repo() (
     # Find 
     while read ref branch; do
 	branch=${branch#refs/heads/}
-	git rev-parse --verify -q "origin/$branch" &>/dev/null || continue
-	remote_branches_synced "$1" "$branch" "origin/$branch" && continue
+        remote=$(git config branch.${branch}.remote)
+        [[ $remote ]] || continue
+	git rev-parse --verify -q "$remote/$branch" &>/dev/null || continue
+	remote_branches_synced "$1" "$branch" "$remote/$branch" && continue
 	[[ $head ]] || head=$(git symbolic-ref HEAD) || {
 	    # Oh, boy, we are in detached HEAD.
 	    # Die with a possibly-helpful error message.
@@ -342,12 +348,14 @@ sync_repo() (
 	    echo "It should probably be on ${DEV_BRANCH_PREFIX}master, but you need to fix it."
 	    return 1 
 	}
+        [[ $VERBOSE ]] && echo "Checking out $branch"
 	git checkout "$branch" || {
 	    echo "$bc: Unable to checkout $branch!" >&2
 	    return 1
 	}
-	git merge "origin/$branch" || {
-	    echo "$1: Unable to merge origin/$branch into $branch, will unwind." >&2
+        [[ $VERBOSE ]] && echo "Merging $remote/$branch into $branch"
+	git merge "$remote/$branch" || {
+	    echo "$1: Unable to merge $remote/$branch into $branch, will unwind." >&2
 	    git reset --hard
 	    return 1
 	}
@@ -355,34 +363,44 @@ sync_repo() (
     if [[ $head ]]; then git checkout "${head#refs/heads/}"; fi
 )
 
+get_heads_in_order() {
+    git show-ref --heads ${DEV_REMOTE_BRANCHES["origin"]}
+    git show-ref --heads ${DEV_REMOTE_BRANCHES["dell"]}
+}
+
 sync_everything() {
     local unsynced_barclamps=()
     local b u head res=0 ref branch rel
     crowbar_is_clean || \
 	die "Will not try to sync local repo with origin when working tree is dirty."
     # Do barclamps first.
-    for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES["origin"]}); do
+    for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES[@]}); do
+        [[ $VERBOSE ]] && echo "Syncing $b"
 	sync_repo "$CROWBAR_DIR/barclamps/$b" && continue
 	unsynced_barclamps+=("$b")
     done
     # Finished with barclamps, now for crowbar.
+    [[ $VERBOSE ]] && echo "Syncing crowbar"
     sync_repo "$CROWBAR_DIR" || \
 	die "Could not sync Crowbar with origin branches"
     # Now for the branch-rippling merges of doom
     while read ref branch; do
 	branch=${branch#refs/heads/} # master or release/fred/hadoop-os-build
 	b="${branch##*/}"            # master or hadoop-os-build
-    rel="${branch%/*}"           # master or release/fred/
+        rel="${branch%/*}"           # master or release/fred/
 	[[ $b != $branch ]] && \
 	    b="$rel/${DEV_BRANCHES[${branch##*/}]}" || \
 	    b="${DEV_BRANCHES[${branch##*/}]}"
+        [[ $VERBOSE ]] && echo "Testing $b -> $branch"
 	remote_branches_synced "$CROWBAR_DIR" "$branch" "$b" && continue
 	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
 	    die "Could not save the current branch!"
+        [[ $VERBOSE ]] && echo "Checking out $branch"
 	in_repo git checkout "$branch"
+        [[ $VERBOSE ]] && echo "Merging $b into $branch"
 	in_repo git merge "$b" || \
 	    die "Merge $b into $branch branch of Crowbar failed."
-    done < <(git show-ref --heads ${DEV_REMOTE_BRANCHES["origin"]})
+    done < <(get_heads_in_order)
     [[ $head ]] && in_repo git checkout "${head#refs/heads/}"
     if [[ $unsynced_barclamps ]]; then
 	echo "Unable to sync origin with current master in:" >&2
