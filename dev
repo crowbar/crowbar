@@ -7,7 +7,7 @@ GEM_RE='([^0-9].*)-([0-9].*)'
 
 readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
-declare -A DEV_BRANCHES DEV_REMOTES DEV_REMOTE_BRANCHES
+declare -A DEV_BRANCHES DEV_REMOTES DEV_REMOTE_BRANCHES DEV_ORIGIN_TYPES
 DEV_BRANCHES["master"]="master"
 DEV_BRANCHES["openstack-os-build"]="master"
 DEV_BRANCHES["hadoop-os-build"]="master"
@@ -15,6 +15,8 @@ DEV_BRANCHES["openstack-build"]="openstack-os-build"
 DEV_BRANCHES["hadoop-build"]="hadoop-os-build"
 DEV_REMOTES["origin"]="https://github.com/dellcloudedge/"
 DEV_REMOTES["dell"]="gitolite@10.9.244.31:"
+DEV_ORIGIN_TYPES["origin"]="github"
+DEV_ORIGIN_TYPES["dell"]="gitolite"
 DEV_REMOTE_BRANCHES["origin"]="master openstack-os-build hadoop-os-build"
 DEV_REMOTE_BRANCHES["dell"]="openstack-build hadoop-build"
 
@@ -131,6 +133,7 @@ current_release() {
 	die "current_release: Cannot get current branch information!"
     ans=${ans#refs/heads/}
     case $ans in
+	personal/*) continue;;
 	stable/*) echo "stable";;
 	release/*)
 	    ans="${ans#release/}"
@@ -276,7 +279,6 @@ setup() {
     done
 }
 
-
 remote_branches_synced() {
     # $1 = repository to operate in
     # $2 = local branch to test
@@ -296,31 +298,67 @@ remote_branches_synced() {
     return 1
 }
 
-backup_everything() {
-    local bc branch branches=()
-    for bc in "$CROWBAR_DIR/barclamps/"*; do
-	[[ -d $bc && -d $bc/.git ]] || continue
-	(   cd "$bc"
-	    branches=()
-	    git config --get remote.personal.url &>/dev/null || continue
-	    while read ref branch; do
-		branch="${branch#refs/heads/}"
+github_backup() (
+    local repo=$1 branches=() ref branch
+    cd "$repo"
+    while read ref branch; do
+	branch="${branch#refs/heads/}"
 		# If we have a ref for this branch on the personal remote
 		# and the local branch does not contain any commits that 
 		# the one on the personal remote does, then it is already
 		# synced and we can skip the actual network communication.
-		git rev-parse --verify -q \
-		    refs/remotes/personal/$branch &>/dev/null && \
-		    remote_branches_synced "." personal/$branch $branch && \
-		    continue
-		branches+=("$branch")
-	    done < <(git show-ref --heads)
-	    if [[ $branches ]]; then
-		echo "Pushing ${branches[*]}to personal barclamp ${bc##*/}" >&2
-		git push -qf personal "${branches[@]}" || \
-		    die "Could not push ${branches[*]} to personal barclamp ${bc##*/}"
-	    fi
-	) || exit 1
+	git rev-parse --verify -q \
+	    refs/remotes/personal/$branch &>/dev/null && \
+	    remote_branches_synced "." \
+	    refs/remotes/personal/$branch refs/heads/$branch && \
+	    continue
+	branches+=("$branch")
+    done < <(git show-ref --heads)
+    if [[ $branches ]]; then
+	echo "Pushing ${branches[*]} to personal barclamp ${repo##*/}" >&2
+	git push -qf personal "${branches[@]}" || \
+	    die "Could not push ${branches[*]} to personal barclamp ${repo##*/}"
+    fi
+)
+
+generic_backup() (
+    local repo="$1" branches=() branch ref 
+    shift
+    local prefix="refs/heads/personal/$DEV_GITHUB_ID"
+    cd "$repo"
+    if [[ $(git symbolic-ref HEAD) = "$prefix"/* ]]; then
+	die "generic_backup: Personal branch currently checked out, cannot proceed."
+    fi
+    while read ref branch; do
+	if [[ $branch = "$prefix"/* ]]; then
+	    b=${branch#$prefix/}
+	    branch_exists "$b" || git branch -D "$branch#refs/heads/"
+	    continue
+	fi
+	branch=${branch#refs/heads/}
+        branch_exists "personal/$DEV_GITHUB_ID/$branch" && \
+	    [[ $(git rev-parse --verify -q "refs/remotes/origin/personal/$DEV_GITHUB_ID/$branch") && \
+	    $(git rev-parse "refs/remotes/origin/personal/$DEV_GITHUB_ID/$branch") = \
+	    $(git rev-parse "refs/heads/$branch") ]] && continue
+	git branch -f "personal/$DEV_GITHUB_ID/$branch" "$branch"
+	branches+=("personal/$DEV_GITHUB_ID/$branch")
+    done < <(git show-ref --heads)
+    if [[ $branches ]]; then
+	echo "Pushing personal refs for ${branches[*]} to origin of barclamp ${repo##*/}"
+	git push -qf origin "${branches[@]}"
+    fi
+)
+
+backup_everything() {
+    local bc branch branches=() remote backup_func
+    for bc in "$CROWBAR_DIR/barclamps/"*; do
+	[[ -d $bc && -d $bc/.git ]] || continue
+	if in_barclamp "${bc##*/}" \
+	    git config --get remote.personal.url &>/dev/null; then
+	    github_backup "$bc" || die "Could not back up barclamp ${bc##*/}"
+	else
+	    generic_backup "$bc" || die "Could not back up barclamp ${bc##*/}"
+	fi
     done
     if in_repo git config --get remote.personal.url &>/dev/null; then
 	# Push branches that have been pushed to personal in the past
@@ -338,7 +376,8 @@ backup_everything() {
 	    # the actual network communication.
 	    git rev-parse --verify -q \
 		refs/remotes/personal/$branch &>/dev/null && \
-		remote_branches_synced "." personal/$branch $branch && \
+		remote_branches_synced "." \
+		refs/remotes/personal/$branch refs/heads/$branch && \
 		continue
 	    branches+=("$branch")
 	done < <(git show-ref --heads)
@@ -373,7 +412,7 @@ sync_repo() (
 		is_in "${branch##*/}" "${DEV_REMOTE_BRANCHES[$origin]}" || \
 		continue
 	    git rev-parse --verify -q "$origin/$branch" &>/dev/null || continue
-	    remote_branches_synced "$1" "$branch" "$origin/$branch" && continue
+	    remote_branches_synced "$1" "refs/heads/$branch" "refs/remotes/$origin/$branch" && continue
 	    [[ $head ]] || head=$(git symbolic-ref HEAD) || {
 	    # Oh, boy, we are in detached HEAD.
 	    # Die with a possibly-helpful error message.
@@ -408,7 +447,7 @@ ripple_changes_out() {
 	in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
 	    die "ripple_changes_out: $child is not a branch in Crowbar!"
         [[ $VERBOSE ]] && echo "Testing $parent -> $child"
-	remote_branches_synced "$CROWBAR_DIR" "$child" "$parent" && continue
+	remote_branches_synced "$CROWBAR_DIR" "refs/heads/$child" "refs/heads/$parent" && continue
 	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
 	    die "Could not save the current branch!"
         [[ $VERBOSE ]] && echo "Checking out $child"
@@ -551,8 +590,8 @@ pull_requests_prep() {
 	    "origin/${DEV_BRANCH_PREFIX}master" &>/dev/null && \
 	    in_barclamp "$bc" \
 	    remote_branches_synced '.' \
-	    "origin/${DEV_BRANCH_PREFIX}master" \
-	    "${DEV_BRANCH_PREFIX}master" && \
+	    "refs/remotes/origin/${DEV_BRANCH_PREFIX}master" \
+	    "refs/heads/${DEV_BRANCH_PREFIX}master" && \
 	    continue
 	barclamps_to_push+=("$bc/${DEV_BRANCH_PREFIX}master")
 	is_in "${DEV_BRANCH_PREFIX}${barclamps["$bc"]}" \
@@ -563,8 +602,8 @@ pull_requests_prep() {
 	in_repo git rev-parse --verify -q \
 	    "origin/${DEV_BRANCH_PREFIX}$branch" &>/dev/null && \
     	    remote_branches_synced "$CROWBAR_DIR" \
-	    "origin/${DEV_BRANCH_PREFIX}$branch" \
-	    "${DEV_BRANCH_PREFIX}$branch" || \
+	    "refs/remotes/origin/${DEV_BRANCH_PREFIX}$branch" \
+	    "refs/heads/${DEV_BRANCH_PREFIX}$branch" || \
 	    is_in "${DEV_BRANCH_PREFIX}$branch" "${branches_to_push[*]}" || \
 	    branches_to_push+=("${DEV_BRANCH_PREFIX}$branch")
     done
