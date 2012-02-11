@@ -737,9 +737,7 @@ pull_requests_gen() {
 	    break
 	done
     done
-    
     rm -f "$body"
-    die "pull-requests-gen: Not implimented yet."
 }
 
 push_branches() {
