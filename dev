@@ -251,7 +251,7 @@ setup() {
     for b in ${DEV_REMOTE_BRANCHES["origin"]}; do
 	in_repo git checkout "$b" || \
 	    die "Cannot checkout $b"
-	in_repo git merge "origin/$b" || \
+	in_repo git merge -q "origin/$b" || \
 	    die "Cannot merge origin/$b into $b"
 	in_repo git submodule update --init || \
 	    die "Cannot check out submodules for branch $b"
@@ -427,7 +427,7 @@ sync_repo() (
 		return 1
 	    }
             [[ $VERBOSE ]] && echo "Merging $origin/$branch into $branch"
-	    git merge "$origin/$branch" || {
+	    git merge -q "$origin/$branch" || {
 		echo "$1: Unable to merge $origin/$branch into $branch, will unwind." >&2
 		git reset --hard
 		return 1
@@ -454,7 +454,7 @@ ripple_changes_out() {
 	[[ $(in_repo git symbolic-ref HEAD) = refs/heads/$child ]] || \
 	    in_repo git checkout "$child"
         [[ $VERBOSE ]] && echo "Merging $parent into $child"
-	in_repo git merge "$parent" || \
+	in_repo git merge -q "$parent" || \
 	    die "Merge $parent into $child branch of Crowbar failed."
 	ripple_changes_out "$child"
     done
