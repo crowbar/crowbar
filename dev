@@ -424,7 +424,7 @@ generic_backup() (
 # Back up any local commits that are not already present on our upstreams,
 # or that have not already been backed up.
 backup_everything() {
-    local bc branch branches=() remote backup_func
+    local bc branch branches=() remote backup_func temp_branches=()
     for bc in "$CROWBAR_DIR/barclamps/"*; do
 	[[ -d $bc && -d $bc/.git ]] || continue
 	if in_barclamp "${bc##*/}" \
@@ -435,6 +435,15 @@ backup_everything() {
 	fi
     done
     if in_repo git config --get remote.personal.url &>/dev/null; then
+	# Iterate through branches that were created just to track submodule
+	# updates, and delete them if their references are contained in a
+	# local branch -- this means they were merged, and can go away.
+	while read ref branch; do
+	    [[ $branch = refs/remotes/personal/pull-req* ]] || continue
+	    [[ $(git branch --contains "$ref") ]] || continue
+	    branches+=(":${branch#refs/remotes/personal/}")
+	done < <(git show-ref)
+
 	# Push branches that have been pushed to personal in the past
 	while read ref branch; do
 	    branch="${branch#refs/heads/}"
@@ -458,7 +467,7 @@ backup_everything() {
 	if [[ $branches ]]; then
 	    echo "Pushing ${branches[*]} to personal Crowbar"
 	    in_repo git push -qf personal "${branches[@]}" || \
-		die "Could not push ${branches[*]} to personal Crowbar!"
+	    	die "Could not push ${branches[*]} to personal Crowbar!"
 	fi
 	
     fi
