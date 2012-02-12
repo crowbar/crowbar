@@ -667,26 +667,6 @@ Command line options:
 EOF
 }
 
-classify_barclamps() {
-    # No args, but it assumes that barclamps is an associative array
-    # of the form:
-    # barclamps["barclamp"]="somehting"
-    # classify_barclamps will mutate the array so that "something" refers
-    # to the branch that the barclamp is hosted in.  The value will be left
-    # unchanged if we cannot figure out where that barclamp is hosted.
-    local branch bc
-    for branch in ${DEV_REMOTE_BRANCHES["origin"]}; do
-	for bc in $(barclamps_in_branch "$branch"); do
-	    # If we don't care about this barclamp, skip it.
-	    [[ ${barclamps["$bc"]} ]] || continue
-	    # If we have already looked at this barclamp, skip it.
-	    is_in "${barclamps["$bc"]}" "${DEV_REMOTE_BRANCHES["origin"]}" && \
-		continue
-	    barclamps["$bc"]="$branch"
-	done
-    done
-}
-
 # Tests to see if the given branch in a repo needs a pull request. 
 branch_needs_pull_req() {
     # $1 = branch
@@ -747,6 +727,16 @@ do_pull_request() {
     	curl -X POST --data @- -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
     	-H "Content-Type: application/vnd.github.beta.raw+json" \
     	"$posturl"
+}
+
+# Get the diffstat from the origin branch of the branch passed,
+# or print an error message if there is no origin.
+diffstat_from_origin() {
+    if git rev-parse --verify -q "origin/$1" &>/dev/null; then 
+        git diff --stat "origin/$1" "$1" 
+    else 
+        echo "No origin to generate diffstat"
+    fi
 }
 
 # Make pull requests based on the command line args passed.
@@ -844,10 +834,10 @@ pull_requests_gen() {
         bc_name=${bc_name##*:}
         bc_name=${bc_name%.git}
 	do_pull_request "https://api.github.com/repos/dellcloudedge/$bc_name/pulls" \
-	    --title "$title [$n/$prc]" --base "$bcr" \
+	    --title "$title [$n/$prc]" --base "$bcb" \
 	    --head "$DEV_GITHUB_ID:$(in_barclamp "$bc" git rev-parse "$bcb")" \
 	    --body "@$body" \
-	    --body "$(if in_barclamp "$bc" git rev-parse --verify -q "origin/$bcr" &>/dev/null; then in_barclamp "$bc" git diff --stat "origin/$bcb" $bcb; else echo "No origin to generate diffstat"; fi)" 
+	    --body "$(in_barclamp "$bc" diffstat_from_origin "$bcb")" 
 	n=$(($n + 1))
     done
 
@@ -859,7 +849,7 @@ pull_requests_gen() {
 	    --title "$title [$n/$prc]" --base "$br" \
 	    --head "$DEV_GITHUB_ID:$(in_repo git rev-parse "$br")" \
 	    --body "@$body" \
-	    --body "$(if in_repo git rev-parse -q --verify origin/$br &>/dev/null; then git diff --stat origin/$br $br; else echo "No origin to generate diffstat."; fi)"
+	    --body "$(in_repo diffstat_from_origin "$br")"
 	n=$(($n + 1))
 	if [[ ${refs["$br"]} ]]; then
 	    in_repo git checkout "$br"
