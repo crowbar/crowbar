@@ -827,7 +827,7 @@ pull_requests_gen() {
 	    local refname="$(in_repo git describe --all --long --match "$br")"
 	    refname=${refname//\//-}
 	    # ... and push it to our personal github repo.
-	    in_repo git push personal HEAD:"pull-req-$refname"
+	    in_repo git push -f personal HEAD:"pull-req-$refname"
 	    br_pulls["$br"]="true"
 	fi
 	[[ ${branches["$br"]} ]] && br_pulls["$br"]=true
@@ -862,8 +862,8 @@ pull_requests_gen() {
 	    --body "$(if in_repo git rev-parse -q --verify origin/$br &>/dev/null; then git diff --stat origin/$br $br; else echo "No origin to generate diffstat."; fi)"
 	n=$(($n + 1))
 	if [[ ${refs["$br"]} ]]; then
-	    git checkout "$br"
-	    git reset --hard "${refs[$br]}"
+	    in_repo git checkout "$br"
+	    in_repo git reset --hard "${refs[$br]}"
 	fi
     done
     [[ $head ]] && in_repo git checkout "${head#refs/heads/}"
