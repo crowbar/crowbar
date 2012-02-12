@@ -742,9 +742,13 @@ do_pull_request() {
     local posturl="$1"
     shift
     make_pull_request "$@" | \
-    	curl -X POST --data @- -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+    	curl_and_res -X POST --data @- -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
     	-H "Content-Type: application/vnd.github.beta.raw+json" \
-    	"$posturl"
+    	"$posturl" && return
+    echo "Pull request to $posturl with following params failed:"
+    echo "$@"
+    echo "Please delete the ones that succeeded and try again."
+    exit 1
 }
 
 # Get the diffstat from the origin branch of the branch passed,
