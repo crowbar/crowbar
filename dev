@@ -7,18 +7,35 @@ GEM_RE='([^0-9].*)-([0-9].*)'
 
 readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
-declare -A DEV_BRANCHES DEV_REMOTES DEV_REMOTE_BRANCHES DEV_ORIGIN_TYPES
+declare -A DEV_BRANCHES DEV_REMOTE_SOURCES DEV_REMOTE_BRANCHES DEV_ORIGIN_TYPES
+declare -a DEV_REMOTES
+
+# The key -> value mapping in DEV_BRANCHES defines child -> parent relations
+# between branches.  A branch is considered a root branch if it has itself
+# as a parent.
 DEV_BRANCHES["master"]="master"
 DEV_BRANCHES["openstack-os-build"]="master"
 DEV_BRANCHES["hadoop-os-build"]="master"
 DEV_BRANCHES["openstack-build"]="openstack-os-build"
 DEV_BRANCHES["hadoop-build"]="hadoop-os-build"
-DEV_REMOTES["origin"]="https://github.com/dellcloudedge/"
-DEV_REMOTES["dell"]="gitolite@10.9.244.31:"
-DEV_ORIGIN_TYPES["origin"]="github"
-DEV_ORIGIN_TYPES["dell"]="gitolite"
+
+# DEV_REMOTE_SOURCES defines the source parts of the URLs that the
+# various remotes map to.  The "personal" remote is not listed in this
+# hash, and most of the script assumes that origin always points at
+# github and that the personal remote should be used as a backup target 
+# for all branches that were pulled from origin.
+DEV_REMOTE_SOURCES["origin"]="https://github.com/dellcloudedge/"
+DEV_REMOTE_SOURCES["dell"]="ssh://gitolite@10.9.244.31/"
+
+# DEV_REMOTE_BRANCHES defines what branches in the main Crowbar repository
+# should be pulled and synced with what remotes.
+# Barclamps do care about remote branches.
 DEV_REMOTE_BRANCHES["origin"]="master openstack-os-build hadoop-os-build"
 DEV_REMOTE_BRANCHES["dell"]="openstack-build hadoop-build"
+
+# DEV_REMOTES holds the remotes we will work on in the order they should be
+# worked on when ordering matters.
+DEV_REMOTES=("origin" "dell")
 
 # Source our config file if we have one
 [[ -f $HOME/.build-crowbar.conf ]] && \
@@ -73,7 +90,6 @@ for branch in openstack-os-build hadoop-os-build; do
 done
 
 # Sanity-check our dependency hash
-
 for branch in "${!DEV_BRANCHES[@]}"; do
     in_repo branch_exists "$branch" || \
 	die "$branch is specified in \$DEV_BRANCHES, but does not exist!"
@@ -81,6 +97,8 @@ for branch in "${!DEV_BRANCHES[@]}"; do
 	die "${DEV_BRANCHES[$branch]} dies not exist, but it is specified as the parent of $branch!"
 done
 
+# Given a branch, echo all the child branches for this 
+# branch in the current release.
 child_branches() {
     local p=${1#$DEV_BRANCH_PREFIX} b
     for b in "${!DEV_BRANCHES[@]}"; do 
@@ -91,13 +109,18 @@ child_branches() {
     done
     return 0
 }
-	
+
+# Given a branch, echo its parent in the current release.
 parent_branch() {
     local p="${DEV_BRANCHES[${1##*/}]}"
-    [[ $p && $p != ${1##*/} ]] && echo "${DEV_BRANCH_PREFIX}${p}"
-    return 0
+    if [[ $p && $p != ${1##*/} ]]; then
+	echo "${DEV_BRANCH_PREFIX}${p}"
+	return 0
+    fi
+    return 1
 }
 
+# Echo all of the root branches in the current release.
 root_branches() {
     local b
     for b in "${!DEV_BRANCHES[@]}"; do
@@ -107,7 +130,19 @@ root_branches() {
     return 0
 }
 
+# Given a branch, print the first remote that branch is "owned" by
+remote_for_branch() {
+    local remote
+    for remote in "${DEV_REMOTES[@]}"; do
+	is_in "$1" "${DEV_REMOTE_BRANCHES[$remote]}" || continue
+	echo "$remote"
+	return 0
+    done
+    return 1
+}
 
+# Test to see if a specific repository is clean.
+# Ignores submodules and unchecked-in directories that are git repositories.
 git_is_clean() {
     local line hpath ret=0
     while read line; do
@@ -128,6 +163,8 @@ git_is_clean() {
     return 1
 }
 
+# Get the current release we are working on, which is a function of
+# the currently checked-out branch.
 current_release() {
     local ans="$(in_repo git symbolic-ref HEAD)" || \
 	die "current_release: Cannot get current branch information!"
@@ -142,8 +179,10 @@ current_release() {
     esac
 }
 
+# Test to see if a barclamp is clean.
 barclamp_is_clean() { in_barclamp "$1" git_is_clean; }
 
+# Test to see if all our barclamps are clean.
 barclamps_are_clean() {
     local bc
     for bc in "$CROWBAR_DIR/barclamps/"*; do
@@ -152,8 +191,10 @@ barclamps_are_clean() {
     done
 }
 
+# Test to see if all the Crowbar repositories are clean.
 crowbar_is_clean() { barclamps_are_clean && in_repo git_is_clean; }
 
+# Get a list of all the barclamps that a specific branch refers to.
 barclamps_in_branch() {
     local b res=()
     for b in "$@"; do
@@ -163,12 +204,28 @@ barclamps_in_branch() {
     local res=($(for b in "$@"; do in_repo git ls-tree -r \
 	"$b" barclamps; done | \
 	awk '/160000 commit/ {print $4}' |sort -u))
-    echo "${res[@]#barclamps/}"
+    printf "%s\n" "${res[@]#barclamps/}"
 }
 
+# Get the list of barclamps that originate from this branch.  
+# $1 must be a branch name, and it must be some sort of release branch.
+barclamps_from_branch() {
+    # $1 = branch in Crowbar.
+    is_in "${1##*/}" "${!DEV_BRANCHES[*]}" || \
+	die "Will not be able to determine patent of $1."
+    # If we don't have a parent branch, we are one of the roots.
+    local parent=$(parent_branch "$1") || {
+	barclamps_in_branch "$1"
+	return 0
+    }
+    sort <(barclamps_in_branch "$1") <(barclamps_in_branch "$parent") |uniq -u
+}
+    
+# Fetch (but do not merge) updates from all our remotes, in both the
+# main Crowbar repository and the barclamps.
 fetch_all() {
     local remote barclamps b
-    for remote in "${!DEV_REMOTES[@]}"; do
+    for remote in "${DEV_REMOTES[@]}"; do
         [[ $VERBOSE ]] && echo "Fetching $remote"
 	in_repo git fetch "$remote" || continue
     done
@@ -181,6 +238,7 @@ fetch_all() {
     done
 }
 
+# Helper function for calling curl to talk to github.
 curl_and_res() {
     curl "$@"
     case $? in
@@ -196,6 +254,7 @@ curl_and_res() {
 [[ ( $DEV_GITHUB_ID && $DEV_GITHUB_PASSWD) || $1 = setup ]] || \
     die "dev has not been configured. Please run $CROWBAR_DIR/dev setup first."
 
+# Fork a repository on Github.
 github_fork() {
     # $1 = user to fork from
     # $2 = repo to fork
@@ -204,6 +263,8 @@ github_fork() {
 	die "Could not fork $1/$2!"
 }
 
+# Perform initial setup.  If you make any changes to this function, take
+# care to make sure it stays idempotent.
 setup() {
     local p
     crowbar_is_clean &>/dev/null || \
@@ -251,7 +312,7 @@ setup() {
     for b in ${DEV_REMOTE_BRANCHES["origin"]}; do
 	in_repo git checkout "$b" || \
 	    die "Cannot checkout $b"
-	in_repo git merge "origin/$b" || \
+	in_repo git merge -q "origin/$b" || \
 	    die "Cannot merge origin/$b into $b"
 	in_repo git submodule update --init || \
 	    die "Cannot check out submodules for branch $b"
@@ -279,6 +340,11 @@ setup() {
     done
 }
 
+# Test repository $1 to see if commit $2 is in sync with $3.
+# In this case, "in sync" is defined as:
+#  * $2 and $3 point at the same commit, or
+#  * There are no commits in the set of all commits reachable from $3 that
+#    are not also reachable from $2.
 remote_branches_synced() {
     # $1 = repository to operate in
     # $2 = local branch to test
@@ -298,6 +364,9 @@ remote_branches_synced() {
     return 1
 }
 
+# Back up our current commits to local branches in a barclamp that:
+#  * Have a matching branch at origin, or
+#  * Have a matching remote at personal.
 github_backup() (
     local repo=$1 branches=() ref branch
     cd "$repo"
@@ -321,6 +390,9 @@ github_backup() (
     fi
 )
 
+# Back up our current commits to local branches in a barclamp by force-creating
+# a new branch named personal/$DEV_GITHUB_ID/$branch for each branch, and then
+# force-pushing the newly created or updated branch back to the origin remote.
 generic_backup() (
     local repo="$1" branches=() branch ref 
     shift
@@ -349,6 +421,8 @@ generic_backup() (
     fi
 )
 
+# Back up any local commits that are not already present on our upstreams,
+# or that have not already been backed up.
 backup_everything() {
     local bc branch branches=() remote backup_func
     for bc in "$CROWBAR_DIR/barclamps/"*; do
@@ -390,6 +464,9 @@ backup_everything() {
     fi
 }
 
+# Merges in changes into all local branches from their upstreams.
+# Assumes that upstream commits have already been fetched from the proper
+# remotes by running dev fetch.
 sync_repo() (
     local branch head b bc origin ref
     # $1 = dir to CD to initially.
@@ -427,7 +504,7 @@ sync_repo() (
 		return 1
 	    }
             [[ $VERBOSE ]] && echo "Merging $origin/$branch into $branch"
-	    git merge "$origin/$branch" || {
+	    git merge -q "$origin/$branch" || {
 		echo "$1: Unable to merge $origin/$branch into $branch, will unwind." >&2
 		git reset --hard
 		return 1
@@ -437,6 +514,8 @@ sync_repo() (
     if [[ $head ]]; then git checkout "${head#refs/heads/}"; fi
 )
 
+# Recursivly merge all changes from a given branch into its children, if any.
+# Parent -> child relations are defined by the structure of DEV_BRANCHES.
 ripple_changes_out() {
     # $1 branch to ripple changes from. Changes will be rippled to all 
     # children of $1.
@@ -454,12 +533,15 @@ ripple_changes_out() {
 	[[ $(in_repo git symbolic-ref HEAD) = refs/heads/$child ]] || \
 	    in_repo git checkout "$child"
         [[ $VERBOSE ]] && echo "Merging $parent into $child"
-	in_repo git merge "$parent" || \
+	in_repo git merge -q "$parent" || \
 	    die "Merge $parent into $child branch of Crowbar failed."
 	ripple_changes_out "$child"
     done
 }
 
+# Merge all changes from our upstreams for all barclamps and the main Crowbar
+# repository, and then update the branches for the current release according
+# to the branch structure defined in DEV_BRANCHES.
 sync_everything() {
     local unsynced_barclamps=()
     local b u head res=0 ref branch rel
@@ -571,6 +653,10 @@ classify_barclamps() {
     done
 }
 
+# Make sure everything is up to date, and then figure out what barclamps
+# and branches need pull requests on Github.  Once we have that figured out,
+# print out a command line that can be used by dev pull-requests-gen to
+# actually generate the pull requests.
 pull_requests_prep() {
     crowbar_is_clean && fetch_all && sync_everything && backup_everything || \
     	die "Unable to prepare for pull requests"
@@ -622,6 +708,9 @@ pull_requests_prep() {
     echo
 }
 
+# Actaully generate a pull request by using make_pull_request to 
+# create the JSON blob that github needs, and then posting that to the 
+# right URL at Github.
 do_pull_request() {
     # $1 = url to POST to
     # rest of args passed verbatim to make_pull_request helper.
@@ -633,10 +722,13 @@ do_pull_request() {
     	"$posturl"
 }
 
+# Make pull requests based on the command line args passed.
+# These should follow the command line arguments that 
+# pull_requests_prep generated.
 pull_requests_gen() {
     # $@ = options to parse
     local -A barclamps pull_requests barclamp_branches branches
-    local bc br bcr title body option handled_branches=() bc_name
+    local bc br bcr title body option handled_branches=() bc_name head ref
     local pull_request_count=0 n=1
     while [[ "$1" ]]; do
 	case $1 in
@@ -708,7 +800,9 @@ pull_requests_gen() {
 		$br && ${branches[${DEV_BRANCH_PREFIX}${branches[$br]}]} ]]
 	    then
 		continue
-	    fi	
+	    fi
+	    local submodule_adds=()
+	    local ref=""
 	    for bc in "${!barclamps[@]}"; do
 		[[ ${DEV_BRANCH_PREFIX}${barclamps["$bc"]} = $br ]] || continue
 		for bcr in ${barclamp_branches["$bc"]}; do
@@ -724,7 +818,32 @@ pull_requests_gen() {
 			--body "$(if in_barclamp "$bc" git rev-parse --verify -q "origin/$bcr" &>/dev/null; then in_barclamp "$bc" git diff --stat "origin/$bcr" $bcr; else echo "No origin to generate diffstat"; fi)" 
 		    n=$(($n + 1))
 		done
+		submodule_adds+=("$bc")
 	    done
+	    if [[ $submodule_adds ]]; then
+		# We need to update submodule references.  Therefore, a little
+		# trickery is required to make sure we don't wind up with
+		# weird add/add or update/update merge conflicts
+		[[ $head ]] || head="$(in_repo git symbolic-ref HEAD)" || \
+		    die "pull-requests-gen: Need to push added submodules, but not on a branch!"
+		in_repo git checkout "$br" || \
+		    die "pull-requests-gen: Could not checkout $branch"
+		# Save the current ref
+		ref="$(in_repo git rev-parse --verify -q HEAD)"
+		# Add updated barclamp references...
+		for sm in "${submodule_adds[@]}"; do
+		    in_repo git add "barclamps/$sm" || \
+			die "pull-requests-gen: Unable to update submodule reference for $sm"
+		done
+		# commit then...
+		in_repo git commit -m "Add updated submodule references for ${submodule_adds[@]}"
+		# create a unique semi-meaningful throwaway branch name...
+		local refname="$(in_repo git describe --all --long --match "$br")"
+		refname=${refname//\//-}
+		# ... and push it to our personal github repo.
+		in_repo git push personal HEAD:"pull-req-$refname"
+	    fi
+		
 	    do_pull_request "https://api.github.com/repos/dellcloudedge/crowbar/pulls" \
 		--title "$title [$n/$pull_request_count]" \
 		--base "$br" \
@@ -732,16 +851,24 @@ pull_requests_gen() {
 		--body "@$body" \
 		--body "$(if in_repo git rev-parse -q --verify origin/$br &>/dev/null; then git diff --stat origin/$br $br; else echo "No origin to generate diffstat."; fi)"
 	    n=$(($n + 1))
+	    # If we have a saved ref, then we updated some submodule refs.
+	    # We need to undo that locally so that we don't wind up conflicting
+	    # with ourselves.
+	    if [[ $ref ]]; then 
+		in_repo git reset --hard "$ref"
+		unset ref
+	    fi
 	    # We are done with this branch.  Unset its hash entry.
 	    unset branches["$br"]
 	    break
 	done
     done
-    
+    [[ $head ]] && in_repo git checkout "${head#refs/heads/}"
     rm -f "$body"
-    die "pull-requests-gen: Not implimented yet."
 }
 
+# Unconditionally push either the current branch or the branches
+# passed on the command line to the personal remote.
 push_branches() {
     # $@ = Local branches to push
     local branches=("$@") br btp=()
@@ -759,6 +886,7 @@ push_branches() {
     in_repo git push personal "${btp[@]}"
 }
 
+# Show the releases that either the local repo or the origin repo knows about.
 show_releases() {
     local sum ref r
     local br_re='^(refs/(heads|remotes/([^/]+))/)'
@@ -784,6 +912,7 @@ show_releases() {
     
 }
 
+# Given a release name, give us the proper brach prefix for it.
 release_branch_prefix() {
     # $1 = release name
     case $1 in
@@ -795,6 +924,8 @@ release_branch_prefix() {
 
 DEV_BRANCH_PREFIX="$(release_branch_prefix $(current_release))"
 
+# Create a new release branch structure based on the current state of the
+# Crowbar repositories.
 cut_release() {
     local b this_prefix new_prefix
     
@@ -820,6 +951,8 @@ cut_release() {
     done
 }
 
+# Check out all the branches in the main Crowbar repository and the barclamps
+# for a given release.
 switch_release() {
     local b new_base
 
@@ -861,4 +994,3 @@ case $1 in
     switch) shift; switch_release "$@";;
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
-
