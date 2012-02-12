@@ -229,11 +229,11 @@ barclamps_from_branch() {
 fetch_all() {
     local remote barclamp b
     for remote in "${DEV_REMOTES[@]}"; do
-        [[ $VERBOSE ]] && echo "Fetching $remote"
+        debug "Fetching $remote"
 	in_repo git fetch "$remote" || continue
 	for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
 	    for barclamp in $(barclamps_from_branch "${DEV_RELEASE_PREFIX}$b"); do
-		[[ $VERBOSE ]] && echo "Fetching $barclamp"
+		debug "Fetching $barclamp"
 		in_barclamp "$barclamp" git fetch origin || \
 		    die "Cound not fetch updates for $barclamp"
 	    done
@@ -510,12 +510,12 @@ sync_repo() (
 		echo "It should probably be on ${DEV_BRANCH_PREFIX}master, but you need to fix it."
 		return 1 
 	    }
-            [[ $VERBOSE ]] && echo "Checking out $branch"
+            debug "Checking out $branch"
 	    git checkout "$branch" || {
 		echo "$bc: Unable to checkout $branch!" >&2
 		return 1
 	    }
-            [[ $VERBOSE ]] && echo "Merging $origin/$branch into $branch"
+            debug "Merging $origin/$branch into $branch"
 	    git merge -q "$origin/$branch" || {
 		echo "$1: Unable to merge $origin/$branch into $branch, will unwind." >&2
 		git reset --hard
@@ -537,14 +537,14 @@ ripple_changes_out() {
     for child in $(child_branches "$parent"); do
 	in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
 	    die "ripple_changes_out: $child is not a branch in Crowbar!"
-        [[ $VERBOSE ]] && echo "Testing $parent -> $child"
+        debug "Testing $parent -> $child"
 	remote_branches_synced "$CROWBAR_DIR" "refs/heads/$child" "refs/heads/$parent" && continue
 	[[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
 	    die "Could not save the current branch!"
-        [[ $VERBOSE ]] && echo "Checking out $child"
+        debug "Checking out $child"
 	[[ $(in_repo git symbolic-ref HEAD) = refs/heads/$child ]] || \
 	    in_repo git checkout "$child"
-        [[ $VERBOSE ]] && echo "Merging $parent into $child"
+        debug "Merging $parent into $child"
 	in_repo git merge -q "$parent" || \
 	    die "Merge $parent into $child branch of Crowbar failed."
 	ripple_changes_out "$child"
@@ -561,12 +561,12 @@ sync_everything() {
 	die "Will not try to sync local repo with origin when working tree is dirty."
     # Do barclamps first.
     for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES[@]}); do
-        [[ $VERBOSE ]] && echo "Syncing $b"
+        debug "Syncing $b"
 	sync_repo "$CROWBAR_DIR/barclamps/$b" && continue
 	unsynced_barclamps+=("$b")
     done
     # Finished with barclamps, now for crowbar.
-    [[ $VERBOSE ]] && echo "Syncing crowbar"
+    debug "Syncing crowbar"
     sync_repo "$CROWBAR_DIR" || \
 	die "Could not sync Crowbar with origin branches"
     # Now for the branch-rippling merges of doom
