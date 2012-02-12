@@ -63,6 +63,8 @@ else
     unset no_proxy http_proxy https_proxy
 fi
 
+[[ $DEV_AVAILABLE_REMOTES ]] && DEV_REMOTES=($DEV_AVAILABLE_REMOTES) 
+
 # Location of the Crowbar checkout we are building from.
 [[ $CROWBAR_DIR ]] || CROWBAR_DIR="${0%/*}"
 [[ $CROWBAR_DIR = /* ]] || CROWBAR_DIR="$currdir/$CROWBAR_DIR"
@@ -212,7 +214,7 @@ barclamps_in_branch() {
 barclamps_from_branch() {
     # $1 = branch in Crowbar.
     is_in "${1##*/}" "${!DEV_BRANCHES[*]}" || \
-	die "Will not be able to determine patent of $1."
+	die "Will not be able to determine parent of $1."
     # If we don't have a parent branch, we are one of the roots.
     local parent=$(parent_branch "$1")
     if [[ ! $parent ]]; then
@@ -225,17 +227,17 @@ barclamps_from_branch() {
 # Fetch (but do not merge) updates from all our remotes, in both the
 # main Crowbar repository and the barclamps.
 fetch_all() {
-    local remote barclamps b
+    local remote barclamp b
     for remote in "${DEV_REMOTES[@]}"; do
         [[ $VERBOSE ]] && echo "Fetching $remote"
 	in_repo git fetch "$remote" || continue
-    done
-    local barclamps="$(barclamps_in_branch "${!DEV_BRANCHES[@]}")" || \
-	exit 1
-    for b in $barclamps; do
-        [[ $VERBOSE ]] && echo "Fetching $b"
-	in_barclamp "$b" git fetch || \
-	    die "Cound not fetch updates for $b"
+	for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
+	    for barclamp in $(barclamps_from_branch "${DEV_RELEASE_PREFIX}$b"); do
+		[[ $VERBOSE ]] && echo "Fetching $barclamp"
+		in_barclamp "$barclamp" git fetch origin || \
+		    die "Cound not fetch updates for $barclamp"
+	    done
+	done
     done
 }
 
