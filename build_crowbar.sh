@@ -48,6 +48,9 @@ export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 [[ -f build-crowbar.conf ]] && \
     . "build-crowbar.conf"
 
+# Always run in verbose mode for now.  
+VERBOSE=true
+
 # Set up our proxies if we were asked to.
 if [[ $USE_PROXY = "1" && $PROXY_HOST ]]; then
     proxy_str="http://"
