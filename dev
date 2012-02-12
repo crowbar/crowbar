@@ -168,7 +168,23 @@ filter_branches_for_remote() {
 # Test to see if a specific repository is clean.
 # Ignores submodules and unchecked-in directories that are git repositories.
 git_is_clean() {
-    local line hpath ret=0
+    local line hpath ret=0 opt
+    local stat_cmd="git status --porcelain --ignore-submodules" quiet=''
+    local paths=()
+    while [[ $1 ]]; do
+        opt="$1"; shift
+        case $opt in
+            --barclamps) stat_cmd="git status --porcelain";;
+            -q|--quiet) quiet=true;;
+            --paths)
+                while [[ $1 && $1 != '-'* ]]; do
+                    paths+=("$1")
+                    shift
+                done;;
+            *) die "Unknown option $opt passed to git_is_clean.";;
+        esac
+    done
+    [[ $paths ]] && stat_cmd+=" -- ${paths[*]}"
     while read line; do
 	case $line in
 	    # Untracked file.  Ignore it if it is also a git repo, 
@@ -180,9 +196,9 @@ git_is_clean() {
 	    '') continue;;
 	    *) ret=1;
 	esac
-    done < <(git status --porcelain --ignore-submodules)
+    done < <($stat_cmd)
     [[ $ret = 0 ]] && return
-    git status
+    [[ $quiet ]] || git status -- "${paths[@]}"
     [[ $IGNORE_CLEAN ]] && return 0
     return 1
 }
@@ -204,19 +220,21 @@ current_release() {
 }
 
 # Test to see if a barclamp is clean.
-barclamp_is_clean() { in_barclamp "$1" git_is_clean; }
+barclamp_is_clean() { 
+    local bc="$1"; shift
+    in_barclamp "$bc" git_is_clean "$@"; }
 
 # Test to see if all our barclamps are clean.
 barclamps_are_clean() {
     local bc
     for bc in "$CROWBAR_DIR/barclamps/"*; do
 	is_barclamp "${bc##*/}" || continue
-	(cd "$bc"; git_is_clean) || return 1
+	(cd "$bc"; git_is_clean "$@") || return 1
     done
 }
 
 # Test to see if all the Crowbar repositories are clean.
-crowbar_is_clean() { barclamps_are_clean && in_repo git_is_clean; }
+crowbar_is_clean() { barclamps_are_clean "$@" && in_repo git_is_clean "$@"; }
 
 # Get a list of all the barclamps that a specific branch refers to.
 barclamps_in_branch() {
@@ -724,9 +742,13 @@ do_pull_request() {
     local posturl="$1"
     shift
     make_pull_request "$@" | \
-    	curl -X POST --data @- -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+    	curl_and_res -X POST --data @- -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
     	-H "Content-Type: application/vnd.github.beta.raw+json" \
-    	"$posturl"
+    	"$posturl" && return
+    echo "Pull request to $posturl with following params failed:"
+    echo "$@"
+    echo "Please delete the ones that succeeded and try again."
+    exit 1
 }
 
 # Get the diffstat from the origin branch of the branch passed,
@@ -794,26 +816,39 @@ pull_requests_gen() {
     # lather, rinse, repeat until we are out of branches.
 
     for br in $(filter_branches_for_remote origin $(ordered_branches)); do
+        # If we had to make barclamp-related modifications to our parent,
+        # we will have to make them here as well.  Go ahead and save the
+        # current ref for the branch and then merge changes from our parent.
+        local parent="$(parent_branch "$br")"
+        if [[ $parent && ${refs[$parent]} ]]; then
+            refs["$br"]="$(in_repo git rev-parse --verify -q "refs/heads/$br")"
+            in_repo git checkout "$br"
+            in_repo git merge -q "$parent"
+        fi
 	for bc in $(barclamps_from_branch "$br"); do
 	    [[ ${barclamps[$bc]} ]] || continue
 	    for bcb in ${barclamp_branches["$bc"]}; do
 		bc_pulls["$bc/$bcb"]="true"
 	    done
-	    [[ ${refs["$br"]} ]] || \
-		refs["$br"]="$(in_repo git rev-parse --verify -q "refs/heads/$br")"
-	    if ! [[ $(in_repo git symbolic-ref HEAD) = "refs/heads/$br" ]]
-	    then
+            # If we get this far, we have barclamp references to update.
+	    if [[ ! ${refs["$br"]} ]]; then
+                # We had not already saved a reference for this branch.
+                # Make sure we save a refeence to the current branch if we have
+                # not already, then check out the branch of interest and
+                # save a ref to it.
 		[[ $head ]] || head="$(in_repo git symbolic-ref HEAD)" || \
 		    die "pull-requests-gen: Crowbar not on a branch!"
-		in_repo git checkout "$br" || \
+	        if ! [[ $(in_repo git symbolic-ref HEAD) = "refs/heads/$br" ]]
+	        then
+		    in_repo git checkout "$br" || \
 		    die "pull-requests-gen: Could not checkout $br"
-	    fi
+	        fi
+                refs["$br"]="$(in_repo git rev-parse --verify -q "refs/heads/$br")"
+            fi
 	    in_repo git add "barclamps/$bc"
 	done
-	if [[ ${refs["$br"]} ]]; then
-	    in_repo git commit -m "Add updated submodule references for $br"
-	    local parent="$(parent_branch "$br")"
-	    [[ $parent ]] && in_repo git merge -q "$parent"
+        if [[ ${refs["$br"]} ]]; then
+            in_repo git commit -m "Add updated submodule references for $br"
 	    local refname="$(in_repo git describe --all --long --match "$br")"
 	    refname=${refname//\//-}
 	    # ... and push it to our personal github repo.
@@ -972,7 +1007,7 @@ switch_release() {
 }
 
 case $1 in
-    is_clean) crowbar_is_clean;;
+    is_clean) shift; crowbar_is_clean "$@";;
     fetch) fetch_all;;
     sync) sync_everything;;
     setup) setup;;
