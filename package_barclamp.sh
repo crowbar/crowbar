@@ -64,6 +64,11 @@ for barclamp in "${BARCLAMPS[@]}"; do
     cp -a "$barclamp" .
     (   bc=${barclamp##*/}
 	cd "$tmpdir/$bc"
+    [[ -d .git ]] && GIT_COMMIT=$(git log -n 1 | grep "^commit" | awk -F" " '{ print $2 }')
+    [[ -d .git ]] && GIT_DATE=$(git log -n 1 | grep "^Date:" | sed 's/Date:[ ]*//')
+    echo "" >> crowbar.yml
+    echo "git_date: $GIT_DATE" >> crowbar.yml
+    echo "git_commit: $GIT_COMMIT" >> crowbar.yml
 	[[ -d .git ]] && rm -rf -- .git
 	[[ -d $CACHE_DIR/barclamps/$bc ]] && (
 	    mkdir -p cache
