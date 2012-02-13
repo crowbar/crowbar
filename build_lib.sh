@@ -11,6 +11,9 @@
     export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 }
 
+# We might use lots and lots of open files.  Bump our open FD limits.
+ulimit -Sn unlimited
+
 # Hashes to hold our "interesting" information.
 # Key = barclamp name
 # Value = whatever interesting thing we are looking for.

@@ -253,28 +253,34 @@ final_build_fixups() {
 
 __check_all_deps() {
     local pkgname pkg token rest bc
-    local -A deps
     for pkgname in "$@"; do
+        local -A deps
         [[ ${touched_pkgs[$pkgname]} ]] && continue
+        debug "Checking dependencies for $pkgname"
         while read token rest; do
             pkg=${rest% *}
             case $token in
                 package:)
                     [[ ${CD_POOL["${pkg//./-}"]} && \
                         ! ${INSTALLED_PKGS["${pkg//./-}"]} ]] || continue
-                    debug "Staging missed package $pkg"
+                    debug "Staging depended upon package $pkg"
                     INSTALLED_PKGS["${pkg//./-}"]="true"
                     touched_pkgs["${pkg%.*}"]="true";;
-                provider:) deps["${pkg%.*}"]="true";;
+                provider:) [[ ${seen_deps["$pkg"]} ]] && continue
+                    debug "Will check dependent package ${pkg%.*} for $pkgname." 
+                    seen_deps["$pkg"]="true"
+                    deps["${pkg%.*}"]="true";;
                 *) continue;;
             esac
         done < <(in_chroot yum -C deplist "$pkgname")
+        [[ ${!deps[*]} ]] && __check_all_deps "${!deps[@]}"
+        unset deps
     done
-    [[ ${!deps[*]} ]] && __check_all_deps "${!deps[@]}"
 }
 
 check_all_deps() {
     local -A touched_pkgs
+    local -A seen_deps
     __check_all_deps "$@"
 }
 
