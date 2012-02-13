@@ -10,6 +10,9 @@ export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 declare -A DEV_BRANCHES DEV_REMOTE_SOURCES DEV_REMOTE_BRANCHES DEV_ORIGIN_TYPES
 declare -a DEV_REMOTES
 
+# The generation of the dev tool this is.
+readonly DEV_VERSION=1
+
 # The key -> value mapping in DEV_BRANCHES defines child -> parent relations
 # between branches.  A branch is considered a root branch if it has itself
 # as a parent.
@@ -80,6 +83,15 @@ which gem &>/dev/null || \
 
 gem list -i json &>/dev/null || \
     die "JSON gem not installed.  Please install it with gem install json."
+
+thisrev=$(in_repo git config --get crowbar.dev.version) && \
+(( thisrev  == DEV_VERSION )) || [[ $1 = setup ]] || {
+    VERBOSE=true
+    debug "Crowbar repository out of sync with dev tool revision."
+    debug "Please run $0 setup to update it."
+    exit 1
+}
+unset thisrev
 
 set -o pipefail
 
@@ -275,7 +287,7 @@ fetch_all() {
             for barclamp in $(barclamps_from_branch \
                 "${DEV_RELEASE_PREFIX}$b"); do
                 debug "Fetching $barclamp"
-                in_barclamp "$barclamp" git fetch origin || \
+                in_barclamp "$barclamp" git fetch $remote || \
                     die "Cound not fetch updates for $barclamp"
             done
         done
@@ -386,7 +398,8 @@ setup() {
         in_repo git remote set-head -a personal
     fi
     in_repo git config branch.autosetupmerge true &>/dev/null
-
+    in_repo git config crowbar.backup.method remote
+    in_repo git config crowbar.backup.remote personal
     # Set up the rest of our upstream remotes.
     for remote in "${DEV_REMOTES[@]}"; do
         # Add a remote if we don't already have one.
@@ -439,13 +452,21 @@ setup() {
                         in_barclamp "$bc" git remote set-url --push origin \
                             "$(github_url $repo -a)"
                     fi
+                    in_barclamp "$bc" git config crowbar.backup.method remote
+                    in_barclamp "$bc" git config crowbar.backup.remote personal
                 elif ! in_barclamp "$bc" git_config_has "remote.$remote.url"
                 then
                     in_barclamp "$bc" git remote add "$remote" \
                         "${DEV_REMOTE_SOURCES[$remote]}/$repo"
                     in_barclamp "$bc" git fetch "$remote" || \
                         die "Could not fetch $bc updates from $remote."
+                    in_barclamp "$bc" git config crowbar.backup.method prefix
+                    in_barclamp "$bc" \
+                        git config crowbar.backup.prefix \
+                        "personal/$DEV_GITHUB_ID"
+                    in_barclamp "$bc" git config crowbar.backup.remote "$remote"
                 fi
+                in_barclamp "$bc" git config branch.autosetupmerge true
             done
         done
     done
@@ -453,9 +474,10 @@ setup() {
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         (   cd "$bc"
             [[ -d .git && -f crowbar.yml ]] || continue
-            git checkout "${DEV_RELEASE_PREFIX}master"
+            git checkout "${DEV_RELEASE_PREFIX}master" &>/dev/null
         )
     done
+    in_repo git config crowbar.dev.version "$DEV_VERSION"
 }
 
 # Test repository $1 to see if commit $2 is in sync with $3.
@@ -484,10 +506,9 @@ remote_branches_synced() {
 
 # Back up our current commits to local branches in a barclamp that:
 #  * Have a matching branch at origin, or
-#  * Have a matching remote at personal.
-github_backup() (
-    local repo=$1 branches=() ref branch
-    cd "$repo"
+#  * Have a matching remote at $1.
+remote_backup() {
+    local remote=$1 branches=() ref branch
     while read ref branch; do
         branch="${branch#refs/heads/}"
                 # If we have a ref for this branch on the personal remote
@@ -495,48 +516,67 @@ github_backup() (
                 # the one on the personal remote does, then it is already
                 # synced and we can skip the actual network communication.
         git rev-parse --verify -q \
-            refs/remotes/personal/$branch &>/dev/null && \
+            "refs/remotes/$remote/$branch" &>/dev/null && \
             remote_branches_synced "." \
-            refs/remotes/personal/$branch refs/heads/$branch && \
+            "refs/remotes/$remote/$branch" "refs/heads/$branch" && \
             continue
         branches+=("$branch")
     done < <(git show-ref --heads)
     if [[ $branches ]]; then
-        echo "Pushing ${branches[*]} to personal barclamp ${repo##*/}" >&2
-        git push -qf personal "${branches[@]}" || \
-            die "Could not push ${branches[*]} to personal barclamp ${repo##*/}"
+        debug "Pushing ${branches[*]} to remote $remote"
+        git push -qf "$remote" "${branches[@]}" || \
+            die "Could not push ${branches[*]} to $remote barclamp ${repo##*/}"
     fi
-)
+}
 
 # Back up our current commits to local branches in a barclamp by force-creating
 # a new branch named personal/$DEV_GITHUB_ID/$branch for each branch, and then
 # force-pushing the newly created or updated branch back to the origin remote.
-generic_backup() (
-    local repo="$1" branches=() branch ref
-    shift
-    local prefix="refs/heads/personal/$DEV_GITHUB_ID"
-    cd "$repo"
-    if [[ $(git symbolic-ref HEAD) = "$prefix"/* ]]; then
-        die "generic_backup: Personal branch currently checked out, cannot proceed."
-    fi
+prefix_backup() {
+    local remote="$1" prefix="$2" branches=() branch ref
+    [[ $remote && $prefix ]] || \
+        die "generic_backup: Must pass a remote and a prefix."
+    local head_prefix="refs/heads/$prefix"
+    local remote_prefix="refs/remotes/$remote/$prefix"
+    [[ $(git symbolic-ref HEAD) = "$head_prefix"/* ]] && \
+        die "prefix_backup: $prefix branch checked out, cannot proceed."
     while read ref branch; do
-        if [[ $branch = "$prefix"/* ]]; then
-            b=${branch#$prefix/}
+        if [[ $branch = "$head_prefix"/* ]]; then
+            b=${branch#$head_prefix/}
             branch_exists "$b" || git branch -D "$branch#refs/heads/"
             continue
         fi
         branch=${branch#refs/heads/}
-        branch_exists "personal/$DEV_GITHUB_ID/$branch" && \
-            [[ $(git rev-parse --verify -q "refs/remotes/origin/personal/$DEV_GITHUB_ID/$branch") && \
-            $(git rev-parse "refs/remotes/origin/personal/$DEV_GITHUB_ID/$branch") = \
+        branch_exists "$prefix/$branch" && \
+            [[ $(git rev-parse --verify -q "$remote_prefix/$branch") && \
+            $(git rev-parse "$remote_prefix/$branch") = \
             $(git rev-parse "refs/heads/$branch") ]] && continue
-        git branch -f "personal/$DEV_GITHUB_ID/$branch" "$branch"
-        branches+=("personal/$DEV_GITHUB_ID/$branch")
+        git branch -f "$prefix/$branch" "$branch"
+        branches+=("$prefix/$branch")
     done < <(git show-ref --heads)
     if [[ $branches ]]; then
-        echo "Pushing personal refs for ${branches[*]} to origin of barclamp ${repo##*/}"
+        echo "Pushing personal refs for ${branches[*]} to barclamp ${repo##*/}"
         git push -qf origin "${branches[@]}"
     fi
+}
+
+backup_barclamp() (
+    cd "$1"
+    local target_remote target_prefix target_method
+    target_method="$(git config --get crowbar.backup.method)" || {
+        echo "Cannot back up $1, no crowbar.backup.method defined"
+        return 0
+    }
+    target_remote="$(git config --get crowbar.backup.remote)" || \
+        die "backup_barclamp: Unable to back up ${1##*/}, need a target remote"
+    case $target_method in
+        remote) remote_backup "$target_remote";;
+        prefix)
+            target_prefix="$(git config --get crowbar.backup.prefix)" || \
+                die "backup_barclamp: No branch prefix for ${1##*/} backup."
+            prefix_backup "$target_remote" "$target_prefix";;
+        *) die "backup_barclamp: Invalid backup method $target_method in ${1##*/}";;
+    esac
 )
 
 # Back up any local commits that are not already present on our upstreams,
@@ -544,12 +584,8 @@ generic_backup() (
 backup_everything() {
     local bc branch branches=() remote backup_func temp_branches=()
     for bc in "$CROWBAR_DIR/barclamps/"*; do
-        [[ -d $bc && -d $bc/.git ]] || continue
-        if in_barclamp "${bc##*/}" \
-            git config --get remote.personal.url &>/dev/null; then
-            github_backup "$bc" || die "Could not back up barclamp ${bc##*/}"
-        else
-            generic_backup "$bc" || die "Could not back up barclamp ${bc##*/}"
+        if is_barclamp "${bc##*/}"; then 
+            backup_barclamp "$bc" || die "Could not back up barclamp ${bc##*/}"
         fi
     done
     if in_repo git config --get remote.personal.url &>/dev/null; then
