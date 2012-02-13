@@ -48,7 +48,7 @@ fetch_os_iso() {
     die "build_crowbar.sh does not know how to automatically download $ISO"
 }
 
-# Throw away packages we will not need on the
+# Throw away packages we will not need on the iso
 shrink_iso() {
     # Do nothing if we do not have a minimal-install set for this OS.
     [[ -f $CROWBAR_DIR/$OS_TOKEN-extra/minimal-install ]] || \
@@ -59,32 +59,11 @@ shrink_iso() {
     done < "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install"
     mkdir -p "$BUILD_DIR/Packages"
     cp -a "$IMAGE_DIR/repodata" "$BUILD_DIR"
-    local -A touched_pkgs
     make_chroot
     # Figure out what else we need for this build
     # that we did not get from the appropriate minimal-install.
-    for pkgname in $(for bc in "${BARCLAMPS[@]}"; do
-        echo ${BC_PKGS[$bc]}; done); do
-        [[ ${touched_pkgs[$pkgname]} ]] && continue
-        local pkg token rest
-        while read token rest; do
-            pkg=${rest% *}
-            pkg=${pkg//./-}
-            case $token in
-                package:|provider:)
-                    # If this package is in INSTALLED_PKGS, it and all its deps
-                    # will already have been staged.
-                    [[ ${INSTALLED_PKGS["$pkg"]} ]] && continue
-                    # If it is not in CD_POOL, then it was downloaded as a
-                    # dependency from the Internet.
-                    [[ ${CD_POOL["$pkg"]} ]] || continue
-                    debug "Staging missed dependency $pkg of $pkgname"
-                    INSTALLED_PKGS["$pkg"]="true"
-                    touched_pkgs[$pkg]="true";;
-                *) continue;;
-            esac
-            done < <(in_chroot yum deplist "$pkgname")
-    done
+    check_all_deps $(for bc in "${BARCLAMPS[@]}"; do
+        echo ${BC_PKGS[$bc]}; done)
     for pkgname in "${!CD_POOL[@]}"; do
         [[ ${INSTALLED_PKGS["$pkgname"]} ]] || continue
         [[ -f ${CD_POOL["$pkgname"]} ]] || \
@@ -97,4 +76,5 @@ shrink_iso() {
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/Packages"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/repodata"
 }
+
  . "$CROWBAR_DIR/redhat-common/build_lib.sh"

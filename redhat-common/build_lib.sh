@@ -251,6 +251,33 @@ final_build_fixups() {
         cat "initrd.img.append" >> "../images/pxeboot/initrd.img")
 }
 
+__check_all_deps() {
+    local pkgname pkg token rest bc
+    local -A deps
+    for pkgname in "$@"; do
+        [[ ${touched_pkgs[$pkgname]} ]] && continue
+        while read token rest; do
+            pkg=${rest% *}
+            case $token in
+                package:)
+                    [[ ${CD_POOL["${pkg//./-}"]} && \
+                        ! ${INSTALLED_PKGS["${pkg//./-}"]} ]] || continue
+                    debug "Staging missed package $pkg"
+                    INSTALLED_PKGS["${pkg//./-}"]="true"
+                    touched_pkgs["${pkg%.*}"]="true";;
+                provider:) deps["${pkg%.*}"]="true";;
+                *) continue;;
+            esac
+        done < <(in_chroot yum -C deplist "$pkgname")
+    done
+    [[ ${!deps[*]} ]] && __check_all_deps "${!deps[@]}"
+}
+
+check_all_deps() {
+    local -A touched_pkgs
+    __check_all_deps "$@"
+}
+
 generate_minimal_install() { : ; }
 
 # Check to make sure our required commands are installed.
