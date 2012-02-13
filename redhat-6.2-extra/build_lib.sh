@@ -48,24 +48,49 @@ fetch_os_iso() {
     die "build_crowbar.sh does not know how to automatically download $ISO"
 }
 
-# Throw away packages we will not need on the 
+# Throw away packages we will not need on the
 shrink_iso() {
     # Do nothing if we do not have a minimal-install set for this OS.
     [[ -f $CROWBAR_DIR/$OS_TOKEN-extra/minimal-install ]] || \
-	return 0
+        return 0
     local pkgname pkgver
     while read pkgname pkgver; do
-	INSTALLED_PKGS["$pkgname"]="$pkgver"
+        INSTALLED_PKGS["$pkgname"]="$pkgver"
     done < "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install"
     mkdir -p "$BUILD_DIR/Packages"
     cp -a "$IMAGE_DIR/repodata" "$BUILD_DIR"
-    for pkgname in "${!CD_POOL[@]}"; do
-	[[ ${INSTALLED_PKGS["$pkgname"]} ]] || continue
-	[[ -f ${CD_POOL["$pkgname"]} ]] || \
-	    die "Cannot stage $pkgname from the CD!"
-	cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/Packages"
-    done
+    local -A touched_pkgs
     make_chroot
+    # Figure out what else we need for this build
+    # that we did not get from the appropriate minimal-install.
+    for pkgname in $(for bc in "${BARCLAMPS[@]}"; do
+        echo ${BC_PKGS[$bc]}; done); do
+        [[ ${touched_pkgs[$pkgname]} ]] && continue
+        local pkg token rest
+        while read token rest; do
+            pkg=${rest% *}
+            pkg=${pkg//./-}
+            case $token in
+                package:|provider:)
+                    # If this package is in INSTALLED_PKGS, it and all its deps
+                    # will already have been staged.
+                    [[ ${INSTALLED_PKGS["$pkg"]} ]] && continue
+                    # If it is not in CD_POOL, then it was downloaded as a
+                    # dependency from the Internet.
+                    [[ ${CD_POOL["$pkg"]} ]] || continue
+                    debug "Staging missed dependency $pkg of $pkgname"
+                    INSTALLED_PKGS["$pkg"]="true"
+                    touched_pkgs[$pkg]="true";;
+                *) continue;;
+            esac
+            done < <(in_chroot yum deplist "$pkgname")
+    done
+    for pkgname in "${!CD_POOL[@]}"; do
+        [[ ${INSTALLED_PKGS["$pkgname"]} ]] || continue
+        [[ -f ${CD_POOL["$pkgname"]} ]] || \
+            die "Cannot stage $pkgname from the CD!"
+        cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/Packages"
+    done
     sudo mount --bind "$BUILD_DIR" "$CHROOT/mnt"
     in_chroot /bin/bash -c 'cd /mnt; createrepo -g /mnt/repodata/8afad1febf2d8844a235a9ab1aa5f15c9cec1219b9d01060d4794435cf59dffe-comps-rhel6-Server.xml .'
     sudo umount -l "$CHROOT/mnt"
