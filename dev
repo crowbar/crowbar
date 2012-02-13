@@ -449,6 +449,13 @@ setup() {
             done
         done
     done
+    [[ $head ]] && git checkout "${head#refs/heads/}"
+    for bc in "$CROWBAR_DIR/barclamps/"*; do
+        (   cd "$bc"
+            [[ -d .git && -f crowbar.yml ]] || continue
+            git checkout "${DEV_RELEASE_PREFIX}master"
+        )
+    done
 }
 
 # Test repository $1 to see if commit $2 is in sync with $3.
