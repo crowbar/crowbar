@@ -435,10 +435,11 @@ setup() {
                 repo="${repo##*/}"
                 repo="${repo##*:}"
                 repo="${repo%.git}"
-                if [[ $remote = origin ]] && \
-                    ! is_in "$repo" "${repos[*]}"; then
-                    github_fork dellcloudedge "$repo" || \
-                        die "Could not create a personal fork of $repo"
+                if [[ $remote = origin ]]; then
+                    if ! is_in "$repo" "${repos[*]}"; then
+                        github_fork dellcloudedge "$repo" || \
+                            die "Could not create a personal fork of $repo"
+                    fi
                     if ! in_barclamp "$bc" \
                         git_config_has remote.personal.url; then
                         in_barclamp "$bc" git remote add personal \
@@ -454,12 +455,14 @@ setup() {
                     fi
                     in_barclamp "$bc" git config crowbar.backup.method remote
                     in_barclamp "$bc" git config crowbar.backup.remote personal
-                elif ! in_barclamp "$bc" git_config_has "remote.$remote.url"
-                then
-                    in_barclamp "$bc" git remote add "$remote" \
-                        "${DEV_REMOTE_SOURCES[$remote]}/$repo"
-                    in_barclamp "$bc" git fetch "$remote" || \
-                        die "Could not fetch $bc updates from $remote."
+                else
+                    if ! in_barclamp "$bc" git_config_has "remote.$remote.url"
+                    then
+                        in_barclamp "$bc" git remote add "$remote" \
+                            "${DEV_REMOTE_SOURCES[$remote]}/$repo"
+                        in_barclamp "$bc" git fetch "$remote" || \
+                            die "Could not fetch $bc updates from $remote."
+                    fi
                     in_barclamp "$bc" git config crowbar.backup.method prefix
                     in_barclamp "$bc" \
                         git config crowbar.backup.prefix \
