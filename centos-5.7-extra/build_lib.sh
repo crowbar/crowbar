@@ -8,7 +8,7 @@ OS=centos
 OS_VERSION=5.7
 
 # If we need to make a chroot to stage packages into, this is the minimal
-# set of packages needed to bootstrap yum.  
+# set of packages needed to bootstrap yum.
 # This package list has only been tested on CentOS 5.7.
 OS_BASIC_PACKAGES=(MAKEDEV SysVinit audit-libs basesystem bash beecrypt \
     bzip2-libs coreutils centos-release cracklib cracklib-dicts db4 \
@@ -37,24 +37,26 @@ fetch_os_iso() {
     die "build_crowbar.sh does not know how to automatically download $ISO"
 }
 
-# Throw away packages we will not need on the 
+# Throw away packages we will not need on the
 shrink_iso() {
     # Do nothing if we do not have a minimal-install set for this OS.
     [[ -f $CROWBAR_DIR/$OS_TOKEN-extra/minimal-install ]] || \
-	return 0
+        return 0
     local pkgname pkgver
     while read pkgname pkgver; do
-	INSTALLED_PKGS["$pkgname"]="$pkgver"
+        INSTALLED_PKGS["$pkgname"]="$pkgver"
     done < "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install"
     mkdir -p "$BUILD_DIR/CentOS"
     cp -a "$IMAGE_DIR/repodata" "$BUILD_DIR"
-    for pkgname in "${!CD_POOL[@]}"; do
-	[[ ${INSTALLED_PKGS["$pkgname"]} ]] || continue
-	[[ -f ${CD_POOL["$pkgname"]} ]] || \
-	    die "Cannot stage $pkgname from the CD!"
-	cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/CentOS"
-    done
     make_chroot
+    check_all_deps $(for bc in "${BARCLAMPS[@]}"; do
+        echo ${BC_PKGS[$bc]}; done)
+    for pkgname in "${!CD_POOL[@]}"; do
+        [[ ${INSTALLED_PKGS["$pkgname"]} ]] || continue
+        [[ -f ${CD_POOL["$pkgname"]} ]] || \
+            die "Cannot stage $pkgname from the CD!"
+        cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/CentOS"
+    done
     sudo mount --bind "$BUILD_DIR" "$CHROOT/mnt"
     in_chroot /bin/bash -c 'cd /mnt; createrepo -g /mnt/repodata/comps.xml .'
     sudo umount -l "$CHROOT/mnt"
