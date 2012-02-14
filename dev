@@ -101,12 +101,14 @@ for branch in openstack-os-build hadoop-os-build; do
 done
 
 # Sanity-check our dependency hash
-for branch in "${!DEV_BRANCHES[@]}"; do
-    in_repo branch_exists "$branch" || \
-        die "$branch is specified in \$DEV_BRANCHES, but does not exist!"
-    in_repo branch_exists "${DEV_BRANCHES[$branch]}" || \
-        die "${DEV_BRANCHES[$branch]} does not exist, but it is specified as the parent of $branch!"
-done
+if [[ $1 != setup ]]; then
+    for branch in "${!DEV_BRANCHES[@]}"; do
+        in_repo branch_exists "$branch" || \
+            die "$branch is specified in \$DEV_BRANCHES, but does not exist!"
+        in_repo branch_exists "${DEV_BRANCHES[$branch]}" || \
+            die "${DEV_BRANCHES[$branch]} does not exist, but it is specified as the parent of $branch!"
+    done
+fi
 
 # Given a branch, echo all the child branches for this
 # branch in the current release.
