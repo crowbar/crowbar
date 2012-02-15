@@ -19,8 +19,6 @@ readonly DEV_VERSION=1
 DEV_BRANCHES["master"]="master"
 DEV_BRANCHES["openstack-os-build"]="master"
 DEV_BRANCHES["hadoop-os-build"]="master"
-DEV_BRANCHES["openstack-build"]="openstack-os-build"
-DEV_BRANCHES["hadoop-build"]="hadoop-os-build"
 
 # DEV_REMOTE_SOURCES defines the source parts of the URLs that the
 # various remotes map to.  The "personal" remote is not listed in this
@@ -28,17 +26,15 @@ DEV_BRANCHES["hadoop-build"]="hadoop-os-build"
 # github and that the personal remote should be used as a backup target
 # for all branches that were pulled from origin.
 DEV_REMOTE_SOURCES["origin"]="https://github.com/dellcloudedge"
-DEV_REMOTE_SOURCES["dell"]="ssh://gitolite@10.9.244.31"
 
 # DEV_REMOTE_BRANCHES defines what branches in the main Crowbar repository
 # should be pulled and synced with what remotes.
 # Barclamps do care about remote branches.
 DEV_REMOTE_BRANCHES["origin"]="master openstack-os-build hadoop-os-build"
-DEV_REMOTE_BRANCHES["dell"]="openstack-build hadoop-build"
 
 # DEV_REMOTES holds the remotes we will work on in the order they should be
 # worked on when ordering matters.
-DEV_REMOTES=("origin" "dell")
+DEV_REMOTES=("origin")
 
 # Source our config file if we have one
 [[ -f $HOME/.build-crowbar.conf ]] && \
@@ -105,12 +101,14 @@ for branch in openstack-os-build hadoop-os-build; do
 done
 
 # Sanity-check our dependency hash
-for branch in "${!DEV_BRANCHES[@]}"; do
-    in_repo branch_exists "$branch" || \
-        die "$branch is specified in \$DEV_BRANCHES, but does not exist!"
-    in_repo branch_exists "${DEV_BRANCHES[$branch]}" || \
-        die "${DEV_BRANCHES[$branch]} does not exist, but it is specified as the parent of $branch!"
-done
+if [[ $1 != setup ]]; then
+    for branch in "${!DEV_BRANCHES[@]}"; do
+        in_repo branch_exists "$branch" || \
+            die "$branch is specified in \$DEV_BRANCHES, but does not exist!"
+        in_repo branch_exists "${DEV_BRANCHES[$branch]}" || \
+            die "${DEV_BRANCHES[$branch]} does not exist, but it is specified as the parent of $branch!"
+    done
+fi
 
 # Given a branch, echo all the child branches for this
 # branch in the current release.
@@ -288,7 +286,7 @@ fetch_all() {
             for barclamp in $(barclamps_from_branch \
                 "${DEV_RELEASE_PREFIX}$b"); do
                 debug "Fetching $barclamp"
-                in_barclamp "$barclamp" git fetch || \
+                in_barclamp "$barclamp" git fetch origin || \
                     die "Cound not fetch updates for $barclamp"
             done
         done
@@ -494,12 +492,12 @@ setup() {
 #  * $2 and $3 point at the same commit, or
 #  * There are no commits in the set of all commits reachable from $3 that
 #    are not also reachable from $2.
-remote_branches_synced() {
+branches_synced() {
     # $1 = repository to operate in
     # $2 = local branch to test
     # $3 = remote branch to test
     [[ -d $1/.git ]] || \
-        die "remote_branches_synced: $1 is not a git repo"
+        die "branches_synced: $1 is not a git repo"
     [[ $VERBOSE2 ]] && echo "Checking to see if out of sync: $2 $3"
     (cd "$1"; git rev-parse --verify -q "$2" &>/dev/null) || \
         return 1
@@ -521,13 +519,13 @@ backup_to_remote() {
     shift
     for branch in "$@"; do
         branch_exists "$branch" || continue
-        # If we have a ref for this branch on the personal remote
-        # and the local branch does not contain any commits that
-        # the one on the personal remote does, then it is already
-        # synced and we can skip the actual network communication.
+        # If we have a ref for this branch on $remote and the local
+        # branch does not contain any commits that the one on the
+        # $remote does, then it is already synced and we can skip 
+        # the actual network communication.
         git rev-parse --verify -q \
             "refs/remotes/$remote/$branch" &>/dev/null && \
-            remote_branches_synced "." \
+            branches_synced "." \
             "refs/remotes/$remote/$branch" "refs/heads/$branch" && \
             continue
         branches+=("$branch")
@@ -673,20 +671,27 @@ backup_repo() {
         for branch in $($branch_get_func "$remote" ${branches[@]}); do
             branches["$remote"]+=" $branch"
         done
-        if [[ ${branches[$remote]} ]] ; then
+        if [[ ${branches[$remote]} ]]; then
             $branch_backup_func ${branches["$remote"]}
         fi
     done
 }
 
 backup_everything() {
-    local bc
-    for bc in "$CROWBAR_DIR/barclamps/"*; do
-        is_barclamp "${bc##*/}" || continue
-        in_barclamp "${bc##*/}" backup_repo
+    local bc remote branches=() branch
+    local -A touched_bcs
+    for remote in "${DEV_REMOTES[@]}"; do
+        # Back up all the barclamps that are references as submodules for
+        # branches that this remote is "authoritative" for.
+        for branch in ${DEV_REMOTE_BRANCHES[$remote]}; do
+            for bc in $(barclamps_from_branch "$branch"); do
+                is_barclamp "${bc}" || continue
+                in_barclamp "${bc}" backup_repo
+            done
+        done
+        in_repo backup_repo "$remote" || \
+            die "Could not back up Crowbar!"
     done
-    in_repo backup_repo "${DEV_REMOTES[@]}" || \
-        die "Could not back up Crowbar!"
 }
 
 # Merges in changes into all local branches from their upstreams.
@@ -714,7 +719,7 @@ sync_repo() (
                 is_in "${branch##*/}" "${DEV_REMOTE_BRANCHES[$origin]}" || \
                 continue
             git rev-parse --verify -q "$origin/$branch" &>/dev/null || continue
-            remote_branches_synced "$1" "refs/heads/$branch" "refs/remotes/$origin/$branch" && continue
+            branches_synced "$1" "refs/heads/$branch" "refs/remotes/$origin/$branch" && continue
             [[ $head ]] || head=$(git symbolic-ref HEAD) || {
             # Oh, boy, we are in detached HEAD.
             # Die with a possibly-helpful error message.
@@ -751,7 +756,7 @@ ripple_changes_out() {
         in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
             die "ripple_changes_out: $child is not a branch in Crowbar!"
         debug "Testing $parent -> $child"
-        remote_branches_synced "$CROWBAR_DIR" "refs/heads/$child" "refs/heads/$parent" && continue
+        branches_synced "$CROWBAR_DIR" "refs/heads/$child" "refs/heads/$parent" && continue
         [[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
             die "Could not save the current branch!"
         debug "Checking out $child"
@@ -862,7 +867,7 @@ EOF
 branch_needs_pull_req() {
     # $1 = branch
     git rev-parse --verify -q "origin/$1" &>/dev/null || return 1
-    remote_branches_synced '.' "refs/remotes/origin/$1" \
+    branches_synced '.' "refs/remotes/origin/$1" \
         "refs/heads/$1" && return 1
     return 0
 }
