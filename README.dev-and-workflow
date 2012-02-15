@@ -1,0 +1,186 @@
+This file documents dev, the workflow helper tool for Crowbar
+development.
+
+dev is designed to help automate the workflow and infrastructure
+related tasks associated with devopment in general with the Crowbar
+git tree layout.  Dev is designed around the following assumptions:
+
+ * Everyone has their own forks on Github of the Crowbar repository
+   and all of the barclamps.
+ * You do not have to manually keep submodule references up to date.
+ * Your development workflow will involve regular synchronization
+   against the dellcloudedge repositories.
+ * The only path for getting code into the dellcloudedge repositories
+   is via pull request.
+
+Day to Day Workflows:
+
+Initial Setup:
+
+ 1: Clone the Crowbar repository from
+    https://github.com/dellcloudedge/crowbar.git.
+ 2: Run crowbar/dev setup.
+    a: Provide your github login ID and password.  Dev will need it to
+       to handle takling to Github.
+    b: dev will create any missing forks of the dellcloudedge Crowbar
+       repositories.
+    c: dev will add a remote named personal to each forked repository.
+    d: dev will add git config entries describing how local changes
+       will be backed up to each repository.
+ 3: Create your local build cache.  See README.build for more
+    information.
+ 4: Re-run setup any time you need to pull in a new barclamp, or if
+    you need to use non-Github remotes for additional functionality.
+
+Regular Development:
+
+ 1: Run dev fetch followed by dev sync to fetch and merge changes from
+    the dellcloudedge repositories.
+    a: Dev will fetch all changes from all upstream remotes for all
+       repositories.
+    b: Dev will attempt to merge in all the changes fetched.  If there
+       are merge conflicts, the sync process will stop.  From there,
+       you can manually fix the conflicts and rerun dev sync.
+ 2: Hack/build/test/commit.
+ 3: Run dev backup to back up your changes.  This force-pushes your
+    changes to your personal forks of the crowbar repositories on
+    Github, or creates new personal branches for non-Github upstreams.
+ 4: If you are not ready to create a pull request for your changes, go
+    to 1.
+
+Ready for pull request:
+
+ 1: Run dev pull-requests-prep
+    a: dev will verify that all the local Crowbar repositories are
+       "clean".
+    b: dev will perfom a fetch and a sync, and abort if there were any
+       merge conflicts.
+    c: dev will figure out what barclamps and what main Crowbar
+       branches are candidates for a pull request.
+    d: dev will print a command line wil all the branches and
+       barclamps that are candidates for pull requests.
+ 2: Run dev pull-requests-gen
+    a: dev will ask for a title to be used for all the pull requests.
+    b: dev will open an editor for you to type in a body that will be
+       used for all the pull requests that will be generated.
+    c: dev will work out the proper order that a reviewer will need to
+       merge the pull requests in based on barclamp submodule and
+       branch dependencies.
+    d: If submodules are being updated, dev will create the commit
+       records needed to point the main Crowbar branches at the proper
+       submodule commits.
+    e: dev will issue pull requests in the order worked out
+       earlier. Each individual pull request will have a sequence
+       number added to the title indicating the proper merge order.
+    f: Github will email the review team at Dell with each pull
+       request.
+
+Review pull request:
+
+ 1: Dell reviewer is notified of the pull request by Github.
+ 2: Reviewer reviews and tests pull requests as a group.
+ 3: If the changes are OK to be pulled, reviewer merges them in order.
+
+
+Release Branching Structure:
+
+The dev tool has the notion of a release, which it manages in terms of
+related branches.  Currently implemented release types are:
+
+ * Development which consists of the top-level branches tracked
+   branches in the Crowbar repository (master and its descendents),
+   and the master branch in each of the barclamps.
+   Development is where the day-to-day development on new features and
+   bugfixes happens.
+ * Releases, which consist of branches prefixed with release/<release
+   name>/ in the main Crowbar repository and in the
+   barclamps. Releases are named with a unique name (similar to Ubuntu
+   or Debian release names), and only get stabilization and bugfix updates.
+ * Stable, which consists of branches prefixed with stable/ in the
+   main Crowbar repository and in the barclamps.  The details of how
+   the stable release will work is TBD.
+
+Release Workflows:
+
+Getting a list of known releases:
+
+ 1: Run dev releases
+
+Getting the release you are currently on:
+
+ 1: Run dev release
+
+Switching to a different release:
+
+ 1: Run dev switch <release name>
+    a: dev will verify that the crowbar repositories are "clean", and
+       it will refuse to do anything if they are not.
+    b: dev will checkout the appropriate master branch for the release
+       in all the barclamps.
+    c: If there is a branch that matches the one you are on in the
+       main Crowbar repository, dev will check that branch out,
+       otherwise it will check out the master branch in that release.
+
+Cutting a new release:
+
+  1: Ensure that all the crowbar repositories are in the exact state
+     you want the new release to start out in.
+  2: Run dev cut_release <new release name>.
+     a: dev will verify that the release name is not already in use in
+        the current repository.
+     b: dev will create the master branch for the new release in each
+        of the barclamps.
+     c: dev will create a branch structure for the new release based
+        on the branch structure of the current release.
+
+Managing non-dellcloudedge repositories:
+
+The dev script has the capability of integrating local or private
+forks of Crowbar into its workflow.  To do this, you will need to
+add the following pieces of information to your $HOME/.build-crowbar.conf:
+
+ * Add any local branches to the DEV_BRANCHES hash.  This hash defines
+   the parent -> child relationships between branches:
+   DEV_BRANCHES["child"]="parent"
+   Add one entry for each additional branch you want to track.  If a
+   branch has itself for a parent it will be considered to be the root
+   of a new branch hierarchy.
+ * Add an entry in DEV_REMOTE_SOURCES for each additional remote
+   you want the dev script to consider to be an upstream.  This hash
+   has the following structure:
+   DEV_REMOTE_SOURCES["remote"]="protocol://your_site/path/to/repos"
+   The dev script expects to find a fork of the main Crowbar
+   repository there, along with repositories for any extra barclamps
+   you are pulling in as submodules.
+ * Add an entry in DEV_REMOTE_BRANCHES to describe what additional
+   branches each remote should be considered the "canonical" upstream
+   of. Each entry should have the following structure:
+   DEV_REMOTE_SOURCES["remote"]="branch another_branch"
+ * Append your new remotes to the DEV_REMOTES array.  This array
+   defines the order in which origins are consulted when performing
+   fetch and backup operations
+
+Once you have added all the extra data you need, rerun dev setup and
+the script will fetch everything needed to satisfy the dependencies
+that the new settings imply.
+
+For example, the internal Dell branches of Crowbar need the following
+additional config settings in $HOME/.build-crowbar.conf:
+DEV_BRANCHES["openstack-build"]="openstack-os-build"
+DEV_BRANCHES["hadoop-build"]="hadoop-os-build"
+DEV_REMOTE_SOURCES["dell"]="ssh://our_gitolite_ip"
+DEV_REMOTE_BRANCHES["dell"]="openstack-build hadoop-build"
+DEV_REMOTES+=("dell")
+
+dev currently assumes that origin in the main Crowbar barclamp will
+always point at the dellcloudedge repositories, that the remote named
+personal will always point at your github forks, and that it can
+control the personal/<your_github_id>/ branch namespace upstream
+remotes for any non-github repositories.
+
+If your working circumstances involve not always having access to all
+the remotes you have configured, you can set the DEV_AVAILABLE_REMOTES
+environment variable to a list of remotes that are available.  dev
+will only try to operate on remotes that it currently thinks are
+reachable, but things will probably not work too well if origin gets
+excluded.
