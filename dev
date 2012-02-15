@@ -288,7 +288,7 @@ fetch_all() {
             for barclamp in $(barclamps_from_branch \
                 "${DEV_RELEASE_PREFIX}$b"); do
                 debug "Fetching $barclamp"
-                in_barclamp "$barclamp" git fetch $remote || \
+                in_barclamp "$barclamp" git fetch || \
                     die "Cound not fetch updates for $barclamp"
             done
         done
