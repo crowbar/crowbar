@@ -286,7 +286,7 @@ fetch_all() {
             for barclamp in $(barclamps_from_branch \
                 "${DEV_RELEASE_PREFIX}$b"); do
                 debug "Fetching $barclamp"
-                in_barclamp "$barclamp" git fetch || \
+                in_barclamp "$barclamp" git fetch origin || \
                     die "Cound not fetch updates for $barclamp"
             done
         done
@@ -519,10 +519,10 @@ backup_to_remote() {
     shift
     for branch in "$@"; do
         branch_exists "$branch" || continue
-        # If we have a ref for this branch on the personal remote
-        # and the local branch does not contain any commits that
-        # the one on the personal remote does, then it is already
-        # synced and we can skip the actual network communication.
+        # If we have a ref for this branch on $remote and the local
+        # branch does not contain any commits that the one on the
+        # $remote does, then it is already synced and we can skip 
+        # the actual network communication.
         git rev-parse --verify -q \
             "refs/remotes/$remote/$branch" &>/dev/null && \
             remote_branches_synced "." \
@@ -678,13 +678,20 @@ backup_repo() {
 }
 
 backup_everything() {
-    local bc
-    for bc in "$CROWBAR_DIR/barclamps/"*; do
-        is_barclamp "${bc##*/}" || continue
-        in_barclamp "${bc##*/}" backup_repo
+    local bc remote branches=() branch
+    local -A touched_bcs
+    for remote in "${DEV_REMOTES[@]}"; do
+        # Back up all the barclamps that are references as submodules for
+        # branches that this remote is "authoritative" for.
+        for branch in ${DEV_REMOTE_BRANCHES[$remote]}; do
+            for bc in $(barclamps_from_branch "$branch"); do
+                is_barclamp "${bc}" || continue
+                in_barclamp "${bc}" backup_repo
+            done
+        done
+        in_repo backup_repo "$remote" || \
+            die "Could not back up Crowbar!"
     done
-    in_repo backup_repo "${DEV_REMOTES[@]}" || \
-        die "Could not back up Crowbar!"
 }
 
 # Merges in changes into all local branches from their upstreams.
