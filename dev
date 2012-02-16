@@ -394,10 +394,10 @@ setup() {
             ! in_repo git_config_has "remote.$remote.url"; then
             in_repo git remote add "$remote" \
                 ${DEV_REMOTE_SOURCES[$remote]}/crowbar.git
-            in_repo git fetch "$remote" || \
-                die "Unable to fetch remote references for $remote"
         fi
 
+	in_repo git fetch "$remote" || \
+            die "Unable to fetch remote references for $remote"
         # Create tracking branches for any branches from this remote
         # that do not already exist.
         while read p br; do
