@@ -841,14 +841,15 @@ Command line options:
           Any branches pushed using this command will automatically be backed
           up when dev backup is run as well.
 
-  pull-requests-prep -- Fetches, Syncs, and backs up all changes.  Then figures out
-                        The set of barclamps and crowbar branches that need to have
-                        pull requests created.  The output is a command line that can
-                        be copied and executed.
+  pull-requests-prep -- Fetches, Syncs, and backs up all changes, then figures
+                        out the set of barclamps and crowbar branches that
+                        need to have pull requests created.  The output is a
+                        command line that canbe copied and executed.
 
-  pull-requests-gen -- Creates a set of pull requests with similar ids and links based
-                       upon the barclamps dependency trees.  These will be automatically
-                       sent to Github for processing and review by others on the team.
+  pull-requests-gen -- Creates a set of pull requests with similar ids and
+                       links based upon the barclamps dependency trees.  These
+                       will be automatically sent to Github for processing and
+                       review by the Dell review team.
 
   release -- Shows the current release that dev is operating on.
 
@@ -857,7 +858,10 @@ Command line options:
   branches -- Shows the branches that are part of the specified release,
               or the current release if no release is specified.
 
-  switch -- Change current release to the specified release.
+  switch -- Change current release to the specified release, or the current
+            release if no release name was passed.  This has the side effect
+            of making sure that all the barclamps are on the proper branch for
+            that release.
 
   cut_release -- DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING! Makes a new set
                  of branches and barclamp branches from the current release into
@@ -1180,24 +1184,27 @@ cut_release() {
 # Check out the appropriate release branch for all the barclamps in a given
 # release, and then check out the appropriate branch in the release.
 switch_release() {
-    local br bc current_branch new_base
-
-    [[ $1 ]] || die "switch: Please specify a release name to switch to"
-    is_in "$1" "$(show_releases)" || die "switch: $1 does not exist"
+    local br bc current_branch new_base rel
+    if [[ $1 ]]; then
+        is_in "$1" "$(show_releases)" || die "switch: $1 does not exist"
+        rel="$1"
+    else
+        rel="$(current_release)"
+    fi
     crowbar_is_clean &>/dev/null || \
         die "Crowbar repo must be clean before trying to switch releases!"
 
-    new_base="$(release_branch_prefix "$1")"
+    new_base="$(release_branch_prefix "$rel")"
 
     current_branch=$(in_repo git symbolic-ref HEAD) || \
         die "switch: Crowbar not on a branch."
     current_branch=${current_branch##*/}
     in_repo branch_exists "${new_base}${current_branch}" || {
-            echo "$1 does not have branch $current_branch, will checkout master instead."
+            echo "$rel does not have branch $current_branch, will checkout master instead."
         current_branch=master
     }
 
-    for br in $(branches_in_release "$1"); do
+    for br in $(branches_in_release "$rel"); do
         for bc in $(barclamps_from_branch "$br"); do
             if ! is_barclamp "$bc"; then
                 debug "Checking out new barclamp $bc"
