@@ -280,12 +280,13 @@ barclamps_from_branch() {
 fetch_all() {
     local remote barclamp b
     for remote in "${DEV_REMOTES[@]}"; do
-        debug "Fetching $remote"
+        debug "Fetching from remote $remote:"
+        debug "    Crowbar"
         in_repo git fetch "$remote" || continue
         for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
             for barclamp in $(barclamps_from_branch \
                 "${DEV_RELEASE_PREFIX}$b"); do
-                debug "Fetching $barclamp"
+                debug "    Barclamp $barclamp"
                 in_barclamp "$barclamp" git fetch origin || \
                     die "Cound not fetch updates for $barclamp"
             done
