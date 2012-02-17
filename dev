@@ -554,18 +554,22 @@ backup_with_prefix () {
         die "prefix_backup: $prefix branch checked out, cannot proceed."
     for branch in "$@"; do
         branch_exists "$branch" || continue
-        branch_exists "$prefix/$branch" && \
-            [[ $(git rev-parse --verify -q "$remote_prefix/$branch") && \
+        if [[ $branch = ${prefix}* ]]; then
+            debug "Cleaning up ${branch#refs/heads}"
+            git branch -D "${branch#refs/heads}"
+            git push -q "$remote" ":${branch#refs/heads}"
+            continue
+        fi
+        [[ $(git rev-parse --verify -q "$remote_prefix/$branch") && \
             $(git rev-parse "$remote_prefix/$branch") = \
             $(git rev-parse "refs/heads/$branch") ]] && continue
-        git branch -f "$prefix/$branch" "$branch"
-        branches+=("$prefix/$branch")
-    done < <(git show-ref --heads)
+        branches+=("$branch:$prefix/$branch")
+    done
     if [[ $branches ]]; then
         if [[ ! $PWD =~ /barclamps/ ]]; then
-            debug "Crowbar: Backing up ${branches[*]#$prefix/}"
+            debug "Crowbar: Backing up ${branches[*]%%:*}"
         else
-            debug "Barclamp ${PWD##*/}: Backing up ${branches[*]#$prefix/}"
+            debug "Barclamp ${PWD##*/}: Backing up ${branches[*]%%:*}"
         fi
         git push -qf "$remote" "${branches[@]}"
     fi
@@ -619,12 +623,15 @@ branches_to_backup_to_prefix() {
         br="${br#refs/heads/}"
         [[ ${ignore[$br]} = true ]] && continue
         if [[ $br = "$prefix"/* ]]; then
-            branch_exists "${br#$prefix/}" || \
-                git branch -D "$br" >&2
+            debug "Deleting unneeded local tracking branch $br"
+            git branch -D "$br"
+            if [[ $br =~ ~personal/[^/]+/personal ]]; then
+                debug "Pruning unneeded branch $br on $remote"
+                git push -q "$remote" ":${br}"
+            fi
             continue
         fi
-        branch_exists "$prefix/$br" && \
-            [[ $(git rev-parse --verify -q "$remote_prefix/$br") && \
+        [[ $(git rev-parse --verify -q "$remote_prefix/$br") && \
             $(git rev-parse "$remote_prefix/$br") = \
             $(git rev-parse "refs/heads/$br") ]] && continue
         echo "$br"
