@@ -118,6 +118,7 @@ child_branches() {
         [[ ${DEV_BRANCHES[$b]} && \
             ${DEV_BRANCHES[$b]} != $b && \
             ${DEV_BRANCHES[$b]} = $p ]] || continue
+        is_in "$DEV_BRANCH_PREFIX$b" "$(branches_in_release)" || continue
         echo "$DEV_BRANCH_PREFIX$b"
     done
     return 0
