@@ -854,6 +854,9 @@ Command line options:
 
   releases -- Lists the releases to choose from.
 
+  branches -- Shows the branches that are part of the specified release,
+              or the current release if no release is specified.
+
   switch -- Change current release to the specified release.
 
   cut_release -- DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING! Makes a new set
@@ -1128,6 +1131,23 @@ release_branch_prefix() {
     esac
 }
 
+branches_in_release() {
+    # $1 = release to look at. Defaults to current release if nothing passed.
+    if [[ $1 ]]; then
+        is_in "$1" "$(show_releases)" || \
+            die "branches_in_release: $1 is not a release."
+        local rel="$1"
+    else
+        local rel="$(current_release)"
+    fi
+    local prefix="$(release_branch_prefix "$rel")"
+    local ref branch
+    while read ref branch; do
+        [[ $branch =~ ^refs/heads/${prefix}[^/]+$ ]] || continue
+        echo ${branch#refs/heads/}
+    done < <(in_repo git show-ref --heads "${!DEV_BRANCHES[@]}")
+}
+
 DEV_BRANCH_PREFIX="$(release_branch_prefix $(current_release))"
 
 # Create a new release branch structure based on the current state of the
@@ -1198,5 +1218,6 @@ case $1 in
     releases) show_releases;;
     cut_release) shift; cut_release "$@";;
     switch) shift; switch_release "$@";;
+    branches) shift; branches_in_release "$@";;
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
