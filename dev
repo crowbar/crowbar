@@ -433,7 +433,7 @@ setup() {
             die "HEAD does not point at a branch, cannot finish setup."
 
         for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
-            in_repo git checkout "$b" || \
+            in_repo git checkout -q "$b" || \
                 die "Cannot checkout $b"
             in_repo git submodule update --init || \
                 die "Cannot check out submodules for branch $b"
@@ -477,11 +477,11 @@ setup() {
             done
         done
     done
-    [[ $head ]] && git checkout "${head#refs/heads/}"
+    [[ $head ]] && git checkout -q "${head#refs/heads/}"
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         (   cd "$bc"
             [[ -d .git && -f crowbar.yml ]] || continue
-            git checkout "${DEV_RELEASE_PREFIX}master" &>/dev/null
+            git checkout -q "${DEV_RELEASE_PREFIX}master"
         )
     done
     in_repo git config crowbar.dev.version "$DEV_VERSION"
@@ -729,7 +729,7 @@ sync_repo() (
                 return 1
             }
             debug "Checking out $branch"
-            git checkout "$branch" || {
+            git checkout -q "$branch" || {
                 echo "$bc: Unable to checkout $branch!" >&2
                 return 1
             }
@@ -741,7 +741,7 @@ sync_repo() (
             }
         done
     done < <(git show-ref --heads)
-    if [[ $head ]]; then git checkout "${head#refs/heads/}"; fi
+    if [[ $head ]]; then git checkout -q "${head#refs/heads/}"; fi
 )
 
 # Recursivly merge all changes from a given branch into its children, if any.
@@ -761,7 +761,7 @@ ripple_changes_out() {
             die "Could not save the current branch!"
         debug "Checking out $child"
         [[ $(in_repo git symbolic-ref HEAD) = refs/heads/$child ]] || \
-            in_repo git checkout "$child"
+            in_repo git checkout -q "$child"
         debug "Merging $parent into $child"
         in_repo git merge -q "$parent" || \
             die "Merge $parent into $child branch of Crowbar failed."
@@ -791,7 +791,7 @@ sync_everything() {
     for branch in $(root_branches); do
         ripple_changes_out "$branch"
     done
-    [[ $head ]] && in_repo git checkout "${head#refs/heads/}"
+    [[ $head ]] && in_repo git checkout -q "${head#refs/heads/}"
     if [[ $unsynced_barclamps ]]; then
         echo "Unable to sync origin with current master in:" >&2
         echo "  ${unsynced_barclamps[*]}"
@@ -1003,7 +1003,7 @@ pull_requests_gen() {
         local parent="$(parent_branch "$br")"
         if [[ $parent && ${refs[$parent]} ]]; then
             refs["$br"]="$(in_repo git rev-parse --verify -q "refs/heads/$br")"
-            in_repo git checkout "$br"
+            in_repo git checkout -q "$br"
             in_repo git merge -q "$parent"
         fi
         for bc in $(barclamps_from_branch "$br"); do
@@ -1021,7 +1021,7 @@ pull_requests_gen() {
                     die "pull-requests-gen: Crowbar not on a branch!"
                 if ! [[ $(in_repo git symbolic-ref HEAD) = "refs/heads/$br" ]]
                 then
-                    in_repo git checkout "$br" || \
+                    in_repo git checkout -q "$br" || \
                     die "pull-requests-gen: Could not checkout $br"
                 fi
                 refs["$br"]="$(in_repo git rev-parse --verify -q "refs/heads/$br")"
@@ -1068,11 +1068,11 @@ pull_requests_gen() {
             --body "$(in_repo diffstat_from_origin "$br")"
         n=$(($n + 1))
         if [[ ${refs["$br"]} ]]; then
-            in_repo git checkout "$br"
+            in_repo git checkout -q "$br"
             in_repo git reset --hard "${refs[$br]}"
         fi
     done
-    [[ $head ]] && in_repo git checkout "${head#refs/heads/}"
+    [[ $head ]] && in_repo git checkout -q "${head#refs/heads/}"
     rm -f "$body"
 }
 
@@ -1204,7 +1204,7 @@ switch_release() {
                 die "Could not check out ${new_base}master in barclamp $bc."
         done
     done
-    in_repo git checkout "${new_base}${current_branch}"
+    in_repo git checkout -q "${new_base}${current_branch}"
 }
 
 case $1 in
