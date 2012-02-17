@@ -280,12 +280,13 @@ barclamps_from_branch() {
 fetch_all() {
     local remote barclamp b
     for remote in "${DEV_REMOTES[@]}"; do
-        debug "Fetching $remote"
+        debug "Fetching from remote $remote:"
+        debug "    Crowbar"
         in_repo git fetch "$remote" || continue
         for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
             for barclamp in $(barclamps_from_branch \
                 "${DEV_RELEASE_PREFIX}$b"); do
-                debug "Fetching $barclamp"
+                debug "    Barclamp $barclamp"
                 in_barclamp "$barclamp" git fetch origin || \
                     die "Cound not fetch updates for $barclamp"
             done
@@ -433,7 +434,7 @@ setup() {
             die "HEAD does not point at a branch, cannot finish setup."
 
         for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
-            in_repo git checkout "$b" || \
+            in_repo git checkout -q "$b" || \
                 die "Cannot checkout $b"
             in_repo git submodule update --init || \
                 die "Cannot check out submodules for branch $b"
@@ -477,11 +478,11 @@ setup() {
             done
         done
     done
-    [[ $head ]] && git checkout "${head#refs/heads/}"
+    [[ $head ]] && git checkout -q "${head#refs/heads/}"
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         (   cd "$bc"
             [[ -d .git && -f crowbar.yml ]] || continue
-            git checkout "${DEV_RELEASE_PREFIX}master" &>/dev/null
+            git checkout -q "${DEV_RELEASE_PREFIX}master"
         )
     done
     in_repo git config crowbar.dev.version "$DEV_VERSION"
@@ -553,18 +554,22 @@ backup_with_prefix () {
         die "prefix_backup: $prefix branch checked out, cannot proceed."
     for branch in "$@"; do
         branch_exists "$branch" || continue
-        branch_exists "$prefix/$branch" && \
-            [[ $(git rev-parse --verify -q "$remote_prefix/$branch") && \
+        if [[ $branch = ${prefix}* ]]; then
+            debug "Cleaning up ${branch#refs/heads}"
+            git branch -D "${branch#refs/heads}"
+            git push -q "$remote" ":${branch#refs/heads}"
+            continue
+        fi
+        [[ $(git rev-parse --verify -q "$remote_prefix/$branch") && \
             $(git rev-parse "$remote_prefix/$branch") = \
             $(git rev-parse "refs/heads/$branch") ]] && continue
-        git branch -f "$prefix/$branch" "$branch"
-        branches+=("$prefix/$branch")
-    done < <(git show-ref --heads)
+        branches+=("$branch:$prefix/$branch")
+    done
     if [[ $branches ]]; then
         if [[ ! $PWD =~ /barclamps/ ]]; then
-            debug "Crowbar: Backing up ${branches[*]#$prefix/}"
+            debug "Crowbar: Backing up ${branches[*]%%:*}"
         else
-            debug "Barclamp ${PWD##*/}: Backing up ${branches[*]#$prefix/}"
+            debug "Barclamp ${PWD##*/}: Backing up ${branches[*]%%:*}"
         fi
         git push -qf "$remote" "${branches[@]}"
     fi
@@ -618,12 +623,15 @@ branches_to_backup_to_prefix() {
         br="${br#refs/heads/}"
         [[ ${ignore[$br]} = true ]] && continue
         if [[ $br = "$prefix"/* ]]; then
-            branch_exists "${br#$prefix/}" || \
-                git branch -D "$br" >&2
+            debug "Deleting unneeded local tracking branch $br"
+            git branch -D "$br"
+            if [[ $br =~ ~personal/[^/]+/personal ]]; then
+                debug "Pruning unneeded branch $br on $remote"
+                git push -q "$remote" ":${br}"
+            fi
             continue
         fi
-        branch_exists "$prefix/$br" && \
-            [[ $(git rev-parse --verify -q "$remote_prefix/$br") && \
+        [[ $(git rev-parse --verify -q "$remote_prefix/$br") && \
             $(git rev-parse "$remote_prefix/$br") = \
             $(git rev-parse "refs/heads/$br") ]] && continue
         echo "$br"
@@ -729,7 +737,7 @@ sync_repo() (
                 return 1
             }
             debug "Checking out $branch"
-            git checkout "$branch" || {
+            git checkout -q "$branch" || {
                 echo "$bc: Unable to checkout $branch!" >&2
                 return 1
             }
@@ -741,7 +749,7 @@ sync_repo() (
             }
         done
     done < <(git show-ref --heads)
-    if [[ $head ]]; then git checkout "${head#refs/heads/}"; fi
+    if [[ $head ]]; then git checkout -q "${head#refs/heads/}"; fi
 )
 
 # Recursivly merge all changes from a given branch into its children, if any.
@@ -761,7 +769,7 @@ ripple_changes_out() {
             die "Could not save the current branch!"
         debug "Checking out $child"
         [[ $(in_repo git symbolic-ref HEAD) = refs/heads/$child ]] || \
-            in_repo git checkout "$child"
+            in_repo git checkout -q "$child"
         debug "Merging $parent into $child"
         in_repo git merge -q "$parent" || \
             die "Merge $parent into $child branch of Crowbar failed."
@@ -791,7 +799,7 @@ sync_everything() {
     for branch in $(root_branches); do
         ripple_changes_out "$branch"
     done
-    [[ $head ]] && in_repo git checkout "${head#refs/heads/}"
+    [[ $head ]] && in_repo git checkout -q "${head#refs/heads/}"
     if [[ $unsynced_barclamps ]]; then
         echo "Unable to sync origin with current master in:" >&2
         echo "  ${unsynced_barclamps[*]}"
@@ -841,20 +849,27 @@ Command line options:
           Any branches pushed using this command will automatically be backed
           up when dev backup is run as well.
 
-  pull-requests-prep -- Fetches, Syncs, and backs up all changes.  Then figures out
-                        The set of barclamps and crowbar branches that need to have
-                        pull requests created.  The output is a command line that can
-                        be copied and executed.
+  pull-requests-prep -- Fetches, Syncs, and backs up all changes, then figures
+                        out the set of barclamps and crowbar branches that
+                        need to have pull requests created.  The output is a
+                        command line that canbe copied and executed.
 
-  pull-requests-gen -- Creates a set of pull requests with similar ids and links based
-                       upon the barclamps dependency trees.  These will be automatically
-                       sent to Github for processing and review by others on the team.
+  pull-requests-gen -- Creates a set of pull requests with similar ids and
+                       links based upon the barclamps dependency trees.  These
+                       will be automatically sent to Github for processing and
+                       review by the Dell review team.
 
   release -- Shows the current release that dev is operating on.
 
   releases -- Lists the releases to choose from.
 
-  switch -- Change current release to the specified release.
+  branches -- Shows the branches that are part of the specified release,
+              or the current release if no release is specified.
+
+  switch -- Change current release to the specified release, or the current
+            release if no release name was passed.  This has the side effect
+            of making sure that all the barclamps are on the proper branch for
+            that release.
 
   cut_release -- DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING! Makes a new set
                  of branches and barclamp branches from the current release into
@@ -1000,7 +1015,7 @@ pull_requests_gen() {
         local parent="$(parent_branch "$br")"
         if [[ $parent && ${refs[$parent]} ]]; then
             refs["$br"]="$(in_repo git rev-parse --verify -q "refs/heads/$br")"
-            in_repo git checkout "$br"
+            in_repo git checkout -q "$br"
             in_repo git merge -q "$parent"
         fi
         for bc in $(barclamps_from_branch "$br"); do
@@ -1018,7 +1033,7 @@ pull_requests_gen() {
                     die "pull-requests-gen: Crowbar not on a branch!"
                 if ! [[ $(in_repo git symbolic-ref HEAD) = "refs/heads/$br" ]]
                 then
-                    in_repo git checkout "$br" || \
+                    in_repo git checkout -q "$br" || \
                     die "pull-requests-gen: Could not checkout $br"
                 fi
                 refs["$br"]="$(in_repo git rev-parse --verify -q "refs/heads/$br")"
@@ -1065,11 +1080,11 @@ pull_requests_gen() {
             --body "$(in_repo diffstat_from_origin "$br")"
         n=$(($n + 1))
         if [[ ${refs["$br"]} ]]; then
-            in_repo git checkout "$br"
+            in_repo git checkout -q "$br"
             in_repo git reset --hard "${refs[$br]}"
         fi
     done
-    [[ $head ]] && in_repo git checkout "${head#refs/heads/}"
+    [[ $head ]] && in_repo git checkout -q "${head#refs/heads/}"
     rm -f "$body"
 }
 
@@ -1128,6 +1143,23 @@ release_branch_prefix() {
     esac
 }
 
+branches_in_release() {
+    # $1 = release to look at. Defaults to current release if nothing passed.
+    if [[ $1 ]]; then
+        is_in "$1" "$(show_releases)" || \
+            die "branches_in_release: $1 is not a release."
+        local rel="$1"
+    else
+        local rel="$(current_release)"
+    fi
+    local prefix="$(release_branch_prefix "$rel")"
+    local ref branch
+    while read ref branch; do
+        [[ $branch =~ ^refs/heads/${prefix}[^/]+$ ]] || continue
+        echo ${branch#refs/heads/}
+    done < <(in_repo git show-ref --heads "${!DEV_BRANCHES[@]}")
+}
+
 DEV_BRANCH_PREFIX="$(release_branch_prefix $(current_release))"
 
 # Create a new release branch structure based on the current state of the
@@ -1157,31 +1189,42 @@ cut_release() {
     done
 }
 
-# Check out all the branches in the main Crowbar repository and the barclamps
-# for a given release.
+# Check out the appropriate release branch for all the barclamps in a given
+# release, and then check out the appropriate branch in the release.
 switch_release() {
-    local b new_base
-
-    [[ $1 ]] || die "switch: Please specify a release name to switch to"
-    is_in "$1" "$(show_releases)" || die "switch: $1 does not exist"
+    local br bc current_branch new_base rel
+    if [[ $1 ]]; then
+        is_in "$1" "$(show_releases)" || die "switch: $1 does not exist"
+        rel="$1"
+    else
+        rel="$(current_release)"
+    fi
     crowbar_is_clean &>/dev/null || \
         die "Crowbar repo must be clean before trying to switch releases!"
 
-    new_base="$(release_branch_prefix "$1")"
+    new_base="$(release_branch_prefix "$rel")"
 
-    b=$(in_repo git symbolic-ref HEAD) || die "switch: Crowbar not on a branch."
-    b=${b##*/}
-    in_repo branch_exists "${new_base}${b}" || {
-            echo "$1 does not have branch $b, will checkout master instead."
-        b=master
+    current_branch=$(in_repo git symbolic-ref HEAD) || \
+        die "switch: Crowbar not on a branch."
+    current_branch=${current_branch##*/}
+    in_repo branch_exists "${new_base}${current_branch}" || {
+            echo "$rel does not have branch $current_branch, will checkout master instead."
+        current_branch=master
     }
 
-    in_repo git checkout "${new_base}${b}"
-    local barclamps="$(barclamps_in_branch "${!DEV_BRANCHES[@]}")" || \
-        exit 1
-    for b in $barclamps; do
-        in_barclamp "$b" git checkout "${new_base}master"
+    for br in $(branches_in_release "$rel"); do
+        for bc in $(barclamps_from_branch "$br"); do
+            if ! is_barclamp "$bc"; then
+                debug "Checking out new barclamp $bc"
+                git checkout -q "$br"
+                git submodule update --init "barclamps/$bc"
+            fi
+            debug "barclamp $bc: Checking out ${new_base}master"
+            in_barclamp "$bc" git checkout -q "${new_base}master" || \
+                die "Could not check out ${new_base}master in barclamp $bc."
+        done
     done
+    in_repo git checkout -q "${new_base}${current_branch}"
 }
 
 case $1 in
@@ -1198,5 +1241,6 @@ case $1 in
     releases) show_releases;;
     cut_release) shift; cut_release "$@";;
     switch) shift; switch_release "$@";;
+    branches) shift; branches_in_release "$@";;
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
