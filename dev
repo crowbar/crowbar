@@ -1187,6 +1187,13 @@ cut_release() {
     for b in $barclamps; do
         in_barclamp "$b" git branch ${new_prefix}master ${this_prefix}master
     done
+    if git_managed_cache && ! branch_exists "${new_prefix}master"; then
+        if in_cache branch_exists "${this_prefix}master"; then
+            in_cache git branch "${new_prefix}master" "${this_prefix}master"
+        else
+            in_cache git branch "${new_prefix}master" master
+        fi
+    fi
 }
 
 # Check out the appropriate release branch for all the barclamps in a given
@@ -1225,6 +1232,10 @@ switch_release() {
         done
     done
     in_repo git checkout -q "${new_base}${current_branch}"
+    if git_managed_cache && in_cache branch_exists "${new_base}master"; then
+        debug "Checking out ${new_base}master in the build cache, please be patient."
+        in_cache git checkout -qf "${new_base}master"
+    fi
 }
 
 case $1 in
