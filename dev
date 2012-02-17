@@ -1233,7 +1233,8 @@ switch_release() {
     done
     in_repo git checkout -q "${new_base}${current_branch}"
     if git_managed_cache && in_cache branch_exists "${new_base}master"; then
-        in_cache git checkout -f "${new_base}master"
+        debug "Checking out ${new_base}master in the build cache, please be patient."
+        in_cache git checkout -qf "${new_base}master"
     fi
 }
 
