@@ -131,10 +131,11 @@ get_barclamp_info() {
     done
 }
 
-
 [[ $CROWBAR_BUILD_PID ]] || export CROWBAR_BUILD_PID=$$
 export CLEANUP_LOCK="$CROWBAR_DIR/.cleanup.lock"
 cleanup_cmds=()
+
+git_managed_cache() [[ -d $CACHE_DIR/.git ]]
 
 # Our general cleanup function.  It is called as a trap whenever the
 # build script exits, and it's job is to make sure we leave the local
@@ -662,7 +663,6 @@ get_rev() (
 
 # Run a git command in the build cache, assuming it is a git repository.
 in_cache() (
-    [[ $CURRENT_CACHE_BRANCH ]] || return
     cd "$CACHE_DIR"
     "$@"
 )
