@@ -1177,10 +1177,10 @@ cut_release() {
     done
 }
 
-# Check out all the branches in the main Crowbar repository and the barclamps
-# for a given release.
+# Check out the appropriate release branch for all the barclamps in a given
+# release, and then check out the appropriate branch in the release.
 switch_release() {
-    local b new_base
+    local br bc current_branch new_base
 
     [[ $1 ]] || die "switch: Please specify a release name to switch to"
     is_in "$1" "$(show_releases)" || die "switch: $1 does not exist"
@@ -1189,19 +1189,22 @@ switch_release() {
 
     new_base="$(release_branch_prefix "$1")"
 
-    b=$(in_repo git symbolic-ref HEAD) || die "switch: Crowbar not on a branch."
-    b=${b##*/}
-    in_repo branch_exists "${new_base}${b}" || {
-            echo "$1 does not have branch $b, will checkout master instead."
-        b=master
+    current_branch=$(in_repo git symbolic-ref HEAD) || \
+        die "switch: Crowbar not on a branch."
+    current_branch=${current_branch##*/}
+    in_repo branch_exists "${new_base}${current_branch}" || {
+            echo "$1 does not have branch $current_branch, will checkout master instead."
+        current_branch=master
     }
 
-    in_repo git checkout "${new_base}${b}"
-    local barclamps="$(barclamps_in_branch "${!DEV_BRANCHES[@]}")" || \
-        exit 1
-    for b in $barclamps; do
-        in_barclamp "$b" git checkout "${new_base}master"
+    for br in $(branches_in_release "$1"); do
+        for bc in $(barclamps_from_branch "$br"); do
+            debug "barclamp $bc: Checking out ${new_base}master"
+            in_barclamp "$bc" git checkout -q "${new_base}master" || \
+                die "Could not check out ${new_base}master in barclamp $bc."
+        done
     done
+    in_repo git checkout "${new_base}${current_branch}"
 }
 
 case $1 in
