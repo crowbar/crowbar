@@ -1199,6 +1199,11 @@ switch_release() {
 
     for br in $(branches_in_release "$1"); do
         for bc in $(barclamps_from_branch "$br"); do
+            if ! is_barclamp "$bc"; then
+                debug "Checking out new barclamp $bc"
+                git checkout -q "$br"
+                git submodule update --init "barclamps/$bc"
+            fi
             debug "barclamp $bc: Checking out ${new_base}master"
             in_barclamp "$bc" git checkout -q "${new_base}master" || \
                 die "Could not check out ${new_base}master in barclamp $bc."
