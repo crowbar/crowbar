@@ -13,6 +13,14 @@ git tree layout.  Dev is designed around the following assumptions:
  * The only path for getting code into the dellcloudedge repositories
    is via pull request.
 
+Requirements:
+
+ * A checkout of Crowbar.
+ * Bash 4, ruby, rubygems, and the json gem.
+   If running under Windows, make sure that all these operate in your
+   cygwin or msysgw enviromnent.
+ * A github username and password.
+
 Day to Day Workflows:
 
 Initial Setup:
