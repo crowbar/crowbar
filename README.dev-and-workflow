@@ -290,4 +290,7 @@ cut_release:  Cuts a new release based on the current state of Crowbar.
 
     Do not use this command unless you really know what you are doing.
 
+branches: Show the branches that are part of the current release
+
+
 
