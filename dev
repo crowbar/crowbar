@@ -871,6 +871,8 @@ Command line options:
             of making sure that all the barclamps are on the proper branch for
             that release.
 
+  checkout -- Change branch but stays in the release context if possible.
+
   cut_release -- DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING! Makes a new set
                  of branches and barclamp branches from the current release into
                  the new named release.  Must provide a unique new name.
@@ -1238,6 +1240,15 @@ switch_release() {
     fi
 }
 
+checkout() {
+    local br new_base rel
+    [[ $1 ]] || die "checkout: Please specify a branch"
+    br=$1
+    rel="$(current_release)"
+    new_base=$(release_branch_prefix "$rel")
+    in_repo git checkout "${new_base}${br}"
+}
+
 case $1 in
     is_clean) shift; crowbar_is_clean "$@";;
     fetch) fetch_all;;
@@ -1253,5 +1264,6 @@ case $1 in
     cut_release) shift; cut_release "$@";;
     switch) shift; switch_release "$@";;
     branches) shift; branches_in_release "$@";;
+    checkout) shift; checkout "$@";;
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
