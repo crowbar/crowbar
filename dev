@@ -118,6 +118,7 @@ child_branches() {
         [[ ${DEV_BRANCHES[$b]} && \
             ${DEV_BRANCHES[$b]} != $b && \
             ${DEV_BRANCHES[$b]} = $p ]] || continue
+        is_in "$DEV_BRANCH_PREFIX$b" "$(branches_in_release)" || continue
         echo "$DEV_BRANCH_PREFIX$b"
     done
     return 0
@@ -246,19 +247,6 @@ barclamps_are_clean() {
 
 # Test to see if all the Crowbar repositories are clean.
 crowbar_is_clean() { barclamps_are_clean "$@" && in_repo git_is_clean "$@"; }
-
-# Get a list of all the barclamps that a specific branch refers to.
-barclamps_in_branch() {
-    local b res=()
-    for b in "$@"; do
-        in_repo branch_exists "$b" || \
-            die "Branch $b does not exist in the Crowbar repo!"
-    done
-    local res=($(for b in "$@"; do in_repo git ls-tree -r \
-        "$b" barclamps; done | \
-        awk '/160000 commit/ {print $4}' |sort -u))
-    printf "%s\n" "${res[@]#barclamps/}"
-}
 
 # Get the list of barclamps that originate from this branch.
 # $1 must be a branch name, and it must be some sort of release branch.
@@ -1246,7 +1234,47 @@ checkout() {
     br=$1
     rel="$(current_release)"
     new_base=$(release_branch_prefix "$rel")
+    in_repo branch_exists "${new_base}${br}" || \
+        die "Branch $br does not exist in release $rel"
     in_repo git checkout "${new_base}${br}"
+}
+
+__build_crowbar() {
+    if [[ $target_release || $exact ]]; then
+        switch_release "${target_release:=$(current_release)}" || \
+            die "Could not switch to $target_release for build!"
+    fi
+    if [[ $target_branch || $exact ]]; then
+        [[ $target_branch ]] || \
+            target_branch=$(in_repo git symbolic-ref HEAD) || \
+            die "Not on a branch, cannot continue!"
+        target_branch=${target_branch##*/}
+        checkout "${target_branch}"
+    fi
+    if [[ $exact ]]; then
+        in_repo git submodule update || \
+            die "Could not check out submodule revisions for $target_release!"
+        build_args+=("--no-cache-update" "--no-metadata-update")
+    fi
+    "$CROWBAR_DIR/build_crowbar.sh" "$target_os" "${build_args[@]}"
+}
+
+build_crowbar() {
+    local build_args=() b c target_os target_release exact
+    while [[ $1 ]]; do
+        case $1 in
+            --os) shift; target_os="$1";;
+            --release) shift; target_release="$1";;
+            --branch) shift; target_branch="$1";;
+            --exact) exact=true;;
+            *) build_args+=($1);;
+        esac
+        shift
+    done
+    [[ $target_os ]] || \
+        die "Cannot build Crowbar, need to know what OS to stage it on!"
+    build_args+=("--skip-lock")
+    with_build_lock __build_crowbar
 }
 
 case $1 in
@@ -1265,5 +1293,6 @@ case $1 in
     switch) shift; switch_release "$@";;
     branches) shift; branches_in_release "$@";;
     checkout) shift; checkout "$@";;
+    build) shift; build_crowbar "$@";;
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
