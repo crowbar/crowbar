@@ -619,9 +619,5 @@ do_crowbar_build() {
 if [[ $__skip_lock = true ]]; then
     do_crowbar_build
 else
-    {
-        debug "Acquiring the build lock."
-        flock 65
-        do_crowbar_build
-    } 65>/tmp/.build_crowbar.lock
+    with_build_lock do_crowbar_build
 fi
