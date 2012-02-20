@@ -137,6 +137,33 @@ cleanup_cmds=()
 
 git_managed_cache() [[ -d $CACHE_DIR/.git ]]
 
+with_build_lock() {
+    if [[ $BUILD_LOCK_TAKEN != true ]]; then
+        {
+            flock 65
+            BUILD_LOCK_TAKEN=true
+            "$@"
+        } 65>/tmp/.build_crowbar.lock
+        unset BUILD_LOCK_TAKEN
+    else
+        "$@"
+    fi
+}
+
+# Get a list of all the barclamps that a specific branch refers to.
+barclamps_in_branch() {
+    local b res=()
+    for b in "$@"; do
+        in_repo branch_exists "$b" || \
+            die "Branch $b does not exist in the Crowbar repo!"
+    done
+    local res=($(for b in "$@"; do in_repo git ls-tree -r \
+        "$b" barclamps; done | \
+        awk '/160000 commit/ {print $4}' |sort -u))
+    printf "%s\n" "${res[@]#barclamps/}"
+}
+
+
 # Our general cleanup function.  It is called as a trap whenever the
 # build script exits, and it's job is to make sure we leave the local
 # system in the same state we cound it, modulo a few calories of wasted heat
