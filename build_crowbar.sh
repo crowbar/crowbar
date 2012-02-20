@@ -69,9 +69,6 @@ else
     unset no_proxy http_proxy https_proxy
 fi
 
-# Next, some configuration variables that can be used to tune how the
-# build process works.
-
 # Barclamps to include.  By default, start with jsut crowbar and let
 # the dependency machinery and the command line pull in the rest.
 # Note that BARCLAMPS is an array, not a string!
@@ -204,26 +201,116 @@ BC_QUERY_STRINGS["os_raw_pkgs"]="$PKG_TYPE $OS_TOKEN raw_pkgs"
 BC_QUERY_STRINGS["os_pkg_sources"]="$PKG_TYPE $OS_TOKEN pkg_sources"
 BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 
+# Check to make sure our required commands are installed.
+for cmd in sudo chroot mkisofs ruby curl; do
+    which "$cmd" &>/dev/null || \
+        die 1 "Please install $cmd before trying to build Crowbar."
+done
 
-{
-    # Check to make sure our required commands are installed.
-    for cmd in sudo chroot mkisofs ruby curl; do
-        which "$cmd" &>/dev/null || \
-            die 1 "Please install $cmd before trying to build Crowbar."
-    done
+# Figure out what our current branch is, in case we need to merge
+# other branches in to the iso to create our build.
+CURRENT_BRANCH="$(in_repo git symbolic-ref HEAD)" || \
+    die "Not on a branch we can build from!"
+CURRENT_BRANCH=${CURRENT_BRANCH#refs/heads/}
+[[ $CURRENT_BRANCH ]] || die "Not on a branch we can merge from!"
 
+# Parse our options.
+while [[ $1 ]]; do
+    case $1 in
+        # Merge a list of branches into a throwaway branch with the
+        # current branch as a baseline before starting the rest of the
+        # build process.  This makes it easier to spin up iso images
+        # with local changes without having to manually merge those
+        # changes in with any other branches of interest first.
+        # This code takes heavy advantage of the lightweight nature of
+        # git branches and takes care to leave uncomitted changes in place.
+        -m|--merge)
+            shift
+            # Loop through the rest of the arguments, as long as they
+            # do not start with a -.
+            BRANCHES_TO_MERGE=()
+            [[ $(in_repo git status) =~ working\ directory\ clean ]] || \
+                die "Working tree must be clean before merging branches for build!"
+            while [[ $1 && ! ( $1 = -* ) ]]; do
+                # Check to make sure that this argument refers to a branch
+                # in the crowbar git tree.  Die if it does not.
+                in_repo branch_exists "$1" || die "$1 is not a git branch!"
+                BRANCHES_TO_MERGE+=("$1")
+                shift
+            done
+            ;;
+        # Force an update of the cache
+        update-cache|--update-cache) shift;
+            need_update=true
+            while [[ $1 && $1 != -* ]]; do
+                is_barclamp "$1" || \
+                    die "Cannot update non-barclamp $1."
+                FORCE_BARCLAMP_UPDATE["$1"]=true
+                unset need_update || : &>/dev/null
+                shift
+            done;;
+        # Pull in additional barclamps.
+        --barclamps)
+            shift
+            while [[ $1 && $1 != -* ]]; do
+                BARCLAMPS+=("$1")
+                shift
+            done;;
+        --test)
+            # Run tests on the newly-created repository.
+            # The test framework does the heavy lifting.
+            NEED_TEST=true
+            test_params=()
+            shift
+            while [[ $1 && $1 != -* ]]; do
+                test_params+=("$1")
+                shift
+            done;;
+        --ci)
+            [[ $CI_BARCLAMP ]] && die "Already asked to perform CI on $CI_BARCLAMP, and we can only do one at a time."
+            shift
+            is_barclamp "$1" || \
+                die "$1 is not a barclamp, cannot perform CI testing on it."
+            CI_BARCLAMP="$1"
+            shift
+            if [[ $1 && $1 != -* ]]; then
+                in_ci_barclamp branch_exists "$1" || \
+                    die "$1 is not a branch in $CI_BARCLAMP, cannot perform integration testing!"
+                CI_BRANCH="$1"
+                shift
+            else
+                CI_BRANCH="master"
+            fi;;
+        --shrink)
+            # Ask that the generated ISO be shrunk down to the mininim
+            # needed to deploy Crowbar.
+            type shrink_iso >&/dev/null || \
+                die "The build system does not know how to shrink $OS_TO_STAGE"
+            SHRINK_ISO=true
+            shift;;
+        --generate-minimal-install)
+            type generate_minimal_install &>/dev/null || \
+                die "The build system does not know how to generate a minimal install list for $OS_TO_STAGE!"
+            GENERATE_MINIMAL_INSTALL=true
+            shift;;
+        # If we need to perfoem a cache update, die insted.
+        # This also has the build system ensure that any chroots
+        # can pull packages straight out of the build cache, allowing
+        # for fully offline builds.
+        --no-cache-update) shift; ALLOW_CACHE_UPDATE=false;;
+        --no-metadata-update) shift; ALLOW_CACHE_METADATA_UPDATE=false;;
+        # Go through all the motions, but do not actaully generate
+        # an ISO at the end.  This is useful for generating barclamp
+        # tarballs.
+        --no-iso) shift; NO_GENERATE_ISO=true;;
+        --skip-lock) shift; __skip_lock=true;;
+        *)          die "Unknown command line parameter $1";;
+    esac
+done
+
+do_crowbar_build() {
     # Make sure only one instance of the ISO build runs at a time.
     # Otherwise you can easily end up with a corrupted image.
-
-    debug "Acquiring the build lock."
-    flock 65
-    # Figure out what our current branch is, in case we need to merge
-    # other branches in to the iso to create our build.
-    CURRENT_BRANCH="$(in_repo git symbolic-ref HEAD)" || \
-        die "Not on a branch we can build from!"
-    CURRENT_BRANCH=${CURRENT_BRANCH#refs/heads/}
-    [[ $CURRENT_BRANCH ]] || die "Not on a branch we can merge from!"
-
     # Check and see if our local build repository is a git repo. If it is,
     # we may need to do the same sort of merging in it that we might do in the
     # Crowbar repository.
@@ -232,115 +319,20 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
         CURRENT_CACHE_BRANCH=master
     fi
 
-    # Parse our options.
-    while [[ $1 ]]; do
-        case $1 in
-            # Merge a list of branches into a throwaway branch with the
-            # current branch as a baseline before starting the rest of the
-            # build process.  This makes it easier to spin up iso images
-            # with local changes without having to manually merge those
-            # changes in with any other branches of interest first.
-            # This code takes heavy advantage of the lightweight nature of
-            # git branches and takes care to leave uncomitted changes in place.
-            -m|--merge)
-                shift
-                # Loop through the rest of the arguments, as long as they
-                # do not start with a -.
-                while [[ $1 && ! ( $1 = -* ) ]]; do
-                    # Check to make sure that this argument refers to a branch
-                    # in the crowbar git tree.  Die if it does not.
-                    in_repo branch_exists "$1" || die "$1 is not a git branch!"
-                    # If we have not already created a throwaway branch to
-                    # merge these branches into, do so now. If we have
-                    # uncomitted changes that need to be stashed, do so here.
-                    if [[ ! $THROWAWAY_BRANCH ]]; then
-                        THROWAWAY_BRANCH="build-throwaway-$$-$RANDOM"
-                        REPO_PWD="$PWD"
-                        if [[ ! $(in_repo git status) =~ working\ directory\ clean ]]; then
-                            THROWAWAY_STASH=$(in_repo git stash create)
-                            in_repo git checkout -f .
-                        fi
-                        in_repo git checkout -b "$THROWAWAY_BRANCH"
-                    fi
-                    # Merge the requested branch into the throwaway branch.
-                    # Die if the merge failed -- there must have been a
-                    # conflict, and the user needs to fix it up.
-                    in_repo git merge "$1" || \
-                        die "Merge of $1 failed, fix things up and continue"
-                    shift
-                done
-                ;;
-            # Force an update of the cache
-            update-cache|--update-cache) shift;
-                need_update=true
-                while [[ $1 && $1 != -* ]]; do
-                    is_barclamp "$1" || \
-                        die "Cannot update non-barclamp $1."
-                    FORCE_BARCLAMP_UPDATE["$1"]=true
-                    unset need_update || : &>/dev/null
-                    shift
-                done;;
-            # Pull in additional barclamps.
-            --barclamps)
-                shift
-                while [[ $1 && $1 != -* ]]; do
-                    BARCLAMPS+=("$1")
-                    shift
-                done;;
-            --test)
-                # Run tests on the newly-created repository.
-                # The test framework does the heavy lifting.
-                NEED_TEST=true
-                test_params=()
-                shift
-                while [[ $1 && $1 != -* ]]; do
-                    test_params+=("$1")
-                    shift
-                done;;
-            --ci)
-                [[ $CI_BARCLAMP ]] && die "Already asked to perform CI on $CI_BARCLAMP, and we can only do one at a time."
-                shift
-                is_barclamp "$1" || \
-                    die "$1 is not a barclamp, cannot perform CI testing on it."
-                CI_BARCLAMP="$1"
-                shift
-                if [[ $1 && $1 != -* ]]; then
-                    in_ci_barclamp branch_exists "$1" || \
-                        die "$1 is not a branch in $CI_BARCLAMP, cannot perform integration testing!"
-                    CI_BRANCH="$1"
-                    shift
-                else
-                    CI_BRANCH="master"
-                fi;;
-            --shrink)
-                # Ask that the generated ISO be shrunk down to the mininim
-                # needed to deploy Crowbar.
-                type shrink_iso >&/dev/null || \
-                    die "The build system does not know how to shrink $OS_TO_STAGE"
-                SHRINK_ISO=true
-                shift;;
-            --generate-minimal-install)
-                type generate_minimal_install &>/dev/null || \
-                    die "The build system does not know how to generate a minimal install list for $OS_TO_STAGE!"
-                GENERATE_MINIMAL_INSTALL=true
-                shift;;
-            # If we need to perfoem a cache update, die insted.
-            # This also has the build system ensure that any chroots
-            # can pull packages straight out of the build cache, allowing
-            # for fully offline builds.
-            --no-cache-update) shift; ALLOW_CACHE_UPDATE=false;;
-            --no-metadata-update) shift; ALLOW_CACHE_METADATA_UPDATE=false;;
-            # Go through all the motions, but do not actaully generate
-            # an ISO at the end.  This is useful for generating barclamp
-            # tarballs.
-            --no-iso) shift; NO_GENERATE_ISO=true;;
-            *)          die "Unknown command line parameter $1";;
-        esac
-    done
+    if [[ $BRANCHES_TO_MERGE ]]; then
+        THROWAWAY_BRANCH="build-throwaway-$$-$RANDOM"
+        REPO_PWD="$PWD"
+        in_repo git checkout -b "$THROWAWAY_BRANCH"
+        for br in "${BRANCHES_TO_MERGE[@]}"; do
 
-    # If we stached changes to the crowbar repo, apply them now.
-    [[ $THROWAWAY_STASH ]] && in_repo git stash apply "$THROWAWAY_STASH"
-
+            # Merge the requested branch into the throwaway branch.
+            # Die if the merge failed -- there must have been a
+            # conflict, and the user needs to fix it up.
+            in_repo git merge "$1" || \
+                die "Merge of $1 failed, fix things up and continue"
+        done
+        unset br
+    fi
     # Finalize where we expect to find our caches and out chroot.
     # If they were set in one of the conf files, don't touch them.
 
@@ -390,14 +382,8 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 
     # If we were not passed a list of barclamps to include,
     # pull in all of the ones declared as submodules.
-    [[ $BARCLAMPS ]] || BARCLAMPS=($(cd "$CROWBAR_DIR"
-            while read sha submod branch; do
-                [[ $submod = barclamps/* ]] || continue
-                [[ -f $submod/crowbar.yml ]] || \
-                    echo "Cannot find crowbar.yml for $submod, exiting."
-                echo "${submod##*/}"
-            done < <(git submodule status))
-    )
+    [[ $BARCLAMPS ]] || \
+        BARCLAMPS=($(in_repo barclamps_in_branch "$CURRENT_BRANCH"))
 
     if [[ $CI_BARCLAMP ]]; then
         is_in "$CI_BARCLAMP" "${BARCLAMPS[@]}" || BARCLAMPS+=("$CI_BARCLAMP")
@@ -629,4 +615,9 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 
         fi
         echo "$(date '+%F %T %z'): Finished."
-} 65> /tmp/.build_crowbar.lock
+}
+if [[ $__skip_lock = true ]]; then
+    do_crowbar_build
+else
+    with_build_lock do_crowbar_build
+fi
