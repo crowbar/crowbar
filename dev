@@ -83,14 +83,14 @@ gem list -i json &>/dev/null || \
 
 dev_is_setup() {
     [[ ( $DEV_GITHUB_ID && $DEV_GITHUB_PASSWD) || $1 = setup ]] || \
-	die "dev has not been configured. Please run $CROWBAR_DIR/dev setup first."
+        die "dev has not been configured. Please run $CROWBAR_DIR/dev setup first."
 
     thisrev=$(in_repo git config --get crowbar.dev.version) && \
-	(( thisrev  == DEV_VERSION )) || [[ $1 = setup ]] || {
-	VERBOSE=true
-	debug "Crowbar repository out of sync with dev tool revision."
-	debug "Please run $0 setup to update it."
-	exit 1
+        (( thisrev  == DEV_VERSION )) || [[ $1 = setup ]] || {
+        VERBOSE=true
+        debug "Crowbar repository out of sync with dev tool revision."
+        debug "Please run $0 setup to update it."
+        exit 1
     }
 }
 
@@ -256,7 +256,8 @@ barclamps_from_branch() {
 fetch_all() {
     local remote barclamp b
     dev_is_setup
-    for remote in "${DEV_REMOTES[@]}"; do
+    for remote in "${DEV_REMOTES[@]}" personal; do
+        in_repo git_config_has "remote.$remote.url" || continue
         debug "Fetching from remote $remote:"
         debug "    Crowbar"
         in_repo git fetch "$remote" || continue
@@ -264,8 +265,14 @@ fetch_all() {
             for barclamp in $(barclamps_from_branch \
                 "${DEV_RELEASE_PREFIX}$b"); do
                 debug "    Barclamp $barclamp"
-                in_barclamp "$barclamp" git fetch origin || \
-                    die "Cound not fetch updates for $barclamp"
+                if in_barclamp "$barclamp" git_config_has 'remote.personal.url'; then
+                    in_barclamp "$barclamp" \
+                        git fetch --multiple origin personal || \
+                    die "Could not fetch updates for $barclamp"
+                else
+                    in_barclamp "$barclamp" git fetch origin || \
+                    die "Could not fetch updates for $barclamp"
+                fi
             done
         done
     done
@@ -382,7 +389,7 @@ setup() {
                 ${DEV_REMOTE_SOURCES[$remote]}/crowbar.git
         fi
 
-	in_repo git fetch "$remote" || \
+        in_repo git fetch "$remote" || \
             die "Unable to fetch remote references for $remote"
         # Create tracking branches for any branches from this remote
         # that do not already exist.
@@ -496,7 +503,7 @@ backup_to_remote() {
         branch_exists "$branch" || continue
         # If we have a ref for this branch on $remote and the local
         # branch does not contain any commits that the one on the
-        # $remote does, then it is already synced and we can skip 
+        # $remote does, then it is already synced and we can skip
         # the actual network communication.
         git rev-parse --verify -q \
             "refs/remotes/$remote/$branch" &>/dev/null && \
@@ -681,28 +688,29 @@ backup_everything() {
 # Assumes that upstream commits have already been fetched from the proper
 # remotes by running dev fetch.
 sync_repo() (
-    local branch head b bc origin ref
+    local branch head b bc remote ref
     # $1 = dir to CD to initially.
-    # Assumes that origin has already been fetched.
+    # Assumes that remote has already been fetched.
     cd "$1"
     # Repo is not clean, we will refuse to merge in any case.
     git_is_clean || {
         echo "$1 is not clean." >&2
         return 1
     }
-    # Merge upstream branches from all origins, but only if the branch
-    # is listed in DEV_REMOTE_BRANCHES for that origin,
-    # unless $origin is actually "origin"
+    # Merge upstream branches from all remotes, but only if the branch
+    # is listed in DEV_REMOTE_BRANCHES for that remote,
+    # unless $remote is actually "origin"
     while read ref branch; do
         branch=${branch#refs/heads/}
-        for origin in "${!DEV_REMOTE_BRANCHES[@]}"; do
+        for remote in "${!DEV_REMOTE_BRANCHES[@]}" personal; do
+            git_config_has "remote.$remote.url" || continue
             remote=$(git config branch.${branch}.remote)
-            [[ $origin = origin ]] || \
+            [[ $remote = origin || $remote = personal ]] || \
                 [[ $remote ]] || \
-                is_in "${branch##*/}" "${DEV_REMOTE_BRANCHES[$origin]}" || \
+                is_in "${branch##*/}" "${DEV_REMOTE_BRANCHES[$remote]}" || \
                 continue
-            git rev-parse --verify -q "$origin/$branch" &>/dev/null || continue
-            branches_synced "$1" "refs/heads/$branch" "refs/remotes/$origin/$branch" && continue
+            git rev-parse --verify -q "$remote/$branch" &>/dev/null || continue
+            branches_synced "$1" "refs/heads/$branch" "refs/remotes/$remote/$branch" && continue
             [[ $head ]] || head=$(git symbolic-ref HEAD) || {
             # Oh, boy, we are in detached HEAD.
             # Die with a possibly-helpful error message.
@@ -716,9 +724,9 @@ sync_repo() (
                 echo "$bc: Unable to checkout $branch!" >&2
                 return 1
             }
-            debug "Merging $origin/$branch into $branch"
-            git merge -q "$origin/$branch" || {
-                echo "$1: Unable to merge $origin/$branch into $branch, will unwind." >&2
+            debug "Merging $remote/$branch into $branch"
+            git merge -q "$remote/$branch" || {
+                echo "$1: Unable to merge $remote/$branch into $branch, will unwind." >&2
                 git reset --hard
                 return 1
             }
