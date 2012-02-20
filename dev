@@ -596,10 +596,10 @@ branches_to_backup_to_prefix() {
     while read ref br; do
         br="${br#refs/heads/}"
         [[ ${ignore[$br]} = true ]] && continue
-        if [[ $br = "$prefix"/* ]]; then
+        if [[ $br = personal/* ]]; then
             debug "Deleting unneeded local tracking branch $br"
             git branch -D "$br"
-            if [[ $br =~ ~personal/[^/]+/personal ]]; then
+            if [[ $br = $prefix/personal/* ]]; then
                 debug "Pruning unneeded branch $br on $remote"
                 git push -q "$remote" ":${br}"
             fi
