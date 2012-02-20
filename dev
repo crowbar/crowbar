@@ -81,34 +81,22 @@ which gem &>/dev/null || \
 gem list -i json &>/dev/null || \
     die "JSON gem not installed.  Please install it with gem install json."
 
-thisrev=$(in_repo git config --get crowbar.dev.version) && \
-(( thisrev  == DEV_VERSION )) || [[ $1 = setup ]] || {
-    VERBOSE=true
-    debug "Crowbar repository out of sync with dev tool revision."
-    debug "Please run $0 setup to update it."
-    exit 1
+dev_is_setup() {
+    [[ ( $DEV_GITHUB_ID && $DEV_GITHUB_PASSWD) || $1 = setup ]] || \
+	die "dev has not been configured. Please run $CROWBAR_DIR/dev setup first."
+
+    thisrev=$(in_repo git config --get crowbar.dev.version) && \
+	(( thisrev  == DEV_VERSION )) || [[ $1 = setup ]] || {
+	VERBOSE=true
+	debug "Crowbar repository out of sync with dev tool revision."
+	debug "Please run $0 setup to update it."
+	exit 1
+    }
 }
+
 unset thisrev
 
 set -o pipefail
-
-# If we have openstack-os-build and hadoop-os-build brancehs locally,
-# let the merge engine know about them.
-
-for branch in openstack-os-build hadoop-os-build; do
-    [[ ${DEV_BRANCHES[$branch]} ]] && continue
-    in_repo branch_exists "$branch" || continue
-done
-
-# Sanity-check our dependency hash
-if [[ $1 != setup ]]; then
-    for branch in "${!DEV_BRANCHES[@]}"; do
-        in_repo branch_exists "$branch" || \
-            die "$branch is specified in \$DEV_BRANCHES, but does not exist!"
-        in_repo branch_exists "${DEV_BRANCHES[$branch]}" || \
-            die "${DEV_BRANCHES[$branch]} does not exist, but it is specified as the parent of $branch!"
-    done
-fi
 
 # Given a branch, echo all the child branches for this
 # branch in the current release.
@@ -267,6 +255,7 @@ barclamps_from_branch() {
 # main Crowbar repository and the barclamps.
 fetch_all() {
     local remote barclamp b
+    dev_is_setup
     for remote in "${DEV_REMOTES[@]}"; do
         debug "Fetching from remote $remote:"
         debug "    Crowbar"
@@ -294,9 +283,6 @@ curl_and_res() {
             return 1;;
     esac
 }
-
-[[ ( $DEV_GITHUB_ID && $DEV_GITHUB_PASSWD) || $1 = setup ]] || \
-    die "dev has not been configured. Please run $CROWBAR_DIR/dev setup first."
 
 # Fork a repository on Github.
 github_fork() {
@@ -676,6 +662,7 @@ backup_repo() {
 backup_everything() {
     local bc remote branches=() branch
     local -A touched_bcs
+    dev_is_setup
     for remote in "${DEV_REMOTES[@]}"; do
         # Back up all the barclamps that are references as submodules for
         # branches that this remote is "authoritative" for.
@@ -949,6 +936,7 @@ diffstat_from_origin() {
 # pull_requests_prep generated.
 pull_requests_gen() {
     # $@ = options to parse
+    dev_is_setup
     local -A barclamps branches barclamp_branches bc_pulls br_pulls refs
     local bc br bcr title body option bc_name head
     local prc=0 n=1
@@ -1082,6 +1070,7 @@ pull_requests_gen() {
 # passed on the command line to the personal remote.
 push_branches() {
     # $@ = Local branches to push
+    dev_is_setup
     local branches=("$@") br btp=()
     [[ $branches ]] || br=($(in_repo git symbolic-ref HEAD)) || \
         die "Main Crowbar repo is not on a branch we can push!"
