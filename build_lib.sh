@@ -675,6 +675,57 @@ clean_dirs() {
 # Verify that the passed name is really a branch in the git repo.
 branch_exists() { git show-ref --quiet --verify --heads -- "refs/heads/$1"; }
 
+to_empty_branch() {
+    if branch_exists empty-branch; then
+        git checkout -q empty-branch
+        return $?
+    fi
+    git symbolic-ref HEAD refs/heads/empty-branch
+    rm -f .git/index
+    git clean -f -x -d
+    echo "This branch intentionally left blank" >README.empty-branch
+    git add README.empty-branch
+    git commit -m "Created empty branch"
+}
+
+# Set up barclamps for the appropriate branch.  Barclamps that are not members
+# of the current branch will be checked out to an empty branch, which will be
+# created if it does not exist.
+switch_barclamps_to() {
+    # $1 = Either a branch or "submodule-ref"
+    local -A barclamps
+    local m t ref p bc
+    while read m t ref p; do
+        [[ $m = 160000 && $t = commit ]] || continue
+        if [[ $1 = submodule-ref ]]; then
+            barclamps[${p#/}]=$ref
+        else
+            barclamps[${p#/}]="$1"
+        fi
+    done < <(in_repo git ls-tree HEAD barclamps/)
+    for bc in $CROWBAR_DIR/barclamps/*; do
+        bc=${bc#$CROWBAR_DIR/}
+        [[ -d $bc/.git ]] || \
+            in_repo git submodule update --init "barclamps/$bc"
+        ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
+        if [[ ${barclamps[$bc]} ]]; then
+            [[ $ref = $(in_barclamp "${bc##*/}" \
+                git rev-parse --verify -q "${barclamps[$bc]}") ]] && \
+                continue
+            debug "Barclamp ${bc##*/}: Checking out ${barclamps[$bc]}"
+            in_barclamp "${bc##*/}" git checkout -q "${barclamps[$bc]}" || \
+                die "barclamp ${bc##*/}: Could not check out ${barclamps[$bc]}"
+        else
+            [[ $(in_barclamp "${bc##*/}" git symbolic-ref HEAD) = \
+                refs/heads/empty-branch ]] && \
+                continue
+            debug "Barclamp ${bc##*/}: Checking out the empty branch."
+            in_barclamp "${bc##*/}" to_empty_branch || \
+                die "barclamp ${bc##*/}: Could not check out empty branch"
+        fi
+    done
+}
+
 # Run a git command in the crowbar repo.
 in_repo() ( cd "$CROWBAR_DIR"; "$@")
 
@@ -697,7 +748,6 @@ in_cache() (
 # Check to see if something is a barclamp.
 is_barclamp() { [[ -f "$CROWBAR_DIR/barclamps/$1/crowbar.yml" ]]; }
 in_barclamp() {
-    is_barclamp "$1" || die "$1 is not a barclamp"
     (   cd "$CROWBAR_DIR/barclamps/$1"
         shift
         "$@")
