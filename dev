@@ -852,9 +852,12 @@ Command line options:
   switch -- Change current release to the specified release, or the current
             release if no release name was passed.  This has the side effect
             of making sure that all the barclamps are on the proper branch for
-            that release.
+            that release. dev switch will also set any barclamps that are not
+            used in the new branch to an empty branch.
 
   checkout -- Change branch but stays in the release context if possible.
+              Checkout will ensure that any barclamps that are ont being used
+              by the new branch are set to an empty branch.
 
   cut_release -- DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING! Makes a new set
                  of branches and barclamp branches from the current release into
