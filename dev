@@ -1237,6 +1237,37 @@ checkout() {
     in_repo git checkout "${new_base}${br}"
 }
 
+__build_crowbar() {
+    if [[ $exact ]]; then
+        switch_release "${target_release:=$(current_release)}" || \
+            die "Could not switch to $target_release for build as requested!"
+        in_repo git submodule update || \
+            die "Could not check out submodule revisions for $target_release!"
+        build_args+=("--no-cache-update" "--no-metadata-update")
+    elif [[ $target_release ]]; then
+        switch_release "${target_release}" || \
+            die "Could not switch to $target_release for build!"
+    fi
+    "$CROWBAR_DIR/build_crowbar.sh" "$target_os" "${build_args[@]}"
+}
+
+build_crowbar() {
+    local build_args=() b c target_os target_release exact
+    while [[ $1 ]]; do
+        case $1 in
+            --os) shift; target_os="$1";;
+            --release) shift; target_release="$1";;
+            --exact) exact=true;;
+            *) build_args+=($1);;
+        esac
+        shift
+    done
+    [[ $target_os ]] || \
+        die "Cannot build Crowbar, need to know what OS to stage it on!"
+    build_args+=("--skip-lock")
+    with_build_lock __build_crowbar
+}
+
 case $1 in
     is_clean) shift; crowbar_is_clean "$@";;
     fetch) fetch_all;;
@@ -1253,5 +1284,6 @@ case $1 in
     switch) shift; switch_release "$@";;
     branches) shift; branches_in_release "$@";;
     checkout) shift; checkout "$@";;
+    build) shift; build_crowbar "$@";;
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
