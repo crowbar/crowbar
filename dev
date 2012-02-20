@@ -1205,20 +1205,8 @@ switch_release() {
             echo "$rel does not have branch $current_branch, will checkout master instead."
         current_branch=master
     }
-
-    for br in $(branches_in_release "$rel"); do
-        for bc in $(barclamps_from_branch "$br"); do
-            if ! is_barclamp "$bc"; then
-                debug "Checking out new barclamp $bc"
-                git checkout -q "$br"
-                git submodule update --init "barclamps/$bc"
-            fi
-            debug "barclamp $bc: Checking out ${new_base}master"
-            in_barclamp "$bc" git checkout -q "${new_base}master" || \
-                die "Could not check out ${new_base}master in barclamp $bc."
-        done
-    done
-    in_repo git checkout -q "${new_base}${current_branch}"
+    in_repo git checkout -q "${new_base}master"
+    checkout "${current_branch}"
     if git_managed_cache && in_cache branch_exists "${new_base}master"; then
         debug "Checking out ${new_base}master in the build cache, please be patient."
         in_cache git checkout -qf "${new_base}master"

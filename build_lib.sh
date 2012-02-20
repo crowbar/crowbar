@@ -677,7 +677,7 @@ branch_exists() { git show-ref --quiet --verify --heads -- "refs/heads/$1"; }
 
 to_empty_branch() {
     if branch_exists empty-branch; then
-        git checkout empty-branch
+        git checkout -q empty-branch
         return $?
     fi
     git symbolic-ref HEAD refs/heads/empty-branch
@@ -693,9 +693,10 @@ to_empty_branch() {
 # created if it does not exist.
 switch_barclamps_to() {
     # $1 = Either a branch or "submodule-ref"
-    local -A barclamps m t ref p bc
+    local -A barclamps
+    local m t ref p bc
     while read m t ref p; do
-        [[ $m = 16000 && $t = commit ]] || continue
+        [[ $m = 160000 && $t = commit ]] || continue
         if [[ $1 = submodule-ref ]]; then
             barclamps[${p#/}]=$ref
         else
@@ -703,11 +704,22 @@ switch_barclamps_to() {
         fi
     done < <(in_repo git ls-tree HEAD barclamps/)
     for bc in $CROWBAR_DIR/barclamps/*; do
-        bc=${bc#$CROWBAR_DIR}
+        bc=${bc#$CROWBAR_DIR/}
+        [[ -d $bc/.git ]] || \
+            in_repo git submodule update --init "barclamps/$bc"
+        ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
         if [[ ${barclamps[$bc]} ]]; then
-            in_barclamp "${bc##*/}" git checkout "${barclamps[$bc]}" || \
+            [[ $ref = $(in_barclamp "${bc##*/}" \
+                git rev-parse --verify -q "${barclamps[$bc]}") ]] && \
+                continue
+            debug "Barclamp ${bc##*/}: Checking out ${barclamps[$bc]}"
+            in_barclamp "${bc##*/}" git checkout -q "${barclamps[$bc]}" || \
                 die "barclamp ${bc##*/}: Could not check out ${barclamps[$bc]}"
         else
+            [[ $(in_barclamp "${bc##*/}" git symbolic-ref HEAD) = \
+                refs/heads/empty-branch ]] && \
+                continue
+            debug "Barclamp ${bc##*/}: Checking out the empty branch."
             in_barclamp "${bc##*/}" to_empty_branch || \
                 die "barclamp ${bc##*/}: Could not check out empty branch"
         fi
