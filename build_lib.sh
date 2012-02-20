@@ -703,8 +703,8 @@ switch_barclamps_to() {
             barclamps[${p#/}]="$1"
         fi
     done < <(in_repo git ls-tree HEAD barclamps/)
-    for bc in $CROWBAR_DIR/barclamps/*; do
-        bc=${bc#$CROWBAR_DIR/}
+    for bc in "$CROWBAR_DIR/barclamps/"*; do
+        bc="${bc#$CROWBAR_DIR/}"
         [[ -d $bc/.git ]] || \
             in_repo git submodule update --init "barclamps/$bc"
         ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
