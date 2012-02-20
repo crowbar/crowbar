@@ -248,19 +248,6 @@ barclamps_are_clean() {
 # Test to see if all the Crowbar repositories are clean.
 crowbar_is_clean() { barclamps_are_clean "$@" && in_repo git_is_clean "$@"; }
 
-# Get a list of all the barclamps that a specific branch refers to.
-barclamps_in_branch() {
-    local b res=()
-    for b in "$@"; do
-        in_repo branch_exists "$b" || \
-            die "Branch $b does not exist in the Crowbar repo!"
-    done
-    local res=($(for b in "$@"; do in_repo git ls-tree -r \
-        "$b" barclamps; done | \
-        awk '/160000 commit/ {print $4}' |sort -u))
-    printf "%s\n" "${res[@]#barclamps/}"
-}
-
 # Get the list of barclamps that originate from this branch.
 # $1 must be a branch name, and it must be some sort of release branch.
 barclamps_from_branch() {

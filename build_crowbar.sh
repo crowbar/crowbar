@@ -390,14 +390,8 @@ BC_QUERY_STRINGS["os_build_cmd"]="$PKG_TYPE $OS_TOKEN build_cmd"
 
     # If we were not passed a list of barclamps to include,
     # pull in all of the ones declared as submodules.
-    [[ $BARCLAMPS ]] || BARCLAMPS=($(cd "$CROWBAR_DIR"
-            while read sha submod branch; do
-                [[ $submod = barclamps/* ]] || continue
-                [[ -f $submod/crowbar.yml ]] || \
-                    echo "Cannot find crowbar.yml for $submod, exiting."
-                echo "${submod##*/}"
-            done < <(git submodule status))
-    )
+    [[ $BARCLAMPS ]] || \
+        BARCLAMPS=($(in_repo barclamps_in_branch "$CURRENT_BRANCH"))
 
     if [[ $CI_BARCLAMP ]]; then
         is_in "$CI_BARCLAMP" "${BARCLAMPS[@]}" || BARCLAMPS+=("$CI_BARCLAMP")
