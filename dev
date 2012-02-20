@@ -1234,19 +1234,27 @@ checkout() {
     br=$1
     rel="$(current_release)"
     new_base=$(release_branch_prefix "$rel")
+    in_repo branch_exists "${new_base}${br}" || \
+        die "Branch $br does not exist in release $rel"
     in_repo git checkout "${new_base}${br}"
 }
 
 __build_crowbar() {
-    if [[ $exact ]]; then
+    if [[ $target_release || $exact ]]; then
         switch_release "${target_release:=$(current_release)}" || \
-            die "Could not switch to $target_release for build as requested!"
+            die "Could not switch to $target_release for build!"
+    fi
+    if [[ $target_branch || $exact ]]; then
+        [[ $target_branch ]] || \
+            target_branch=$(in_repo git symbolic-ref HEAD) || \
+            die "Not on a branch, cannot continue!"
+        target_branch=${target_branch##*/}
+        checkout "${target_branch}"
+    fi
+    if [[ $exact ]]; then
         in_repo git submodule update || \
             die "Could not check out submodule revisions for $target_release!"
         build_args+=("--no-cache-update" "--no-metadata-update")
-    elif [[ $target_release ]]; then
-        switch_release "${target_release}" || \
-            die "Could not switch to $target_release for build!"
     fi
     "$CROWBAR_DIR/build_crowbar.sh" "$target_os" "${build_args[@]}"
 }
@@ -1257,6 +1265,7 @@ build_crowbar() {
         case $1 in
             --os) shift; target_os="$1";;
             --release) shift; target_release="$1";;
+            --branch) shift; target_branch="$1";;
             --exact) exact=true;;
             *) build_args+=($1);;
         esac
