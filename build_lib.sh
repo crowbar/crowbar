@@ -680,7 +680,7 @@ to_empty_branch() {
         git checkout empty-branch
         return $?
     fi
-    git symbolic-ref HEAD empty-branch
+    git symbolic-ref HEAD refs/heads/empty-branch
     rm -f .git/index
     git clean -f -x -d
     echo "This branch intentionally left blank" >README.empty-branch
@@ -695,11 +695,11 @@ switch_barclamps_to() {
     # $1 = Either a branch or "submodule-ref"
     local -A barclamps m t ref p bc
     while read m t ref p; do
-        [[$ m = 16000 && $t = commit ]] || continue
+        [[ $m = 16000 && $t = commit ]] || continue
         if [[ $1 = submodule-ref ]]; then
-            barclamps[${p}]=$ref
+            barclamps[${p#/}]=$ref
         else
-            barclamps[${p}]="$1"
+            barclamps[${p#/}]="$1"
         fi
     done < <(in_repo git ls-tree HEAD barclamps/)
     for bc in $CROWBAR_DIR/barclamps/*; do
@@ -736,7 +736,6 @@ in_cache() (
 # Check to see if something is a barclamp.
 is_barclamp() { [[ -f "$CROWBAR_DIR/barclamps/$1/crowbar.yml" ]]; }
 in_barclamp() {
-    is_barclamp "$1" || die "$1 is not a barclamp"
     (   cd "$CROWBAR_DIR/barclamps/$1"
         shift
         "$@")

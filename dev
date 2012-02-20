@@ -706,8 +706,8 @@ sync_repo() (
             git_config_has "remote.$remote.url" || continue
             remote=$(git config branch.${branch}.remote)
             [[ $remote = origin || $remote = personal ]] || \
-                [[ $remote ]] || \
-                is_in "${branch##*/}" "${DEV_REMOTE_BRANCHES[$remote]}" || \
+                { [[ $remote ]] && \
+                is_in "${branch##*/}" "${DEV_REMOTE_BRANCHES[$remote]}"; } || \
                 continue
             git rev-parse --verify -q "$remote/$branch" &>/dev/null || continue
             branches_synced "$1" "refs/heads/$branch" "refs/remotes/$remote/$branch" && continue
@@ -1234,6 +1234,7 @@ checkout() {
     in_repo branch_exists "${new_base}${br}" || \
         die "Branch $br does not exist in release $rel"
     in_repo git checkout "${new_base}${br}"
+    switch_barclamps_to "${new_base}master"
 }
 
 __build_crowbar() {
@@ -1258,6 +1259,7 @@ __build_crowbar() {
 
 build_crowbar() {
     local build_args=() b c target_os target_release exact
+    crowbar_is_clean || exit 1
     while [[ $1 ]]; do
         case $1 in
             --os) shift; target_os="$1";;
