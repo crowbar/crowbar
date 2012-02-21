@@ -492,6 +492,8 @@ do_crowbar_build() {
     "$CROWBAR_DIR/package_barclamp.sh" --destdir "$BUILD_DIR/dell/barclamps" \
         --os "$OS_TOKEN" "${BARCLAMPS[@]}"
 
+        [[ $NO_GENERATE_ISO = true ]] && return 0
+
         if [[ $ALLOW_CACHE_UPDATE != true && $CURRENT_CACHE_BRANCH ]]; then
             echo "build-cache: $(get_rev "$CACHE_DIR")" >> "$BUILD_DIR/build-info"
         fi
