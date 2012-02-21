@@ -138,17 +138,9 @@ cleanup_cmds=()
 git_managed_cache() [[ -d $CACHE_DIR/.git ]]
 
 with_build_lock() {
-    if [[ $BUILD_LOCK_TAKEN != true ]]; then
-        {
-            flock 65
-            BUILD_LOCK_TAKEN=true
-            "$@"
-        } 65>/tmp/.build_crowbar.lock
-        unset BUILD_LOCK_TAKEN
-    else
-        "$@"
-    fi
-}
+    flock -n 65 || die "Could not grab build lock!"
+    "$@"
+} 65>/tmp/.build_crowbar.lock
 
 # Get a list of all the barclamps that a specific branch refers to.
 barclamps_in_branch() {
