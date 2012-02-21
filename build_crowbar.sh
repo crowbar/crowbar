@@ -114,7 +114,7 @@ declare -A CD_POOL STAGED_POOL INSTALLED_PKGS FORCE_BARCLAMP_UPDATE
 OS_TO_STAGE="${1-ubuntu-10.10}"
 shift
 
-
+unset CROWBAR_BUILD_PID
 # Source our common build functions
 . "$CROWBAR_DIR/build_lib.sh" || exit 1
 . "$CROWBAR_DIR/test_lib.sh" || exit 1
