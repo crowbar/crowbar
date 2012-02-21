@@ -711,7 +711,7 @@ switch_barclamps_to() {
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         bc="${bc#$CROWBAR_DIR/}"
         [[ -d $bc/.git || -f $bc/.git ]] || \
-            in_repo git submodule update --init "barclamps/$bc"
+            in_repo git submodule update --init "$bc"
         ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
         if [[ ${barclamps[$bc]} ]]; then
             [[ $ref = $(in_barclamp "${bc##*/}" \
