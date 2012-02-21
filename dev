@@ -269,6 +269,17 @@ update_tracking_branches() {
     done < <(git show-ref)
 }
 
+update_all_tracking_branches() {
+    local remote bc
+    for remote in "${DEV_REMOTES[@]}"; do
+	in_repo update_tracking_branches "$remote"
+    done
+    for bc in "$CROWBAR_DIR/barclamps/"*; do
+	[[ -d $bc/.git || -f $bc/.git ]] || continue
+	(cd "$bc"; update_tracking_branches origin)
+    done
+}
+
 # Fetch (but do not merge) updates from all our remotes, in both the
 # main Crowbar repository and the barclamps.
 fetch_all() {
@@ -1278,6 +1289,7 @@ build_crowbar() {
     done
     [[ $target_os ]] || \
         die "Cannot build Crowbar, need to know what OS to stage it on!"
+    update_all_tracking_branches
     build_args+=("--skip-lock")
     with_build_lock __build_crowbar
 }
