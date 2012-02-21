@@ -191,10 +191,10 @@ git_is_clean() {
             # complain otherwise.
             '??'*) hpath=${line%% ->*}
                    hpath=${hpath#* }
-                   [[ -d $hpath && -d $hpath.git ]] && continue
-                   ret=1;;
+                   [[ -d $PWD/$hpath.git || -f $PWD/$hpath.git ]] && continue
+                   ret=1; break;;
             '') continue;;
-            *) ret=1;
+            *) ret=1; break;;
         esac
     done < <($stat_cmd)
     [[ $ret = 0 ]] && return
@@ -229,8 +229,9 @@ barclamps_are_clean() {
     local bc
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         is_barclamp "${bc##*/}" || continue
-        (cd "$bc"; git_is_clean "$@") || return 1
+        in_barclamp "${bc##*/}" git_is_clean "$@" || return 1
     done
+    return 0
 }
 
 # Test to see if all the Crowbar repositories are clean.
@@ -251,6 +252,23 @@ barclamps_from_branch() {
     sort <(barclamps_in_branch "$1") <(barclamps_in_branch "$parent") |uniq -u
 }
 
+# Update tracking branches from the named remote, or origin if no remote is passed.
+# Expects to be called within a specific repository
+update_tracking_branches() {
+    # Create tracking branches for any branches from this remote
+    # that do not already exist.
+    local remote=${1:-origin}
+    while read p br; do
+        [[ $br = refs/remotes/$remote* ]] || continue
+        br=${br#refs/remotes/$remote/}
+        [[ $br = HEAD ]] && continue
+	[[ $br = personal/* ]] && continue
+        branch_exists "$br" && continue
+	debug "Creating tracking branch $br from remote $remote"
+        git branch "$br" "$remote/$br"
+    done < <(git show-ref)
+}
+
 # Fetch (but do not merge) updates from all our remotes, in both the
 # main Crowbar repository and the barclamps.
 fetch_all() {
@@ -261,6 +279,7 @@ fetch_all() {
         debug "Fetching from remote $remote:"
         debug "    Crowbar"
         in_repo git fetch "$remote" || continue
+	in_repo update_tracking_branches "$remote"
         for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
             for barclamp in $(barclamps_from_branch \
                 "${DEV_RELEASE_PREFIX}$b"); do
@@ -273,6 +292,7 @@ fetch_all() {
                     in_barclamp "$barclamp" git fetch origin || \
                     die "Could not fetch updates for $barclamp"
                 fi
+		in_barclamp "$barclamp" update_tracking_branches origin
             done
         done
     done
@@ -391,15 +411,7 @@ setup() {
 
         in_repo git fetch "$remote" || \
             die "Unable to fetch remote references for $remote"
-        # Create tracking branches for any branches from this remote
-        # that do not already exist.
-        while read p br; do
-            [[ $br = refs/remotes/$remote* ]] || continue
-            br=${br#refs/remotes/$remote/}
-            [[ $br = HEAD ]] && continue
-            in_repo branch_exists "$br" && continue
-            git branch "$br" "$remote/$br"
-        done < <(in_repo git show-ref)
+        
         case $remote in
             origin)
                 in_repo git config crowbar.backup.$remote.method remote
@@ -414,6 +426,8 @@ setup() {
         [[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
             die "HEAD does not point at a branch, cannot finish setup."
 
+	in_repo update_tracking_branches "$remote"
+
         for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
             in_repo git checkout -q "$b" || \
                 die "Cannot checkout $b"
@@ -426,6 +440,7 @@ setup() {
                 repo="${repo##*/}"
                 repo="${repo##*:}"
                 repo="${repo%.git}"
+		in_barclamp "$bc" update_tracking_branches origin
                 if [[ $remote = origin ]]; then
                     if ! is_in "$repo" "${repos[*]}"; then
                         github_fork dellcloudedge "$repo" || \
@@ -462,7 +477,7 @@ setup() {
     [[ $head ]] && git checkout -q "${head#refs/heads/}"
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         (   cd "$bc"
-            [[ -d .git && -f crowbar.yml ]] || continue
+            [[ -d .git || -f .git ]] || continue
             git checkout -q "${DEV_RELEASE_PREFIX}master"
         )
     done
@@ -478,7 +493,7 @@ branches_synced() {
     # $1 = repository to operate in
     # $2 = local branch to test
     # $3 = remote branch to test
-    [[ -d $1/.git ]] || \
+    [[ -d $1/.git || -f $1/.git ]] || \
         die "branches_synced: $1 is not a git repo"
     [[ $VERBOSE2 ]] && echo "Checking to see if out of sync: $2 $3"
     (cd "$1"; git rev-parse --verify -q "$2" &>/dev/null) || \
