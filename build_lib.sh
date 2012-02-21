@@ -683,11 +683,11 @@ to_empty_branch() {
     if [[ -d .git ]]; then
 	git symbolic-ref HEAD refs/heads/empty-branch
 	rm -f .git/index
-	git clean -f -x -d
     elif [[ -f .git ]]; then
 	git checkout --orphan empty-branch
 	git rm -r --cached .
     fi
+    git clean -f -x -d
     echo "This branch intentionally left blank" >README.empty-branch
     git add README.empty-branch
     git commit -m "Created empty branch"
