@@ -680,9 +680,14 @@ to_empty_branch() {
         git checkout -q empty-branch
         return $?
     fi
-    git symbolic-ref HEAD refs/heads/empty-branch
-    rm -f .git/index
-    git clean -f -x -d
+    if [[ -d .git ]]; then
+	git symbolic-ref HEAD refs/heads/empty-branch
+	rm -f .git/index
+	git clean -f -x -d
+    elif [[ -f .git ]]; then
+	git checkout --orphan empty-branch
+	git rm -r --cached .
+    fi
     echo "This branch intentionally left blank" >README.empty-branch
     git add README.empty-branch
     git commit -m "Created empty branch"
@@ -705,7 +710,7 @@ switch_barclamps_to() {
     done < <(in_repo git ls-tree HEAD barclamps/)
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         bc="${bc#$CROWBAR_DIR/}"
-        [[ -d $bc/.git ]] || \
+        [[ -d $bc/.git || -f $bc/.git ]] || \
             in_repo git submodule update --init "barclamps/$bc"
         ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
         if [[ ${barclamps[$bc]} ]]; then
@@ -732,7 +737,7 @@ in_repo() ( cd "$CROWBAR_DIR"; "$@")
 # Get the head revision of a git repository.
 get_rev() (
     cd "$1"
-    if [[ -d .git ]]; then
+    if [[ -d .git || -f .git ]]; then
         git rev-parse HEAD
     else
         echo "Not a Git Repository"
