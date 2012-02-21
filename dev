@@ -1271,7 +1271,7 @@ __build_crowbar() {
             die "Could not check out submodule revisions for $target_release!"
         build_args+=("--no-cache-update" "--no-metadata-update")
     fi
-    "$CROWBAR_DIR/build_crowbar.sh" "$target_os" "${build_args[@]}"
+    exec "$CROWBAR_DIR/build_crowbar.sh" "$target_os" "${build_args[@]}"
 }
 
 build_crowbar() {
