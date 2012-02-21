@@ -1289,6 +1289,7 @@ build_crowbar() {
     done
     [[ $target_os ]] || \
         die "Cannot build Crowbar, need to know what OS to stage it on!"
+    update_all_tracking_branches
     build_args+=("--skip-lock")
     with_build_lock __build_crowbar
 }
