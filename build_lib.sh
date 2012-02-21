@@ -683,11 +683,11 @@ to_empty_branch() {
     if [[ -d .git ]]; then
 	git symbolic-ref HEAD refs/heads/empty-branch
 	rm -f .git/index
-	git clean -f -x -d
     elif [[ -f .git ]]; then
 	git checkout --orphan empty-branch
 	git rm -r --cached .
     fi
+    git clean -f -x -d
     echo "This branch intentionally left blank" >README.empty-branch
     git add README.empty-branch
     git commit -m "Created empty branch"
@@ -711,7 +711,7 @@ switch_barclamps_to() {
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         bc="${bc#$CROWBAR_DIR/}"
         [[ -d $bc/.git || -f $bc/.git ]] || \
-            in_repo git submodule update --init "barclamps/$bc"
+            in_repo git submodule update --init "$bc"
         ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
         if [[ ${barclamps[$bc]} ]]; then
             [[ $ref = $(in_barclamp "${bc##*/}" \
