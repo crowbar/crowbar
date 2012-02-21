@@ -191,7 +191,7 @@ git_is_clean() {
             # complain otherwise.
             '??'*) hpath=${line%% ->*}
                    hpath=${hpath#* }
-                   [[ -d $PWD/$hpath.git ]] && continue
+                   [[ -d $PWD/$hpath.git || -f $PWD/$hpath.git ]] && continue
                    ret=1; break;;
             '') continue;;
             *) ret=1; break;;
@@ -477,7 +477,7 @@ setup() {
     [[ $head ]] && git checkout -q "${head#refs/heads/}"
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         (   cd "$bc"
-            [[ -d .git && -f crowbar.yml ]] || continue
+            [[ -d .git || -f .git ]] || continue
             git checkout -q "${DEV_RELEASE_PREFIX}master"
         )
     done
@@ -493,7 +493,7 @@ branches_synced() {
     # $1 = repository to operate in
     # $2 = local branch to test
     # $3 = remote branch to test
-    [[ -d $1/.git ]] || \
+    [[ -d $1/.git || -f $1/.git ]] || \
         die "branches_synced: $1 is not a git repo"
     [[ $VERBOSE2 ]] && echo "Checking to see if out of sync: $2 $3"
     (cd "$1"; git rev-parse --verify -q "$2" &>/dev/null) || \
