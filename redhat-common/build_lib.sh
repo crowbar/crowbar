@@ -93,7 +93,7 @@ __barclamp_pkg_metadata_needs_update() (
     cd "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
     [[ -d repodata ]] || return 0
     while read fname; do
-        [[ $fname -nt repodata ]] && return 0
+        [[ $fname -nt . ]] && return 0
     done < <(find . -name '*.rpm' -type f)
     return 1
 )
