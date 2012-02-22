@@ -436,6 +436,8 @@ cache_rm() {
 }
 
 make_barclamp_pkg_metadata() {
+    [[ $ALLOW_CACHE_UPDATE != true && \
+        $ALLOW_CACHE_METADATA_UPDATE != true ]] && return 0
     [[ -d $CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs ]] || return 0
     __barclamp_pkg_metadata_needs_update "$1" || return 0
     [[ $ALLOW_CACHE_METADATA_UPDATE = false ]] && \
