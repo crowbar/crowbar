@@ -262,9 +262,9 @@ update_tracking_branches() {
         [[ $br = refs/remotes/$remote* ]] || continue
         br=${br#refs/remotes/$remote/}
         [[ $br = HEAD ]] && continue
-	[[ $br = personal/* ]] && continue
+        [[ $br = personal/* ]] && continue
         branch_exists "$br" && continue
-	debug "Creating tracking branch $br from remote $remote"
+        debug "Creating tracking branch $br from remote $remote"
         git branch "$br" "$remote/$br"
     done < <(git show-ref)
 }
@@ -272,11 +272,11 @@ update_tracking_branches() {
 update_all_tracking_branches() {
     local remote bc
     for remote in "${DEV_REMOTES[@]}"; do
-	in_repo update_tracking_branches "$remote"
+        in_repo update_tracking_branches "$remote"
     done
     for bc in "$CROWBAR_DIR/barclamps/"*; do
-	[[ -d $bc/.git || -f $bc/.git ]] || continue
-	(cd "$bc"; update_tracking_branches origin)
+        [[ -d $bc/.git || -f $bc/.git ]] || continue
+        (cd "$bc"; update_tracking_branches origin)
     done
 }
 
@@ -290,7 +290,7 @@ fetch_all() {
         debug "Fetching from remote $remote:"
         debug "    Crowbar"
         in_repo git fetch "$remote" || continue
-	in_repo update_tracking_branches "$remote"
+        in_repo update_tracking_branches "$remote"
         for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
             for barclamp in $(barclamps_from_branch \
                 "${DEV_RELEASE_PREFIX}$b"); do
@@ -303,7 +303,7 @@ fetch_all() {
                     in_barclamp "$barclamp" git fetch origin || \
                     die "Could not fetch updates for $barclamp"
                 fi
-		in_barclamp "$barclamp" update_tracking_branches origin
+                in_barclamp "$barclamp" update_tracking_branches origin
             done
         done
     done
@@ -422,7 +422,7 @@ setup() {
 
         in_repo git fetch "$remote" || \
             die "Unable to fetch remote references for $remote"
-        
+
         case $remote in
             origin)
                 in_repo git config crowbar.backup.$remote.method remote
@@ -437,7 +437,7 @@ setup() {
         [[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
             die "HEAD does not point at a branch, cannot finish setup."
 
-	in_repo update_tracking_branches "$remote"
+        in_repo update_tracking_branches "$remote"
 
         for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
             in_repo git checkout -q "$b" || \
@@ -451,7 +451,7 @@ setup() {
                 repo="${repo##*/}"
                 repo="${repo##*:}"
                 repo="${repo%.git}"
-		in_barclamp "$bc" update_tracking_branches origin
+                in_barclamp "$bc" update_tracking_branches origin
                 if [[ $remote = origin ]]; then
                     if ! is_in "$repo" "${repos[*]}"; then
                         github_fork dellcloudedge "$repo" || \
