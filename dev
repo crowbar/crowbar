@@ -253,7 +253,69 @@ barclamps_from_branch() {
     sort <(barclamps_in_branch "$1") <(barclamps_in_branch "$parent") |uniq -u
 }
 
-# Update tracking branches from the named remote, or origin if no remote is passed.
+# Perform an initial clone of a barclamp.  Takes care to ensure that
+# the origin remote is set appropriatly.
+clone_barclamp() {
+    # $1 = name of the barclamp
+    # $2 = name of remote to clone it from.
+    local repo remote
+    for remote in "${DEV_REMOTES[@]}"; do
+        is_in "$1" \
+            "$(barclamps_in_branch ${DEV_REMOTE_BRANCHES[$remote]})" || \
+            continue
+        in_repo git submodule init "barclamps/$1"
+        repo="$(in_repo git config --get submodule.barclamps/$1.url)"
+        repo="${repo##*/}"
+        repo="${repo##*:}"
+        repo="${repo%.git}"
+        in_repo git config "submodule.barclamps/$1.url" \
+            "${DEV_REMOTE_SOURCES[$remote]}/$repo"
+        in_repo git submodule update "barclamps/$1" || \
+            die "Could not perform initial clone of barclamp $1"
+        return
+    done
+}
+
+# Set up barclamps for the appropriate branch.  Barclamps that are not members
+# of the current branch will be checked out to an empty branch, which will be
+# created if it does not exist.
+switch_barclamps_to() {
+    # $1 = Either a branch or "submodule-ref"
+    local -A barclamps
+    local m t ref p bc
+    while read m t ref p; do
+        [[ $m = 160000 && $t = commit ]] || continue
+        if [[ $1 = submodule-ref ]]; then
+            barclamps[${p#/}]=$ref
+        else
+            barclamps[${p#/}]="$1"
+        fi
+    done < <(in_repo git ls-tree HEAD barclamps/)
+    for bc in "$CROWBAR_DIR/barclamps/"*; do
+        [[ -d $bc/.git || -f $bc/.git ]] || \
+            clone_barclamp "${bc##*/}"
+        bc="${bc#$CROWBAR_DIR/}"
+        ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
+        if [[ ${barclamps[$bc]} ]]; then
+            [[ $ref = $(in_barclamp "${bc##*/}" \
+                git rev-parse --verify -q "${barclamps[$bc]}") ]] && \
+                continue
+            debug "Barclamp ${bc##*/}: Checking out ${barclamps[$bc]}"
+            in_barclamp "${bc##*/}" git checkout -q "${barclamps[$bc]}" || \
+                die "barclamp ${bc##*/}: Could not check out ${barclamps[$bc]}"
+        else
+            [[ $(in_barclamp "${bc##*/}" git symbolic-ref HEAD) = \
+                refs/heads/empty-branch ]] && \
+                continue
+            debug "Barclamp ${bc##*/}: Checking out the empty branch."
+            in_barclamp "${bc##*/}" to_empty_branch || \
+                die "barclamp ${bc##*/}: Could not check out empty branch"
+        fi
+    done
+}
+
+# Update tracking branches from the named remote,
+# or origin if no remote is passed.
 # Expects to be called within a specific repository
 update_tracking_branches() {
     # Create tracking branches for any branches from this remote
@@ -444,16 +506,8 @@ setup() {
             in_repo git checkout -q "$b" || \
                 die "Cannot checkout $b"
             for bc in $(barclamps_from_branch "$b"); do
-                if ! in_repo git_config_has "submodule.barclamps/$bc.url"; then
-                    in_repo git submodule init "barclamps/$bc"
-                    repo="$(in_repo git config --get submodule.barclamps/$bc.url)"
-                    repo="${repo##*/}"
-                    repo="${repo##*:}"
-                    repo="${repo%.git}"
-                    in_repo git config "submodule.barclamps/$bc.url" \
-                        "${DEV_REMOTE_SOURCES[$remote]}/$repo"
-                    in_repo git submodule update "barclamps/$bc"
-                fi
+                in_repo git_config_has "submodule.barclamps/$bc.url" || \
+                    clone_barclamp "$bc"
                 repo="$(in_repo git config --get submodule.barclamps/$bc.url)"
                 repo="${repo##*/}"
                 repo="${repo##*:}"
