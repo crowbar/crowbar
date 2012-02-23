@@ -443,12 +443,18 @@ setup() {
         for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
             in_repo git checkout -q "$b" || \
                 die "Cannot checkout $b"
-            in_repo git submodule update --init || \
-                die "Cannot check out submodules for branch $b"
-            in_repo git submodule sync || \
-                die "Cannot sync origin URLs for branch $b"
             for bc in $(barclamps_from_branch "$b"); do
-                repo="$(in_barclamp "$bc" git config --get remote.origin.url)"
+                if ! in_repo git_config_has "submodule.barclamps/$bc.url"; then
+                    in_repo git submodule init "barclamps/$bc"
+                    repo="$(in_repo git config --get submodule.barclamps/$bc.url)"
+                    repo="${repo##*/}"
+                    repo="${repo##*:}"
+                    repo="${repo%.git}"
+                    in_repo git config "submodule.barclamps/$bc.url" \
+                        "${DEV_REMOTE_SOURCES[$remote]}/$repo"
+                    in_repo git submodule update "barclamps/$bc"
+                fi
+                repo="$(in_repo git config --get submodule.barclamps/$bc.url)"
                 repo="${repo##*/}"
                 repo="${repo##*:}"
                 repo="${repo%.git}"
