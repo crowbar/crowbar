@@ -124,11 +124,21 @@ parent_branch() {
 
 # Echo all of the root branches in the current release.
 root_branches() {
-    local b
-    for b in "${!DEV_BRANCHES[@]}"; do
-        [[ $b = ${DEV_BRANCHES[$b]} ]] || continue
-        in_repo branch_exists "${DEV_BRANCH_PREFIX}$b" || continue
-        echo "${DEV_BRANCH_PREFIX}$b"
+    local b release releases=() prefix
+    case $1 in
+        '') releases=("$(current_release)");;
+        '--all') releases=($(show_releases));;
+        *) is_in "$1" "$(show_releases)" || \
+            die "root_branches: $1 is not a release!"
+            releases=("$1");;
+    esac
+    for release in "${releases[@]}"; do
+        prefix="$(release_branch_prefix "$release")"
+        for b in "${!DEV_BRANCHES[@]}"; do
+            [[ $b = ${DEV_BRANCHES[$b]} ]] || continue
+            in_repo branch_exists "${prefix}$b" || continue
+            echo "${prefix}$b"
+        done
     done
     return 0
 }
@@ -143,6 +153,8 @@ ordered_branches() {
         [[ $children ]] && ordered_branches "${children[@]}"
     done
 }
+
+all_ordered_branches() { ordered_branches $(root_branches --all); }
 
 # Given a branch, print the first remote that branch is "owned" by
 remote_for_branch() {
@@ -371,9 +383,9 @@ fetch_all() {
         debug "    Crowbar"
         in_repo git fetch "$remote" || continue
         in_repo update_tracking_branches "$remote"
-        for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
-            for barclamp in $(barclamps_from_branch \
-                "${DEV_RELEASE_PREFIX}$b"); do
+        for b in $(filter_branches_for_remote "$remote" \
+            $(all_ordered_branches)); do
+            for barclamp in $(barclamps_from_branch "$b"); do
                 debug "    Barclamp $barclamp"
                 if in_barclamp "$barclamp" git_config_has 'remote.personal.url'; then
                     in_barclamp "$barclamp" \
@@ -785,7 +797,8 @@ backup_everything() {
     for remote in "${DEV_REMOTES[@]}"; do
         # Back up all the barclamps that are references as submodules for
         # branches that this remote is "authoritative" for.
-        for branch in ${DEV_REMOTE_BRANCHES[$remote]}; do
+        for branch in $(filter_branches_for_remote "$remote" \
+            $(all_ordered_branches)); do
             for bc in $(barclamps_from_branch "$branch"); do
                 is_barclamp "${bc}" || continue
                 in_barclamp "${bc}" backup_repo
