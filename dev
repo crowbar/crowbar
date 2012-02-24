@@ -258,22 +258,26 @@ barclamps_from_branch() {
 clone_barclamp() {
     # $1 = name of the barclamp
     # $2 = name of remote to clone it from.
-    local repo remote
+    local repo remote branch
     for remote in "${DEV_REMOTES[@]}"; do
-        is_in "$1" \
-            "$(barclamps_in_branch ${DEV_REMOTE_BRANCHES[$remote]})" || \
+        for branch in $(filter_branches_for_remote "$remote" \
+            $(ordered_branches)); do
+            is_in "$1" \
+                "$(barclamps_in_branch $branch)" || \
             continue
-        in_repo git submodule init "barclamps/$1"
-        repo="$(in_repo git config --get submodule.barclamps/$1.url)"
-        repo="${repo##*/}"
-        repo="${repo##*:}"
-        repo="${repo%.git}"
-        in_repo git config "submodule.barclamps/$1.url" \
-            "${DEV_REMOTE_SOURCES[$remote]}/$repo"
-        in_repo git submodule update "barclamps/$1" || \
-            die "Could not perform initial clone of barclamp $1"
-        return
+            in_repo git submodule init "barclamps/$1"
+            repo="$(in_repo git config --get submodule.barclamps/$1.url)"
+            repo="${repo##*/}"
+            repo="${repo##*:}"
+            repo="${repo%.git}"
+            in_repo git config "submodule.barclamps/$1.url" \
+                "${DEV_REMOTE_SOURCES[$remote]}/$repo"
+            in_repo git submodule update "barclamps/$1" || \
+                die "Could not perform initial clone of barclamp $1"
+            return
+        done
     done
+    die "Asked to clone $1, but could not!"
 }
 
 # Set up barclamps for the appropriate branch.  Barclamps that are not members
@@ -283,6 +287,7 @@ switch_barclamps_to() {
     # $1 = Either a branch or "submodule-ref"
     local -A barclamps
     local m t ref p bc
+    # Read barclamps that should be there.
     while read m t ref p; do
         [[ $m = 160000 && $t = commit ]] || continue
         if [[ $1 = submodule-ref ]]; then
@@ -291,6 +296,7 @@ switch_barclamps_to() {
             barclamps[${p#/}]="$1"
         fi
     done < <(in_repo git ls-tree HEAD barclamps/)
+    # Update barclamps that are there.
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         [[ -d $bc/.git || -f $bc/.git ]] || \
             clone_barclamp "${bc##*/}"
@@ -298,19 +304,30 @@ switch_barclamps_to() {
         ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
         if [[ ${barclamps[$bc]} ]]; then
             [[ $ref = $(in_barclamp "${bc##*/}" \
-                git rev-parse --verify -q "${barclamps[$bc]}") ]] && \
+                git rev-parse --verify -q "${barclamps[$bc]}") ]] && {
+                unset barclamps[$bc]
                 continue
+            }
             debug "Barclamp ${bc##*/}: Checking out ${barclamps[$bc]}"
             in_barclamp "${bc##*/}" git checkout -q "${barclamps[$bc]}" || \
                 die "barclamp ${bc##*/}: Could not check out ${barclamps[$bc]}"
         else
             [[ $(in_barclamp "${bc##*/}" git symbolic-ref HEAD) = \
-                refs/heads/empty-branch ]] && \
+                refs/heads/empty-branch ]] && {
+                unset barclamps[$bc]
                 continue
+            }
             debug "Barclamp ${bc##*/}: Checking out the empty branch."
             in_barclamp "${bc##*/}" to_empty_branch || \
                 die "barclamp ${bc##*/}: Could not check out empty branch"
         fi
+        unset barclamps[$bc]
+    done
+    # Create barclamps that are not there.
+    for bc in "${!barclamps[@]}"; do
+        [[ ${barclamps[$bc]} ]] || continue
+        clone_barclamp "${bc##*/}"
+        in_barclamp "${bc##*/}" git checkout "${barclamps[$bc]}"
     done
 }
 
