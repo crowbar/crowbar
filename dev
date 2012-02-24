@@ -355,6 +355,7 @@ update_tracking_branches() {
         br=${br#refs/remotes/$remote/}
         [[ $br = HEAD ]] && continue
         [[ $br = personal/* ]] && continue
+        [[ $br = pull-req* ]] && continue
         branch_exists "$br" && continue
         debug "Creating tracking branch $br from remote $remote"
         git branch "$br" "$remote/$br"
@@ -381,23 +382,27 @@ fetch_all() {
         in_repo git_config_has "remote.$remote.url" || continue
         debug "Fetching from remote $remote:"
         debug "    Crowbar"
-        in_repo git fetch "$remote" || continue
+        in_repo git fetch -q "$remote" || continue
         in_repo update_tracking_branches "$remote"
+        local -A touched_barclamps
         for b in $(filter_branches_for_remote "$remote" \
             $(all_ordered_branches)); do
             for barclamp in $(barclamps_from_branch "$b"); do
+                [[ ${touched_barclamps[$barclamp]} ]] && continue
                 debug "    Barclamp $barclamp"
                 if in_barclamp "$barclamp" git_config_has 'remote.personal.url'; then
                     in_barclamp "$barclamp" \
-                        git fetch --multiple origin personal || \
+                        git fetch -q --multiple origin personal || \
                     die "Could not fetch updates for $barclamp"
                 else
-                    in_barclamp "$barclamp" git fetch origin || \
+                    in_barclamp "$barclamp" git fetch -q origin || \
                     die "Could not fetch updates for $barclamp"
                 fi
                 in_barclamp "$barclamp" update_tracking_branches origin
+                touched_barclamps[$barclamp]="true"
             done
         done
+        unset touched_barclamps
     done
 }
 
@@ -497,7 +502,7 @@ setup() {
         echo "Adding remote for personal fork of crowbar on Github."
         in_repo git remote add personal \
             "$(github_url crowbar.git -p -a)"
-        in_repo git fetch personal || \
+        in_repo git fetch -q personal || \
             die "Cannot fetch repository info for your Crowbar fork on Github!"
         in_repo git remote set-head -a personal
     fi
@@ -512,7 +517,7 @@ setup() {
                 "${DEV_REMOTE_SOURCES[$remote]}/crowbar.git"
         fi
 
-        in_repo git fetch "$remote" || \
+        in_repo git fetch -q "$remote" || \
             die "Unable to fetch remote references for $remote"
 
         case $remote in
@@ -557,7 +562,7 @@ setup() {
                             git_config_has remote.personal.url; then
                             in_barclamp "$bc" git remote add personal \
                                 $(github_url "$repo" -p -a)
-                            in_barclamp "$bc" git fetch personal || \
+                            in_barclamp "$bc" git fetch -q personal || \
                                 die "Cannot fetch repository info for your fork of $repo."
                             in_barclamp "$bc" git remote set-head -a personal
                         fi
