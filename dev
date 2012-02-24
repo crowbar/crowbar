@@ -292,6 +292,8 @@ clone_barclamp() {
     die "Asked to clone $1, but could not!"
 }
 
+quiet_checkout() { git checkout -q "$@" &>/dev/null; }
+
 # Set up barclamps for the appropriate branch.  Barclamps that are not members
 # of the current branch will be checked out to an empty branch, which will be
 # created if it does not exist.
@@ -321,7 +323,7 @@ switch_barclamps_to() {
                 continue
             }
             debug "Barclamp ${bc##*/}: Checking out ${barclamps[$bc]}"
-            in_barclamp "${bc##*/}" git checkout -q "${barclamps[$bc]}" || \
+            in_barclamp "${bc##*/}" quiet_checkout "${barclamps[$bc]}" || \
                 die "barclamp ${bc##*/}: Could not check out ${barclamps[$bc]}"
         else
             [[ $(in_barclamp "${bc##*/}" git symbolic-ref HEAD) = \
@@ -542,7 +544,7 @@ setup() {
         for remote in "${DEV_REMOTES[@]}"; do
             for b in $(filter_branches_for_remote "$remote" \
                 $(ordered_branches)); do
-                in_repo git checkout -q "$b" || \
+                in_repo quiet_checkout "$b" || \
                     die "Cannot checkout $b"
                 for bc in $(barclamps_from_branch "$b"); do
                     debug "$release: $remote: $b: $bc"
@@ -588,11 +590,11 @@ setup() {
         done
     done
     [[ $head_release != $(current_release) ]] && switch_release "$head_release"
-    [[ $head ]] && git checkout -q "${head#refs/heads/}"
+    [[ $head ]] && quiet_checkout "${head#refs/heads/}"
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         (   cd "$bc"
             [[ -d .git || -f .git ]] || continue
-            git checkout -q "${DEV_RELEASE_PREFIX}master"
+            quiet_checkout "${DEV_RELEASE_PREFIX}master"
         )
     done
     in_repo git config crowbar.dev.version "$DEV_VERSION"
@@ -821,7 +823,7 @@ sync_branch_from_remote() {
     branches_synced "." "refs/heads/$2" "refs/remotes/$1/$2" && return 0
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
         head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
-    git checkout -q "$2" || die"$1: Unable to checkout $2!"
+    quiet_checkout "$2" || die"$1: Unable to checkout $2!"
     debug "$repo: Merging $1/$2 into $2"
     git merge -q "$1/$2" || {
         git merge --abort
@@ -837,7 +839,7 @@ sync_branch_from_personal() {
     branches_synced "." "$personal" "refs/heads/$2" && return 0
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
         head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
-    git checkout -q "$2" || die"$1: Unable to checkout $2!"
+    quiet_checkout "$2" || die"$1: Unable to checkout $2!"
     git merge -q "$personal" || {
         git merge --abort
         die "$repo: Unable to merge $1/$2 into $2, aborted"
@@ -869,7 +871,7 @@ sync_repo() (
     done < <(git show-ref --heads)
     if [[ $(git rev-parse --verify -q HEAD) != \
         $(git rev-parse --verify -q $head) ]]; then
-        git checkout -q "${head#refs/heads/}"
+        quiet_checkout "${head#refs/heads/}"
     fi
 )
 
@@ -886,7 +888,7 @@ ripple_changes_out() {
             die "ripple_changes_out: $child is not a branch in Crowbar!"
         branches_synced "$CROWBAR_DIR" "refs/heads/$child" "refs/heads/$parent" && continue
         [[ $(in_repo git symbolic-ref HEAD) = refs/heads/$child ]] || \
-            in_repo git checkout -q "$child"
+            in_repo quiet_checkout "$child"
         debug "Merging $parent into $child"
         in_repo git merge -q "$parent" || \
             die "Merge $parent into $child branch of Crowbar failed."
@@ -920,7 +922,7 @@ sync_everything() {
     done
     if [[ $(git rev-parse --verify -q HEAD) != \
         $(git rev-parse --verify -q $head) ]]; then
-        git checkout -q "${head#refs/heads/}"
+        quiet_checkout "${head#refs/heads/}"
     fi
     if [[ $unsynced_barclamps ]]; then
         echo "Unable to sync origin with current master in:" >&2
@@ -1160,7 +1162,7 @@ pull_requests_gen() {
         local parent="$(parent_branch "$br")"
         if [[ $parent && ${refs[$parent]} ]]; then
             refs["$br"]="$(in_repo git rev-parse --verify -q "refs/heads/$br")"
-            in_repo git checkout -q "$br"
+            in_repo quiet_checkout "$br"
             in_repo git merge -q "$parent"
         fi
         for bc in $(barclamps_from_branch "$br"); do
@@ -1178,7 +1180,7 @@ pull_requests_gen() {
                     die "pull-requests-gen: Crowbar not on a branch!"
                 if ! [[ $(in_repo git symbolic-ref HEAD) = "refs/heads/$br" ]]
                 then
-                    in_repo git checkout -q "$br" || \
+                    in_repo quiet_checkout "$br" || \
                     die "pull-requests-gen: Could not checkout $br"
                 fi
                 refs["$br"]="$(in_repo git rev-parse --verify -q "refs/heads/$br")"
@@ -1225,11 +1227,11 @@ pull_requests_gen() {
             --body "$(in_repo diffstat_from_origin "$br")"
         n=$(($n + 1))
         if [[ ${refs["$br"]} ]]; then
-            in_repo git checkout -q "$br"
+            in_repo quiet_checkout "$br"
             in_repo git reset --hard "${refs[$br]}"
         fi
     done
-    [[ $head ]] && in_repo git checkout -q "${head#refs/heads/}"
+    [[ $head ]] && in_repo quiet_checkout "${head#refs/heads/}"
     rm -f "$body"
 }
 
@@ -1364,13 +1366,13 @@ switch_release() {
             echo "$rel does not have branch $current_branch, will checkout master instead."
         current_branch=master
     }
-    in_repo git checkout -q "${new_base}master"
+    in_repo quiet_checkout "${new_base}master"
     checkout "${current_branch}"
     if git_managed_cache && [[ $switch_include_cache ]]; then
         in_cache update_tracking_branches
         if in_cache branch_exists "${new_base}master"; then
             debug "Checking out ${new_base}master in the build cache, please be patient."
-            in_cache git checkout -qf "${new_base}master"
+            in_cache quiet_checkout -f "${new_base}master"
         fi
     fi
     DEV_BRANCH_PREFIX="$new_base"
