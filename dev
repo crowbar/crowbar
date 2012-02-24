@@ -435,7 +435,7 @@ git_config_has() { git config --get "$1" &>/dev/null; }
 # Perform initial setup.  If you make any changes to this function, take
 # care to make sure it stays idempotent.
 setup() {
-    local p remote br head
+    local p remote release br head
     local -A touched_branches
     crowbar_is_clean &>/dev/null || \
         die "Crowbar repo must be clean before trying to set things up!"
@@ -518,51 +518,59 @@ setup() {
             die "HEAD does not point at a branch, cannot finish setup."
 
         in_repo update_tracking_branches "$remote"
-
-        for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
-            in_repo git checkout -q "$b" || \
-                die "Cannot checkout $b"
-            for bc in $(barclamps_from_branch "$b"); do
-                in_repo git_config_has "submodule.barclamps/$bc.url" || \
-                    clone_barclamp "$bc"
-                repo="$(in_repo git config --get submodule.barclamps/$bc.url)"
-                repo="${repo##*/}"
-                repo="${repo##*:}"
-                repo="${repo%.git}"
-                in_barclamp "$bc" update_tracking_branches origin
-                if [[ $remote = origin ]]; then
-                    if ! is_in "$repo" "${repos[*]}"; then
-                        github_fork dellcloudedge "$repo" || \
-                            die "Could not create a personal fork of $repo"
+    done
+    head_release="$(current_release)"
+    for release in $(show_releases); do
+        switch_release "$release"
+        for remote in "${DEV_REMOTES[@]}"; do
+            for b in $(filter_branches_for_remote "$remote" \
+                $(ordered_branches)); do
+                in_repo git checkout -q "$b" || \
+                    die "Cannot checkout $b"
+                for bc in $(barclamps_from_branch "$b"); do
+                    debug "$release: $remote: $b: $bc"
+                    in_repo git_config_has "submodule.barclamps/$bc.url" || \
+                        clone_barclamp "$bc"
+                    repo="$(in_repo git config --get submodule.barclamps/$bc.url)"
+                    repo="${repo##*/}"
+                    repo="${repo##*:}"
+                    repo="${repo%.git}"
+                    in_barclamp "$bc" update_tracking_branches origin
+                    if [[ $remote = origin ]]; then
+                        if ! is_in "$repo" "${repos[*]}"; then
+                            github_fork dellcloudedge "$repo" || \
+                                die "Could not create a personal fork of $repo"
+                        fi
+                        if ! in_barclamp "$bc" \
+                            git_config_has remote.personal.url; then
+                            in_barclamp "$bc" git remote add personal \
+                                $(github_url "$repo" -p -a)
+                            in_barclamp "$bc" git fetch personal || \
+                                die "Cannot fetch repository info for your fork of $repo."
+                            in_barclamp "$bc" git remote set-head -a personal
+                        fi
+                        if ! in_barclamp "$bc" \
+                            git_config_has remote.origin.pushurl; then
+                            in_barclamp "$bc" git remote set-url --push origin \
+                                "$(github_url $repo -a)"
+                        fi
+                        in_barclamp "$bc" git config \
+                            crowbar.backup.origin.method remote
+                        in_barclamp "$bc" git config \
+                            crowbar.backup.origin.remote personal
+                    else
+                        in_barclamp "$bc" git config \
+                            crowbar.backup.origin.method prefix
+                        in_barclamp "$bc" \
+                            git config crowbar.backup.origin.prefix \
+                            "personal/$DEV_GITHUB_ID"
                     fi
-                    if ! in_barclamp "$bc" \
-                        git_config_has remote.personal.url; then
-                        in_barclamp "$bc" git remote add personal \
-                            $(github_url "$repo" -p -a)
-                        in_barclamp "$bc" git fetch personal || \
-                            die "Cannot fetch repository info for your fork of $repo."
-                        in_barclamp "$bc" git remote set-head -a personal
-                    fi
-                    if ! in_barclamp "$bc" \
-                        git_config_has remote.origin.pushurl; then
-                        in_barclamp "$bc" git remote set-url --push origin \
-                            "$(github_url $repo -a)"
-                    fi
-                    in_barclamp "$bc" git config \
-                        crowbar.backup.origin.method remote
-                    in_barclamp "$bc" git config \
-                        crowbar.backup.origin.remote personal
-                else
-                    in_barclamp "$bc" git config \
-                        crowbar.backup.origin.method prefix
-                    in_barclamp "$bc" \
-                        git config crowbar.backup.origin.prefix \
-                        "personal/$DEV_GITHUB_ID"
-                fi
-                in_barclamp "$bc" git config branch.autosetupmerge true
+                    in_barclamp "$bc" git config branch.autosetupmerge true
+                done
             done
         done
     done
+    [[ $head_release != $(current_release) ]] && switch_release "$head_release"
     [[ $head ]] && git checkout -q "${head#refs/heads/}"
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         (   cd "$bc"
@@ -1325,6 +1333,7 @@ switch_release() {
             in_cache git checkout -qf "${new_base}master"
         fi
     fi
+    DEV_BRANCH_PREFIX="$new_base"
 }
 
 checkout() {
