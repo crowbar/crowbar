@@ -814,19 +814,46 @@ backup_everything() {
     done
 }
 
+sync_branch_from_remote() {
+    # $1 = remote
+    # $2 = local branch
+    git rev-parse --verify -q "$1/$2" &>/dev/null || return 0
+    branches_synced "." "refs/heads/$2" "refs/remotes/$1/$2" && return 0
+    [[ $head ]] || head=$(git symbolic-ref HEAD) || \
+        head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
+    git checkout -q "$2" || die"$1: Unable to checkout $2!"
+    debug "$repo: Merging $1/$2 into $2"
+    git merge -q "$1/$2" || {
+        git merge --abort
+        die "$repo: Unable to merge $1/$2 into $2, aborted"
+    }
+}
+
+sync_branch_from_personal() {
+    # $1 = remote
+    # $2 = local branch
+    local personal="refs/remotes/$1/personal/$DEV_GITHUB_ID/$2"
+    git rev-parse --verify -q "$personal"&>/dev/null || return 0
+    branches_synced "." "$personal" "refs/heads/$2" && return 0
+    [[ $head ]] || head=$(git symbolic-ref HEAD) || \
+        head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
+    git checkout -q "$2" || die"$1: Unable to checkout $2!"
+    git merge -q "$personal" || {
+        git merge --abort
+        die "$repo: Unable to merge $1/$2 into $2, aborted"
+    }
+}
+
 # Merges in changes into all local branches from their upstreams.
 # Assumes that upstream commits have already been fetched from the proper
 # remotes by running dev fetch.
 sync_repo() (
-    local branch head b bc remote ref
+    local branch head b bc remote ref personal repo="$1"
     # $1 = dir to CD to initially.
     # Assumes that remote has already been fetched.
     cd "$1"
     # Repo is not clean, we will refuse to merge in any case.
-    git_is_clean || {
-        echo "$1 is not clean." >&2
-        return 1
-    }
+    git_is_clean || die "$1 is not clean."
     # Merge upstream branches from all remotes, but only if the branch
     # is listed in DEV_REMOTE_BRANCHES for that remote,
     # unless $remote is actually "origin"
@@ -834,35 +861,15 @@ sync_repo() (
         branch=${branch#refs/heads/}
         for remote in "${!DEV_REMOTE_BRANCHES[@]}" personal; do
             git_config_has "remote.$remote.url" || continue
-            remote=$(git config branch.${branch}.remote)
-            [[ $remote = origin || $remote = personal ]] || \
-                { [[ $remote ]] && \
-                is_in "${branch##*/}" "${DEV_REMOTE_BRANCHES[$remote]}"; } || \
-                continue
-            git rev-parse --verify -q "$remote/$branch" &>/dev/null || continue
-            branches_synced "$1" "refs/heads/$branch" "refs/remotes/$remote/$branch" && continue
-            [[ $head ]] || head=$(git symbolic-ref HEAD) || {
-            # Oh, boy, we are in detached HEAD.
-            # Die with a possibly-helpful error message.
-                echo "$1 has had commits to a detached HEAD." >&2
-                echo "git submodule update probably left it in this state." >&2
-                echo "It should probably be on ${DEV_BRANCH_PREFIX}master, but you need to fix it."
-                return 1
-            }
-            debug "Checking out $branch"
-            git checkout -q "$branch" || {
-                echo "$bc: Unable to checkout $branch!" >&2
-                return 1
-            }
-            debug "Merging $remote/$branch into $branch"
-            git merge -q "$remote/$branch" || {
-                echo "$1: Unable to merge $remote/$branch into $branch, will unwind." >&2
-                git reset --hard
-                return 1
-            }
+            sync_branch_from_remote "$remote" "$branch"
+            sync_branch_from_personal "$remote" "$branch"
         done
     done < <(git show-ref --heads)
-    if [[ $head ]]; then git checkout -q "${head#refs/heads/}"; fi
+    case $head in
+        refs/heads/*) git checkout -q "${head#refs/heads/}";;
+        '') : ;;
+        *) git checkout -q "${head}";;
+    esac
 )
 
 # Recursivly merge all changes from a given branch into its children, if any.
@@ -988,6 +995,19 @@ Command line options:
   checkout -- Change branch but stays in the release context if possible.
               Checkout will ensure that any barclamps that are ont being used
               by the new branch are set to an empty branch.
+
+  build -- Set up the local trees and build a crowbar ISO.  Parameters:
+           --os = operating system to stage Crowbar on to.
+           --release = Release of Crowbar to build.
+           --branch = Branch withina release of Crowbar to build
+           --exact = If present, dev will run git submodule update after 
+                     processing the --release and --branch options, and the
+                     --no-cache-update and --no-metadata-update parameters will
+                     be passed to build_crowbar.sh.
+                     If not present, the submodules will be checked out to the
+                     appropriate master branch for the release.
+           Any other parameters will be passed unchanged to build_crowbar.sh.
+           See README.build for more information on building Crowbar.
 
   cut_release -- DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING! Makes a new set
                  of branches and barclamp branches from the current release into
