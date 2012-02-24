@@ -384,9 +384,11 @@ fetch_all() {
         debug "    Crowbar"
         in_repo git fetch -q "$remote" || continue
         in_repo update_tracking_branches "$remote"
+        local -A touched_barclamps
         for b in $(filter_branches_for_remote "$remote" \
             $(all_ordered_branches)); do
             for barclamp in $(barclamps_from_branch "$b"); do
+                [[ ${touched_barclamps[$barclamp]} ]] && continue
                 debug "    Barclamp $barclamp"
                 if in_barclamp "$barclamp" git_config_has 'remote.personal.url'; then
                     in_barclamp "$barclamp" \
@@ -397,8 +399,10 @@ fetch_all() {
                     die "Could not fetch updates for $barclamp"
                 fi
                 in_barclamp "$barclamp" update_tracking_branches origin
+                touched_barclamps[$barclamp]="true"
             done
         done
+        unset touched_barclamps
     done
 }
 
