@@ -124,11 +124,21 @@ parent_branch() {
 
 # Echo all of the root branches in the current release.
 root_branches() {
-    local b
-    for b in "${!DEV_BRANCHES[@]}"; do
-        [[ $b = ${DEV_BRANCHES[$b]} ]] || continue
-        in_repo branch_exists "${DEV_BRANCH_PREFIX}$b" || continue
-        echo "${DEV_BRANCH_PREFIX}$b"
+    local b release releases=() prefix
+    case $1 in
+        '') releases=("$(current_release)");;
+        '--all') releases=($(show_releases));;
+        *) is_in "$1" "$(show_releases)" || \
+            die "root_branches: $1 is not a release!"
+            releases=("$1");;
+    esac
+    for release in "${releases[@]}"; do
+        prefix="$(release_branch_prefix "$release")"
+        for b in "${!DEV_BRANCHES[@]}"; do
+            [[ $b = ${DEV_BRANCHES[$b]} ]] || continue
+            in_repo branch_exists "${prefix}$b" || continue
+            echo "${prefix}$b"
+        done
     done
     return 0
 }
@@ -143,6 +153,8 @@ ordered_branches() {
         [[ $children ]] && ordered_branches "${children[@]}"
     done
 }
+
+all_ordered_branches() { ordered_branches $(root_branches --all); }
 
 # Given a branch, print the first remote that branch is "owned" by
 remote_for_branch() {
@@ -343,6 +355,7 @@ update_tracking_branches() {
         br=${br#refs/remotes/$remote/}
         [[ $br = HEAD ]] && continue
         [[ $br = personal/* ]] && continue
+        [[ $br = pull-req* ]] && continue
         branch_exists "$br" && continue
         debug "Creating tracking branch $br from remote $remote"
         git branch "$br" "$remote/$br"
@@ -369,23 +382,27 @@ fetch_all() {
         in_repo git_config_has "remote.$remote.url" || continue
         debug "Fetching from remote $remote:"
         debug "    Crowbar"
-        in_repo git fetch "$remote" || continue
+        in_repo git fetch -q "$remote" || continue
         in_repo update_tracking_branches "$remote"
-        for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
-            for barclamp in $(barclamps_from_branch \
-                "${DEV_RELEASE_PREFIX}$b"); do
+        local -A touched_barclamps
+        for b in $(filter_branches_for_remote "$remote" \
+            $(all_ordered_branches)); do
+            for barclamp in $(barclamps_from_branch "$b"); do
+                [[ ${touched_barclamps[$barclamp]} ]] && continue
                 debug "    Barclamp $barclamp"
                 if in_barclamp "$barclamp" git_config_has 'remote.personal.url'; then
                     in_barclamp "$barclamp" \
-                        git fetch --multiple origin personal || \
+                        git fetch -q --multiple origin personal || \
                     die "Could not fetch updates for $barclamp"
                 else
-                    in_barclamp "$barclamp" git fetch origin || \
+                    in_barclamp "$barclamp" git fetch -q origin || \
                     die "Could not fetch updates for $barclamp"
                 fi
                 in_barclamp "$barclamp" update_tracking_branches origin
+                touched_barclamps[$barclamp]="true"
             done
         done
+        unset touched_barclamps
     done
 }
 
@@ -435,7 +452,7 @@ git_config_has() { git config --get "$1" &>/dev/null; }
 # Perform initial setup.  If you make any changes to this function, take
 # care to make sure it stays idempotent.
 setup() {
-    local p remote br head
+    local p remote release br head
     local -A touched_branches
     crowbar_is_clean &>/dev/null || \
         die "Crowbar repo must be clean before trying to set things up!"
@@ -485,7 +502,7 @@ setup() {
         echo "Adding remote for personal fork of crowbar on Github."
         in_repo git remote add personal \
             "$(github_url crowbar.git -p -a)"
-        in_repo git fetch personal || \
+        in_repo git fetch -q personal || \
             die "Cannot fetch repository info for your Crowbar fork on Github!"
         in_repo git remote set-head -a personal
     fi
@@ -500,7 +517,7 @@ setup() {
                 "${DEV_REMOTE_SOURCES[$remote]}/crowbar.git"
         fi
 
-        in_repo git fetch "$remote" || \
+        in_repo git fetch -q "$remote" || \
             die "Unable to fetch remote references for $remote"
 
         case $remote in
@@ -518,51 +535,59 @@ setup() {
             die "HEAD does not point at a branch, cannot finish setup."
 
         in_repo update_tracking_branches "$remote"
-
-        for b in ${DEV_REMOTE_BRANCHES[$remote]}; do
-            in_repo git checkout -q "$b" || \
-                die "Cannot checkout $b"
-            for bc in $(barclamps_from_branch "$b"); do
-                in_repo git_config_has "submodule.barclamps/$bc.url" || \
-                    clone_barclamp "$bc"
-                repo="$(in_repo git config --get submodule.barclamps/$bc.url)"
-                repo="${repo##*/}"
-                repo="${repo##*:}"
-                repo="${repo%.git}"
-                in_barclamp "$bc" update_tracking_branches origin
-                if [[ $remote = origin ]]; then
-                    if ! is_in "$repo" "${repos[*]}"; then
-                        github_fork dellcloudedge "$repo" || \
-                            die "Could not create a personal fork of $repo"
+    done
+    head_release="$(current_release)"
+    for release in $(show_releases); do
+        switch_release "$release"
+        for remote in "${DEV_REMOTES[@]}"; do
+            for b in $(filter_branches_for_remote "$remote" \
+                $(ordered_branches)); do
+                in_repo git checkout -q "$b" || \
+                    die "Cannot checkout $b"
+                for bc in $(barclamps_from_branch "$b"); do
+                    debug "$release: $remote: $b: $bc"
+                    in_repo git_config_has "submodule.barclamps/$bc.url" || \
+                        clone_barclamp "$bc"
+                    repo="$(in_repo git config --get submodule.barclamps/$bc.url)"
+                    repo="${repo##*/}"
+                    repo="${repo##*:}"
+                    repo="${repo%.git}"
+                    in_barclamp "$bc" update_tracking_branches origin
+                    if [[ $remote = origin ]]; then
+                        if ! is_in "$repo" "${repos[*]}"; then
+                            github_fork dellcloudedge "$repo" || \
+                                die "Could not create a personal fork of $repo"
+                        fi
+                        if ! in_barclamp "$bc" \
+                            git_config_has remote.personal.url; then
+                            in_barclamp "$bc" git remote add personal \
+                                $(github_url "$repo" -p -a)
+                            in_barclamp "$bc" git fetch -q personal || \
+                                die "Cannot fetch repository info for your fork of $repo."
+                            in_barclamp "$bc" git remote set-head -a personal
+                        fi
+                        if ! in_barclamp "$bc" \
+                            git_config_has remote.origin.pushurl; then
+                            in_barclamp "$bc" git remote set-url --push origin \
+                                "$(github_url $repo -a)"
+                        fi
+                        in_barclamp "$bc" git config \
+                            crowbar.backup.origin.method remote
+                        in_barclamp "$bc" git config \
+                            crowbar.backup.origin.remote personal
+                    else
+                        in_barclamp "$bc" git config \
+                            crowbar.backup.origin.method prefix
+                        in_barclamp "$bc" \
+                            git config crowbar.backup.origin.prefix \
+                            "personal/$DEV_GITHUB_ID"
                     fi
-                    if ! in_barclamp "$bc" \
-                        git_config_has remote.personal.url; then
-                        in_barclamp "$bc" git remote add personal \
-                            $(github_url "$repo" -p -a)
-                        in_barclamp "$bc" git fetch personal || \
-                            die "Cannot fetch repository info for your fork of $repo."
-                        in_barclamp "$bc" git remote set-head -a personal
-                    fi
-                    if ! in_barclamp "$bc" \
-                        git_config_has remote.origin.pushurl; then
-                        in_barclamp "$bc" git remote set-url --push origin \
-                            "$(github_url $repo -a)"
-                    fi
-                    in_barclamp "$bc" git config \
-                        crowbar.backup.origin.method remote
-                    in_barclamp "$bc" git config \
-                        crowbar.backup.origin.remote personal
-                else
-                    in_barclamp "$bc" git config \
-                        crowbar.backup.origin.method prefix
-                    in_barclamp "$bc" \
-                        git config crowbar.backup.origin.prefix \
-                        "personal/$DEV_GITHUB_ID"
-                fi
-                in_barclamp "$bc" git config branch.autosetupmerge true
+                    in_barclamp "$bc" git config branch.autosetupmerge true
+                done
             done
         done
     done
+    [[ $head_release != $(current_release) ]] && switch_release "$head_release"
     [[ $head ]] && git checkout -q "${head#refs/heads/}"
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         (   cd "$bc"
@@ -777,7 +802,8 @@ backup_everything() {
     for remote in "${DEV_REMOTES[@]}"; do
         # Back up all the barclamps that are references as submodules for
         # branches that this remote is "authoritative" for.
-        for branch in ${DEV_REMOTE_BRANCHES[$remote]}; do
+        for branch in $(filter_branches_for_remote "$remote" \
+            $(all_ordered_branches)); do
             for bc in $(barclamps_from_branch "$branch"); do
                 is_barclamp "${bc}" || continue
                 in_barclamp "${bc}" backup_repo
@@ -1318,13 +1344,14 @@ switch_release() {
     }
     in_repo git checkout -q "${new_base}master"
     checkout "${current_branch}"
-    if git_managed_cache; then
+    if git_managed_cache && [[ $switch_include_cache ]]; then
         in_cache update_tracking_branches
         if in_cache branch_exists "${new_base}master"; then
             debug "Checking out ${new_base}master in the build cache, please be patient."
             in_cache git checkout -qf "${new_base}master"
         fi
     fi
+    DEV_BRANCH_PREFIX="$new_base"
 }
 
 checkout() {
@@ -1361,6 +1388,7 @@ __build_crowbar() {
 
 build_crowbar() {
     local build_args=() b c target_os target_release exact
+    local switch_include_cache=true
     crowbar_is_clean || exit 1
     while [[ $1 ]]; do
         case $1 in
