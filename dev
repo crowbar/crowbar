@@ -989,6 +989,19 @@ Command line options:
               Checkout will ensure that any barclamps that are ont being used
               by the new branch are set to an empty branch.
 
+  build -- Set up the local trees and build a crowbar ISO.  Parameters:
+           --os = operating system to stage Crowbar on to.
+           --release = Release of Crowbar to build.
+           --branch = Branch withina release of Crowbar to build
+           --exact = If present, dev will run git submodule update after 
+                     processing the --release and --branch options, and the
+                     --no-cache-update and --no-metadata-update parameters will
+                     be passed to build_crowbar.sh.
+                     If not present, the submodules will be checked out to the
+                     appropriate master branch for the release.
+           Any other parameters will be passed unchanged to build_crowbar.sh.
+           See README.build for more information on building Crowbar.
+
   cut_release -- DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING! Makes a new set
                  of branches and barclamp branches from the current release into
                  the new named release.  Must provide a unique new name.
