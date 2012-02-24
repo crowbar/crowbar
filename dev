@@ -355,6 +355,7 @@ update_tracking_branches() {
         br=${br#refs/remotes/$remote/}
         [[ $br = HEAD ]] && continue
         [[ $br = personal/* ]] && continue
+        [[ $br = pull-req* ]] && continue
         branch_exists "$br" && continue
         debug "Creating tracking branch $br from remote $remote"
         git branch "$br" "$remote/$br"
