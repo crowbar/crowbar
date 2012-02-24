@@ -292,7 +292,13 @@ clone_barclamp() {
     die "Asked to clone $1, but could not!"
 }
 
-quiet_checkout() { git checkout -q "$@" &>/dev/null; }
+quiet_checkout() {
+    local res=''
+    if ! res=$(git checkout -q "$@" 2>&1); then
+        echo "$res" >&2
+        return 1
+    fi
+}
 
 # Set up barclamps for the appropriate branch.  Barclamps that are not members
 # of the current branch will be checked out to an empty branch, which will be
