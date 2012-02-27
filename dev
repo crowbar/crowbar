@@ -327,14 +327,14 @@ show_github_repos() {
 switch_barclamps_to() {
     # $1 = Either a branch or "submodule-ref"
     local -A barclamps
-    local m t ref p bc
+    local m t ref p bc head
     # Read barclamps that should be there.
     while read m t ref p; do
         [[ $m = 160000 && $t = commit ]] || continue
         if [[ $1 = submodule-ref ]]; then
             barclamps[${p#/}]=$ref
         else
-            barclamps[${p#/}]="$1"
+            barclamps[${p#/}]="refs/heads/$1"
         fi
     done < <(in_repo git ls-tree HEAD barclamps/)
     # Update barclamps that are there.
@@ -342,26 +342,34 @@ switch_barclamps_to() {
         [[ -d $bc/.git || -f $bc/.git ]] || \
             clone_barclamp "${bc##*/}"
         bc="${bc#$CROWBAR_DIR/}"
-        ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
-        if [[ ${barclamps[$bc]} ]]; then
+        if [[ ${barclamps[$bc]} && ${barclamps[$bc]} = refs/heads/* ]]; then
+            head=$(in_barclamp "${bc##*/}" git symbolic-ref HEAD)
+            [[ $head = ${barclamps[$bc]} ]] && {
+                unset barclamps[$bc]
+                continue
+            }
+            barclamps[$bc]="${barclamps[$bc]#refs/heads/}"
+        elif [[ ${barclamps[$bc]} ]]; then
+            ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
             [[ $ref = $(in_barclamp "${bc##*/}" \
                 git rev-parse --verify -q "${barclamps[$bc]}") ]] && {
                 unset barclamps[$bc]
                 continue
             }
-            debug "Barclamp ${bc##*/}: Checking out ${barclamps[$bc]}"
-            in_barclamp "${bc##*/}" quiet_checkout "${barclamps[$bc]}" || \
-                die "barclamp ${bc##*/}: Could not check out ${barclamps[$bc]}"
         else
             [[ $(in_barclamp "${bc##*/}" git symbolic-ref HEAD) = \
                 refs/heads/empty-branch ]] && {
                 unset barclamps[$bc]
                 continue
             }
-            debug "Barclamp ${bc##*/}: Checking out the empty branch."
-            in_barclamp "${bc##*/}" to_empty_branch || \
-                die "barclamp ${bc##*/}: Could not check out empty branch"
+            barclamps[$bc]="the empty branch"
         fi
+        debug "Barclamp ${bc##*/}: Checking out ${barclamps[$bc]}"
+        case ${barclamps[$bc]} in
+            'the empty branch') in_barclamp "${bc##*/}" to_empty_branch;;
+            '') continue;;
+            *) in_barclamp "${bc##*/}" quiet_checkout "${barclamps[$bc]}";;
+        esac || die "barclamp ${bc##*/}: Could not check out ${barclamps[$bc]}"
         unset barclamps[$bc]
     done
     # Create barclamps that are not there.
@@ -1475,7 +1483,8 @@ case $1 in
     help) dev_help;;
     release) current_release;;
     releases) show_releases;;
-    cut_release|new-feature) shift; cut_release "$@";;
+    cut_release) shift; cut_release "$@";;
+    new-feature) shift; cut_release "feature/$1";;
     switch) shift; switch_release "$@";;
     branches) shift; branches_in_release "$@";;
     checkout) shift; checkout "$@";;
