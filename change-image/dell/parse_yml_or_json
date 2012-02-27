@@ -8,6 +8,10 @@ unless ARGV[0]
   STDERR.puts "First argument must be a file name or '-' !"
   exit 1
 end
+unless ARGV[1]
+  STDERR.puts "Second argument must be the name of the hash"
+  exit 1
+end
 tree = nil
 if ARGV[0] == '-'
   tree = JSON.parse STDIN.read
@@ -24,46 +28,30 @@ else
   STDERR.puts "#{ARGV[0]} does not exist!"
 end
 
-ARGV[1..-1].each do |key|
-  keyout=key.gsub(/[^a-zA-Z0-9_]/,'_')
-  if tree.kind_of? Array
-    puts "unset #{keyout}; declare -a #{keyout}"
-    tree.each_index do |i|
-      t = tree[i]
-      key.split('.').each do |k|
-        exit 1 unless t and t[k]
-        t = t[k]
-      end
-      case
-      when t.kind_of?(Array)
-        STDERR.puts "Cannot handle arrays of arrays in bash!"
-        exit 1
-      when t.kind_of?(NilClass) then next
-      when t.kind_of?(Hash)
-        STDERR.puts "Cannot print #{key} in a format that bash will understand!"
-        exit 1
-      else
-        puts "#{keyout}[#{i}]=\"#{t.to_s}\""
-      end
-    end
-  else 
-    t = tree
-    key.split('.').each do |k|
-      exit 1 unless t and t[k]
-      t = t[k]
-    end
-    case 
-    when t.kind_of?(Array)
-      puts "unset #{keyout}; declare -a #{keyout}"
-      t.each_index do |i|
-        puts "#{keyout}[#{i}]=\"#{t[i].to_s}\""
-      end
-    when t.kind_of?(NilClass) then next
-    when t.kind_of?(Hash)
-      STDERR.puts "Cannot print #{key} in a format that bash will understand!"
-      exit 1
-    else
-      puts "unset #{keyout}; #{keyout}=\"#{t.to_s}\""
-    end
+def walk (t, res, key)
+  if t.respond_to? :keys
+    indexes=t.keys
+  elsif t.kind_of? Array
+    indexes=[]
+    t.each_index {|i| indexes.push i}
+  else
+    STDERR.puts "walk was passed something that was not an array or a hash!"
+    exit 1
   end
+  indexes.each { |i|
+    if key.length == 0
+      k="#{i}"
+    else
+      k="#{key}.#{i}"
+    end
+    if t[i].kind_of? Array or t[i].kind_of? Hash
+      walk(t[i],res,k)
+    elsif t[i].kind_of? NilClass
+      next
+    else
+      puts "#{res}['#{k}']='#{t[i]}'"
+    end
+  }
 end
+
+walk(tree,ARGV[1], '')
