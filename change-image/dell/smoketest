@@ -39,11 +39,12 @@ is_barclamp() { [[ -f /opt/dell/barclamps/$1/crowbar.yml ]]; }
 
 find_group_members() {
     group=${1#@}
+    local -A res
     is_in "$group" "${found_groups[@]}" && return
     for bc in /opt/dell/barclamps/*; do
 	is_barclamp "${bc##*/}" || continue
-	eval $(parse_yml_or_json "$bc/crowbar.yml" barclamp.member)
-	[[ $barclamp_member ]] || continue
+	eval $(parse_yml_or_json "$bc/crowbar.yml" res)
+	[[ ${res['barclamp.member']} ]] || continue
 	is_in "$group" "${barclamp_member[@]}" || continue
 	echo ${bc##*/}
     done
@@ -63,14 +64,18 @@ barclamp_group_expand() {
 __barclamp_deps() {
     # If we are already in $res, then we don't need to be discovered again.
     is_in "$1" "${res[@]}" && return 0
-    local bc
+    local bc key
+    local -A res
     unset barclamp_requires smoketest_requires
     is_barclamp "$1" || return 1
-    eval $(parse_yml_or_json "/opt/dell/barclamps/$1/crowbar.yml" \
+    eval $(parse_yml_or_json "/opt/dell/barclamps/$1/crowbar.yml" res)
 	barclamp.requires smoketest.requires)
-    if [[ $barclamp_requires || $smoketest_requires ]]; then
-	local bc_array=($(barclamp_group_expand "${barclamp_requires[@]}" \
-	    "${smoketest_requires[@]}"))
+    if [[ ${res['barclamp.requires']} || ${res['smoketest.requires']} ]]; then
+        local -a bc_array
+        for key in "${!res[@]}"; do
+            [[ $key =~ ^(barclamp|smoketest)\.requires\. ]] || continue
+            bc_array=($(barclamp_group_expand "${res[$key]}"))
+        done
 	for bc in "${bc_array[@]}"; do
 	    __barclamp_deps "$bc"
 	done
@@ -203,11 +208,11 @@ for bc in $(barclamp_deps "$1"); do
 	deploy_barclamp "$bc" || exit 1
     fi
     if [[ -d $bc_dir/smoketest ]]; then
-	unset smoketest_timeout
-	eval $(parse_yml_or_json $bc_dir/crowbar.yml \
-	    smoketest.timeout)
+	declare -A res
+	eval $(parse_yml_or_json $bc_dir/crowbar.yml res)
+        smoketest_timeout="${res[smoketest.timeout]:-300}"
 	run_hooks "$bc" "$bc_dir/smoketest" \
-	    "${smoketest_timeout:-300}" test 2>&1 | \
+	    "${smoketest_timeout}" test 2>&1 | \
 	    tee "$LOGDIR/$bc-smoketest.log"  || exit 1
     fi
 done

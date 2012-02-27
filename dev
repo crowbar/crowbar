@@ -300,6 +300,26 @@ quiet_checkout() {
     fi
 }
 
+keys() {
+    local matcher="$1"
+    shift
+    while [[ $1 ]]; do
+        [[ $1 =~ $matcher ]] && echo "$1"
+        shift
+    done
+}
+
+show_github_repos() {
+    local -A res
+    local r
+    . <(curl_and_res -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+        https://api.github.com/user/repos | \
+        parse_yml_or_json - res 2>/dev/null)
+    for r in $(keys '^[0-9]+\.name$' "${!res[@]}"); do
+        printf "%s\n" "${res[$r]}"
+    done
+}
+
 # Set up barclamps for the appropriate branch.  Barclamps that are not members
 # of the current branch will be checked out to an empty branch, which will be
 # created if it does not exist.
@@ -416,9 +436,10 @@ fetch_all() {
 
 # Helper function for calling curl to talk to github.
 curl_and_res() {
-    curl "$@"
+    local __r
+    r="$(curl "$@" 2>/dev/null)"
     case $? in
-        0) return 0;;
+        0) printf '%s' "$r";;
         7) echo "Unable to contact Github, please try again later." >&2
             return 1;;
         22) return 1;;
@@ -491,11 +512,7 @@ setup() {
     # dellcloudedge is in fact a fork of a dellcloudedge repo.
     # We should not make that assumption at some point in the future.
     echo "Finding Github repos..."
-    local repos=($(
-            eval "$(curl -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
-                https://api.github.com/user/repos 2>/dev/null | \
-                parse_yml_or_json - name)"
-            echo "${name[@]}"))
+    local repos=($(show_github_repos))
     if ! is_in crowbar "${repos[*]}"; then
         echo "Creating your fork of Crowbar on Github."
         github_fork dellcloudedge crowbar || \
@@ -1082,15 +1099,19 @@ do_pull_request() {
     # $1 = url to POST to
     # rest of args passed verbatim to make_pull_request helper.
     local posturl="$1"
+    local -A res
     shift
-    make_pull_request "$@" | \
+    . <(make_pull_request "$@" | \
         curl_and_res -X POST --data @- -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
         -H "Content-Type: application/vnd.github.beta.raw+json" \
-        "$posturl" && return
-    echo "Pull request to $posturl with following params failed:"
-    echo "$@"
-    echo "Please delete the ones that succeeded and try again."
-    exit 1
+        "$posturl" |parse_yml_or_json - res) || {
+        echo "Pull request to $posturl with following params failed:"
+        echo "$@"
+        echo "Please delete the ones that succeeded and try again."
+        exit 1
+    }
+    printf "Pull request %s created (%s)\n" \
+        "${res['number']}" "${res['html_url']}"
 }
 
 # Get the diffstat from the origin branch of the branch passed,
@@ -1454,5 +1475,6 @@ case $1 in
     branches) shift; branches_in_release "$@";;
     checkout) shift; checkout "$@";;
     build) shift; build_crowbar "$@";;
+    show-repos) show_github_repos;;
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
