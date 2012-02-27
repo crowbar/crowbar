@@ -2,7 +2,7 @@ This file documents dev, the workflow helper tool for Crowbar
 development.
 
 dev is designed to help automate the workflow and infrastructure
-related tasks associated with devopment in general with the Crowbar
+related tasks associated with development in general with the Crowbar
 git tree layout.  Dev is designed around the following assumptions:
 
  * Everyone has their own forks on Github of the Crowbar repository
