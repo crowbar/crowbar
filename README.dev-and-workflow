@@ -294,6 +294,27 @@ switch: Switch from one release to another.
     the release you are switching to.  If you do not pass a release, it
     will check out everytthin for the current release instead.
 
+build: Build a release of Crowbar.
+
+    Despite the name, build mainly concerns itself with setting the Crowbar
+    repositories up before invoking build_crowbar.sh to perform the actual
+    build.  The build command takes the following parameters:
+    --os = operating system to stage Crowbar on to.
+    --release = Release of Crowbar to build.
+    --branch = Branch within a release of Crowbar to build
+    --exact = If present, dev will run git submodule update after processing
+               the --release and --branch options, and the --no-cache-update
+                and --no-metadata-update parameters will be passed to
+                build_crowbar.sh.  If not present, the submodules will be
+                checked out to the appropriate master branch for the release.
+    Any other parameters will be passed unchanged to build_crowbar.sh.
+    See README.build for more details.
+
+    If your build cache is managed by Git, and it has the same branching
+    structure as the Crowbar releases, dev will switch to the appropriate
+    branch in the build cache before invoking build_crowbar.sh.  This makes
+    it easier to have seperate releases with known working sets of packages.
+
 cut_release:  Cuts a new release based on the current state of Crowbar.
 
     Do not use this command unless you really know what you are doing.
