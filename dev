@@ -1027,7 +1027,7 @@ Command line options:
            --os = operating system to stage Crowbar on to.
            --release = Release of Crowbar to build.
            --branch = Branch withina release of Crowbar to build
-           --exact = If present, dev will run git submodule update after 
+           --exact = If present, dev will run git submodule update after
                      processing the --release and --branch options, and the
                      --no-cache-update and --no-metadata-update parameters will
                      be passed to build_crowbar.sh.
@@ -1104,7 +1104,7 @@ do_pull_request() {
     . <(make_pull_request "$@" | \
         curl_and_res -X POST --data @- -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
         -H "Content-Type: application/vnd.github.beta.raw+json" \
-        "$posturl" |parse_yml_or_json - res) || {
+        "$posturl" |parse_yml_or_json - res 2>/dev/null) || {
         echo "Pull request to $posturl with following params failed:"
         echo "$@"
         echo "Please delete the ones that succeeded and try again."
