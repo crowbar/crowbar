@@ -133,7 +133,7 @@ root_branches() {
             releases=("$1");;
     esac
     for release in "${releases[@]}"; do
-        prefix="$(release_branch_prefix "$release")"
+        prefix="$(branch_prefix "$release")"
         for b in "${!DEV_BRANCHES[@]}"; do
             [[ $b = ${DEV_BRANCHES[$b]} ]] || continue
             in_repo branch_exists "${prefix}$b" || continue
@@ -1309,7 +1309,7 @@ show_releases() {
 }
 
 # Given a release name, give us the proper brach prefix for it.
-release_branch_prefix() {
+branch_prefix() {
     # $1 = release name
     case $1 in
         development) : ;;
@@ -1327,7 +1327,7 @@ branches_in_release() {
     else
         local rel="$(current_release)"
     fi
-    local prefix="$(release_branch_prefix "$rel")"
+    local prefix="$(branch_prefix "$rel")"
     local ref branch
     while read ref branch; do
         [[ $branch =~ ^refs/heads/${prefix}[^/]+$ ]] || continue
@@ -1335,7 +1335,7 @@ branches_in_release() {
     done < <(in_repo git show-ref --heads "${!DEV_BRANCHES[@]}")
 }
 
-DEV_BRANCH_PREFIX="$(release_branch_prefix $(current_release))"
+DEV_BRANCH_PREFIX="$(branch_prefix $(current_release))"
 
 # Create a new release branch structure based on the current state of the
 # Crowbar repositories.
@@ -1350,7 +1350,7 @@ cut_release() {
     crowbar_is_clean &>/dev/null || \
         die "Crowbar repo must be clean before trying to cut a release!"
     this_prefix=$DEV_BRANCH_PREFIX
-    new_prefix="$(release_branch_prefix $1)"
+    new_prefix="$(branch_prefix $1)"
     # Make release copy of all branches.
 
     for b in "${!DEV_BRANCHES[@]}"; do
@@ -1384,7 +1384,7 @@ switch_release() {
     crowbar_is_clean &>/dev/null || \
         die "Crowbar repo must be clean before trying to switch releases!"
 
-    new_base="$(release_branch_prefix "$rel")"
+    new_base="$(branch_prefix "$rel")"
 
     current_branch=$(in_repo git symbolic-ref HEAD) || \
         die "switch: Crowbar not on a branch."
@@ -1410,7 +1410,7 @@ checkout() {
     [[ $1 ]] || die "checkout: Please specify a branch"
     br=$1
     rel="$(current_release)"
-    new_base=$(release_branch_prefix "$rel")
+    new_base=$(branch_prefix "$rel")
     in_repo branch_exists "${new_base}${br}" || \
         die "Branch $br does not exist in release $rel"
     in_repo git checkout "${new_base}${br}"
@@ -1476,5 +1476,6 @@ case $1 in
     checkout) shift; checkout "$@";;
     build) shift; build_crowbar "$@";;
     show-repos) show_github_repos;;
+
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
