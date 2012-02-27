@@ -737,15 +737,22 @@ branches_to_backup_to_remote() {
     # Push branches that have been pushed to personal in the past
     while read ref br; do
         br="${br#refs/heads/}"
-        # Skip branches we were asked to ignore.
-        [[ ${ignore[$br]} = true ]] && continue
-        # If we do not have a ref for this branch on the personal remote
-        # or on the origin remote, this branch should not be backed up.
-        git rev-parse --verify -q \
-            refs/remotes/$target/$br &>/dev/null || \
-            git rev-parse --verify -q \
-            refs/remotes/$upstream/$br &>/dev/null || continue
-        echo "$br"
+        if [[ ${ignore[$br]} = true ]]; then
+            # Skip branches we were asked to ignore.
+            continue
+        elif [[ $(remote_for_branch ${br##*/}) = $upstream ]]; then
+            # Back up branches that we "have" remotes for.
+            echo "$br"
+        elif ! (git rev-parse --verify -q "refs/remotes/$target/$br" || \
+            git rev-parse --verify -q "refs/remotes/$upstream/$br") &>/dev/null
+        then
+            # If we do not have a ref for this branch on the personal remote
+            # or on the origin remote, this branch should not be backed up.
+            continue
+        else
+            # Back it up.
+            echo "$br"
+        fi
     done < <(git show-ref --heads)
 }
 
@@ -765,7 +772,6 @@ branches_to_backup_to_prefix() {
         die "prefix_backup: $prefix branch checked out, cannot proceed."
     while read ref br; do
         br="${br#refs/heads/}"
-        [[ ${ignore[$br]} = true ]] && continue
         if [[ $br = personal/* ]]; then
             debug "Deleting unneeded local tracking branch $br"
             git branch -D "$br"
@@ -774,11 +780,18 @@ branches_to_backup_to_prefix() {
                 git push -q "$remote" ":${br}"
             fi
             continue
-        fi
-        [[ $(git rev-parse --verify -q "$remote_prefix/$br") && \
+        elif [[ ${ignore[$br]} = true ]]; then
+            continue
+        elif [[ $(remote_for_branch ${br##*/}) = $remote ]]; then
+            # Back up branches that we "have" remotes for.
+            echo "$br"
+        elif [[ $(git rev-parse --verify -q "$remote_prefix/$br") && \
             $(git rev-parse "$remote_prefix/$br") = \
-            $(git rev-parse "refs/heads/$br") ]] && continue
-        echo "$br"
+            $(git rev-parse "refs/heads/$br") ]]; then
+            continue
+        else
+            echo "$br"
+        fi
     done < <(git show-ref --heads)
 }
 
