@@ -228,6 +228,7 @@ current_release() {
         release/*)
             ans="${ans#release/}"
             echo "${ans%%/*}";;
+        feature/*) echo "${ans%/*}";;
         *) echo "development";;
     esac
 }
@@ -1298,6 +1299,7 @@ show_releases() {
         case ${ref} in
             master) r=development;;
             stable/master) r=stable;;
+            feature/*) r="${ref%/*}";;
             release/*)
                 r="${ref#release/}"
                 r=${r%%/*};;
@@ -1314,6 +1316,7 @@ branch_prefix() {
     case $1 in
         development) : ;;
         stable) echo "stable/";;
+        feature/*) echo "$1/";;
         *) echo "release/$1/";;
     esac
 }
@@ -1458,6 +1461,8 @@ build_crowbar() {
     with_build_lock __build_crowbar
 }
 
+
+
 case $1 in
     is_clean) shift; crowbar_is_clean "$@";;
     fetch) fetch_all;;
@@ -1470,7 +1475,7 @@ case $1 in
     help) dev_help;;
     release) current_release;;
     releases) show_releases;;
-    cut_release) shift; cut_release "$@";;
+    cut_release|new-feature) shift; cut_release "$@";;
     switch) shift; switch_release "$@";;
     branches) shift; branches_in_release "$@";;
     checkout) shift; checkout "$@";;
