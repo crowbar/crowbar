@@ -474,8 +474,8 @@ setup() {
             echo "Unable to authenticate as Github user $DEV_GITHUB_ID." >&2
             die "Please try again when you have Github access."
         }
-        echo "DEV_GITHUB_ID=\"$DEV_GITHUB_ID\"" >> "$HOME/.build-crowbar.conf"
-        echo "DEV_GITHUB_PASSWD=\"$DEV_GITHUB_PASSWD\"" >> \
+        echo "DEV_GITHUB_ID=\'$DEV_GITHUB_ID\'" >> "$HOME/.build-crowbar.conf"
+        echo "DEV_GITHUB_PASSWD=\'$DEV_GITHUB_PASSWD\'" >> \
             "$HOME/.build-crowbar.conf"
     }
     # We have a baked-in assumption that Github is our origin, and that
