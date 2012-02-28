@@ -663,23 +663,19 @@ backup_to_remote() {
     local remote=$1 branch branches=()
     shift
     for branch in "$@"; do
-        branch_exists "$branch" || continue
-        # If we have a ref for this branch on $remote and the local
-        # branch does not contain any commits that the one on the
-        # $remote does, then it is already synced and we can skip
-        # the actual network communication.
-        [[ $(git rev-parse --verify -q "refs/remotes/$remote/$branch") = \
-            $(git rev-parse --verify -q "refs/heads/$branch") ]] &&
-            continue
-        branches+=("$branch")
-    done 2>/dev/null
+        if [[ $branch = ':'* ]] || ( branch_exists "$branch" && \
+            [[ $(git rev-parse --verify -q "refs/remotes/$remote/$branch") != \
+            $(git rev-parse --verify -q "refs/heads/$branch") ]] ); then
+            branches+=("$branch")
+        fi
+    done
     if [[ $branches ]]; then
        if [[ ! $PWD =~ /barclamps/ ]]; then
-            debug "Crowbar: Backing up ${branches[*]}"
-        else
-            debug "Barclamp ${PWD##*/}: Backing up ${branches[*]}"
-        fi
-        git push -qf "$remote" "${branches[@]}"
+           debug "Crowbar: Backing up ${branches[*]}"
+       else
+           debug "Barclamp ${PWD##*/}: Backing up ${branches[*]}"
+       fi
+       git push -qf "$remote" "${branches[@]}"
     fi
 }
 
@@ -695,6 +691,10 @@ backup_with_prefix () {
     [[ $(git symbolic-ref HEAD) = "refs/heads/$prefix"/* ]] && \
         die "prefix_backup: $prefix branch checked out, cannot proceed."
     for branch in "$@"; do
+        if [[ $branch = ':'* ]]; then
+            branches+=("$branch")
+            continue
+        fi
         branch_exists "$branch" || continue
         if [[ $branch = ${prefix}* ]]; then
             debug "Cleaning up ${branch#refs/heads}"
@@ -752,6 +752,14 @@ branches_to_backup_to_remote() {
             echo "$br"
         fi
     done < <(git show-ref --heads)
+    # Find branches that have been removed locally, and make sure their
+    # backups have also been removed.
+    while read ref br; do
+        [[ $br = refs/remotes/$target/* ]] || continue
+        branch_exists "${br#refs/remotes/$target/}" && continue
+        [[ $br = refs/remotes/$target/pull-req* ]] && continue
+        echo ":${br#refs/remotes/$target/}"
+    done < <(git show-ref)
 }
 
 branches_to_backup_to_prefix() {
@@ -791,6 +799,13 @@ branches_to_backup_to_prefix() {
             echo "$br"
         fi
     done < <(git show-ref --heads)
+    # Kill remote personal branches we no longer want to back up.
+    while read ref br; do
+        [[ $br = refs/remotes/$remote_prefix/* ]] || continue
+        branch_exists "${br#refs/remotes/$remote_prefix/}" && continue
+        [[ $br = refs/remotes/$remote_prefix/pull-req* ]] && continue
+        echo ":${br#refs/remotes/$remote_prefix/}"
+    done < <(git show-ref)
 }
 
 get_backup_var() {
@@ -1064,6 +1079,17 @@ Command line options:
                  of branches and barclamp branches from the current release into
                  the new named release.  Must provide a unique new name.
 
+  new-feature -- Create a new set of feature branches.  Must provide a unique
+                 new name, and you must be in the development release when you
+                 run this command.  Internally, features are implemented as
+                 releases in the feature/ namespace, so all the other release
+                 manipulation commands will work with them.
+
+  erase-feature -- Erase feature branches created with new-feature.
+                   This command is intended to be run after a feature has been
+                   merged into the main devleopment stream to avoid cluttering
+                   up the output of the git branch command.  It will fail if
+                   the feature has not been merged into the development release.
 EOF
 }
 
@@ -1417,6 +1443,24 @@ cut_release() {
     fi
 }
 
+erase_release() {
+    # $1 = release refix
+    local b prefix
+    [[ $1 = development ]] && die "Cannot erase the development release."
+    is_in "$1" "$(show_releases)" || die "$1 is not a release we can erase!"
+    prefix="$(branch_prefix "$1")"
+    in_repo branches_synced '.' origin/master "${prefix}master" || \
+        die "$1 is not merged into the development release, refusing to erase."
+    for b in $(barclamps_in_branch "${!DEV_BRANCHES[@]}"); do
+        in_barclamp "$b" branch_exists "${prefix}master" || continue
+        in_barclamp "$b" git branch -D "${prefix}master"
+    done
+    for b in "${!DEV_BRANCHES[@]}"; do
+        in_repo branch_exists "${prefix}$b" || continue
+        in_repo git branch -D "${prefix}$b"
+    done
+}
+
 # Check out the appropriate release branch for all the barclamps in a given
 # release, and then check out the appropriate branch in the release.
 switch_release() {
@@ -1504,8 +1548,6 @@ build_crowbar() {
     with_build_lock __build_crowbar
 }
 
-
-
 case $1 in
     is_clean) shift; crowbar_is_clean "$@";;
     fetch) fetch_all;;
@@ -1525,6 +1567,6 @@ case $1 in
     checkout) shift; checkout "$@";;
     build) shift; build_crowbar "$@";;
     show-repos) show_github_repos;;
-
+    erase-feature) shift; erase_release "feature/$1";;
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac

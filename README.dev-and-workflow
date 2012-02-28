@@ -355,4 +355,16 @@ new-feature: Creates feature branches for a new feature.
     so any dev command that works on releases will also work on
     features.
 
+erase-feature: Erases feature branches created with new-feature.
+
+    This command is intended to be run once a feature had been merged
+    into the main development release -- once a feature has been
+    merged, there is generally no point in keeping the branches around
+    to clutter up your local git branches.
+
+    erase-feature will check to see of the master branch of the
+    feature branches has been merged with the master of the
+    development release, and it will exit with an error if there are
+    changes in the feature that have not been merged.
+
 branches: Show the branches that are part of the current release
