@@ -1068,8 +1068,14 @@ EOF
 # Tests to see if the given branch in a repo needs a pull request.
 branch_needs_pull_req() {
     # $1 = branch
-    git rev-parse --verify -q "origin/$1" &>/dev/null || return 1
-    branches_synced '.' "refs/remotes/origin/$1" \
+    local upstream=''
+    if [[ $1 = feature/* ]]; then
+        upstream="origin/${1##*/}"
+    else
+        upstream="origin/$1"
+    fi
+    git rev-parse --verify -q "$upstream" &>/dev/null || return 1
+    branches_synced '.' "refs/remotes/$upstream" \
         "refs/heads/$1" && return 1
     return 0
 }
