@@ -974,17 +974,14 @@ run_admin_hooks() {
 pause() { printf "\n%s\n" "${1:-Press any key to continue:}"; read -n 1; } 
 
 mangle_ssh_config() {
-    grep -q 'UserKnownHostsFile /dev/null' "$HOME/.ssh/config" && return 0
+    grep -q 'Host 192\.168\.124\.\*' "$HOME/.ssh/config" && return 0
     cat >>"$HOME/.ssh/config" <<EOF
+
 # Added by Crowbar Smoketest Framework
-CheckHostIP no
-UserKnownHostsFile /dev/null
-StrictHostKeyChecking no
-Host *
-  ControlMaster auto
-  ControlPath /tmp/%r@%h:%p
-#  ControlPersist 30
-# End of Crowbar Smoketest Framework config
+Host 192.168.124.*
+     UserKnownHostsFile /dev/null
+     StrictHostKeyChecking no
+     CheckHostIP no
 
 EOF
 }
