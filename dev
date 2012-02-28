@@ -931,12 +931,14 @@ ripple_changes_out() {
     for child in $(child_branches "$parent"); do
         in_repo git rev-parse --verify -q "$parent" &>/dev/null || \
             die "ripple_changes_out: $child is not a branch in Crowbar!"
-        branches_synced "$CROWBAR_DIR" "refs/heads/$child" "refs/heads/$parent" && continue
-        [[ $(in_repo git symbolic-ref HEAD) = refs/heads/$child ]] || \
-            in_repo quiet_checkout "$child"
-        debug "Merging $parent into $child"
-        in_repo git merge -q "$parent" || \
-            die "Merge $parent into $child branch of Crowbar failed."
+        if ! branches_synced "$CROWBAR_DIR" \
+            "refs/heads/$child" "refs/heads/$parent"; then
+            [[ $(in_repo git symbolic-ref HEAD) = refs/heads/$child ]] || \
+                in_repo quiet_checkout "$child"
+            debug "Merging $parent into $child"
+            in_repo git merge -q "$parent" || \
+                die "Merge $parent into $child branch of Crowbar failed."
+        fi
         ripple_changes_out "$child"
     done
 }
