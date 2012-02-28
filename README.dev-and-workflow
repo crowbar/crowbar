@@ -49,6 +49,13 @@ Regular Development:
     b: Dev will attempt to merge in all the changes fetched.  If there
        are merge conflicts, the sync process will stop.  From there,
        you can manually fix the conflicts and rerun dev sync.
+ 2: Run dev new-feature <featurename> to start working on a new
+    feature.
+    a: This command shold be run from the development release.
+    b: Dev will create branches in the feature/<featurename> namespace
+       in the main Crowbar repository and in all the barclamps.  The
+       initial starting point for these branches will be the tips of
+       the corresponding branches in the development namespace.
  2: Hack/build/test/commit.
  3: Run dev backup to back up your changes.  This force-pushes your
     changes to your personal forks of the crowbar repositories on
@@ -64,9 +71,9 @@ Ready for pull request:
     b: dev will perfom a fetch and a sync, and abort if there were any
        merge conflicts.
     c: dev will figure out what barclamps and what main Crowbar
-       branches are candidates for a pull request.
+       branches are candidates for a pull request in the current release.
     d: dev will print a command line wil all the branches and
-       barclamps that are candidates for pull requests.
+       barclamps that are candidates for pull requests in the current release.
  2: Run dev pull-requests-gen
     a: dev will ask for a title to be used for all the pull requests.
     b: dev will open an editor for you to type in a body that will be
@@ -104,6 +111,13 @@ related branches.  Currently implemented release types are:
    name>/ in the main Crowbar repository and in the
    barclamps. Releases are named with a unique name (similar to Ubuntu
    or Debian release names), and only get stabilization and bugfix updates.
+ * Feature bundles, which consist of branches prefixed with feature/<feature
+   name>/ in the main Crowbar repository and in the barclamps.
+   Features are local to your private forks and personal branches, and
+   get merged the main dellcloudedge repositories via pull requests to
+   the appropriate development branch in the appropriate dellcloudedge
+   repository. For now, feature branches should always be based on and
+   merged back into the development release.
  * Stable, which consists of branches prefixed with stable/ in the
    main Crowbar repository and in the barclamps.  The details of how
    the stable release will work is TBD.
@@ -273,6 +287,10 @@ pull-requests-prep: Prepare the local repository to issue a pull request.
     have local commits, and it will print out a command line that can
     be used to have dev actually generate the pull requests.
 
+    If the Crowbar repositories are in a feature release,
+    pull-requests-prep will figure out what is needed to merge the
+    feature branches into the development release.
+
 pull-requests-gen:  Generate pull requests.
 
     This command creates a series of pull requests based on the
@@ -281,6 +299,11 @@ pull-requests-gen:  Generate pull requests.
     just barclamps are passed it will also figure out what branches in
     the current release need updates and generate requests for them as
     well.
+
+    If the Crowbar repositories are in a feature release, the pull
+    requests will be generated against the corresponding branches in
+    the development release.  This enables feature releases and pull
+    requests to form the basis of gated-trunk style development.
 
 release: Shows the current release of Crowbar based on git branches.
 
@@ -319,7 +342,17 @@ cut_release:  Cuts a new release based on the current state of Crowbar.
 
     Do not use this command unless you really know what you are doing.
 
+new-feature: Creates feature branches for a new feature.
+
+    Features are the primary method of working on new
+    features/bugfixes/quasi-independent changes in
+    Crowbar. They allow for gated-trunk style development in Crowbar
+    by treating the development release as the trunk, and the feature
+    releases as things that can be merged into the trunk via
+    pull-requests on Github.
+
+    Internally, features are implemented as a release type,
+    so any dev command that works on releases will also work on
+    features.
+
 branches: Show the branches that are part of the current release
-
-
-
