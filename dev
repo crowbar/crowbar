@@ -852,8 +852,10 @@ backup_everything() {
         for branch in $(filter_branches_for_remote "$remote" \
             $(all_ordered_branches)); do
             for bc in $(barclamps_from_branch "$branch"); do
+                [[ ${touched_bcs[$bc]} ]] && continue
                 is_barclamp "${bc}" || continue
                 in_barclamp "${bc}" backup_repo
+                touched_bcs[$bc]="true"
             done
         done
         in_repo backup_repo "$remote" || \
