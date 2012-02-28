@@ -43,7 +43,7 @@ find_group_members() {
     is_in "$group" "${found_groups[@]}" && return
     for bc in /opt/dell/barclamps/*; do
 	is_barclamp "${bc##*/}" || continue
-	eval $(parse_yml_or_json "$bc/crowbar.yml" res)
+	. <(parse_yml_or_json "$bc/crowbar.yml" res)
 	[[ ${res['barclamp.member']} ]] || continue
 	is_in "$group" "${barclamp_member[@]}" || continue
 	echo ${bc##*/}
@@ -68,8 +68,7 @@ __barclamp_deps() {
     local -A res
     unset barclamp_requires smoketest_requires
     is_barclamp "$1" || return 1
-    eval $(parse_yml_or_json "/opt/dell/barclamps/$1/crowbar.yml" res)
-	barclamp.requires smoketest.requires)
+    . <(parse_yml_or_json "/opt/dell/barclamps/$1/crowbar.yml" res)
     if [[ ${res['barclamp.requires']} || ${res['smoketest.requires']} ]]; then
         local -a bc_array
         for key in "${!res[@]}"; do
@@ -209,7 +208,7 @@ for bc in $(barclamp_deps "$1"); do
     fi
     if [[ -d $bc_dir/smoketest ]]; then
 	declare -A res
-	eval $(parse_yml_or_json $bc_dir/crowbar.yml res)
+	. <(parse_yml_or_json $bc_dir/crowbar.yml res)
         smoketest_timeout="${res[smoketest.timeout]:-300}"
 	run_hooks "$bc" "$bc_dir/smoketest" \
 	    "${smoketest_timeout}" test 2>&1 | \
