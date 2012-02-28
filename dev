@@ -133,7 +133,7 @@ root_branches() {
             releases=("$1");;
     esac
     for release in "${releases[@]}"; do
-        prefix="$(release_branch_prefix "$release")"
+        prefix="$(branch_prefix "$release")"
         for b in "${!DEV_BRANCHES[@]}"; do
             [[ $b = ${DEV_BRANCHES[$b]} ]] || continue
             in_repo branch_exists "${prefix}$b" || continue
@@ -228,6 +228,7 @@ current_release() {
         release/*)
             ans="${ans#release/}"
             echo "${ans%%/*}";;
+        feature/*) echo "${ans%/*}";;
         *) echo "development";;
     esac
 }
@@ -326,14 +327,14 @@ show_github_repos() {
 switch_barclamps_to() {
     # $1 = Either a branch or "submodule-ref"
     local -A barclamps
-    local m t ref p bc
+    local m t ref p bc head
     # Read barclamps that should be there.
     while read m t ref p; do
         [[ $m = 160000 && $t = commit ]] || continue
         if [[ $1 = submodule-ref ]]; then
             barclamps[${p#/}]=$ref
         else
-            barclamps[${p#/}]="$1"
+            barclamps[${p#/}]="refs/heads/$1"
         fi
     done < <(in_repo git ls-tree HEAD barclamps/)
     # Update barclamps that are there.
@@ -341,26 +342,34 @@ switch_barclamps_to() {
         [[ -d $bc/.git || -f $bc/.git ]] || \
             clone_barclamp "${bc##*/}"
         bc="${bc#$CROWBAR_DIR/}"
-        ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
-        if [[ ${barclamps[$bc]} ]]; then
+        if [[ ${barclamps[$bc]} && ${barclamps[$bc]} = refs/heads/* ]]; then
+            head=$(in_barclamp "${bc##*/}" git symbolic-ref HEAD)
+            [[ $head = ${barclamps[$bc]} ]] && {
+                unset barclamps[$bc]
+                continue
+            }
+            barclamps[$bc]="${barclamps[$bc]#refs/heads/}"
+        elif [[ ${barclamps[$bc]} ]]; then
+            ref=$(in_barclamp "${bc##*/}" git rev-parse --verify -q HEAD)
             [[ $ref = $(in_barclamp "${bc##*/}" \
                 git rev-parse --verify -q "${barclamps[$bc]}") ]] && {
                 unset barclamps[$bc]
                 continue
             }
-            debug "Barclamp ${bc##*/}: Checking out ${barclamps[$bc]}"
-            in_barclamp "${bc##*/}" quiet_checkout "${barclamps[$bc]}" || \
-                die "barclamp ${bc##*/}: Could not check out ${barclamps[$bc]}"
         else
             [[ $(in_barclamp "${bc##*/}" git symbolic-ref HEAD) = \
                 refs/heads/empty-branch ]] && {
                 unset barclamps[$bc]
                 continue
             }
-            debug "Barclamp ${bc##*/}: Checking out the empty branch."
-            in_barclamp "${bc##*/}" to_empty_branch || \
-                die "barclamp ${bc##*/}: Could not check out empty branch"
+            barclamps[$bc]="the empty branch"
         fi
+        debug "Barclamp ${bc##*/}: Checking out ${barclamps[$bc]}"
+        case ${barclamps[$bc]} in
+            'the empty branch') in_barclamp "${bc##*/}" to_empty_branch;;
+            '') continue;;
+            *) in_barclamp "${bc##*/}" quiet_checkout "${barclamps[$bc]}";;
+        esac || die "barclamp ${bc##*/}: Could not check out ${barclamps[$bc]}"
         unset barclamps[$bc]
     done
     # Create barclamps that are not there.
@@ -659,13 +668,11 @@ backup_to_remote() {
         # branch does not contain any commits that the one on the
         # $remote does, then it is already synced and we can skip
         # the actual network communication.
-        git rev-parse --verify -q \
-            "refs/remotes/$remote/$branch" &>/dev/null && \
-            branches_synced "." \
-            "refs/remotes/$remote/$branch" "refs/heads/$branch" && \
+        [[ $(git rev-parse --verify -q "refs/remotes/$remote/$branch") = \
+            $(git rev-parse --verify -q "refs/heads/$branch") ]] &&
             continue
         branches+=("$branch")
-    done
+    done 2>/dev/null
     if [[ $branches ]]; then
        if [[ ! $PWD =~ /barclamps/ ]]; then
             debug "Crowbar: Backing up ${branches[*]}"
@@ -728,15 +735,22 @@ branches_to_backup_to_remote() {
     # Push branches that have been pushed to personal in the past
     while read ref br; do
         br="${br#refs/heads/}"
-        # Skip branches we were asked to ignore.
-        [[ ${ignore[$br]} = true ]] && continue
-        # If we do not have a ref for this branch on the personal remote
-        # or on the origin remote, this branch should not be backed up.
-        git rev-parse --verify -q \
-            refs/remotes/$target/$br &>/dev/null || \
-            git rev-parse --verify -q \
-            refs/remotes/$upstream/$br &>/dev/null || continue
-        echo "$br"
+        if [[ ${ignore[$br]} = true ]]; then
+            # Skip branches we were asked to ignore.
+            continue
+        elif [[ $(remote_for_branch ${br##*/}) = $upstream ]]; then
+            # Back up branches that we "have" remotes for.
+            echo "$br"
+        elif ! (git rev-parse --verify -q "refs/remotes/$target/$br" || \
+            git rev-parse --verify -q "refs/remotes/$upstream/$br") &>/dev/null
+        then
+            # If we do not have a ref for this branch on the personal remote
+            # or on the origin remote, this branch should not be backed up.
+            continue
+        else
+            # Back it up.
+            echo "$br"
+        fi
     done < <(git show-ref --heads)
 }
 
@@ -756,7 +770,6 @@ branches_to_backup_to_prefix() {
         die "prefix_backup: $prefix branch checked out, cannot proceed."
     while read ref br; do
         br="${br#refs/heads/}"
-        [[ ${ignore[$br]} = true ]] && continue
         if [[ $br = personal/* ]]; then
             debug "Deleting unneeded local tracking branch $br"
             git branch -D "$br"
@@ -765,11 +778,18 @@ branches_to_backup_to_prefix() {
                 git push -q "$remote" ":${br}"
             fi
             continue
-        fi
-        [[ $(git rev-parse --verify -q "$remote_prefix/$br") && \
+        elif [[ ${ignore[$br]} = true ]]; then
+            continue
+        elif [[ $(remote_for_branch ${br##*/}) = $remote ]]; then
+            # Back up branches that we "have" remotes for.
+            echo "$br"
+        elif [[ $(git rev-parse --verify -q "$remote_prefix/$br") && \
             $(git rev-parse "$remote_prefix/$br") = \
-            $(git rev-parse "refs/heads/$br") ]] && continue
-        echo "$br"
+            $(git rev-parse "refs/heads/$br") ]]; then
+            continue
+        else
+            echo "$br"
+        fi
     done < <(git show-ref --heads)
 }
 
@@ -830,8 +850,10 @@ backup_everything() {
         for branch in $(filter_branches_for_remote "$remote" \
             $(all_ordered_branches)); do
             for bc in $(barclamps_from_branch "$branch"); do
+                [[ ${touched_bcs[$bc]} ]] && continue
                 is_barclamp "${bc}" || continue
                 in_barclamp "${bc}" backup_repo
+                touched_bcs[$bc]="true"
             done
         done
         in_repo backup_repo "$remote" || \
@@ -1298,6 +1320,7 @@ show_releases() {
         case ${ref} in
             master) r=development;;
             stable/master) r=stable;;
+            feature/*) r="${ref%/*}";;
             release/*)
                 r="${ref#release/}"
                 r=${r%%/*};;
@@ -1309,11 +1332,12 @@ show_releases() {
 }
 
 # Given a release name, give us the proper brach prefix for it.
-release_branch_prefix() {
+branch_prefix() {
     # $1 = release name
     case $1 in
         development) : ;;
         stable) echo "stable/";;
+        feature/*) echo "$1/";;
         *) echo "release/$1/";;
     esac
 }
@@ -1327,7 +1351,7 @@ branches_in_release() {
     else
         local rel="$(current_release)"
     fi
-    local prefix="$(release_branch_prefix "$rel")"
+    local prefix="$(branch_prefix "$rel")"
     local ref branch
     while read ref branch; do
         [[ $branch =~ ^refs/heads/${prefix}[^/]+$ ]] || continue
@@ -1335,7 +1359,7 @@ branches_in_release() {
     done < <(in_repo git show-ref --heads "${!DEV_BRANCHES[@]}")
 }
 
-DEV_BRANCH_PREFIX="$(release_branch_prefix $(current_release))"
+DEV_BRANCH_PREFIX="$(branch_prefix $(current_release))"
 
 # Create a new release branch structure based on the current state of the
 # Crowbar repositories.
@@ -1350,7 +1374,7 @@ cut_release() {
     crowbar_is_clean &>/dev/null || \
         die "Crowbar repo must be clean before trying to cut a release!"
     this_prefix=$DEV_BRANCH_PREFIX
-    new_prefix="$(release_branch_prefix $1)"
+    new_prefix="$(branch_prefix $1)"
     # Make release copy of all branches.
 
     for b in "${!DEV_BRANCHES[@]}"; do
@@ -1384,7 +1408,7 @@ switch_release() {
     crowbar_is_clean &>/dev/null || \
         die "Crowbar repo must be clean before trying to switch releases!"
 
-    new_base="$(release_branch_prefix "$rel")"
+    new_base="$(branch_prefix "$rel")"
 
     current_branch=$(in_repo git symbolic-ref HEAD) || \
         die "switch: Crowbar not on a branch."
@@ -1410,7 +1434,7 @@ checkout() {
     [[ $1 ]] || die "checkout: Please specify a branch"
     br=$1
     rel="$(current_release)"
-    new_base=$(release_branch_prefix "$rel")
+    new_base=$(branch_prefix "$rel")
     in_repo branch_exists "${new_base}${br}" || \
         die "Branch $br does not exist in release $rel"
     in_repo git checkout "${new_base}${br}"
@@ -1458,6 +1482,8 @@ build_crowbar() {
     with_build_lock __build_crowbar
 }
 
+
+
 case $1 in
     is_clean) shift; crowbar_is_clean "$@";;
     fetch) fetch_all;;
@@ -1471,10 +1497,12 @@ case $1 in
     release) current_release;;
     releases) show_releases;;
     cut_release) shift; cut_release "$@";;
+    new-feature) shift; cut_release "feature/$1";;
     switch) shift; switch_release "$@";;
     branches) shift; branches_in_release "$@";;
     checkout) shift; checkout "$@";;
     build) shift; build_crowbar "$@";;
     show-repos) show_github_repos;;
+
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
