@@ -53,7 +53,6 @@ match_keys() {
 
 find_group_members() {
     group=${1#@}
-    local -A res
     local key line
     is_in "$group" "${found_groups[@]}" && return
     for bc in /opt/dell/barclamps/*; do
@@ -81,7 +80,6 @@ __barclamp_deps() {
     # If we are already in $res, then we don't need to be discovered again.
     is_in "$1" "${res[@]}" && return 0
     local bc line
-    local -A bc_res
     unset barclamp_requires smoketest_requires
     is_barclamp "$1" || return 1
     local -a bc_array
@@ -220,7 +218,6 @@ for bc in $(barclamp_deps "$1"); do
         deploy_barclamp "$bc" || exit 1
     fi
     if [[ -d $bc_dir/smoketest ]]; then
-        declare -A res
         smoketest_timeout=$(parse_yml_or_json \
             $bc_dir/crowbar.yml res |match_keys 'smoketest\.timeout')
         run_hooks "$bc" "$bc_dir/smoketest" \
