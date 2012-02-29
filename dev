@@ -692,7 +692,7 @@ backup_with_prefix () {
         die "prefix_backup: $prefix branch checked out, cannot proceed."
     for branch in "$@"; do
         if [[ $branch = ':'* ]]; then
-            branches+=("$branch")
+            branches+=(":$prefix/${branch#:}")
             continue
         fi
         branch_exists "$branch" || continue
