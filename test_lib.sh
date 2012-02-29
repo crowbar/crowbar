@@ -547,7 +547,7 @@ run_kvm() {
     done
     unset vlan
     if [[ $pxeboot ]]; then
-        kvmargs+=(-boot "order=n" -option-rom "$SMOKETEST_DIR/8086100e.rom")
+        kvmargs+=(-boot "order=n")
     elif [[ $driveboot ]]; then
         kvmargs+=(-boot "order=c")
     fi
