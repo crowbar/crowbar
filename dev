@@ -211,7 +211,10 @@ git_is_clean() {
         esac
     done < <($stat_cmd)
     [[ $ret = 0 ]] && return
-    [[ $quiet ]] || git status -- "${paths[@]}"
+    [[ $quiet ]] || {
+        echo "$PWD:"
+        git status -- "${paths[@]}"
+    }
     [[ $IGNORE_CLEAN ]] && return 0
     return 1
 }
