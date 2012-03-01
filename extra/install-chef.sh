@@ -365,6 +365,10 @@ do
     printf "$state: "
     crowbar crowbar transition "$FQDN" "$state" || \
         die "Transition to $state failed!"
+    if type -f "transition_check_$state"&>/dev/null; then
+        "transition_check_$state" || \
+            die "Sanity check for transitioning to $state failed!"
+    fi
     chef_or_die "Chef run for $state transition failed!"
 done
 
