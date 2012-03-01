@@ -743,6 +743,7 @@ branches_to_backup_to_remote() {
     done
     # Push branches that have been pushed to personal in the past
     while read ref br; do
+        [[ $br = */HEAD ]] && continue
         br="${br#refs/heads/}"
         if [[ ${ignore[$br]} = true ]]; then
             # Skip branches we were asked to ignore.
@@ -764,6 +765,7 @@ branches_to_backup_to_remote() {
     # Find branches that have been removed locally, and make sure their
     # backups have also been removed.
     while read ref br; do
+        [[ $br = */HEAD ]] && continue
         [[ $br = refs/remotes/$target/* ]] || continue
         branch_exists "${br#refs/remotes/$target/}" && continue
         [[ $br = refs/remotes/$target/pull-req* ]] && continue
@@ -786,6 +788,7 @@ branches_to_backup_to_prefix() {
     [[ $(git symbolic-ref HEAD) = "refs/heads/$head_prefix"/* ]] && \
         die "prefix_backup: $prefix branch checked out, cannot proceed."
     while read ref br; do
+        [[ $br = */HEAD ]] && continue
         br="${br#refs/heads/}"
         if [[ $br = personal/* ]]; then
             debug "Deleting unneeded local tracking branch $br"
@@ -810,6 +813,7 @@ branches_to_backup_to_prefix() {
     done < <(git show-ref --heads)
     # Kill remote personal branches we no longer want to back up.
     while read ref br; do
+        [[ $br = */HEAD ]] && continue
         [[ $br = refs/remotes/$remote_prefix/* ]] || continue
         branch_exists "${br#refs/remotes/$remote_prefix/}" && continue
         [[ $br = refs/remotes/$remote_prefix/pull-req* ]] && continue
