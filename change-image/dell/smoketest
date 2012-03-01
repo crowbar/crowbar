@@ -37,19 +37,28 @@ is_in() (
 
 is_barclamp() { [[ -f /opt/dell/barclamps/$1/crowbar.yml ]]; }
 
+match_keys() {
+    # $@ = regexes that we should try and match on.
+    local line='' re=''
+    while read line; do
+        for re in "$@"; do
+            [[ $line =~ ^[a-zA-Z_0-9]+\[\'$re[^\']*\'\]=\'(.*) ]] || continue
+            echo "${BASH_REMATCH[1]%'}"
+            continue 2
+        done
+    done
+}
+
 find_group_members() {
     group=${1#@}
-    local -A res
-    local key
+    local key line
     is_in "$group" "${found_groups[@]}" && return
     for bc in /opt/dell/barclamps/*; do
         is_barclamp "${bc##*/}" || continue
-        . <(parse_yml_or_json "$bc/crowbar.yml" res)
-        for key in "${!res[@]}"; do
-            [[ $key =~ ^barclamp\.member ]] || continue
-            [[ ${res[$key]} ]] || continue
-            is_in "$group" "${res[$key]}" || continue 2
-        done
+        while read line; do
+            is_in "$group" "$line" || continue 2
+        done < <(parse_yml_or_json "$bc/crowbar.yml" res | \
+            match_keys 'barclamp\.member')
         echo ${bc##*/}
     done
     found_groups+=("$group")
@@ -68,16 +77,14 @@ barclamp_group_expand() {
 __barclamp_deps() {
     # If we are already in $res, then we don't need to be discovered again.
     is_in "$1" "${res[@]}" && return 0
-    local bc key
-    local -A bc_res
+    local bc line
     unset barclamp_requires smoketest_requires
     is_barclamp "$1" || return 1
-    . <(parse_yml_or_json "/opt/dell/barclamps/$1/crowbar.yml" bc_res)
     local -a bc_array
-    for key in "${!bc_res[@]}"; do
-        [[ $key =~ ^(barclamp|smoketest)\.requires ]] || continue
-        bc_array=($(barclamp_group_expand "${bc_res[$key]}"))
-    done
+    while read line; do
+        bc_array=($(barclamp_group_expand "${line}"))
+    done < <(parse_yml_or_json "/opt/dell/barclamps/$1/crowbar.yml" bc_res | \
+        match_keys 'barclamp\.requires' 'smoketest\.requires')
     for bc in "${bc_array[@]}"; do
         __barclamp_deps "$bc"
     done
@@ -209,11 +216,10 @@ for bc in $(barclamp_deps "$1"); do
         deploy_barclamp "$bc" || exit 1
     fi
     if [[ -d $bc_dir/smoketest ]]; then
-        declare -A res
-        . <(parse_yml_or_json $bc_dir/crowbar.yml res)
-        smoketest_timeout="${res[smoketest.timeout]:-300}"
+        smoketest_timeout=$(parse_yml_or_json \
+            $bc_dir/crowbar.yml res |match_keys 'smoketest\.timeout')
         run_hooks "$bc" "$bc_dir/smoketest" \
-            "${smoketest_timeout}" test 2>&1 | \
+            "${smoketest_timeout:-300}" test 2>&1 | \
             tee "$LOGDIR/$bc-smoketest.log"  || exit 1
     fi
 done
