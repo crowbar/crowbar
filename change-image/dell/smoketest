@@ -42,10 +42,8 @@ match_keys() {
     local line='' re=''
     while read line; do
         for re in "$@"; do
-            [[ $line =~ ^[a-zA-Z_0-9]+\[\'$re[^\']*\'\]= ]] || continue
-            line="${line#*]='}"
-            line="${line%'}"
-            echo "$line"
+            [[ $line =~ ^[a-zA-Z_0-9]+\[\'$re[^\']*\'\]=\'(.*) ]] || continue
+            echo "${BASH_REMATCH[1]%'}"
             continue 2
         done
     done
@@ -86,7 +84,7 @@ __barclamp_deps() {
     while read line; do
         bc_array=($(barclamp_group_expand "${line}"))
     done < <(parse_yml_or_json "/opt/dell/barclamps/$1/crowbar.yml" bc_res | \
-        match_keys '(barclamp|smoketest)\.requires')
+        match_keys 'barclamp\.requires' 'smoketest\.requires')
     for bc in "${bc_array[@]}"; do
         __barclamp_deps "$bc"
     done
