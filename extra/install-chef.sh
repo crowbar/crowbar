@@ -36,16 +36,16 @@ log_to() {
     local log_skip_re='^gem|knife$'
     shift
     printf "\n%s\n" "$__timestamp: Running $*" | \
-	tee -a "$__log.err" >> "$__log.log"
+        tee -a "$__log.err" >> "$__log.log"
     "$@" 2>> "$__log.err" >>"$__log.log" || {
-	_ret=$?
-	if ! [[ $__logname =~ $log_skip_re ]]; then
-	    echo "$__timestamp: $* failed."
-	    echo "See $__log.log and $__log.err for more information."
-	fi
+        _ret=$?
+        if ! [[ $__logname =~ $log_skip_re ]]; then
+            echo "$__timestamp: $* failed."
+            echo "See $__log.log and $__log.err for more information."
+        fi
     }
     printf "\n$s\n--------\n"  "$(date '+%F %T %z'): Done $*" | \
-	tee -a "$__log.err" >> "$__log.log"
+        tee -a "$__log.err" >> "$__log.log"
     return $_ret
 }
 
@@ -56,7 +56,7 @@ chef_or_die() {
         log_to chef chef-client && return
     fi
     if [[ $crowbar_up && $FQDN ]]; then
-	crowbar crowbar transition "$FQDN" problem
+        crowbar crowbar transition "$FQDN" problem
     fi
     # If we were left without an IP address, rectify that.
     ip link set eth0 up
@@ -68,9 +68,9 @@ chef_or_die() {
 knifeloop() {
     local RC=0
     while { log_to knife knife "$@" -u chef-webui -k /etc/chef/webui.pem
-	RC=$?
-	(($RC == 139)); }; do
-	:
+        RC=$?
+        (($RC == 139)); }; do
+        :
     done
 }
 
@@ -137,8 +137,8 @@ EOF
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
 (   cd /tftpboot/gemsite/gems
     for gem in builder json net-http-digest_auth activesupport i18n \
-	daemons bluepill xml-simple libxml-ruby ; do
-	gem install --local --no-ri --no-rdoc $gem-*.gem
+        daemons bluepill xml-simple libxml-ruby ; do
+        gem install --local --no-ri --no-rdoc $gem-*.gem
     done
     cd ..
     gem generate_index)
@@ -147,14 +147,14 @@ mkdir -p /var/run/bluepill
 mkdir -p /var/lib/bluepill
 mkdir -p /etc/bluepill
 
-# Copy all our pills to 
-cp "$DVD_PATH/extra/"*.pill /etc/bluepill 
+# Copy all our pills to
+cp "$DVD_PATH/extra/"*.pill /etc/bluepill
 cp "$DVD_PATH/extra/chef-client.pill" /tftpboot
 
 # Fire up a Webrick instance on port 3001 to serve gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be served from port 3001"
 mkdir -p /opt/dell
-[[ -L /opt/dell/extra ]] || ln -s "$DVD_PATH/extra" /opt/dell/extra 
+[[ -L /opt/dell/extra ]] || ln -s "$DVD_PATH/extra" /opt/dell/extra
 if [[ ! -f /var/log/rubygems-server.log ]]; then
     >/var/log/rubygems-server.log
     chown nobody /var/log/rubygems-server.log
@@ -162,7 +162,7 @@ fi
 
 bluepill load /etc/bluepill/rubygems-server.pill
 sleep 5
-    
+
 if [[ ! -x /etc/init.d/bluepill ]]; then
 
     echo "$(date '+%F %T %z'): Installing Chef"
@@ -173,11 +173,11 @@ if [[ ! -x /etc/init.d/bluepill ]]; then
     # Have Bluepill manage our Chef services instead of letting sysvinit do it.
     echo "$(date '+%F %T %z'): Arranging for Chef to run under Bluepill..."
     for svc in "${chef_services[@]}"; do
-	service "$svc" stop || :
+        service "$svc" stop || :
     done
     # sometimes couchdb does not die when asked.  Kill it manually.
     if ps aux |grep -q [c]ouchdb; then
-	kill $(ps aux |awk '/^couchdb/ {print $2}')
+        kill $(ps aux |awk '/^couchdb/ {print $2}')
     fi
 
     # Create an init script for bluepill
@@ -201,27 +201,27 @@ case \$1 in
              exit 1
             fi;;
     *) echo "\$1: Not supported.";;
-esac   
+esac
 EOF
 
     # enable the bluepill init script and disable the old sysv init scripts.
     if which chkconfig &>/dev/null; then
-	chkconfig --add bluepill
-	chkconfig bluepill on
-	for svc in "${chef_services[@]}"; do
-	    chkconfig "$svc" off
-	    chmod ugo-x /etc/init.d/"$svc"
-	done
-	# to be implemented
+        chkconfig --add bluepill
+        chkconfig bluepill on
+        for svc in "${chef_services[@]}"; do
+            chkconfig "$svc" off
+            chmod ugo-x /etc/init.d/"$svc"
+        done
+        # to be implemented
     elif which update-rc.d &>/dev/null; then
-	update-rc.d bluepill defaults 90 10
-	for svc in "${chef_services[@]}"; do
-	    update-rc.d "$svc" disable
-	    chmod ugo-x /etc/init.d/"$svc"
-	done
+        update-rc.d bluepill defaults 90 10
+        for svc in "${chef_services[@]}"; do
+            update-rc.d "$svc" disable
+            chmod ugo-x /etc/init.d/"$svc"
+        done
     else
-	echo "Don't know how to handle services on this system!"
-	exit 1
+        echo "Don't know how to handle services on this system!"
+        exit 1
     fi
     # Make sure that the chef log dir has the right permissions
     chown -R chef:chef /var/log/chef
@@ -238,7 +238,7 @@ fi
 if [[ ! -x /opt/tcpdump/tcpdump ]]; then
     mkdir -p /opt/tcpdump
     [[ -x /opt/dell/barclamps/deployer/cache/files/tcpdump ]] || \
-	die "Cannot stage initial copy of tcpdump!"
+        die "Cannot stage initial copy of tcpdump!"
     cp /opt/dell/barclamps/deployer/cache/files/tcpdump /opt/tcpdump
     mkdir -p /updates
     cp /opt/tcpdump/tcpdump /updates/tcpdump
@@ -266,7 +266,7 @@ CROWBAR_REALM=$(parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
 CROWBAR_REALM=${CROWBAR_REALM##*=}
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
-	(read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
+        (read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
 fi
 
 if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
@@ -299,7 +299,7 @@ log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
 echo "$(date '+%F %T %z'): Update run list..."
 for role in crowbar deployer-client; do
     knifeloop node run_list add "$FQDN" role["$role"] || \
-	die "Could not add $role to Chef. Crowbar bringup will fail."
+        die "Could not add $role to Chef. Crowbar bringup will fail."
 done
 
 pre_crowbar_fixups
@@ -321,9 +321,9 @@ if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
     fi
     proposal_opts+=(proposal create default)
 
-    # Sometimes proposal creation fails if Chef and Crowbar are not quite 
+    # Sometimes proposal creation fails if Chef and Crowbar are not quite
     # fully prepared -- this can happen due to solr not having everything
-    # fully indexed yet.  So we don't want to just fail immediatly if 
+    # fully indexed yet.  So we don't want to just fail immediatly if
     # we fail to create a proposal -- instead, we will kick Chef, sleep a bit,
     # and try again up to 5 times before bailing out.
     for ((x=1; x<6; x++)); do
@@ -342,7 +342,7 @@ crowbar crowbar proposal commit default || \
 crowbar crowbar show default >/var/log/default.json
 chef_or_die "Chef run after default proposal commit failed!"
 
-# Need to make sure that we have the indexer/expander finished 
+# Need to make sure that we have the indexer/expander finished
 COUNT=0
 VALUE=10000
 while (($COUNT < 60 && $VALUE !=0))
@@ -365,6 +365,10 @@ do
     printf "$state: "
     crowbar crowbar transition "$FQDN" "$state" || \
         die "Transition to $state failed!"
+    if type -f "transition_check_$state"&>/dev/null; then
+        "transition_check_$state" || \
+            die "Sanity check for transitioning to $state failed!"
+    fi
     chef_or_die "Chef run for $state transition failed!"
 done
 
