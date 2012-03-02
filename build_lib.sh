@@ -137,6 +137,25 @@ cleanup_cmds=()
 
 git_managed_cache() [[ -d $CACHE_DIR/.git ]]
 
+with_build_lock() {
+    flock -n 65 || die "Could not grab build lock!"
+    "$@"
+} 65>/tmp/.build_crowbar.lock
+
+# Get a list of all the barclamps that a specific branch refers to.
+barclamps_in_branch() {
+    local b res=()
+    for b in "$@"; do
+        in_repo branch_exists "$b" || \
+            die "Branch $b does not exist in the Crowbar repo!"
+    done
+    local res=($(for b in "$@"; do in_repo git ls-tree -r \
+        "$b" barclamps; done | \
+        awk '/160000 commit/ {print $4}' |sort -u))
+    printf "%s\n" "${res[@]#barclamps/}"
+}
+
+
 # Our general cleanup function.  It is called as a trap whenever the
 # build script exits, and it's job is to make sure we leave the local
 # system in the same state we cound it, modulo a few calories of wasted heat
@@ -417,6 +436,8 @@ cache_rm() {
 }
 
 make_barclamp_pkg_metadata() {
+    [[ $ALLOW_CACHE_UPDATE != true && \
+        $ALLOW_CACHE_METADATA_UPDATE != true ]] && return 0
     [[ -d $CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs ]] || return 0
     __barclamp_pkg_metadata_needs_update "$1" || return 0
     [[ $ALLOW_CACHE_METADATA_UPDATE = false ]] && \
@@ -648,13 +669,31 @@ clean_dirs() {
 # Verify that the passed name is really a branch in the git repo.
 branch_exists() { git show-ref --quiet --verify --heads -- "refs/heads/$1"; }
 
+to_empty_branch() {
+    if branch_exists empty-branch; then
+        git checkout -q empty-branch
+        return $?
+    fi
+    if [[ -d .git ]]; then
+	git symbolic-ref HEAD refs/heads/empty-branch
+	rm -f .git/index
+    elif [[ -f .git ]]; then
+	git checkout --orphan empty-branch
+	git rm -r --cached .
+    fi
+    git clean -f -x -d
+    echo "This branch intentionally left blank" >README.empty-branch
+    git add README.empty-branch
+    git commit -m "Created empty branch"
+}
+
 # Run a git command in the crowbar repo.
 in_repo() ( cd "$CROWBAR_DIR"; "$@")
 
 # Get the head revision of a git repository.
 get_rev() (
     cd "$1"
-    if [[ -d .git ]]; then
+    if [[ -d .git || -f .git ]]; then
         git rev-parse HEAD
     else
         echo "Not a Git Repository"
@@ -670,7 +709,6 @@ in_cache() (
 # Check to see if something is a barclamp.
 is_barclamp() { [[ -f "$CROWBAR_DIR/barclamps/$1/crowbar.yml" ]]; }
 in_barclamp() {
-    is_barclamp "$1" || die "$1 is not a barclamp"
     (   cd "$CROWBAR_DIR/barclamps/$1"
         shift
         "$@")
