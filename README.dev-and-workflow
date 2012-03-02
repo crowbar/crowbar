@@ -2,7 +2,7 @@ This file documents dev, the workflow helper tool for Crowbar
 development.
 
 dev is designed to help automate the workflow and infrastructure
-related tasks associated with devopment in general with the Crowbar
+related tasks associated with development in general with the Crowbar
 git tree layout.  Dev is designed around the following assumptions:
 
  * Everyone has their own forks on Github of the Crowbar repository
@@ -12,6 +12,14 @@ git tree layout.  Dev is designed around the following assumptions:
    against the dellcloudedge repositories.
  * The only path for getting code into the dellcloudedge repositories
    is via pull request.
+
+Requirements:
+
+ * A checkout of Crowbar.
+ * Bash 4, ruby, rubygems, and the json gem.
+   If running under Windows, make sure that all these operate in your
+   cygwin or msysgw enviromnent.
+ * A github username and password.
 
 Day to Day Workflows:
 
@@ -41,6 +49,13 @@ Regular Development:
     b: Dev will attempt to merge in all the changes fetched.  If there
        are merge conflicts, the sync process will stop.  From there,
        you can manually fix the conflicts and rerun dev sync.
+ 2: Run dev new-feature <featurename> to start working on a new
+    feature.
+    a: This command shold be run from the development release.
+    b: Dev will create branches in the feature/<featurename> namespace
+       in the main Crowbar repository and in all the barclamps.  The
+       initial starting point for these branches will be the tips of
+       the corresponding branches in the development namespace.
  2: Hack/build/test/commit.
  3: Run dev backup to back up your changes.  This force-pushes your
     changes to your personal forks of the crowbar repositories on
@@ -56,9 +71,9 @@ Ready for pull request:
     b: dev will perfom a fetch and a sync, and abort if there were any
        merge conflicts.
     c: dev will figure out what barclamps and what main Crowbar
-       branches are candidates for a pull request.
+       branches are candidates for a pull request in the current release.
     d: dev will print a command line wil all the branches and
-       barclamps that are candidates for pull requests.
+       barclamps that are candidates for pull requests in the current release.
  2: Run dev pull-requests-gen
     a: dev will ask for a title to be used for all the pull requests.
     b: dev will open an editor for you to type in a body that will be
@@ -96,6 +111,13 @@ related branches.  Currently implemented release types are:
    name>/ in the main Crowbar repository and in the
    barclamps. Releases are named with a unique name (similar to Ubuntu
    or Debian release names), and only get stabilization and bugfix updates.
+ * Feature bundles, which consist of branches prefixed with feature/<feature
+   name>/ in the main Crowbar repository and in the barclamps.
+   Features are local to your private forks and personal branches, and
+   get merged the main dellcloudedge repositories via pull requests to
+   the appropriate development branch in the appropriate dellcloudedge
+   repository. For now, feature branches should always be based on and
+   merged back into the development release.
  * Stable, which consists of branches prefixed with stable/ in the
    main Crowbar repository and in the barclamps.  The details of how
    the stable release will work is TBD.
@@ -184,3 +206,165 @@ environment variable to a list of remotes that are available.  dev
 will only try to operate on remotes that it currently thinks are
 reachable, but things will probably not work too well if origin gets
 excluded.
+
+
+Dev commandline options:
+
+setup: Perform initial setup for the Crowbar repositories
+
+    dev setup prepares the repositories to be managed by the dev
+    tool. It handles caching your github credentials, ensuring that
+    all of the barclamps get cloned and configured properly for fetch,
+    sync, and backup operations.  It can be re-run nondestructivly if
+    new barclamps are added or your local development environment
+    needs to change.
+
+is_clean: Tests to see if the crowbar repo trees are clean.
+
+    Without any options, if any of the trees have uncommitted
+    modifications to files under revision control, or there are any
+    files present that are not under revision control that are not
+    also ignored and that are not parts of a barclamp, this command
+    will fail.  This command ignores submodule reference mismatches by
+    default.
+
+    With the --barclamps option, dev is_clean will not ignore
+    submodule reference mismatches.
+
+    With the --path option, dev is_clean will just check the locations
+    you pass on the commandline for cleanliness.
+
+fetch: Fetch updates to Crowbar and the barclamps from upstream.
+
+    This command fetches updates for the main Crowbar repository and
+    all the barclamps from all of the upstream repositories listed in
+    the DEV_REMOTES array.  It does not make any modifications to the
+    working trees.
+
+sync: Sychronize local branches with their upstreams and local edits.
+
+    This command assumes that remote changes have already been fetched
+    into your local repositories using dev fetch.  Assuming that has
+    been done, dev sync will perform the following operations:
+
+    1: For each barclamp that is considered to be part of the current
+    release, merge all the changes from the origin remote with the
+    corresponding local branches for that barclamp.  If any merge
+    conflicts are reported, dev will remember them for later.
+
+    2: For each local branch in the Crowbar repository, merge in all
+    the remote changes for each remote into their corresponding local
+    branches. If any merge conflicts are detected, dev will exit with
+    an error message.
+
+    3: Ripple changes out from parent to child branches for this
+    release.
+
+backup: Backs up local commits to Github forks or personal branches.
+
+    Use this command whenever you want to make sure your local commits
+    are backed up to locations outside your local repositories.  By
+    default, any branches in the main Crowbar repository or any
+    branches in barclamps that originally came from the dellcloudedge
+    repositories will be pushed to your forks of those repositories, and any
+    branches in the main Crowbar repository or any branches in
+    barclamps that came from somewhere else will be pushed to branches
+    in the personal/github_login/ namespace in the proper upstream
+    repostitories for that branch or barclamp.
+
+push: Unconditionally push a branch to the personal remote.
+
+    Use this command in the main Crowbar repository whenever you want
+    to unconditionally push it to your fork on Github.  Any arguments
+    are interpreted as branches to push, and if there are no arguments
+    the current branch is pushed.
+
+pull-requests-prep: Prepare the local repository to issue a pull request.
+
+    This command will perform a fetch, a sync, and a backup
+    operation.  If all those succeed, the command will then figure out
+    what all barclamps and Crowbar branches in the current release
+    have local commits, and it will print out a command line that can
+    be used to have dev actually generate the pull requests.
+
+    If the Crowbar repositories are in a feature release,
+    pull-requests-prep will figure out what is needed to merge the
+    feature branches into the development release.
+
+pull-requests-gen:  Generate pull requests.
+
+    This command creates a series of pull requests based on the
+    command line arguments passed.  It will automatically include
+    updated submodule references for the barclamps if needed, and if
+    just barclamps are passed it will also figure out what branches in
+    the current release need updates and generate requests for them as
+    well.
+
+    If the Crowbar repositories are in a feature release, the pull
+    requests will be generated against the corresponding branches in
+    the development release.  This enables feature releases and pull
+    requests to form the basis of gated-trunk style development.
+
+release: Shows the current release of Crowbar based on git branches.
+
+releases: Show all the releases that dev knows how to work on.
+
+switch: Switch from one release to another.
+
+    This command checks out the appropriate release branch in all the
+    barclamps for the release you are switching to, and then checks out
+    the branch that most closely corresponds to your current branch in
+    the release you are switching to.  If you do not pass a release, it
+    will check out everytthin for the current release instead.
+
+build: Build a release of Crowbar.
+
+    Despite the name, build mainly concerns itself with setting the Crowbar
+    repositories up before invoking build_crowbar.sh to perform the actual
+    build.  The build command takes the following parameters:
+    --os = operating system to stage Crowbar on to.
+    --release = Release of Crowbar to build.
+    --branch = Branch within a release of Crowbar to build
+    --exact = If present, dev will run git submodule update after processing
+               the --release and --branch options, and the --no-cache-update
+                and --no-metadata-update parameters will be passed to
+                build_crowbar.sh.  If not present, the submodules will be
+                checked out to the appropriate master branch for the release.
+    Any other parameters will be passed unchanged to build_crowbar.sh.
+    See README.build for more details.
+
+    If your build cache is managed by Git, and it has the same branching
+    structure as the Crowbar releases, dev will switch to the appropriate
+    branch in the build cache before invoking build_crowbar.sh.  This makes
+    it easier to have seperate releases with known working sets of packages.
+
+cut_release:  Cuts a new release based on the current state of Crowbar.
+
+    Do not use this command unless you really know what you are doing.
+
+new-feature: Creates feature branches for a new feature.
+
+    Features are the primary method of working on new
+    features/bugfixes/quasi-independent changes in
+    Crowbar. They allow for gated-trunk style development in Crowbar
+    by treating the development release as the trunk, and the feature
+    releases as things that can be merged into the trunk via
+    pull-requests on Github.
+
+    Internally, features are implemented as a release type,
+    so any dev command that works on releases will also work on
+    features.
+
+erase-feature: Erases feature branches created with new-feature.
+
+    This command is intended to be run once a feature had been merged
+    into the main development release -- once a feature has been
+    merged, there is generally no point in keeping the branches around
+    to clutter up your local git branches.
+
+    erase-feature will check to see of the master branch of the
+    feature branches has been merged with the master of the
+    development release, and it will exit with an error if there are
+    changes in the feature that have not been merged.
+
+branches: Show the branches that are part of the current release
