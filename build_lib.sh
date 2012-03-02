@@ -677,11 +677,11 @@ to_empty_branch() {
         return $?
     fi
     if [[ -d .git ]]; then
-	git symbolic-ref HEAD refs/heads/empty-branch
-	rm -f .git/index
+        git symbolic-ref HEAD refs/heads/empty-branch
+        rm -f .git/index
     elif [[ -f .git ]]; then
-	git checkout --orphan empty-branch
-	git rm -r --cached .
+        git checkout --orphan empty-branch
+        git rm -r --cached .
     fi
     git clean -f -x -d
     echo "This branch intentionally left blank" >README.empty-branch
