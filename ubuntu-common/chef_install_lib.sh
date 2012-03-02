@@ -50,7 +50,6 @@ bring_up_chef() {
 
     # increase chef-solr index field size
     perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml 
-
     log_to svc service chef-server restart
 }
 
