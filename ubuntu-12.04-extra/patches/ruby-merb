@@ -1,4 +1,0 @@
-#!/bin/sh
-
-sed -i -e "s/Gem.activate(dep)/dep.to_spec.activate/g" /usr/lib/ruby/1.8/merb-core/core_ext/kernel.rb
-
