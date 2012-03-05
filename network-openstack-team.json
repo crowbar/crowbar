@@ -108,7 +108,7 @@
 	 }
         },
         {
-	 "pattern": "team/.*/ .*",
+	 "pattern": "team/.*/.*",
 	 "conduit_list": { 
 	   "intf0": {
 	     "if_list": [ "1g1", "1g2" ],
