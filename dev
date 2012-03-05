@@ -1026,6 +1026,7 @@ sync_branch_from_personal() {
 # remotes by running dev fetch.
 sync_repo() (
     local branch head b bc remote ref personal repo="$1"
+    local current_rel="$(current_release)"
     # $1 = dir to CD to initially.
     # Assumes that remote has already been fetched.
     cd "$1"
@@ -1044,6 +1045,20 @@ sync_repo() (
             sync_branch_from_personal "$remote" "$branch"
         done
     done < <(git show-ref --heads)
+    if [[ $2 && $2 != $current_rel ]] && \
+        is_in "$2" "$(show_releases)"; then
+        local from_prefix="$(branch_prefix "$2")"
+        while read ref branch; do
+            branch="${branch#refs/heads/}"
+            [[ $branch = ${from_prefix}* ]] || continue
+            branch_exists "${DEV_BRANCH_PREFIX}$branch" || continue
+            quiet_checkout "${DEV_BRANCH_PREFIX}$branch"
+            git merge -q "${from_prefix}$branch" || {
+                git merge --abort
+                die "$repo: Merge of $branch from $2 into $current_rel failed."
+            }
+        done < <(git show-ref --heads)
+    fi
     if [[ $(git rev-parse --verify -q HEAD) != \
         $(git rev-parse --verify -q $head) ]]; then
         quiet_checkout "${head#refs/heads/}"
@@ -1083,14 +1098,14 @@ sync_everything() {
     # Do barclamps first.
     for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES[@]}); do
         debug "Syncing $b"
-        sync_repo "$CROWBAR_DIR/barclamps/$b" && continue
+        sync_repo "$CROWBAR_DIR/barclamps/$b" "$@" && continue
         unsynced_barclamps+=("$b")
     done
     # Finished with barclamps, now for crowbar.
     debug "Syncing crowbar"
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
         head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
-    sync_repo "$CROWBAR_DIR" || \
+    sync_repo "$CROWBAR_DIR" "$@" || \
         die "Could not sync Crowbar with origin branches"
     # Now for the branch-rippling merges of doom
     for branch in $(root_branches); do
@@ -1160,7 +1175,9 @@ Command line options:
 
   sync -- Merge any changes that have been fetched into the current
           repositories.  dev is_clean should exit without any messages before
-          running this command.
+          running this command.  If you pass an argument to sync, it will
+          interpret that argument as a release or feature name and try to
+          merge any changes in common branches from that release.
 
   push -- Unconditionally push a branch (or branches) to your crowbar Github
           fork.  Any arguments are interpreted as branch names to push, and
@@ -1685,7 +1702,7 @@ build_crowbar() {
 case $1 in
     is_clean) shift; crowbar_is_clean "$@";;
     fetch) shift; fetch_all "$@";;
-    sync) sync_everything;;
+    sync) shift; sync_everything "$@";;
     setup) setup;;
     backup) backup_everything;;
     push) shift; push_branches "$@";;
