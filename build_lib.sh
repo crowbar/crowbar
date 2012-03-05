@@ -489,7 +489,7 @@ update_barclamp_pkg_cache() {
         fi
         cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
-    touch "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    __make_barclamp_pkg_metadata "$1"
 }
 
 # Update the gem cache for a barclamp
@@ -578,6 +578,8 @@ barclamp_pkg_cache_needs_update() {
     local -A pkgs
 
     [[ $need_update = true || ${FORCE_BARCLAMP_UPDATE["$1"]} = true ]] && return 0
+    [[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs ]] && \
+        touch "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
     # First, check to see if we have all the packages we need.
     for bc in $(all_deps "$1"); do
         [[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" ]] && \
@@ -675,11 +677,11 @@ to_empty_branch() {
         return $?
     fi
     if [[ -d .git ]]; then
-	git symbolic-ref HEAD refs/heads/empty-branch
-	rm -f .git/index
+        git symbolic-ref HEAD refs/heads/empty-branch
+        rm -f .git/index
     elif [[ -f .git ]]; then
-	git checkout --orphan empty-branch
-	git rm -r --cached .
+        git checkout --orphan empty-branch
+        git rm -r --cached .
     fi
     git clean -f -x -d
     echo "This branch intentionally left blank" >README.empty-branch
