@@ -1098,15 +1098,26 @@ sync_everything() {
     # Do barclamps first.
     for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES[@]}); do
         debug "Syncing $b"
-        sync_repo "$CROWBAR_DIR/barclamps/$b" "$@" && continue
+        sync_repo "$CROWBAR_DIR/barclamps/$b" && continue
         unsynced_barclamps+=("$b")
     done
     # Finished with barclamps, now for crowbar.
     debug "Syncing crowbar"
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
         head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
-    sync_repo "$CROWBAR_DIR" "$@" || \
+    sync_repo "$CROWBAR_DIR" || \
         die "Could not sync Crowbar with origin branches"
+    if [[ $@ ]]; then
+        for u in "$@"; do
+            for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES[@]}); do
+                debug "Syncing $b"
+                sync_repo "$CROWBAR_DIR/barclamps/$b" "$u" && continue
+                unsynced_barclamps+=("$b")
+            done
+            sync_repo "$CROWBAR_DIR" "$u" || \
+                die "Could not sync Crowbar with origin branches"
+        done
+    fi
     # Now for the branch-rippling merges of doom
     for branch in $(root_branches); do
         ripple_changes_out "$branch"
@@ -1306,6 +1317,10 @@ do_pull_request() {
     # $1 = url to POST to
     # rest of args passed verbatim to make_pull_request helper.
     local posturl="$1"
+    for posturl in "$@"; do echo "$posturl"; done
+    local posturl="$1"
+    make_pull_request "$@"
+    return
     local -A res
     shift
     . <(make_pull_request "$@" | \
