@@ -177,6 +177,8 @@ end
 
 # makes sure that sass overrides are injected into the application.sass
 def merge_sass(barclamp, bc, path, installing)
+  bc_flag = "//FROM BARCLAMP: #{barclamp['barclamp']['name']}."
+
   debug = DEBUG
   sass_path = File.join path, 'crowbar_framework', 'public', 'stylesheets', 'sass'
   application_sass = File.join CROWBAR_PATH, 'public', 'stylesheets', 'sass', 'application.sass'
@@ -208,7 +210,7 @@ def merge_sass(barclamp, bc, path, installing)
     end unless barclamp['application_sass'].nil? or barclamp['application_sass']['remove'].nil?
     # scan the sass files from the barclamp
     sass_files.each do |sf|
-      entry = "@import #{sf[/^_(.*).sass$/,1]}"
+      entry = "@import #{sf[/^_(.*).sass$/,1]} #{bc_flag}"
       # when installing, if not already in the application, add it
       if installing and !sapp.include? entry 
         if top>0 
@@ -238,19 +240,17 @@ end
 # injects/cleans barclamp items from framework navigation
 def merge_nav(barclamp, installing)
   unless barclamp['nav'].nil?
+    bc_flag = "#FROM BARCLAMP: #{barclamp['barclamp']['name']}."
     # get raw file
     nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'  
     nav_raw = []
     File.open(nav_file, 'r') do |f|
       f.each_line { |line| nav_raw << line }
     end
-    # remove stuff that may be replaced
+    # remove stuff that will be replaced
     nav = []
     nav_raw.each do |line|
-      barclamp['nav']['primary'].each { |key, value| line = nil if line.lstrip.start_with? "primary.item :#{value}" } unless barclamp['nav']['primary'].nil?
-      barclamp['nav']['nodes'].each { |key, value| line = nil if line.lstrip.start_with? "secondary.item :#{key}" } unless barclamp['nav']['add'].nil?
-      barclamp['nav']['barclamps'].each { |key, value| line = nil if line.lstrip.start_with? "secondary.item :#{key}" } unless barclamp['nav']['add'].nil?
-      nav << line unless line.nil?
+      nav << line unless line =~ /#{bc_flag}$/
     end  
     # now add new items
     new_nav = []
@@ -258,7 +258,7 @@ def merge_nav(barclamp, installing)
       unless barclamp['nav']['primary'].nil?
         barclamp['nav']['primary'].each do |key, value|
           #insert new items before
-          new_nav << "primary.item :#{value}" if installing and line.lstrip.start_with? "primary.item :#{key}" 
+          new_nav << "primary.item :#{value} #{bc_flag}" if installing and line.lstrip.start_with? "primary.item :#{key}" 
         end
       end
       # add the line
@@ -267,7 +267,7 @@ def merge_nav(barclamp, installing)
       barclamp['nav'].each do |key, value|
         if installing and line.lstrip.start_with? "# insert here for :#{key}"
           value.each do |k, v|
-            new_nav << "secondary.item :#{k}, t('nav.#{k}'), #{v}" unless v.nil?
+            new_nav << "secondary.item :#{k}, t('nav.#{k}'), #{v} #{bc_flag}" unless v.nil?
           end
         end
       end
