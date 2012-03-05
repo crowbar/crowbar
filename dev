@@ -1025,11 +1025,12 @@ sync_branch_from_personal() {
 # Assumes that upstream commits have already been fetched from the proper
 # remotes by running dev fetch.
 sync_repo() (
-    local branch head b bc remote ref personal repo="$1"
+    local branch head b rel bc remote ref personal repo="$1"
     local current_rel="$(current_release)"
-    # $1 = dir to CD to initially.
+    shift
+    # $repo = dir to CD to initially.
     # Assumes that remote has already been fetched.
-    cd "$1"
+    cd "$repo"
     # Repo is not clean, we will refuse to merge in any case.
     git_is_clean || exit 1
     # Merge upstream branches from all remotes, but only if the branch
@@ -1045,20 +1046,22 @@ sync_repo() (
             sync_branch_from_personal "$remote" "$branch"
         done
     done < <(git show-ref --heads)
-    if [[ $2 && $2 != $current_rel ]] && \
-        is_in "$2" "$(show_releases)"; then
-        local from_prefix="$(branch_prefix "$2")"
-        while read ref branch; do
-            branch="${branch#refs/heads/}"
-            [[ $branch = ${from_prefix}* ]] || continue
-            branch_exists "${DEV_BRANCH_PREFIX}$branch" || continue
-            quiet_checkout "${DEV_BRANCH_PREFIX}$branch"
-            git merge -q "${from_prefix}$branch" || {
-                git merge --abort
-                die "$repo: Merge of $branch from $2 into $current_rel failed."
-            }
-        done < <(git show-ref --heads)
-    fi
+    for rel in "$@"; do
+        if [[ $rel && $rel != $current_rel ]] && \
+            is_in "$rel" "$(show_releases)"; then
+            local from_prefix="$(branch_prefix "$rel")"
+            while read ref branch; do
+                branch="${branch#refs/heads/}"
+                [[ $branch = ${from_prefix}* ]] || continue
+                branch_exists "${DEV_BRANCH_PREFIX}$branch" || continue
+                quiet_checkout "${DEV_BRANCH_PREFIX}$branch"
+                git merge -q "${from_prefix}$branch" || {
+                    git merge --abort
+                    die "$repo: Merge of $branch from $rel into $current_rel failed."
+                }
+            done < <(git show-ref --heads)
+        fi
+    done
     if [[ $(git rev-parse --verify -q HEAD) != \
         $(git rev-parse --verify -q $head) ]]; then
         quiet_checkout "${head#refs/heads/}"
@@ -1098,7 +1101,7 @@ sync_everything() {
     # Do barclamps first.
     for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES[@]}); do
         debug "Syncing $b"
-        sync_repo "$CROWBAR_DIR/barclamps/$b" && continue
+        sync_repo "$CROWBAR_DIR/barclamps/$b" "$@" && continue
         unsynced_barclamps+=("$b")
     done
     # Finished with barclamps, now for crowbar.
