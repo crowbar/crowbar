@@ -582,6 +582,7 @@ setup() {
     head_release="$(current_release)"
     for release in $(show_releases); do
         switch_release "$release"
+        checkout master
         for remote in "${DEV_REMOTES[@]}"; do
             for b in $(filter_branches_for_remote "$remote" \
                 $(ordered_branches)); do
