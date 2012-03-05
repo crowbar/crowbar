@@ -500,7 +500,7 @@ git_config_has() { git config --get "$1" &>/dev/null; }
 # care to make sure it stays idempotent.
 setup() {
     local p remote release br head
-    local -A touched_branches
+    local -A touched_branches fetched_barclamps
     crowbar_is_clean || \
         die "Crowbar repo must be clean before trying to set things up!"
     # Make sure we have Github login credentials as the very first thing.
@@ -582,6 +582,7 @@ setup() {
     head_release="$(current_release)"
     for release in $(show_releases); do
         switch_release "$release"
+        checkout master
         for remote in "${DEV_REMOTES[@]}"; do
             for b in $(filter_branches_for_remote "$remote" \
                 $(ordered_branches)); do
@@ -589,12 +590,18 @@ setup() {
                     die "Cannot checkout $b"
                 for bc in $(barclamps_from_branch "$b"); do
                     debug "$release: $remote: $b: $bc"
-                    in_repo git_config_has "submodule.barclamps/$bc.url" || \
+                    in_repo git_config_has "submodule.barclamps/$bc.url" || {
                         clone_barclamp "$bc"
+                        fetched_barclamps["$bc"]="true"
+                    }
                     repo="$(in_repo git config --get submodule.barclamps/$bc.url)"
                     repo="${repo##*/}"
                     repo="${repo##*:}"
                     repo="${repo%.git}"
+                    [[ ${fetched_barclamps[$bc]} ]] || {
+                        in_barclamp "$bc" git fetch origin
+                        fetched_barclamps["$bc"]="true"
+                    }
                     in_barclamp "$bc" update_tracking_branches origin
                     if [[ $remote = origin ]]; then
                         if ! is_in "$repo" "${repos[*]}"; then
