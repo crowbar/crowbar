@@ -1030,6 +1030,7 @@ merge_releases() {
     local cur_rel="$(current_release)"
     local -A our_barclamps their_barclamps
     for branch in $(ordered_branches); do
+        branch_exists "$branch" || continue
         br="${branch##*/}"
         quiet_checkout "$branch" || \
             die "Could not checkout $branch in merge_releases!"
