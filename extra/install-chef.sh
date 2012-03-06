@@ -137,7 +137,7 @@ EOF
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
 (   cd /tftpboot/gemsite/gems
     for gem in builder json net-http-digest_auth activesupport i18n \
-        daemons bluepill xml-simple libxml-ruby ; do
+        daemons bluepill xml-simple libxml-ruby rack ; do
         gem install --local --no-ri --no-rdoc $gem-*.gem
     done
     cd ..
