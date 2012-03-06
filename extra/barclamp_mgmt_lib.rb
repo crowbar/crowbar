@@ -238,19 +238,17 @@ end
 # injects/cleans barclamp items from framework navigation
 def merge_nav(barclamp, installing)
   unless barclamp['nav'].nil?
+    bc_flag = "#FROM BARCLAMP: #{barclamp['barclamp']['name']}."
     # get raw file
     nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'  
     nav_raw = []
     File.open(nav_file, 'r') do |f|
       f.each_line { |line| nav_raw << line }
     end
-    # remove stuff that may be replaced
+    # remove stuff that will be replaced
     nav = []
     nav_raw.each do |line|
-      barclamp['nav']['primary'].each { |key, value| line = nil if line.lstrip.start_with? "primary.item :#{value}" } unless barclamp['nav']['primary'].nil?
-      barclamp['nav']['nodes'].each { |key, value| line = nil if line.lstrip.start_with? "secondary.item :#{key}" } unless barclamp['nav']['add'].nil?
-      barclamp['nav']['barclamps'].each { |key, value| line = nil if line.lstrip.start_with? "secondary.item :#{key}" } unless barclamp['nav']['add'].nil?
-      nav << line unless line.nil?
+      nav << line unless line =~ /#{bc_flag}$/
     end  
     # now add new items
     new_nav = []
@@ -258,7 +256,7 @@ def merge_nav(barclamp, installing)
       unless barclamp['nav']['primary'].nil?
         barclamp['nav']['primary'].each do |key, value|
           #insert new items before
-          new_nav << "primary.item :#{value}" if installing and line.lstrip.start_with? "primary.item :#{key}" 
+          new_nav << "primary.item :#{value} #{bc_flag}" if installing and line.lstrip.start_with? "primary.item :#{key}" 
         end
       end
       # add the line
@@ -267,7 +265,7 @@ def merge_nav(barclamp, installing)
       barclamp['nav'].each do |key, value|
         if installing and line.lstrip.start_with? "# insert here for :#{key}"
           value.each do |k, v|
-            new_nav << "secondary.item :#{k}, t('nav.#{k}'), #{v}" unless v.nil?
+            new_nav << "secondary.item :#{k}, t('nav.#{k}'), #{v} #{bc_flag}" unless v.nil?
           end
         end
       end
