@@ -49,7 +49,7 @@ def walk (t, res, key)
     elsif t[i].kind_of? NilClass
       next
     else
-      puts "#{res}['#{k}']='#{t[i]}'"
+      puts "#{res}['#{k}']=$'#{t[i].gsub(/'/,"\\\\'")}'"
     end
   }
 end
