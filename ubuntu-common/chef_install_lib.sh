@@ -54,6 +54,12 @@ bring_up_chef() {
     # Fix ruby-gems and merb-core mismatch
     sed -i -e "s/Gem.activate(dep)/dep.to_spec.activate/g" /usr/lib/ruby/1.8/merb-core/core_ext/kernel.rb
 
+    log_to svc service chef-server restart
+}
+
+pre_crowbar_fixups() { : ; }
+
+post_crowbar_fixups() {
     # HACKHACKHACKHACK
     # Let me begin with that this is really crappy.  Ubuntu gem management is confusing
     # at best or busted at worst.
@@ -67,9 +73,8 @@ bring_up_chef() {
     # HACKHACKHACKHACK
 
     log_to svc service chef-server restart
+    log_to svc bluepill crowbar-webserver restart
 }
-
-pre_crowbar_fixups() { : ; }
 
 update_admin_node() {
     log_to apt apt-get -y upgrade
