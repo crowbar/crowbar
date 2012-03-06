@@ -177,8 +177,6 @@ end
 
 # makes sure that sass overrides are injected into the application.sass
 def merge_sass(barclamp, bc, path, installing)
-  bc_flag = "//FROM BARCLAMP: #{barclamp['barclamp']['name']}."
-
   debug = DEBUG
   sass_path = File.join path, 'crowbar_framework', 'public', 'stylesheets', 'sass'
   application_sass = File.join CROWBAR_PATH, 'public', 'stylesheets', 'sass', 'application.sass'
@@ -210,7 +208,7 @@ def merge_sass(barclamp, bc, path, installing)
     end unless barclamp['application_sass'].nil? or barclamp['application_sass']['remove'].nil?
     # scan the sass files from the barclamp
     sass_files.each do |sf|
-      entry = "@import #{sf[/^_(.*).sass$/,1]} #{bc_flag}"
+      entry = "@import #{sf[/^_(.*).sass$/,1]}"
       # when installing, if not already in the application, add it
       if installing and !sapp.include? entry 
         if top>0 
