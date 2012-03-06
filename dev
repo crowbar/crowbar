@@ -1138,7 +1138,7 @@ ripple_changes_out() {
             [[ $(in_repo git symbolic-ref HEAD) = refs/heads/$child ]] || \
                 in_repo quiet_checkout "$child"
             debug "Merging $parent into $child"
-            in_repo git merge -q "$parent" || \
+            in_repo git merge -s recursive -X theirs -q "$parent" || \
                 die "Merge $parent into $child branch of Crowbar failed."
         fi
         ripple_changes_out "$child"
