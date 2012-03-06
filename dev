@@ -1021,15 +1021,84 @@ sync_branch_from_personal() {
     }
 }
 
+# Handle merges across releases.  Most of the ugliness here is around making
+# sure that we don't get merge conflicts due to different barclamp submodule
+# updates, which we don't care about locally.
+merge_releases() {
+    # $@ = releases to merge.
+    local rel ref branch br mode t bc
+    local cur_rel="$(current_release)"
+    local -A our_barclamps their_barclamps
+    for branch in $(ordered_branches); do
+        branch_exists "$branch" || continue
+        br="${branch##*/}"
+        quiet_checkout "$branch" || \
+            die "Could not checkout $branch in merge_releases!"
+        # Save our current barclamp references to be restored later.
+        if [[ -d barclamps ]]; then
+            while read mode t ref bc; do
+                [[ $mode = '160000' && $t = 'commit' ]] || continue
+                our_barclamps["$bc"]="$ref"
+            done < <( git ls-tree -r HEAD barclamps)
+        fi
+        for rel in "$@"; do
+            [[ $rel ]] || continue
+            [[ $rel != $cur_rel ]] || continue
+            is_in "$rel" "$(show_releases)" || continue
+            local from_prefix="$(branch_prefix "$rel")"
+            branch_exists "${from_prefix}$br" || continue
+            if [[ -d barclamps ]]; then
+                local do_commit=''
+                # Find all the common barclamps that point at different
+                # submodule references.  Make the current branch point at the
+                # same refs as the to-be-merged branch to avoid merge conflicts
+                # that we really don't care about locally anyways.
+                while read mode t ref bc; do
+                    [[ ${our_barclamps[$bc]} && \
+                        ${our_barclamps[$bc]} != $ref ]] || continue
+                    git update-index --cacheinfo 160000 "$ref" "$bc"
+                    do_commit=true
+                done < <(git ls-tree -r "${from_prefix}$br" barclamps)
+                [[ $do_commit ]] && \
+                    git commit -m "Eschew barclamp merge conflicts."
+                unset do_commit
+            fi
+            git merge -q "${from_prefix}$br" || {
+                git merge --abort
+                die "$repo: Merge of $br from $rel into $cur_rel failed."
+            }
+        done
+        if [[ -d barclamps ]]; then
+            # Unwind submodule updates for barclamps.  This leaves them
+            # out of sync from where they really should be at this point,
+            # but the policy of the dev tool is that all "real" barclamp
+            # submodule reference updates happen at pull-requests-gen time.
+            while read mode t ref bc; do
+                [[ ${our_barclamps[$bc]} && \
+                    ${our_barclamps[$bc]} != $ref ]] || continue
+                ref="${our_barclamps[$bc]}"
+                git update-index --cacheinfo 160000 "$ref" "$bc"
+                do_commit=true
+            done < <(git ls-tree -r HEAD barclamps)
+            [[ $do_commit ]] && {
+                git commit -m "Move barclamp submodule refs back."
+                debug "Submodules updated for $branch in Crowbar."
+                debug "Builds with --exact will be broken until this branch has been through a pull request."
+            }
+            unset do_commit
+        fi
+    done
+}
+
 # Merges in changes into all local branches from their upstreams.
 # Assumes that upstream commits have already been fetched from the proper
 # remotes by running dev fetch.
 sync_repo() (
-    local branch head b bc remote ref personal repo="$1"
-    local current_rel="$(current_release)"
-    # $1 = dir to CD to initially.
+    local branch head b rel bc remote ref personal repo="$1"
+    shift
+    # $repo = dir to CD to initially.
     # Assumes that remote has already been fetched.
-    cd "$1"
+    cd "$repo"
     # Repo is not clean, we will refuse to merge in any case.
     git_is_clean || exit 1
     # Merge upstream branches from all remotes, but only if the branch
@@ -1045,24 +1114,12 @@ sync_repo() (
             sync_branch_from_personal "$remote" "$branch"
         done
     done < <(git show-ref --heads)
-    if [[ $2 && $2 != $current_rel ]] && \
-        is_in "$2" "$(show_releases)"; then
-        local from_prefix="$(branch_prefix "$2")"
-        while read ref branch; do
-            branch="${branch#refs/heads/}"
-            [[ $branch = ${from_prefix}* ]] || continue
-            branch_exists "${DEV_BRANCH_PREFIX}$branch" || continue
-            quiet_checkout "${DEV_BRANCH_PREFIX}$branch"
-            git merge -q "${from_prefix}$branch" || {
-                git merge --abort
-                die "$repo: Merge of $branch from $2 into $current_rel failed."
-            }
-        done < <(git show-ref --heads)
-    fi
+    [[ $@ ]] && merge_releases "$@"
     if [[ $(git rev-parse --verify -q HEAD) != \
         $(git rev-parse --verify -q $head) ]]; then
         quiet_checkout "${head#refs/heads/}"
     fi
+    return 0
 )
 
 # Recursivly merge all changes from a given branch into its children, if any.
@@ -1098,8 +1155,10 @@ sync_everything() {
     # Do barclamps first.
     for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES[@]}); do
         debug "Syncing $b"
-        sync_repo "$CROWBAR_DIR/barclamps/$b" "$@" && continue
-        unsynced_barclamps+=("$b")
+        if ! sync_repo "$CROWBAR_DIR/barclamps/$b" "$@"; then
+            unsynced_barclamps+=("$b")
+            continue
+        fi
     done
     # Finished with barclamps, now for crowbar.
     debug "Syncing crowbar"
@@ -1107,6 +1166,7 @@ sync_everything() {
         head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
     sync_repo "$CROWBAR_DIR" "$@" || \
         die "Could not sync Crowbar with origin branches"
+
     # Now for the branch-rippling merges of doom
     for branch in $(root_branches); do
         ripple_changes_out "$branch"
@@ -1306,6 +1366,10 @@ do_pull_request() {
     # $1 = url to POST to
     # rest of args passed verbatim to make_pull_request helper.
     local posturl="$1"
+    for posturl in "$@"; do echo "$posturl"; done
+    local posturl="$1"
+    make_pull_request "$@"
+    return
     local -A res
     shift
     . <(make_pull_request "$@" | \
