@@ -137,7 +137,7 @@ EOF
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
 (   cd /tftpboot/gemsite/gems
     for gem in builder json net-http-digest_auth activesupport i18n \
-        daemons bluepill xml-simple libxml-ruby rack ; do
+        daemons bluepill xml-simple libxml-ruby ; do
         gem install --local --no-ri --no-rdoc $gem-*.gem
     done
     cd ..
@@ -309,6 +309,8 @@ echo "$(date '+%F %T %z'): Bringing up Crowbar..."
 chef_or_die "Failed to bring up Crowbar"
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /tmp/deploying
+
+post_crowbar_fixups
 
 # have chef_or_die change our status to problem if we fail
 crowbar_up=true
