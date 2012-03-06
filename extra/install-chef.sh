@@ -310,6 +310,8 @@ chef_or_die "Failed to bring up Crowbar"
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /tmp/deploying
 
+post_crowbar_fixups
+
 # have chef_or_die change our status to problem if we fail
 crowbar_up=true
 
