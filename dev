@@ -1366,10 +1366,6 @@ do_pull_request() {
     # $1 = url to POST to
     # rest of args passed verbatim to make_pull_request helper.
     local posturl="$1"
-    for posturl in "$@"; do echo "$posturl"; done
-    local posturl="$1"
-    make_pull_request "$@"
-    return
     local -A res
     shift
     . <(make_pull_request "$@" | \
