@@ -439,7 +439,8 @@ make_barclamp_pkg_metadata() {
     [[ $ALLOW_CACHE_UPDATE != true && \
         $ALLOW_CACHE_METADATA_UPDATE != true ]] && return 0
     [[ -d $CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs ]] || return 0
-    __barclamp_pkg_metadata_needs_update "$1" || return 0
+    [[ $force_update=true ]] || __barclamp_pkg_metadata_needs_update "$1" || \
+        return 0
     [[ $ALLOW_CACHE_METADATA_UPDATE = false ]] && \
         die "Need to update cache metadata for $1, but --no-metadata-update passed."
     debug "Updating package cache metadata for $1"
@@ -489,7 +490,8 @@ update_barclamp_pkg_cache() {
         fi
         cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
-    __make_barclamp_pkg_metadata "$1"
+    local force_update=true
+    make_barclamp_pkg_metadata "$1"
 }
 
 # Update the gem cache for a barclamp
