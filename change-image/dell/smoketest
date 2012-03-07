@@ -42,7 +42,7 @@ match_keys() {
     local line='' re=''
     while read line; do
         for re in "$@"; do
-            [[ $line =~ ^[a-zA-Z_0-9]+\[\'$re[^\']*\'\]=\'(.*) ]] || continue
+            [[ $line =~ ^[a-zA-Z_0-9]+\[\'$re[^\']*\'\]=\$\'(.*) ]] || continue
             echo "${BASH_REMATCH[1]%\'}"
             continue 2
         done
