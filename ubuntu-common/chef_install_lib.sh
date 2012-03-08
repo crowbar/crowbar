@@ -48,6 +48,11 @@ bring_up_chef() {
     # Make the Rubygems provider in Chef respect gemrc files.
     cp -f patches/rubygems.rb /usr/lib/ruby/vendor_ruby/chef/provider/package
 
+    # Fix seg fault (fixed in chef 0.10.10) OHAI-330 CHEF-2916
+    cp -r patches /tftpboot  # Make them available to the world.
+    cp -f patches/command.rb /usr/lib/ruby/1.8/ohai/mixin/command.rb    
+    cp -f patches/unix.rb /usr/lib/ruby/vendor_ruby/chef/mixin/command/unix.rb
+
     # increase chef-solr index field size
     perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml 
 
