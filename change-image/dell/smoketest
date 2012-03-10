@@ -82,7 +82,7 @@ __barclamp_deps() {
     is_barclamp "$1" || return 1
     local -a bc_array
     while read line; do
-        bc_array=($(barclamp_group_expand "${line}"))
+        bc_array+=($(barclamp_group_expand "${line}"))
     done < <(parse_yml_or_json "/opt/dell/barclamps/$1/crowbar.yml" bc_res | \
         match_keys 'barclamp\.requires' 'smoketest\.requires')
     for bc in "${bc_array[@]}"; do
