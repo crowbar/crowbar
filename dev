@@ -19,6 +19,7 @@ readonly DEV_VERSION=1
 DEV_BRANCHES["master"]="master"
 DEV_BRANCHES["openstack-os-build"]="master"
 DEV_BRANCHES["hadoop-os-build"]="master"
+DEV_BRANCHES["cloudera-os-build"]="master"
 
 # DEV_REMOTE_SOURCES defines the source parts of the URLs that the
 # various remotes map to.  The "personal" remote is not listed in this
@@ -30,7 +31,7 @@ DEV_REMOTE_SOURCES["origin"]="https://github.com/dellcloudedge"
 # DEV_REMOTE_BRANCHES defines what branches in the main Crowbar repository
 # should be pulled and synced with what remotes.
 # Barclamps do care about remote branches.
-DEV_REMOTE_BRANCHES["origin"]="master openstack-os-build hadoop-os-build"
+DEV_REMOTE_BRANCHES["origin"]="master openstack-os-build hadoop-os-build cloudera-os-build"
 
 # DEV_REMOTES holds the remotes we will work on in the order they should be
 # worked on when ordering matters.
