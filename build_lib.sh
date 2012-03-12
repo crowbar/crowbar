@@ -90,14 +90,13 @@ get_barclamp_info() {
     for bc in "${!BC_DEPS[@]}"; do
         newdeps=''
         for dep in ${BC_DEPS["$bc"]}; do
-            dep="${BC_SUPERCEDES[$dep]:-$dep}"
             if [[ $dep = @* ]]; then
                 [[ ${BC_GROUPS["${dep#@}"]} ]] || \
                     die "$bc depends on group ${dep#@}, but that group does not exist!"
                 for d in ${BC_GROUPS["${dep#@}"]}; do
                     is_barclamp "$d" || \
                         die "$bc depends on barclamp $d from group ${dep#@}, but $d does not exist!"
-                    newdeps+="${BC_SUPERCEDES[$d]:-$d}"
+                    newdeps+="$d "
                 done
             else
                 is_barclamp "$dep" || \
