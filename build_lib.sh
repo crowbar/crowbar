@@ -73,8 +73,8 @@ get_barclamp_info() {
                         BC_BUILD_CMDS["$bc"]="$line";;
                     test_timeouts) BC_SMOKETEST_TIMEOUTS["$bc"]+="$line ";;
                     supercedes) 
-                        [[ ${BC_SUPERCEDES[$line]} ]] || \
-                            die "$line is alreadt superceded by ${BC_SUPERCEDES[$line]}!"
+                        [[ ${BC_SUPERCEDES[$line]} ]] && \
+                            die "$line is already superceded by ${BC_SUPERCEDES[$line]}!"
                         BC_SUPERCEDES["$line"]="$bc";;
                     *) die "Cannot handle query for $query."
                 esac
@@ -127,7 +127,12 @@ get_barclamp_info() {
     new_barclamps=("crowbar")
     while [[ t = t ]]; do
         for bc in "${BARCLAMPS[@]}"; do
+            if [[ ${BC_SUPERCEDES[$bc]} ]]; then
+                debug "$bc is superceded by ${BC_SUPERCEDES[$bc]}. Skipping."
+                continue
+            fi
             for dep in ${BC_DEPS["$bc"]}; do
+                dep="${BC_SUPERCEDES[$dep]:-$dep}"
                 is_in "$dep" "${new_barclamps[@]}" && continue
                 new_barclamps+=("$dep")
             done
