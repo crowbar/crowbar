@@ -33,13 +33,13 @@
 	url = http://github.com/dellcloudedge/barclamp-test.git
 [submodule "barclamps/clouderamanager"]
 	path = barclamps/clouderamanager
-	url = http://github.com/dellcloudedge/barclamp-hadoop.git
+	url = https://github.com/dellcloudedge/barclamp-clouderamanager.git
 [submodule "barclamps/hive"]
 	path = barclamps/hive
-	url = http://github.com/dellcloudedge/barclamp-hive.git
+	url = https://github.com/dellcloudedge/barclamp-hive.git
 [submodule "barclamps/pig"]
 	path = barclamps/pig
-	url = http://github.com/dellcloudedge/barclamp-pig.git
+	url = https://github.com/dellcloudedge/barclamp-pig.git
 [submodule "barclamps/sqoop"]
 	path = barclamps/sqoop
-	url = http://github.com/dellcloudedge/barclamp-sqoop.git
+	url = https://github.com/dellcloudedge/barclamp-sqoop.git
