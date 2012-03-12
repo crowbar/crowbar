@@ -20,6 +20,7 @@ ulimit -Sn unlimited
 declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
 declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
+declare -A BC_SUPERCEDES
 
 # Build OS independent query strings.
 BC_QUERY_STRINGS["deps"]="barclamp requires"
@@ -30,6 +31,7 @@ BC_QUERY_STRINGS["os_support"]="barclamp os_support"
 BC_QUERY_STRINGS["gems"]="gems pkgs"
 BC_QUERY_STRINGS["test_deps"]="smoketest requires"
 BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
+BC_QUERY_STRINGS["supercedes"]="barclamp supercedes"
 
 get_barclamp_info() {
     local bc yml_file line query newdeps dep d i
@@ -70,6 +72,10 @@ get_barclamp_info() {
                         die "Only one os_build_cmd stanza per OS per barclamp allowed!"
                         BC_BUILD_CMDS["$bc"]="$line";;
                     test_timeouts) BC_SMOKETEST_TIMEOUTS["$bc"]+="$line ";;
+                    supercedes) 
+                        [[ ${BC_SUPERCEDES[$line]} ]] && \
+                            die "$line is already superceded by ${BC_SUPERCEDES[$line]}!"
+                        BC_SUPERCEDES["$line"]="$bc";;
                     *) die "Cannot handle query for $query."
                 esac
             done < <("$CROWBAR_DIR/parse_yml.rb" \
@@ -84,13 +90,14 @@ get_barclamp_info() {
     for bc in "${!BC_DEPS[@]}"; do
         newdeps=''
         for dep in ${BC_DEPS["$bc"]}; do
+            dep="${BC_SUPERCEDES[$dep]:-$dep}"
             if [[ $dep = @* ]]; then
                 [[ ${BC_GROUPS["${dep#@}"]} ]] || \
                     die "$bc depends on group ${dep#@}, but that group does not exist!"
                 for d in ${BC_GROUPS["${dep#@}"]}; do
                     is_barclamp "$d" || \
                         die "$bc depends on barclamp $d from group ${dep#@}, but $d does not exist!"
-                    newdeps+="$d "
+                    newdeps+="${BC_SUPERCEDES[$d]:-$d}"
                 done
             else
                 is_barclamp "$dep" || \
@@ -120,7 +127,12 @@ get_barclamp_info() {
     new_barclamps=("crowbar")
     while [[ t = t ]]; do
         for bc in "${BARCLAMPS[@]}"; do
+            if [[ ${BC_SUPERCEDES[$bc]} ]]; then
+                debug "$bc is superceded by ${BC_SUPERCEDES[$bc]}. Skipping."
+                continue
+            fi
             for dep in ${BC_DEPS["$bc"]}; do
+                dep="${BC_SUPERCEDES[$dep]:-$dep}"
                 is_in "$dep" "${new_barclamps[@]}" && continue
                 new_barclamps+=("$dep")
             done
