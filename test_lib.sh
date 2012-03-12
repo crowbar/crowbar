@@ -108,9 +108,9 @@ smoketest_make_bridges() {
         # Emulate a switch with STP but no portfast.
         sudo -n brctl stp "$bridge" on || \
             die "Could not enable spanning tree protocol on $bridge!"
-        sudo -n brctl setfd "$bridge" 20 || \
+        sudo -n brctl setfd "$bridge" 2 || \
             die "Could not set forwarding time on $bridge!"
-        sudo -n brctl sethello "$bridge" 2 || \
+        sudo -n brctl sethello "$bridge" 1 || \
             die "Could not set hello time for $bridge!"
         sudo -n ip link set "$bridge" up || \
             die "Could not set link on $bridge up!"
@@ -526,23 +526,32 @@ run_kvm() {
         kvmargs+=(-device "ahci,id=ahci0,bus=pci.0,multifunction=on")
         kvmargs+=(-drive "file=$smoketest_dir/$vmname.disk,if=none,format=raw,cache=$drive_cache,id=drive-ahci-0")
         kvmargs+=(-device "ide-drive,bus=ahci0.0,drive=drive-ahci-0,id=drive-0")
+        local drive_idx=1
+        for image in "$smoketest_dir/$vmname-"*".disk"; do
+            [[ -f $image ]] || continue
+            kvmargs+=(-device "ahci,id=ahci${drive_idx},bus=pci.0,multifunction=on")
+            kvmargs+=(-drive "file=$image,if=none,cache=$drive_cache,id=drive-ahci-${drive_idx}")
+            kvmargs+=(-device "ide-drive,bus=ahci${drive_idx}.0,drive=drive-ahci-${drive_idx},id=drive-${drive_idx}")
+            drive_idx=$((drive_idx + 1))
+        done
+        unset drive_idx
     else
         local drivestr="file=$smoketest_dir/$vmname.disk,if=scsi,format=raw,cache=$drive_cache"
         if [[ $driveboot ]]; then
             drivestr+=",boot=on"
         fi
         kvmargs+=(-drive "$drivestr")
+        # Add additional disks if we have any.
+        for image in "$smoketest_dir/$vmname-"*".disk"; do
+            [[ -f $image ]] || continue
+            kvmargs+=(-drive "file=$image,if=scsi,format=qcow2,cache=$drive_cache")
+        done
     fi
-    # Add additional disks if we have any.
-    for image in "$smoketest_dir/$vmname-"*".disk"; do
-        [[ -f $image ]] || continue
-        kvmargs+=(-drive "file=$image,if=scsi,format=qcow2,cache=$drive_cache")
-    done
     # Add appropriate nics based on the contents of vm_nics.
     local vlan=0
     for line in "${vm_nics[@]}"; do
         kvmargs+=(-net "nic,macaddr=${line%%,*},model=e1000,vlan=$vlan")
-        kvmargs+=(-net "tap,ifname=${line##*,},script=no,downscript=no")
+        kvmargs+=(-net "tap,ifname=${line##*,},script=no,downscript=no,vlan=$vlan")
         vlan=$(($vlan + 1))
     done
     unset vlan
