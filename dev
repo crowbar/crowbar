@@ -351,6 +351,7 @@ switch_barclamps_to() {
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         [[ -d $bc/.git || -f $bc/.git ]] || \
             clone_barclamp "${bc##*/}"
+        in_barclamp "${bc##*/}" git fetch
         bc="${bc#$CROWBAR_DIR/}"
         if [[ ${barclamps[$bc]} && ${barclamps[$bc]} = refs/heads/* ]]; then
             head=$(in_barclamp "${bc##*/}" git symbolic-ref HEAD)
