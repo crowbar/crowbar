@@ -76,6 +76,18 @@ export CROWBAR_DIR
 . "$CROWBAR_DIR/build_lib.sh" || exit 1
 trap - 0 INT QUIT TERM
 
+if [[ $DEV_GITHUB_PASSWD ]]; then
+    debug "Migrating Github password information to $HOME/.netrc"
+    for mach in github.com api.github.com; do
+	grep -q "^$mach" "$HOME/.netrc" &>/dev/null && continue
+	printf "\nmachine %s login %s password %s\n" \
+	    "$mach" "$DEV_GITHUB_ID" "$DEV_GITHUB_PASSWD" >> "$HOME/.netrc"
+    done
+    chmod 600 "$HOME/.netrc"
+    sed -ie 's/DEV_GITHUB_PASSWD=.*//' "$HOME/.build-crowbar.conf"
+    debug "Please remove your embedded login information from the remote URLS."
+fi
+
 which gem &>/dev/null || \
     die "Rubygems not installed, and some of our helpers need a JSON gem."
 
