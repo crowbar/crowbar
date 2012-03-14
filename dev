@@ -1115,9 +1115,12 @@ sync_repo() (
             sync_branch_from_personal "$remote" "$branch"
         done
     done < <(git show-ref --heads)
-    [[ $@ ]] && merge_releases "$@"
     if [[ $(git rev-parse --verify -q HEAD) != \
         $(git rev-parse --verify -q $head) ]]; then
+        quiet_checkout "${head#refs/heads/}"
+    fi
+    if [[ $@ ]]; then
+        merge_releases "$@"
         quiet_checkout "${head#refs/heads/}"
     fi
     return 0
