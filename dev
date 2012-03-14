@@ -1577,7 +1577,7 @@ show_releases() {
         ref=${ref#${BASH_REMATCH[1]}}
         # Filter out "extra" remotes.
         if [[ ${BASH_REMATCH[3]} ]]; then
-            is_in "${BASH_REMATCH[3]}" "${!DEV_REMOTE_BRANCHES[*]}" || \
+            is_in "${BASH_REMATCH[3]}" "${!DEV_REMOTE_BRANCHES[*]} personal" || \
                 continue
         fi
         case ${ref} in
