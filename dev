@@ -998,7 +998,7 @@ sync_branch_from_remote() {
     git rev-parse --verify -q "$1/$2" &>/dev/null || return 0
     branches_synced "." "refs/heads/$2" "refs/remotes/$1/$2" && return 0
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
-        head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
+        head=$(git rev-parse HEAD) || die "$repo: Cannot find head commit."
     quiet_checkout "$2" || die"$1: Unable to checkout $2!"
     debug "$repo: Merging $1/$2 into $2"
     git merge -q "$1/$2" || {
@@ -1014,7 +1014,7 @@ sync_branch_from_personal() {
     git rev-parse --verify -q "$personal"&>/dev/null || return 0
     branches_synced "." "$personal" "refs/heads/$2" && return 0
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
-        head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
+        head=$(git rev-parse HEAD) || die "$repo: Cannot find head commit."
     quiet_checkout "$2" || die"$1: Unable to checkout $2!"
     git merge -q "$personal" || {
         git merge --abort
@@ -1106,7 +1106,7 @@ sync_repo() (
     # is listed in DEV_REMOTE_BRANCHES for that remote,
     # unless $remote is actually "origin"
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
-        head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
+        head=$(git rev-parse HEAD) || die "$repo: Cannot find head commit."
     while read ref branch; do
         branch=${branch#refs/heads/}
         for remote in "${!DEV_REMOTE_BRANCHES[@]}" personal; do
@@ -1164,7 +1164,7 @@ sync_everything() {
     # Finished with barclamps, now for crowbar.
     debug "Syncing crowbar"
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
-        head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
+        head=$(git rev-parse HEAD) || die "$repo: Cannot find head commit."
     sync_repo "$CROWBAR_DIR" "$@" || \
         die "Could not sync Crowbar with origin branches"
 
