@@ -998,7 +998,7 @@ sync_branch_from_remote() {
     git rev-parse --verify -q "$1/$2" &>/dev/null || return 0
     branches_synced "." "refs/heads/$2" "refs/remotes/$1/$2" && return 0
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
-        head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
+        head=$(git rev-parse HEAD) || die "$repo: Cannot find head commit."
     quiet_checkout "$2" || die"$1: Unable to checkout $2!"
     debug "$repo: Merging $1/$2 into $2"
     git merge -q "$1/$2" || {
@@ -1014,7 +1014,7 @@ sync_branch_from_personal() {
     git rev-parse --verify -q "$personal"&>/dev/null || return 0
     branches_synced "." "$personal" "refs/heads/$2" && return 0
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
-        head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
+        head=$(git rev-parse HEAD) || die "$repo: Cannot find head commit."
     quiet_checkout "$2" || die"$1: Unable to checkout $2!"
     git merge -q "$personal" || {
         git merge --abort
@@ -1106,7 +1106,7 @@ sync_repo() (
     # is listed in DEV_REMOTE_BRANCHES for that remote,
     # unless $remote is actually "origin"
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
-        head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
+        head=$(git rev-parse HEAD) || die "$repo: Cannot find head commit."
     while read ref branch; do
         branch=${branch#refs/heads/}
         for remote in "${!DEV_REMOTE_BRANCHES[@]}" personal; do
@@ -1115,9 +1115,12 @@ sync_repo() (
             sync_branch_from_personal "$remote" "$branch"
         done
     done < <(git show-ref --heads)
-    [[ $@ ]] && merge_releases "$@"
     if [[ $(git rev-parse --verify -q HEAD) != \
         $(git rev-parse --verify -q $head) ]]; then
+        quiet_checkout "${head#refs/heads/}"
+    fi
+    if [[ $@ ]]; then
+        merge_releases "$@"
         quiet_checkout "${head#refs/heads/}"
     fi
     return 0
@@ -1164,7 +1167,7 @@ sync_everything() {
     # Finished with barclamps, now for crowbar.
     debug "Syncing crowbar"
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
-        head=$(git rev_parse HEAD) || die "$repo: Cannot find head commit."
+        head=$(git rev-parse HEAD) || die "$repo: Cannot find head commit."
     sync_repo "$CROWBAR_DIR" "$@" || \
         die "Could not sync Crowbar with origin branches"
 
@@ -1574,7 +1577,7 @@ show_releases() {
         ref=${ref#${BASH_REMATCH[1]}}
         # Filter out "extra" remotes.
         if [[ ${BASH_REMATCH[3]} ]]; then
-            is_in "${BASH_REMATCH[3]}" "${!DEV_REMOTE_BRANCHES[*]}" || \
+            is_in "${BASH_REMATCH[3]}" "${!DEV_REMOTE_BRANCHES[*]} personal" || \
                 continue
         fi
         case ${ref} in
@@ -1676,7 +1679,7 @@ erase_release() {
 # Check out the appropriate release branch for all the barclamps in a given
 # release, and then check out the appropriate branch in the release.
 switch_release() {
-    local br bc current_branch new_base rel
+    local br bc current_branch new_base rel repo
     if [[ $1 ]]; then
         is_in "$1" "$(show_releases)" || die "switch: $1 does not exist"
         rel="$1"
@@ -1691,6 +1694,20 @@ switch_release() {
     current_branch=$(in_repo git symbolic-ref HEAD) || \
         die "switch: Crowbar not on a branch."
     current_branch=${current_branch##*/}
+    # If the branches for this release have never been created locally,
+    # do that now.
+    if ! in_repo branch_exists "${new_base}master"; then
+        for repo in "${!DEV_REMOTE_BRANCHES[@]}" personal; do
+            for br in "${!DEV_BRANCHES[@]}"; do
+                in_repo git rev-parse --verify -q \
+                    "refs/remotes/$repo/${new_base}${br}" &>/dev/null || \
+                    continue
+                in_repo branch_exists "${new_base}${br}" && continue
+                in_repo git branch --track "${new_base}${br}" \
+                    "$repo/${new_base}${br}"
+            done
+        done
+    fi
     in_repo branch_exists "${new_base}${current_branch}" || {
             echo "$rel does not have branch $current_branch, will checkout master instead."
         current_branch=master
