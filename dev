@@ -76,6 +76,18 @@ export CROWBAR_DIR
 . "$CROWBAR_DIR/build_lib.sh" || exit 1
 trap - 0 INT QUIT TERM
 
+if [[ $DEV_GITHUB_PASSWD ]]; then
+    debug "Migrating Github password information to $HOME/.netrc"
+    for mach in github.com api.github.com; do
+	grep -q "^$mach" "$HOME/.netrc" &>/dev/null && continue
+	printf "\nmachine %s login %s password %s\n" \
+	    "$mach" "$DEV_GITHUB_ID" "$DEV_GITHUB_PASSWD" >> "$HOME/.netrc"
+    done
+    chmod 600 "$HOME/.netrc"
+    sed -ie 's/DEV_GITHUB_PASSWD=.*//' "$HOME/.build-crowbar.conf"
+    debug "Please remove your embedded login information from the remote URLS."
+fi
+
 which gem &>/dev/null || \
     die "Rubygems not installed, and some of our helpers need a JSON gem."
 
@@ -83,7 +95,7 @@ gem list -i json &>/dev/null || \
     die "JSON gem not installed.  Please install it with gem install json."
 
 dev_is_setup() {
-    [[ ( $DEV_GITHUB_ID && $DEV_GITHUB_PASSWD) || $1 = setup ]] || \
+    [[ $DEV_GITHUB_ID || $1 = setup ]] || \
         die "dev has not been configured. Please run $CROWBAR_DIR/dev setup first."
 
     thisrev=$(in_repo git config --get crowbar.dev.version) && \
@@ -323,8 +335,7 @@ keys() {
 show_github_repos() {
     local -A res
     local r
-    . <(curl_and_res -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
-        https://api.github.com/user/repos | \
+    . <(curl_and_res -f "https://api.github.com/user/repos" | \
         parse_yml_or_json - res 2>/dev/null)
     for r in $(keys '^[0-9]+\.name$' "${!res[@]}"); do
         printf "%s\n" "${res[$r]}"
@@ -466,7 +477,7 @@ fetch_all() {
 # Helper function for calling curl to talk to github.
 curl_and_res() {
     local __r
-    r="$(curl "$@" 2>/dev/null)"
+    r="$(curl -n "$@" 2>/dev/null)"
     case $? in
         0) printf '%s' "$r";;
         7) echo "Unable to contact Github, please try again later." >&2
@@ -481,7 +492,7 @@ curl_and_res() {
 github_fork() {
     # $1 = user to fork from
     # $2 = repo to fork
-    curl_and_res -f -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" -X POST \
+    curl_and_res -f -X POST \
         "https://api.github.com/repos/$1/$2/forks" >&/dev/null || \
         die "Could not fork $1/$2!"
 }
@@ -492,17 +503,16 @@ github_url() {
     #      -p = Use personal repository (based on DEV_GITHUB_ID) instead of
     #           dellcloudedge
     #      -a = Put github authentication info in the generated URL.
-    local repo="$1" user="dellcloudedge" authstr=''
+    local repo="$1" user="dellcloudedge"
     shift
     while [[ $1 ]]; do
         case $1 in
             -p) user="$DEV_GITHUB_ID";;
-            -a) authstr="$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD@";;
             *) die "Unknown option $1 to github_url";;
         esac
         shift
     done
-    echo "https://${authstr}github.com/${user}/$repo"
+    echo "https://github.com/${user}/$repo"
 }
 
 git_config_has() { git config --get "$1" &>/dev/null; }
@@ -600,7 +610,8 @@ setup() {
     crowbar_is_clean || \
         die "Crowbar repo must be clean before trying to set things up!"
     # Make sure we have Github login credentials as the very first thing.
-    [[ $DEV_GITHUB_ID && $DEV_GITHUB_PASSWD ]] || {
+    [[ $DEV_GITHUB_ID ]] || {
+	local DEV_GITHUB_PASSWD
         read -p "Enter your Github username: " DEV_GITHUB_ID
         curl_and_res -f \
             "https://api.github.com/users/$DEV_GITHUB_ID" &>/dev/null || \
@@ -617,9 +628,12 @@ setup() {
             echo "Unable to authenticate as Github user $DEV_GITHUB_ID." >&2
             die "Please try again when you have Github access."
         }
-        echo "DEV_GITHUB_ID=\'$DEV_GITHUB_ID\'" >> "$HOME/.build-crowbar.conf"
-        echo "DEV_GITHUB_PASSWD=\'$DEV_GITHUB_PASSWD\'" >> \
-            "$HOME/.build-crowbar.conf"
+	for mach in github.com api.github.com; do
+	    printf "\nmachine %s login %s password %s\n" \
+		"$mach" "$DEV_GITHUB_ID" "$DEV_GITHUB_PASSWD" >> "$HOME/.netrc"
+	done
+	chmod 600 "$HOME/.netrc"
+        echo "DEV_GITHUB_ID='$DEV_GITHUB_ID'" >> "$HOME/.build-crowbar.conf"
     }
     # We have a baked-in assumption that Github is our origin, and that
     # any repositories that are named the same thing as a repository from
@@ -635,12 +649,12 @@ setup() {
     if ! in_repo git_config_has remote.origin.pushurl; then
         echo "Creating a push URL for crowbar on Github"
         in_repo git remote set-url --push origin \
-            "$(github_url crowbar.git -a)"
+            "$(github_url crowbar.git)"
     fi
     if ! in_repo git_config_has remote.personal.url; then
         echo "Adding remote for personal fork of crowbar on Github."
         in_repo git remote add personal \
-            "$(github_url crowbar.git -p -a)"
+            "$(github_url crowbar.git -p)"
         in_repo git fetch -q personal || \
             die "Cannot fetch repository info for your Crowbar fork on Github!"
         in_repo git remote set-head -a personal
@@ -707,7 +721,7 @@ setup() {
                         if ! in_barclamp "$bc" \
                             git_config_has remote.personal.url; then
                             in_barclamp "$bc" git remote add personal \
-                                $(github_url "$repo" -p -a)
+                                $(github_url "$repo" -p)
                             in_barclamp "$bc" git fetch -q personal || \
                                 die "Cannot fetch repository info for your fork of $repo."
                             in_barclamp "$bc" git remote set-head -a personal
@@ -715,7 +729,7 @@ setup() {
                         if ! in_barclamp "$bc" \
                             git_config_has remote.origin.pushurl; then
                             in_barclamp "$bc" git remote set-url --push origin \
-                                "$(github_url $repo -a)"
+                                "$(github_url $repo)"
                         fi
                         in_barclamp "$bc" git config \
                             crowbar.backup.origin.method remote
@@ -1373,7 +1387,7 @@ do_pull_request() {
     local -A res
     shift
     . <(make_pull_request "$@" | \
-        curl_and_res -X POST --data @- -u "$DEV_GITHUB_ID:$DEV_GITHUB_PASSWD" \
+        curl_and_res -X POST --data @- \
         -H "Content-Type: application/vnd.github.beta.raw+json" \
         "$posturl" |parse_yml_or_json - res 2>/dev/null) || {
         echo "Pull request to $posturl with following params failed:"
