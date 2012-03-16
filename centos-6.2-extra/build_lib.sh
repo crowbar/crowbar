@@ -37,6 +37,10 @@ OS_REPO_POOL=""
 # The name of the OS iso we are using as a base.
 [[ $ISO ]] || ISO="CentOS-6.2-x86_64-bin-DVD1.iso"
 
+# We always want to shrink the generated ISO, otherwise the install will
+# fail due to lookingfor packages on the second ISO that we don't have.
+SHRINK_ISO=true
+
 # The location of OS packages on $ISO
 find_cd_pool() ( echo "$IMAGE_DIR/Packages" )
 
