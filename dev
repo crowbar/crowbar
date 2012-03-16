@@ -415,7 +415,7 @@ update_tracking_branches() {
         [[ $br = personal/* ]] && continue
         [[ $br = pull-req* ]] && continue
         branch_exists "$br" && continue
-        debug "Creating tracking branch $br from remote $remote"
+        debug "$PWD: Creating tracking branch $br from remote $remote"
         git branch "$br" "$remote/$br"
     done < <(git show-ref)
 }
