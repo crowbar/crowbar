@@ -45,10 +45,12 @@ make_repo_file() {
 [$1]
 name=Repo for $1
 baseurl=$3
-priority=$2
 enabled=1
 gpgcheck=0
 EOF
+    if [[ $RPM_PRIORITIES ]]; then
+        echo "priority=$2" >>"$repo"
+    fi
     sudo cp "$repo" "$CHROOT/etc/yum.repos.d/"
     rm "$repo"
 }
@@ -62,7 +64,7 @@ add_repos() {
         case $rtype in
             rpm) rdest="${rdest#* }"
                 f="$(mktemp /tmp/tmp-XXXXXX.rpm)"
-                curl -o "$f" "$rdest"
+                curl -L -o "$f" "$rdest"
                 sudo cp "$f" "$CHROOT/tmp"
                 rm "$f"
                 in_chroot /bin/rpm -Uvh "$f";;
@@ -142,13 +144,15 @@ __make_chroot() {
     done
     # install priorities support
     mkdir -p "$CACHE_DIR/$OS_TOKEN/pkgs"
-    [[ -f $CACHE_DIR/$OS_TOKEN/pkgs/$PRIORITIES_RPM ]] || \
-        curl -o "$CACHE_DIR/$OS_TOKEN/pkgs/$PRIORITIES_RPM" \
-        "$PRIORITIES_HTTP"
-    rpm2cpio "$CACHE_DIR/$OS_TOKEN/pkgs/$PRIORITIES_RPM" | \
-        ( cd "$CHROOT"; sudo cpio --extract \
-                --make-directories --no-absolute-filenames \
-                --preserve-modification-time)
+    if [[ $PRIORITIES_RPM ]]; then
+        [[ -f $CACHE_DIR/$OS_TOKEN/pkgs/$PRIORITIES_RPM ]] || \
+            curl -o "$CACHE_DIR/$OS_TOKEN/pkgs/$PRIORITIES_RPM" \
+            "$PRIORITIES_HTTP"
+        rpm2cpio "$CACHE_DIR/$OS_TOKEN/pkgs/$PRIORITIES_RPM" | \
+            ( cd "$CHROOT"; sudo cpio --extract \
+            --make-directories --no-absolute-filenames \
+            --preserve-modification-time)
+    fi
     # fix up the chroot to make sure we can use it
     sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
     sudo rm -f "$CHROOT/etc/yum.repos.d/"*

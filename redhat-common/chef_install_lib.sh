@@ -11,18 +11,18 @@ install_base_packages() {
     # Make our local cache
     mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra"
     (cd "/tftpboot/$OS_TOKEN/crowbar-extra";
-	# Find all the staged barclamps
-	for bc in "/opt/dell/barclamps/"*; do
-	    [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
-	    # Link them in.
-	    ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
-	    cat >/etc/yum.repos.d/crowbar-${bc##*/}.repo <<EOF
+        # Find all the staged barclamps
+        for bc in "/opt/dell/barclamps/"*; do
+            [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
+            # Link them in.
+            ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
+            cat >/etc/yum.repos.d/crowbar-${bc##*/}.repo <<EOF
 [crowbar-${bc##*/}]
 name=Crowbar ${bc##*/} Packages
 baseurl=file:///tftpboot/$OS_TOKEN/crowbar-extra/${bc##*/}
 gpgcheck=0
 EOF
-	done
+        done
     )
 
     # Make sure we only try to install x86_64 packages.
@@ -30,6 +30,7 @@ EOF
     # Nuke any non-64 bit packages that snuck in.
     log_to yum yum -y erase '*.i?86'
 
+    log_to yum yum -y makecache
     echo "$(date '+%F %T %z'): Installing updated packages."
     log_to yum yum -q -y update
 
@@ -42,7 +43,7 @@ bring_up_chef() {
     service chef-client stop
     killall chef-client
     log_to yum yum -q -y install rubygem-chef-server \
-	curl-devel ruby-shadow patch
+        curl-devel ruby-shadow patch
 
     # Default password in chef webui to password
     sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
@@ -50,8 +51,8 @@ bring_up_chef() {
     # HACK AROUND OHAI redhatenterpriselinux
     di=$(find /usr -path '*/ohai-0.6.6/lib/ohai/plugins/linux' -type d)
     [[ -d $di ]] && {
-	cp patches/ohai-linux-platform.patch "$di"
-	(cd "$di"; patch -p0 <ohai-linux-platform.patch)
+        cp patches/ohai-linux-platform.patch "$di"
+        (cd "$di"; patch -p0 <ohai-linux-platform.patch)
     }
     ./start-chef-server.sh
 
@@ -66,7 +67,7 @@ bring_up_chef() {
     rl=$(find /usr/lib/ruby/gems/1.8/gems -name run_list.rb)
     cp -f "$rl" "$rl.bak"
     cp -f patches/run_list.rb "$rl"
-    ## END 2413 
+    ## END 2413
     # HACK AROUND Kwalify and rake bug missing Gem.bin_path
     cp -f patches/kwalify /usr/bin/kwalify
     cp -f patches/rake /usr/bin/rake
@@ -79,7 +80,7 @@ bring_up_chef() {
 pre_crowbar_fixups() {
     #patch bad gemspecs.
     cp $DVD_PATH/extra/patches/*.gemspec \
-	/usr/lib/ruby/gems/1.8/specifications/
+        /usr/lib/ruby/gems/1.8/specifications/
 }
 
 update_admin_node() {
