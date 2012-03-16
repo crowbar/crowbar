@@ -44,35 +44,16 @@ bring_up_chef() {
     killall chef-client
     log_to yum yum -q -y install rubygem-chef-server \
         curl-devel ruby-shadow patch
-
+    (cd "$DVD_PATH/extra/patches"; ./patch.sh) || exit 1
     # Default password in chef webui to password
     sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
-
-    # HACK AROUND OHAI redhatenterpriselinux
-    di=$(find /usr -path '*/ohai-0.6.6/lib/ohai/plugins/linux' -type d)
-    [[ -d $di ]] && {
-        cp patches/ohai-linux-platform.patch "$di"
-        (cd "$di"; patch -p0 <ohai-linux-platform.patch)
-    }
     ./start-chef-server.sh
 
     ## Missing client.rb for this system - Others get it ##
     touch /etc/chef/client.rb
     chown chef:chef /etc/chef/client.rb
 
-    # HACK AROUND CHEF-2005
-    di=$(find /usr/lib/ruby/gems/1.8/gems -name data_item.rb)
-    cp -f patches/data_item.rb "$di"
-    # HACK AROUND CHEF-2005
-    rl=$(find /usr/lib/ruby/gems/1.8/gems -name run_list.rb)
-    cp -f "$rl" "$rl.bak"
-    cp -f patches/run_list.rb "$rl"
-    ## END 2413
-    # HACK AROUND Kwalify and rake bug missing Gem.bin_path
-    cp -f patches/kwalify /usr/bin/kwalify
-    cp -f patches/rake /usr/bin/rake
-
-    # increase chef-solr index field size
+   # increase chef-solr index field size
     perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/chef/solr/conf/solrconfig.xml
     log_to svc service chef-server restart
 }

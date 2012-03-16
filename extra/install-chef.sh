@@ -249,6 +249,9 @@ if [[ ! -x /opt/tcpdump/tcpdump ]]; then
     cp /opt/tcpdump/tcpdump /updates/tcpdump
 fi
 
+# Bundle up our patches and put them in a sane place
+(cd "$DVD_PATH/extra"; tar czf "/tftpboot/patches.tar.gz" patches)
+
 chef_or_die "Initial chef run failed"
 
 echo "$(date '+%F %T %z'): Building Keys..."
