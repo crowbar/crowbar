@@ -789,9 +789,12 @@ backup_to_remote() {
     local remote=$1 branch branches=()
     shift
     for branch in "$@"; do
-        if [[ $branch = ':'* ]] || ( branch_exists "$branch" && \
+        if [[ $branch = ':'* ]] && \
+            git rev-parse --verify -q "refs/remotes/$remote/${branch#:}"; then
+            branches+=("$branch")
+        elif branch_exists "$branch" && \
             [[ $(git rev-parse --verify -q "refs/remotes/$remote/$branch") != \
-            $(git rev-parse --verify -q "refs/heads/$branch") ]] ); then
+            $(git rev-parse --verify -q "refs/heads/$branch") ]]; then
             branches+=("$branch")
         fi
     done
@@ -976,6 +979,7 @@ backup_repo() {
             die "Don't know how to get branches to backup for $backup_method."
         [[ $(type -t ${branch_backup_func%% *}) = function ]] || \
             die "Don't know how to back up branches for $backup_method"
+        git remote prune "$remote"
         for branch in $($branch_get_func "$remote" ${branches[@]}); do
             branches["$remote"]+=" $branch"
         done
