@@ -1723,6 +1723,9 @@ switch_release() {
                 in_repo branch_exists "${new_base}${br}" && continue
                 in_repo git branch --track "${new_base}${br}" \
                     "$repo/${new_base}${br}"
+                for bc in $(barclamps_from_branch "${new_base}${br}"); do
+                    in_barclamp "$bc" update_tracking_branches origin
+                done
             done
         done
     fi
