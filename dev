@@ -415,7 +415,7 @@ update_tracking_branches() {
         [[ $br = personal/* ]] && continue
         [[ $br = pull-req* ]] && continue
         branch_exists "$br" && continue
-        debug "Creating tracking branch $br from remote $remote"
+        debug "$PWD: Creating tracking branch $br from remote $remote"
         git branch "$br" "$remote/$br"
     done < <(git show-ref)
 }
@@ -788,10 +788,14 @@ branches_synced() {
 backup_to_remote() {
     local remote=$1 branch branches=()
     shift
+    git remote prune "$remote"
     for branch in "$@"; do
-        if [[ $branch = ':'* ]] || ( branch_exists "$branch" && \
+        if [[ $branch = ':'* && $(git rev-parse --verify -q \
+            "refs/remotes/$remote/${branch#:}") ]]; then
+            branches+=("$branch")
+        elif branch_exists "$branch" && \
             [[ $(git rev-parse --verify -q "refs/remotes/$remote/$branch") != \
-            $(git rev-parse --verify -q "refs/heads/$branch") ]] ); then
+            $(git rev-parse --verify -q "refs/heads/$branch") ]]; then
             branches+=("$branch")
         fi
     done
@@ -816,8 +820,10 @@ backup_with_prefix () {
     local remote_prefix="refs/remotes/$remote/$prefix"
     [[ $(git symbolic-ref HEAD) = "refs/heads/$prefix"/* ]] && \
         die "prefix_backup: $prefix branch checked out, cannot proceed."
+    git remote prune "$remote"
     for branch in "$@"; do
-        if [[ $branch = ':'* ]]; then
+        if [[ $branch = ':'* && $(git rev-parse --verify -q \
+            "$remote_prefix/${branch#:}") ]]; then
             branches+=(":$prefix/${branch#:}")
             continue
         fi
@@ -1719,6 +1725,9 @@ switch_release() {
                 in_repo branch_exists "${new_base}${br}" && continue
                 in_repo git branch --track "${new_base}${br}" \
                     "$repo/${new_base}${br}"
+                for bc in $(barclamps_from_branch "${new_base}${br}"); do
+                    in_barclamp "$bc" update_tracking_branches origin
+                done
             done
         done
     fi
