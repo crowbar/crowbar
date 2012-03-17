@@ -1,0 +1,29 @@
+--- /usr/lib/ruby/gems/1.8/gems/chef-server-api-0.10.6/app/controllers/data_item.rb	2011-12-14 12:33:16.000000000 +0000
++++ data_item.rb	2012-03-17 02:27:56.000000000 +0000
+@@ -43,7 +43,7 @@
+     rescue Chef::Exceptions::CouchDBNotFound => e
+       raise NotFound, "Cannot load data bag #{params[:data_bag_id]} item #{params[:id]}"
+     end
+-    display @data_bag_item.raw_data
++    display @data_bag_item
+   end
+ 
+   def create
+@@ -67,7 +67,7 @@
+     end
+     @data_bag_item.raw_data = raw_data
+     @data_bag_item.cdb_save
+-    display @data_bag_item.raw_data
++    display @data_bag_item
+   end
+   
+   def update
+@@ -89,7 +89,7 @@
+     
+     @data_bag_item.raw_data = raw_data
+     @data_bag_item.cdb_save
+-    display @data_bag_item.raw_data
++    display @data_bag_item
+ 
+   end 
+   
