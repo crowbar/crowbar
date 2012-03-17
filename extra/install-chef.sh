@@ -74,6 +74,11 @@ knifeloop() {
     done
 }
 
+check_machine_role() {
+    knife node show "$FQDN" |grep -q "crowbar-${FQDN//./_}" && return 0
+    die "Node machine-specific role got lost.  Deploy failed."
+}
+
 # Include OS specific functionality
 . chef_install_lib.sh || die "Could not include OS specific functionality"
 
@@ -244,6 +249,9 @@ if [[ ! -x /opt/tcpdump/tcpdump ]]; then
     cp /opt/tcpdump/tcpdump /updates/tcpdump
 fi
 
+# Bundle up our patches and put them in a sane place
+(cd "$DVD_PATH/extra"; tar czf "/tftpboot/patches.tar.gz" patches)
+
 chef_or_die "Initial chef run failed"
 
 echo "$(date '+%F %T %z'): Building Keys..."
@@ -341,6 +349,7 @@ crowbar crowbar proposal commit default || \
     die "Could not commit default proposal!"
 crowbar crowbar show default >/var/log/default.json
 chef_or_die "Chef run after default proposal commit failed!"
+check_machine_role
 
 # Need to make sure that we have the indexer/expander finished
 COUNT=0
@@ -370,6 +379,7 @@ do
             die "Sanity check for transitioning to $state failed!"
     fi
     chef_or_die "Chef run for $state transition failed!"
+    check_machine_role
 done
 
 # OK, let looper_chef_client run normally now.
