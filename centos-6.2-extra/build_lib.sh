@@ -1,15 +1,15 @@
 #!/bin/bash
 # This is sourced by build_crowbar.sh to enable it to stage Crowbar onto
-# RHEL 6.2
+# CentOS 6.2
 
 
 # OS information for the OS we are building crowbar on to.
-OS=redhat
+OS=centos
 OS_VERSION=6.2
 
 # If we need to make a chroot to stage packages into, this is the minimal
 # set of packages needed to bootstrap yum.  This package list has only been tested
-# on RHEL 6.2.
+# on CentOS 6.2.
 
 OS_BASIC_PACKAGES=(MAKEDEV upstart audit-libs basesystem bash binutils \
     bzip2-libs chkconfig cracklib cracklib-dicts crontabs coreutils db4 \
@@ -23,7 +23,7 @@ OS_BASIC_PACKAGES=(MAKEDEV upstart audit-libs basesystem bash binutils \
     nss-softokn nss-softokn-freebl openldap libssh2 cyrus-sasl-lib nss-util \
     nspr openssl pam passwd libuser pcre popt procps psmisc python \
     python-libs python-pycurl python-iniparse python-urlgrabber readline rpm \
-    rpm-libs rpm-python sed setup shadow-utils redhat-release-server-6Server \
+    rpm-libs rpm-python sed setup shadow-utils centos-release \
     sqlite rsyslog tzdata udev util-linux-ng xz xz-libs yum \
     yum-plugin-downloadonly yum-metadata-parser yum-utils zlib)
 
@@ -35,7 +35,11 @@ OS_BASIC_PACKAGES=(MAKEDEV upstart audit-libs basesystem bash binutils \
 OS_REPO_POOL=""
 
 # The name of the OS iso we are using as a base.
-[[ $ISO ]] || ISO="RHEL6.2-20111117.0-Server-x86_64-DVD1.iso"
+[[ $ISO ]] || ISO="CentOS-6.2-x86_64-bin-DVD1.iso"
+
+# We always want to shrink the generated ISO, otherwise the install will
+# fail due to lookingfor packages on the second ISO that we don't have.
+SHRINK_ISO=true
 
 # The location of OS packages on $ISO
 find_cd_pool() ( echo "$IMAGE_DIR/Packages" )
@@ -69,7 +73,7 @@ shrink_iso() {
         cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/Packages"
     done
     sudo mount --bind "$BUILD_DIR" "$CHROOT/mnt"
-    in_chroot /bin/bash -c 'cd /mnt; createrepo -g /mnt/repodata/8afad1febf2d8844a235a9ab1aa5f15c9cec1219b9d01060d4794435cf59dffe-comps-rhel6-Server.xml .'
+    in_chroot /bin/bash -c 'cd /mnt; createrepo -g /mnt/repodata/3a27232698a261aa4022fd270797a3006aa8b8a346cbd6a31fae1466c724d098-c6-x86_64-comps.xml .'
     sudo umount -l "$CHROOT/mnt"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/Packages"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/repodata"
