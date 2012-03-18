@@ -77,7 +77,7 @@ knifeloop() {
 check_machine_role() {
     local count
     for ((count=0; count > 5; count++)); do
-        knife node show "$FQDN" |grep -q "crowbar-${FQDN//./_}" && return 0
+        grep -q "crowbar-${FQDN//./_}" < <(knife node show "$FQDN" ) && return 0
         sleep 10
     done
     die "Node machine-specific role got lost.  Deploy failed."
@@ -353,7 +353,6 @@ crowbar crowbar proposal commit default || \
     die "Could not commit default proposal!"
 crowbar crowbar show default >/var/log/default.json
 chef_or_die "Chef run after default proposal commit failed!"
-check_machine_role
 
 # Need to make sure that we have the indexer/expander finished
 COUNT=0
@@ -366,6 +365,7 @@ do
     COUNT=$(($COUNT + 1))
 done
 sleep 30 # This is lame - the queue can be empty, but still processing and mess up future operations.
+check_machine_role
 
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
