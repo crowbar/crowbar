@@ -76,7 +76,7 @@ knifeloop() {
 
 check_machine_role() {
     local count
-    for ((count=0; count > 5; count++)); do
+    for ((count=0; count <= 5; count++)); do
         grep -q "crowbar-${FQDN//./_}" < <(knife node show "$FQDN" ) && return 0
         sleep 10
     done
