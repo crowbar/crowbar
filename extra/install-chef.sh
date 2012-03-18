@@ -75,7 +75,11 @@ knifeloop() {
 }
 
 check_machine_role() {
-    knife node show "$FQDN" |grep -q "crowbar-${FQDN//./_}" && return 0
+    local count
+    for ((count=0; count > 5; count++)); do
+        knife node show "$FQDN" |grep -q "crowbar-${FQDN//./_}" && return 0
+        sleep 10
+    done
     die "Node machine-specific role got lost.  Deploy failed."
 }
 
