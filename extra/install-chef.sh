@@ -21,7 +21,13 @@ export PATH="/opt/dell/bin:/usr/local/bin:$PATH"
 export DEBUG=true
 [[ ! $HOME || $HOME = / ]] && export HOME="/root"
 mkdir -p "$HOME"
-die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
+die() {
+    if [[ $crowbar_up && $FQDN ]]; then
+        crowbar crowbar transition "$FQDN" problem
+    fi
+    echo "$(date '+%F %T %z'): $@"
+    exit 1
+}
 
 crowbar_up=
 admin_node_up=
@@ -49,14 +55,13 @@ log_to() {
     return $_ret
 }
 
+
+
 chef_or_die() {
     if [ -e /opt/dell/bin/blocking_chef_client.sh ]; then
         log_to chef blocking_chef_client.sh && return
     else
         log_to chef chef-client && return
-    fi
-    if [[ $crowbar_up && $FQDN ]]; then
-        crowbar crowbar transition "$FQDN" problem
     fi
     # If we were left without an IP address, rectify that.
     ip link set eth0 up
@@ -74,8 +79,14 @@ knifeloop() {
     done
 }
 
+# Sometimes the machine role (crowbar-${FQDN//./_}) does not get properly
+# attached to the admin node.  We are in deep trouble if that happens.
 check_machine_role() {
-    knife node show "$FQDN" |grep -q "crowbar-${FQDN//./_}" && return 0
+    local count
+    for ((count=0; count <= 5; count++)); do
+        grep -q "crowbar-${FQDN//./_}" < <(knife node show "$FQDN" ) && return 0
+        sleep 10
+    done
     die "Node machine-specific role got lost.  Deploy failed."
 }
 
@@ -318,9 +329,6 @@ chef_or_die "Failed to bring up Crowbar"
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /tmp/deploying
 
-# have chef_or_die change our status to problem if we fail
-crowbar_up=true
-
 # Add configured crowbar proposal
 if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
     proposal_opts=()
@@ -348,6 +356,8 @@ crowbar crowbar proposal show default >/var/log/default-proposal.json
 crowbar crowbar proposal commit default || \
     die "Could not commit default proposal!"
 crowbar crowbar show default >/var/log/default.json
+# have die change our status to problem if we fail
+crowbar_up=true
 chef_or_die "Chef run after default proposal commit failed!"
 
 # Need to make sure that we have the indexer/expander finished
@@ -361,6 +371,7 @@ do
     COUNT=$(($COUNT + 1))
 done
 sleep 30 # This is lame - the queue can be empty, but still processing and mess up future operations.
+check_machine_role
 
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
