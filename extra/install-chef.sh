@@ -349,7 +349,6 @@ crowbar crowbar proposal commit default || \
     die "Could not commit default proposal!"
 crowbar crowbar show default >/var/log/default.json
 chef_or_die "Chef run after default proposal commit failed!"
-check_machine_role
 
 # Need to make sure that we have the indexer/expander finished
 COUNT=0
