@@ -44,7 +44,7 @@ bring_up_chef() {
     killall chef-client
     log_to yum yum -q -y install rubygem-chef-server \
         curl-devel ruby-shadow patch
-    (cd "$DVD_PATH/extra/patches"; ./patch.sh) || exit 1
+    (cd "$DVD_PATH/extra/patches"; chmod +x ./patch.sh; ./patch.sh) || exit 1
     # Default password in chef webui to password
     sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
     ./start-chef-server.sh
