@@ -40,6 +40,7 @@ make_repo_file() {
     # $1 = name of repo
     # $2 = Priority
     # $3 = URL
+    [[ -f "$CHROOT/etc/yum.repos.d/repo-$1.repo" ]] && return
     local repo=$(mktemp "/tmp/repo-$1-XXXX.repo")
     cat >"$repo" <<EOF
 [$1]
@@ -51,7 +52,7 @@ EOF
     if [[ $RPM_PRIORITIES ]]; then
         echo "priority=$2" >>"$repo"
     fi
-    sudo cp "$repo" "$CHROOT/etc/yum.repos.d/"
+    sudo cp "$repo" "$CHROOT/etc/yum.repos.d/repo-$1.repo"
     rm "$repo"
 }
 
