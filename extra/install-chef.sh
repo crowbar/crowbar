@@ -75,7 +75,11 @@ knifeloop() {
 }
 
 check_machine_role() {
-    knife node show "$FQDN" |grep -q "crowbar-${FQDN//./_}" && return 0
+    local count
+    for ((count=0; count <= 5; count++)); do
+        grep -q "crowbar-${FQDN//./_}" < <(knife node show "$FQDN" ) && return 0
+        sleep 10
+    done
     die "Node machine-specific role got lost.  Deploy failed."
 }
 
@@ -361,6 +365,7 @@ do
     COUNT=$(($COUNT + 1))
 done
 sleep 30 # This is lame - the queue can be empty, but still processing and mess up future operations.
+check_machine_role
 
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
