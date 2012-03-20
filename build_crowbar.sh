@@ -478,7 +478,7 @@ do_crowbar_build() {
                     bind_mount "$CACHE_DIR/barclamps/$bc" "$CHROOT/mnt"
                     install_build_packages "$bc"
                     in_chroot ln -s /mnt/$OS_TOKEN /mnt/current_os
-                    bc_build
+                    bc_build || die "External builder for $bc failed"
                     in_chroot rm -f /mnt/current_os
                     sudo umount "$CHROOT/mnt"
                 fi
