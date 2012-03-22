@@ -96,10 +96,6 @@ fi
     die "$CROWBAR_DIR is not a git checkout of Crowbar!"
 export CROWBAR_DIR
 
-# Location of the Sledgehammer source tree.  Only used if we cannot
-# find Sledgehammer in $SLEDGEHAMMER_PXE_DIR above.
-[[ $SLEDGEHAMMER_DIR ]] || SLEDGEHAMMER_DIR="${CROWBAR_DIR}/../crowbar-sledgehammer"
-
 # Command to run to clean out the tree before starting the build.
 # By default we want to be relatively pristine.
 [[ $VCS_CLEAN_CMD ]] || VCS_CLEAN_CMD='git clean -f -d'
@@ -399,11 +395,11 @@ do_crowbar_build() {
 
     debug "Checking for Sledgehammer."
     # Make sure Sledgehammer has already been built and pre-staged.
-    if ! [[ -f $SLEDGEHAMMER_DIR/bin/sledgehammer-tftpboot.tar.gz || \
-        -f $SLEDGEHAMMER_PXE_DIR/initrd0.img ]]; then
-        echo "Slegehammer TFTP image missing!"
-        echo "Please build Sledgehammer from $SLEDGEHAMMER_DIR before building Crowbar."
-        exit 1
+    if ! [[ -f $SLEDGEHAMMER_PXE_DIR/initrd0.img ]]; then
+        debug "Slegehammer TFTP image missing!"
+        debug "Attempting to build Sledgehammer:"
+        "$CROWBAR_DIR/build_sledgehammer.sh" || \
+            die "Unable to build Sledgehammer. Cannot build Crowbar."
     fi
 
     # Fetch the OS ISO if we need to.
@@ -517,17 +513,6 @@ do_crowbar_build() {
 
     # Copy over the bits that Sledgehammer will look for.
         debug "Copying over Sledgehammer bits"
-    # If we need to copy over a new Sledgehammer image, do so.
-        if [[ $SLEDGEHAMMER_DIR/bin/sledgehammer-tftpboot.tar.gz -nt \
-            $SLEDGEHAMMER_PXE_DIR/initrd0.img ]]; then
-            (   cd $SLEDGEHAMMER_PXE_DIR
-                debug "Extracting new Sledgehammer TFTP boot image"
-                rm -rf .
-                cd ..
-                tar xzf "$SLEDGEHAMMER_DIR/bin/sledgehammer-tftpboot.tar.gz"
-                rm -f "$SLEDGEHAMMER_DIR/bin/sledgehammer-tftpboot.tar.gz"
-            )
-        fi
         cp -a "$SLEDGEHAMMER_PXE_DIR"/* "$BUILD_DIR/discovery"
 
     # Make our image
