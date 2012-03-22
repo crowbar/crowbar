@@ -164,3 +164,5 @@ EOF
 in_chroot /mnt/make_sledgehammer
 cp -a "$CHROOT/mnt/tftpboot" "$CACHE_DIR/"
 in_chroot /bin/rm -rf /mnt/tftpboot
+
+[[ -f $CACHE_DIR/tftpboot/initrd0.img ]]
