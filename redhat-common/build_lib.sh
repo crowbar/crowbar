@@ -157,10 +157,10 @@ __make_chroot() {
     # fix up the chroot to make sure we can use it
     sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"
     sudo rm -f "$CHROOT/etc/yum.repos.d/"*
-
-    for d in proc sys dev dev/pts; do
-        mkdir -p "$CHROOT/$d"
-        sudo mount --bind "/$d" "$CHROOT/$d"
+    for d in /proc /sys /dev /dev/pts /dev/shm; do
+        [[ -L $d ]] && d="$(readlink -f "$d")"
+        mkdir -p "${CHROOT}$d"
+        sudo mount --bind "$d" "${CHROOT}$d"
     done
     # third, run any post cmds we got earlier
     for cmd in "${postcmds[@]}"; do
