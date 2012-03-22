@@ -29,7 +29,7 @@ install_base_packages() {
     )
     log_to apt apt-get update
     log_to apt apt-get -y remove apparmor
-    log_to apt apt-get -y install rubygems gcc ruby \
+    log_to apt apt-get -y install rubygems gcc ruby tcpdump \
         libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev
 }
 
