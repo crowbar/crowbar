@@ -250,16 +250,6 @@ EOF
     chmod 755 /etc/init.d/bluepill
 fi
 
-# Make sure our initial instance of tcpdump is in place
-if [[ ! -x /opt/tcpdump/tcpdump ]]; then
-    mkdir -p /opt/tcpdump
-    [[ -x /opt/dell/barclamps/deployer/cache/files/tcpdump ]] || \
-        die "Cannot stage initial copy of tcpdump!"
-    cp /opt/dell/barclamps/deployer/cache/files/tcpdump /opt/tcpdump
-    mkdir -p /updates
-    cp /opt/tcpdump/tcpdump /updates/tcpdump
-fi
-
 # Bundle up our patches and put them in a sane place
 (cd "$DVD_PATH/extra"; tar czf "/tftpboot/patches.tar.gz" patches)
 

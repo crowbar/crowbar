@@ -362,6 +362,7 @@ make_chroot() {
     sudo mkdir -p "$CHROOT/$CHROOT_PKGDIR"
     sudo mkdir -p "$CHROOT/$CHROOT_GEMDIR"
     __make_chroot
+    in_chroot ln -s /proc/self/mounts /etc/mtab
 
     if [[ $ALLOW_CACHE_UPDATE = true ]]; then
         read_base_repos

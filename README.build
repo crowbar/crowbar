@@ -32,13 +32,6 @@ Prerequisites:
       If you want to allow build_crowbar to run the above commands as root
       without having to enter a password each time, the build_crowbar.sh
       includes a sample line you can fix up and add to /etc/sudoers.
-  * A working Sledgehammer tftpboot image.
-    Sledgehammer is a minimal CentOS 5.6 pxe bootable image that we use
-    to perform hardware discovery and configuration for devices that do not
-    have low-level management tools for Ubuntu. You can find information on 
-    how to build Sledgehamemr by reading its HOWTO.Non.Redhat file.  We do 
-    not do fully automated builds of Sledgehammer due to a lack of a CentOS
-    equivalent of debootstrap.
 
 Command Line Parameters:
   * The first command line parameter is the OS you want to 
@@ -146,9 +139,6 @@ Customization:
    * CROWBAR_DIR
      The directory that the Crowbar source is cheched out to.
      Defaults to the directory that build_crowbar.sh is in.
-   * SLEDGEHAMMER_DIR
-     The directory that the Sledgehammer source is checked out to.
-     Defaults to $CROWBAR_DIR/../sledgehammer
    * VCS_CLEAN_CMD
      This is the command that build_crowbar.sh will run to clean the tree before
      staging the Crowbar build.  
@@ -190,7 +180,7 @@ When build_crowbar.sh is invoked, it performs the following processes in order:
     This metadata will drive the rest of the install -- we need it to
     figure out dependency relations between barclamps, what packages and files
     to stage, and how to invoke any external build processes we might need.
-14: Make sure we have a Sledgehammer image handy.
+14: Make sure we have a Sledgehammer image handy, and build it if we don't.
 15: If we don't have the OS ISO to stage on, and we know how to get one, then
     download the .ISO we will need.
 16: Clean out any leftovers from the last build, and make sure that
