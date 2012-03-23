@@ -1521,11 +1521,16 @@ pull_requests_gen() {
         done
         if [[ ${refs["$br"]} ]]; then
             in_repo git commit -m "Add updated submodule references for $br"
-            local refname="$(in_repo git describe --all --long --match "$br")"
-            refname=${refname//\//-}
             # ... and push it to our personal github repo.
-            in_repo git push -f personal HEAD:"pull-req-$refname"
-            br_pulls["$br"]="true"
+            if [[ $br = feature/* ]]; then
+                in_repo git push personal "$br"
+                br_pulls["$br"]="$br"
+            else
+                local refname="$(in_repo git describe --all --long --match "$br")"
+                refname="pull-req-${refname//\//-}"
+                in_repo git push -f personal "$br:$refname"
+                br_pulls["$br"]="$refname"
+            fi
         fi
         [[ ${branches["$br"]} ]] && br_pulls["$br"]=true
     done
@@ -1557,11 +1562,8 @@ pull_requests_gen() {
     # Make sure they are ordered correctly.
     for br in $(filter_branches_for_remote origin $(ordered_branches)); do
         [[ ${br_pulls["$br"]} ]] || continue
-        local br_head="$DEV_GITHUB_ID:$(in_repo git rev-parse "$br")"
-        if [[ $br = feature/* ]]; then
-            br_head="$DEV_GITHUB_ID:$br"
-            br="${br##*/}"
-        fi
+        local br_head="$DEV_GITHUB_ID:${br_pulls[$br]}"
+        [[ $br = feature/* ]] && br="${br##*/}"
         do_pull_request "https://api.github.com/repos/dellcloudedge/crowbar/pulls" \
             --title "$title [$n/$prc]" --base "$br" --head "$br_head" \
             --body "@$body" --body "$(in_repo diffstat_from_origin "$br")"
