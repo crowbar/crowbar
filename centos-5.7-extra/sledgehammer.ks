@@ -5,7 +5,7 @@ auth --useshadow --enablemd5
 selinux --disabled
 firewall --disabled
 
-repo --name=a-base    --baseurl=http://127.0.0.1:54321/
+repo --name=a-base    --baseurl=http://mirror.centos.org/centos/5/os/$basearch
 repo --name=a-updates --baseurl=http://mirror.centos.org/centos/5/updates/$basearch
 repo --name=a-extras  --baseurl=http://mirror.centos.org/centos/5/extras/$basearch
 repo --name=a-epel    --baseurl=http://mirror.pnl.gov/epel/5/$basearch
