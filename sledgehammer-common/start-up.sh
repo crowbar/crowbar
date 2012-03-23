@@ -63,4 +63,5 @@ done
 export MAC BOOTDEV ADMIN_IP DOMAIN HOSTNAME_MAC HOSTNAME MYIP
 
 cd /updates
-./control.sh
+cp /updates/control.sh /tmp
+/tmp/control.sh
