@@ -1532,7 +1532,11 @@ pull_requests_gen() {
                 br_pulls["$br"]="$refname"
             fi
         fi
-        [[ ${branches["$br"]} ]] && br_pulls["$br"]=true
+        if [[ ${branches["$br"]} && ! ${br_pulls["$br"]} ]]; then
+            local refname="$(in_repo git describe --all --long --match "$br")"
+            refname="pull-req-${refname//\//-}"
+            br_pulls["$br"]="$refname"
+        fi
     done
     # OK, now we know how many pull requests we have to issue.
     prc=$((${#bc_pulls[@]} + ${#br_pulls[@]}))
