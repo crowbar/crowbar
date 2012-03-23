@@ -1466,6 +1466,11 @@ diffstat_from_origin() {
     fi
 }
 
+git_ref() {
+    # $1 = branch
+    printf "%s-%s" "${1//\//-}" "$(git show-ref --hash=10 "refs/heads/$1")"
+}
+
 # Make pull requests based on the command line args passed.
 # These should follow the command line arguments that
 # pull_requests_prep generated.
@@ -1475,15 +1480,20 @@ pull_requests_gen() {
     local -A barclamps branches barclamp_branches bc_pulls br_pulls refs
     local bc br bcr title body option bc_name head
     local prc=0 n=1
-    echo "Enter a title for this pull request series."
-    echo "After you have entered a title, an editor will open, and you can"
-    echo "enter anything you want for the body of the pull requests."
-    read -p "Title: " title
     body="$(mktemp /tmp/crowbar-pull-req-XXXXXXXX)"
-    if [[ $EDITOR ]]; then
-        $EDITOR "$body"
+    if [[ $DEBUG ]]; then
+        title="Test"
+        echo "test" >> "$body"
     else
-        nano "$body"
+        echo "Enter a title for this pull request series."
+        echo "After you have entered a title, an editor will open, and you can"
+        echo "enter anything you want for the body of the pull requests."
+        read -p "Title: " title
+        if [[ $EDITOR ]]; then
+            $EDITOR "$body"
+        else
+            nano "$body"
+        fi
     fi
     # Parse our options and validate them.
     while [[ "$1" ]]; do
@@ -1540,8 +1550,7 @@ pull_requests_gen() {
                 if [[ $bcb = feature/* ]]; then
                     bc_pulls["$bc/$bcb"]="$bcb"
                 else
-                    local refname="$(in_repo git describe --all --long --match "$br")"
-                    refname="pull-req-${refname//\//-}"
+                    local refname="pull-req-$(in_barclamp "$bc" git_ref "$bcb")"
                     bc_pulls["$bc/$bcb"]="$refname"
                 fi
             done
@@ -1568,14 +1577,12 @@ pull_requests_gen() {
             if [[ $br = feature/* ]]; then
                 br_pulls["$br"]="$br"
             else
-                local refname="$(in_repo git describe --all --long --match "$br")"
-                refname="pull-req-${refname//\//-}"
+                local refname="pull-req-$(in_repo git_ref "$br")"
                 br_pulls["$br"]="$refname"
             fi
         fi
         if [[ ${branches["$br"]} && ! ${br_pulls["$br"]} ]]; then
-            local refname="$(in_repo git describe --all --long --match "$br")"
-            refname="pull-req-${refname//\//-}"
+            local refname="pull-req-$(in_repo git_ref "$br")"
             br_pulls["$br"]="$refname"
         fi
     done
@@ -1593,7 +1600,8 @@ pull_requests_gen() {
         bc_name=${bc_name##*/}
         bc_name=${bc_name##*:}
         bc_name=${bc_name%.git}
-        do_pull_request "https://api.github.com/repos/dellcloudedge/$bc_name/pulls" \
+        do_pull_request \
+            "https://api.github.com/repos/dellcloudedge/$bc_name/pulls" \
             --title "$title [$n/$prc]" --base "$bc_base" --head "$bc_head" \
             --body "@$body" \
             --body "$(in_barclamp "$bc" diffstat_from_origin "$bc_base")"
@@ -1607,7 +1615,8 @@ pull_requests_gen() {
         in_repo git push personal "${br}:${br_pulls[$br]}"
         local br_head="$DEV_GITHUB_ID:${br_pulls[$br]}"
         [[ $br = feature/* ]] && br="${br##*/}"
-        do_pull_request "https://api.github.com/repos/dellcloudedge/crowbar/pulls" \
+        do_pull_request \
+            "https://api.github.com/repos/dellcloudedge/crowbar/pulls" \
             --title "$title [$n/$prc]" --base "$br" --head "$br_head" \
             --body "@$body" --body "$(in_repo diffstat_from_origin "$br")"
         n=$(($n + 1))
