@@ -72,7 +72,7 @@ parted
 yum -y remove '*.i?86'
 
 # Hack to really turn down SELINUX
-sed -i -e 's/\(^SELINUX=\).*$/\1permissive/' /etc/selinux/config
+sed -i -e 's/\(^SELINUX=\).*$/\1disabled/' /etc/selinux/config
 
 ########################################################################
 # Create a sub-script so the output can be captured
