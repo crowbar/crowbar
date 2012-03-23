@@ -442,15 +442,29 @@ update_all_tracking_branches() {
 scrub_merged_pull_requests() {
     # $@ = branches to test for mergedness
     local br ref pull_req
-    local -A to_remove
+    local -A to_remove pull_reqs heads
     git_config_has remote.personal.url || return
     while read ref br; do
-        while read ref pull_req; do
-            [[ $pull_req = refs/remotes/personal/pull-req* ]] || continue
+        case $br in
+            refs/heads/*) 
+                ref=${br#refs/heads/}
+                heads["${ref//\//-}"]+="$br ";;
+            refs/remotes/personal/pull-req-*)
+                ref=${br#refs/remotes/personal/pull-req-}
+                ref=${ref%-*}
+                pull_reqs["$br"]="$ref";;
+        esac
+    done < <(git show-ref)
+    [[ $!{pull_reqs[*]} ]] || return 0
+    for pull_req in "${!pull_reqs[@]}"; do
+        ref="${pull_reqs[$pull_req]}"
+        [[ ${heads[$ref]} ]] || continue
+        for br in ${heads["$ref"]}; do
             branches_synced . "$br" "$pull_req" || continue
             to_remove["${pull_req#refs/remotes/personal/}"]="true"
-        done < <(git show-ref)
-    done < <(git show-ref --heads)
+            continue 2
+        done
+    done
     [[ ${!to_remove[*]} ]] || return
     git push --delete personal "${!to_remove[@]}"
     git remote prune personal
