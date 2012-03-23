@@ -145,7 +145,6 @@ in_chroot mkdir -p /mnt/cache
 sudo mount --bind "$SLEDGEHAMMER_CHROOT_CACHE" "$CHROOT/$CHROOT_PKGDIR"
 sudo mount --bind "$SLEDGEHAMMER_LIVECD_CACHE" "$CHROOT/mnt/cache"
 setup_sledgehammer_chroot
-chroot_install livecd-tools tar
 in_chroot touch /mnt/make_sledgehammer
 in_chroot chmod 777 /mnt/make_sledgehammer
 echo '#!/bin/bash' >>/mnt/make_sledgehammer
