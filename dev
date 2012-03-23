@@ -1507,7 +1507,13 @@ pull_requests_gen() {
         for bc in $(barclamps_from_branch "$br"); do
             [[ ${barclamps[$bc]} ]] || continue
             for bcb in ${barclamp_branches["$bc"]}; do
-                bc_pulls["$bc/$bcb"]="true"
+                if [[ $bcb = feature/* ]]; then
+                    bc_pulls["$bc/$bcb"]="$bcb"
+                else
+                    local refname="$(in_repo git describe --all --long --match "$br")"
+                    refname="pull-req-${refname//\//-}"
+                    bc_pulls["$bc/$bcb"]="$refname"
+                fi
             done
             # If we get this far, we have barclamp references to update.
             if [[ ! ${refs["$br"]} ]]; then
@@ -1530,12 +1536,10 @@ pull_requests_gen() {
             in_repo git commit -m "Add updated submodule references for $br"
             # ... and push it to our personal github repo.
             if [[ $br = feature/* ]]; then
-                in_repo git push personal "$br"
                 br_pulls["$br"]="$br"
             else
                 local refname="$(in_repo git describe --all --long --match "$br")"
                 refname="pull-req-${refname//\//-}"
-                in_repo git push -f personal "$br:$refname"
                 br_pulls["$br"]="$refname"
             fi
         fi
@@ -1552,12 +1556,10 @@ pull_requests_gen() {
     for barclamp in "${!bc_pulls[@]}"; do
         local bc=${barclamp%%/*}
         local bc_base=${barclamp#*/}
-        local bc_head="$DEV_GITHUB_ID:$(in_barclamp "$bc" git rev-parse "$bc_base")"
-        if [[ $bc_base = feature/* ]]; then
-            bc_head="$DEV_GITHUB_ID:$bc_base"
-            bc_base="${bc_base##*/}"
+        in_barclamp "$bc" git push personal "$bc_base:${bc_pulls[$barclamp]}"
+        local bc_head="$DEV_GITHUB_ID:${bc_pulls[$barclamp]}"
+        [[ $bc_base = feature/* ]] && bc_base="${bc_base##*/}"
         fi
-
         local bc_name=$(in_barclamp $bc git config --get remote.origin.url)
         bc_name=${bc_name##*/}
         bc_name=${bc_name##*:}
@@ -1573,6 +1575,7 @@ pull_requests_gen() {
     # Make sure they are ordered correctly.
     for br in $(filter_branches_for_remote origin $(ordered_branches)); do
         [[ ${br_pulls["$br"]} ]] || continue
+        in_repo git push personal "${br}:${br_pulls[$br]}"
         local br_head="$DEV_GITHUB_ID:${br_pulls[$br]}"
         [[ $br = feature/* ]] && br="${br##*/}"
         do_pull_request "https://api.github.com/repos/dellcloudedge/crowbar/pulls" \
