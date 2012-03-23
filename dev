@@ -1409,8 +1409,15 @@ do_pull_request() {
         echo "Please delete the ones that succeeded and try again."
         exit 1
     }
-    printf "Pull request %s created (%s)\n" \
-        "${res['number']}" "${res['html_url']}"
+    if [[ ${res['number']} && ${res['html_url']} ]]; then
+        printf "Pull request %s created (%s)\n" \
+            "${res['number']}" "${res['html_url']}"
+    else
+        echo "Pull request to $posturl with following params failed:"
+        echo "$@"
+        echo "Please delete the ones that succeeded and try again."
+        exit 1
+    fi
 }
 
 # Get the diffstat from the origin branch of the branch passed,
