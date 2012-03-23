@@ -35,7 +35,8 @@ EOF
     log_to yum yum -q -y update
 
     # Install the rpm and gem packages
-    log_to yum yum -q -y install rubygems gcc make ruby-devel libxml2-devel zlib-devel
+    log_to yum yum -q -y install rubygems gcc make ruby-devel \
+        libxml2-devel zlib-devel tcpdump
 }
 
 bring_up_chef() {
