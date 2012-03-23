@@ -1375,7 +1375,7 @@ branch_needs_pull_req() {
 # actually generate the pull requests.
 pull_requests_prep() {
     crowbar_is_clean || exit 1
-    fetch_all && sync_everything && backup_everything || \
+    fetch_all && sync_everything || \
         die "Unable to prepare for pull requests"
     debug "Scrubbing merged pull requests in Crowbar."
     in_repo scrub_merged_pull_requests
