@@ -309,6 +309,14 @@ clone_barclamp() {
                 "${DEV_REMOTE_SOURCES[$remote]}/$repo"
             in_repo git submodule update "barclamps/$1" || \
                 die "Could not perform initial clone of barclamp $1"
+            (   cd "barclamps/$1"
+                while read ref br; do
+                    [[ br = refs/remotes/origin/* ]] || continue
+                    br=${br#refs/remotes/}
+                    branch_exists "${br#origin/}" && continue
+                    git branch --track "${br#origin/}" "$br"
+                done < <(git show-ref master)
+            )
             return
         done
     done
@@ -431,6 +439,37 @@ update_all_tracking_branches() {
     done
 }
 
+scrub_merged_pull_requests() {
+    # $@ = branches to test for mergedness
+    local br ref pull_req
+    local -A to_remove pull_reqs heads
+    git_config_has remote.personal.url || return
+    while read ref br; do
+        case $br in
+            refs/heads/*) 
+                ref=${br#refs/heads/}
+                heads["${ref//\//-}"]+="$br ";;
+            refs/remotes/personal/pull-req-*)
+                ref=${br#refs/remotes/personal/pull-req-}
+                ref=${ref%-*}
+                pull_reqs["$br"]="$ref";;
+        esac
+    done < <(git show-ref)
+    [[ $!{pull_reqs[*]} ]] || return 0
+    for pull_req in "${!pull_reqs[@]}"; do
+        ref="${pull_reqs[$pull_req]}"
+        [[ ${heads[$ref]} ]] || continue
+        for br in ${heads["$ref"]}; do
+            branches_synced . "$br" "$pull_req" || continue
+            to_remove["${pull_req#refs/remotes/personal/}"]="true"
+            continue 2
+        done
+    done
+    [[ ${!to_remove[*]} ]] || return
+    git push --delete personal "${!to_remove[@]}"
+    git remote prune personal
+}
+
 # Fetch (but do not merge) updates from all our remotes, in both the
 # main Crowbar repository and the barclamps.
 fetch_all() {
@@ -468,7 +507,9 @@ fetch_all() {
                 (   cd "$barclamp"
                     git_config_has "remote.${remote}.url" || continue
                     debug "    Barclamp ${barclamp##*/}"
-                    git fetch "$remote")
+                    git fetch -q "$remote"
+                    update_tracking_branches origin
+                )
             done
         fi
     done
@@ -1348,8 +1389,15 @@ branch_needs_pull_req() {
 # actually generate the pull requests.
 pull_requests_prep() {
     crowbar_is_clean || exit 1
-    fetch_all && sync_everything && backup_everything || \
+    fetch_all && sync_everything || \
         die "Unable to prepare for pull requests"
+    debug "Scrubbing merged pull requests in Crowbar."
+    in_repo scrub_merged_pull_requests
+    for barclamp in "$CROWBAR_DIR/barclamps/"*; do
+        [[ -d $barclamp ]] || continue
+        debug "Scrubbing merged pull requests in barclamp ${barclamp##*/}"
+        in_barclamp "${barclamp##*/}" scrub_merged_pull_requests
+    done
     local -A barclamps branches_to_push
     local barclamps_to_push=()
     local branch bc
@@ -1392,6 +1440,10 @@ do_pull_request() {
     local posturl="$1"
     local -A res
     shift
+    if [[ $DEBUG ]]; then
+        make_pull_request "$@"
+        return
+    fi
     . <(make_pull_request "$@" | \
         curl_and_res -X POST --data @- \
         -H "Content-Type: application/vnd.github.beta.raw+json" \
@@ -1401,8 +1453,15 @@ do_pull_request() {
         echo "Please delete the ones that succeeded and try again."
         exit 1
     }
-    printf "Pull request %s created (%s)\n" \
-        "${res['number']}" "${res['html_url']}"
+    if [[ ${res['number']} && ${res['html_url']} ]]; then
+        printf "Pull request %s created (%s)\n" \
+            "${res['number']}" "${res['html_url']}"
+    else
+        echo "Pull request to $posturl with following params failed:"
+        echo "$@"
+        echo "Please delete the ones that succeeded and try again."
+        exit 1
+    fi
 }
 
 # Get the diffstat from the origin branch of the branch passed,
@@ -1421,6 +1480,11 @@ diffstat_from_origin() {
     fi
 }
 
+git_ref() {
+    # $1 = branch
+    printf "%s-%s" "${1//\//-}" "$(git show-ref --hash=10 "refs/heads/$1")"
+}
+
 # Make pull requests based on the command line args passed.
 # These should follow the command line arguments that
 # pull_requests_prep generated.
@@ -1430,15 +1494,20 @@ pull_requests_gen() {
     local -A barclamps branches barclamp_branches bc_pulls br_pulls refs
     local bc br bcr title body option bc_name head
     local prc=0 n=1
-    echo "Enter a title for this pull request series."
-    echo "After you have entered a title, an editor will open, and you can"
-    echo "enter anything you want for the body of the pull requests."
-    read -p "Title: " title
     body="$(mktemp /tmp/crowbar-pull-req-XXXXXXXX)"
-    if [[ $EDITOR ]]; then
-        $EDITOR "$body"
+    if [[ $DEBUG ]]; then
+        title="Test"
+        echo "test" >> "$body"
     else
-        nano "$body"
+        echo "Enter a title for this pull request series."
+        echo "After you have entered a title, an editor will open, and you can"
+        echo "enter anything you want for the body of the pull requests."
+        read -p "Title: " title
+        if [[ $EDITOR ]]; then
+            $EDITOR "$body"
+        else
+            nano "$body"
+        fi
     fi
     # Parse our options and validate them.
     while [[ "$1" ]]; do
@@ -1492,7 +1561,12 @@ pull_requests_gen() {
         for bc in $(barclamps_from_branch "$br"); do
             [[ ${barclamps[$bc]} ]] || continue
             for bcb in ${barclamp_branches["$bc"]}; do
-                bc_pulls["$bc/$bcb"]="true"
+                if [[ $bcb = feature/* ]]; then
+                    bc_pulls["$bc/$bcb"]="$bcb"
+                else
+                    local refname="pull-req-$(in_barclamp "$bc" git_ref "$bcb")"
+                    bc_pulls["$bc/$bcb"]="$refname"
+                fi
             done
             # If we get this far, we have barclamp references to update.
             if [[ ! ${refs["$br"]} ]]; then
@@ -1513,13 +1587,18 @@ pull_requests_gen() {
         done
         if [[ ${refs["$br"]} ]]; then
             in_repo git commit -m "Add updated submodule references for $br"
-            local refname="$(in_repo git describe --all --long --match "$br")"
-            refname=${refname//\//-}
             # ... and push it to our personal github repo.
-            in_repo git push -f personal HEAD:"pull-req-$refname"
-            br_pulls["$br"]="true"
+            if [[ $br = feature/* ]]; then
+                br_pulls["$br"]="$br"
+            else
+                local refname="pull-req-$(in_repo git_ref "$br")"
+                br_pulls["$br"]="$refname"
+            fi
         fi
-        [[ ${branches["$br"]} ]] && br_pulls["$br"]=true
+        if [[ ${branches["$br"]} && ! ${br_pulls["$br"]} ]]; then
+            local refname="pull-req-$(in_repo git_ref "$br")"
+            br_pulls["$br"]="$refname"
+        fi
     done
     # OK, now we know how many pull requests we have to issue.
     prc=$((${#bc_pulls[@]} + ${#br_pulls[@]}))
@@ -1528,17 +1607,15 @@ pull_requests_gen() {
     for barclamp in "${!bc_pulls[@]}"; do
         local bc=${barclamp%%/*}
         local bc_base=${barclamp#*/}
-        local bc_head="$DEV_GITHUB_ID:$(in_barclamp "$bc" git rev-parse "$bc_base")"
-        if [[ $bc_base = feature/* ]]; then
-            bc_head="$DEV_GITHUB_ID:$bc_base"
-            bc_base="${bc_base##*/}"
-        fi
-
+        in_barclamp "$bc" git push personal "$bc_base:${bc_pulls[$barclamp]}"
+        local bc_head="$DEV_GITHUB_ID:${bc_pulls[$barclamp]}"
+        [[ $bc_base = feature/* ]] && bc_base="${bc_base##*/}"
         local bc_name=$(in_barclamp $bc git config --get remote.origin.url)
         bc_name=${bc_name##*/}
         bc_name=${bc_name##*:}
         bc_name=${bc_name%.git}
-        do_pull_request "https://api.github.com/repos/dellcloudedge/$bc_name/pulls" \
+        do_pull_request \
+            "https://api.github.com/repos/dellcloudedge/$bc_name/pulls" \
             --title "$title [$n/$prc]" --base "$bc_base" --head "$bc_head" \
             --body "@$body" \
             --body "$(in_barclamp "$bc" diffstat_from_origin "$bc_base")"
@@ -1549,12 +1626,11 @@ pull_requests_gen() {
     # Make sure they are ordered correctly.
     for br in $(filter_branches_for_remote origin $(ordered_branches)); do
         [[ ${br_pulls["$br"]} ]] || continue
-        local br_head="$DEV_GITHUB_ID:$(in_repo git rev-parse "$br")"
-        if [[ $br = feature/* ]]; then
-            br_head="$DEV_GITHUB_ID:$br"
-            br="${br##*/}"
-        fi
-        do_pull_request "https://api.github.com/repos/dellcloudedge/crowbar/pulls" \
+        in_repo git push personal "${br}:${br_pulls[$br]}"
+        local br_head="$DEV_GITHUB_ID:${br_pulls[$br]}"
+        [[ $br = feature/* ]] && br="${br##*/}"
+        do_pull_request \
+            "https://api.github.com/repos/dellcloudedge/crowbar/pulls" \
             --title "$title [$n/$prc]" --base "$br" --head "$br_head" \
             --body "@$body" --body "$(in_repo diffstat_from_origin "$br")"
         n=$(($n + 1))
