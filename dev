@@ -1400,6 +1400,10 @@ do_pull_request() {
     local posturl="$1"
     local -A res
     shift
+    if [[ $DEBUG ]]; then
+        make_pull_request "$@"
+        return
+    fi
     . <(make_pull_request "$@" | \
         curl_and_res -X POST --data @- \
         -H "Content-Type: application/vnd.github.beta.raw+json" \
