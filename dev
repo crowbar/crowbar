@@ -309,6 +309,14 @@ clone_barclamp() {
                 "${DEV_REMOTE_SOURCES[$remote]}/$repo"
             in_repo git submodule update "barclamps/$1" || \
                 die "Could not perform initial clone of barclamp $1"
+            (   cd "barclamps/$1"
+                while read ref br; do
+                    [[ br = refs/remotes/origin/* ]] || continue
+                    br=${br#refs/remotes/}
+                    branch_exists "${br#origin/}" && continue
+                    git branch --track "${br#origin/}" "$br"
+                done < <(git show-ref master)
+            )
             return
         done
     done
