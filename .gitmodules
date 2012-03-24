@@ -45,4 +45,4 @@
 	url = https://github.com/dellcloudedge/barclamp-sqoop.git
 [submodule "barclamps/apachehadoop"]
 	path = barclamps/apachehadoop
-	url = https://github.com/dellcloudedge/barclamp-ApacheHadoop.git
+	url = http://github.com/dellcloudedge/barclamp-ApacheHadoop.git
