@@ -145,12 +145,13 @@ in_chroot mkdir -p /mnt/cache
 sudo mount --bind "$SLEDGEHAMMER_CHROOT_CACHE" "$CHROOT/$CHROOT_PKGDIR"
 sudo mount --bind "$SLEDGEHAMMER_LIVECD_CACHE" "$CHROOT/mnt/cache"
 setup_sledgehammer_chroot
-chroot_install livecd-tools tar
 in_chroot touch /mnt/make_sledgehammer
 in_chroot chmod 777 /mnt/make_sledgehammer
-echo '#!/bin/bash' >>/mnt/make_sledgehammer
+echo '#!/bin/bash' >>"$CHROOT/mnt/make_sledgehammer"
 if [[ $USE_PROXY = "1" ]]; then
-    printf "\nno_proxy=%q\nhttp_proxy=%q\nexport no_proxy http_proxy\n" \
+    printf "\nexport no_proxy=%q http_proxy=%q\n" \
+        "$no_proxy" "$http_proxy" >> "$CHROOT/mnt/make_sledgehammer"
+    printf "\nexport NO_PROXY=%q HTTP_PROXY=%q\n" \
         "$no_proxy" "$http_proxy" >> "$CHROOT/mnt/make_sledgehammer"
 fi
 cat >> "$CHROOT/mnt/make_sledgehammer" <<EOF
