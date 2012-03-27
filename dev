@@ -1701,6 +1701,22 @@ branch_prefix() {
     esac
 }
 
+release_for_branch() {
+    # $1 = branch to find out what release we are on
+    local br=${1#refs/heads/}
+    case $br in
+        stable/*) echo "stable";;
+        release/*) br=${br#release/}; echo "${br%%/*}";;
+        feature/*) br=${br#feature/}; echo "feature/${br%%/*}";;
+        *)
+            if is_in "$br" "${!DEV_BRANCHES[*]}"; then
+                echo "development"
+            else
+                die "Not on a release branch"
+            fi;;
+    esac
+}
+
 branches_in_release() {
     # $1 = release to look at. Defaults to current release if nothing passed.
     if [[ $1 ]]; then
