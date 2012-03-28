@@ -1365,6 +1365,12 @@ Command line options:
                    merged into the main devleopment stream to avoid cluttering
                    up the output of the git branch command.  It will fail if
                    the feature has not been merged into the development release.
+
+  find-parent -- Find the parent of a release or feature based on the which
+                 of the releases have the shortest merge distance from the
+                 release passed to find-parent, so it is possible for more than
+                 one release to be considered to be the parent. If that turns
+                 out to be the case, find-parent wil ask you to disambiguate.
 EOF
 }
 
@@ -1598,7 +1604,9 @@ pull_requests_gen() {
         local bc_base=${barclamp#*/}
         in_barclamp "$bc" git push personal "$bc_base:${bc_pulls[$barclamp]}"
         local bc_head="$DEV_GITHUB_ID:${bc_pulls[$barclamp]}"
-        [[ $bc_base = feature/* ]] && bc_base="$(find_best_parent)${bc_base##*/}"
+        if [[ $bc_base = feature/* ]]; then
+            bc_base="$(best_parent_prefix)${bc_base##*/}" || exit 1
+        fi
         local bc_name=$(in_barclamp $bc git config --get remote.origin.url)
         bc_name=${bc_name##*/}
         bc_name=${bc_name##*:}
@@ -1617,7 +1625,9 @@ pull_requests_gen() {
         [[ ${br_pulls["$br"]} ]] || continue
         in_repo git push personal "${br}:${br_pulls[$br]}"
         local br_head="$DEV_GITHUB_ID:${br_pulls[$br]}"
-        [[ $br = feature/* ]] && br="$(find_best_parent)${br##*/}"
+        if [[ $br = feature/* ]]; then 
+            br="$(best_parent_prefix)${br##*/}" || exit 1
+        fi
         do_pull_request \
             "https://api.github.com/repos/dellcloudedge/crowbar/pulls" \
             --title "$title [$n/$prc]" --base "$br" --head "$br_head" \
@@ -1690,6 +1700,7 @@ branch_prefix() {
     esac
 }
 
+# Given a branch, figure out what release it is in.
 release_for_branch() {
     # $1 = branch to find out what release we are on
     local br=${1#refs/heads/}
@@ -1706,6 +1717,9 @@ release_for_branch() {
     esac
 }
 
+# Given a release, find the "best" parent release.  This will only
+# be called if we don't already have metadata recorded for the
+# parent relationship of this release.
 find_best_parent() {
     # $1 = release to find the "best" parent of.
     #      If empty, use the release we are currently on.
@@ -1716,17 +1730,19 @@ find_best_parent() {
             die "find_best_parents: $1 is not a release"
         release="$1"
     else
-        release="$(release_for_branch $(git symbolic-ref HEAD))"
+        release="$(release_for_branch $(in_repo git symbolic-ref HEAD))"
     fi
-    [[ $release = feature/* ]] || \
-        die "Cannot find best parent of a non-feature release!"
+    [[ $release = development ]] && \
+        die "By definition, the development release has no logical parent."
+
     br="$(branch_prefix "$release")master"
     # Find the target that is the smallest number of commits away from us.
-    # There may be more than one.
+    # There may be more than one.  This algorithim is OK for a first pass,
+    # but there are more complex and more accurate solutions out there.
     while read ref candidate; do
         candidate=${candidate#refs/heads/}
         [[ $candidate = $br ]] && continue
-        distance="$(git rev-list --count "$br..$candidate")"
+        distance="$(in_repo git rev-list --count --right-only "$candidate...$br")"
         [[ $best_distance ]] || best_distance=$distance
         if (( distance < best_distance )); then
             best_distance=$distance
@@ -1745,18 +1761,30 @@ find_best_parent() {
         die "No best parent found for $release"
     elif (( ${#best_candidates[@]} == 1 )); then
         debug "It looks like $best_candidates is the parent of $release"
-        echo "$(branch_prefix "$best_candidates")"
+        echo "$best_candidates"
     else
         debug "More than one good candidate for a parent found."
         debug "Please pick the one you want:"
-        select candidate in "${best_candidates[@]}" quit; do
+        select candidate in "${best_candidates[@]}" "None of the above"; do
             case $candidate in
-                quit) die "Aborting.";;
+                'None of the above') die "Aborting.";;
                 '') continue;;
-                *) echo "$(branch_prefix "$candidate")"; return;;
+                *) echo "$candidate"; return;;
             esac
         done
     fi
+}
+
+best_parent_prefix() {
+    local res
+    if in_repo git_config_has 'crowbar.releases.$1.parent'; then
+        res=$(in_repo git config --get 'crowbar.releases.$1.parent')
+    elif res="$(in_repo find_best_parent "$@")"; then
+        in_repo git config "crowbar.releases$1.parent" "$res"
+    else
+        exit 1
+    fi
+    echo "$(branch_prefix "$res")"
 }
 
 branches_in_release() {
@@ -1768,7 +1796,7 @@ branches_in_release() {
     else
         local rel="$(current_release)"
     fi
-    local prefix="$(branch_prefix "$rel")"
+     local prefix="$(branch_prefix "$rel")"
     local ref branch
     while read ref branch; do
         [[ $branch =~ ^refs/heads/${prefix}[^/]+$ ]] || continue
@@ -1810,6 +1838,7 @@ cut_release() {
             in_cache git branch "${new_prefix}master" master
         fi
     fi
+    in_repo git config "crowbar.releases.$1.parent" "$(current_release)"
 }
 
 erase_release() {
@@ -1955,5 +1984,6 @@ case $1 in
     show-repos) show_github_repos;;
     remote) shift; remote_wrapper "$@";;
     erase-feature) shift; erase_release "feature/$1";;
+    find-parent) shift; find_best_parent "$@";;
     *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
 esac
