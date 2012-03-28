@@ -1251,8 +1251,36 @@ sync_everything() {
     return 1
 }
 
-dev_help () {
+dev_short_help() {
     cat <<EOF
+$0: Development helper for Crowbar
+
+setup:              Sets up a Crowbar checkout for use with dev.
+is_clean:           Test to see if all work is committed.
+fetch:              Fetch updates from configured upstream repositories.
+remote:             Manage remotes across all dellcloudedge repositories.
+backup:             Back up changes without merging them into upstream.
+sync:               Synchronize fetched updates with the local repos.
+push:               Unconditionally push a branch to your personal repos.
+pull-requests-prep: Prepare to issue pull requests.
+pull-requests-gen:  Issue pull requests.
+release:            Show the current release or feature you are on.
+releases:           Show all releases and features in your local repos.
+branches:           Show the branches in the current release.
+switch:             Switch to a different release.
+checkout:           Check out a branch in the current release.
+build:              build Crowbar.
+cut_release:        Cut a new release from the current one.
+new-feature:        Create a new feature bundle from the current release.
+erase-feature:      Forget about branches for a feature you are not working on.
+find-parent:        Find the closest parent of a release or feature.
+
+For more detailed help, use the "help" command or read README.dev-and-workflow.
+EOF
+}
+
+dev_help () {
+    less <<EOF
 $0: Development helper for Crowbar.
 
 Command line options:
@@ -1985,5 +2013,5 @@ case $1 in
     remote) shift; remote_wrapper "$@";;
     erase-feature) shift; erase_release "feature/$1";;
     find-parent) shift; find_best_parent "$@";;
-    *) dev_help ; die "Unknown command $1.  Please use \"help\" for help.";;
+    *) dev_short_help; exit 1;;
 esac
