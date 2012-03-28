@@ -1561,12 +1561,7 @@ pull_requests_gen() {
         for bc in $(barclamps_from_branch "$br"); do
             [[ ${barclamps[$bc]} ]] || continue
             for bcb in ${barclamp_branches["$bc"]}; do
-                if [[ $bcb = feature/* ]]; then
-                    bc_pulls["$bc/$bcb"]="$bcb"
-                else
-                    local refname="pull-req-$(in_barclamp "$bc" git_ref "$bcb")"
-                    bc_pulls["$bc/$bcb"]="$refname"
-                fi
+                bc_pulls["$bc/$bcb"]="pull-req-$(in_barclamp "$bc" git_ref "$bcb")"
             done
             # If we get this far, we have barclamp references to update.
             if [[ ! ${refs["$br"]} ]]; then
@@ -1588,16 +1583,10 @@ pull_requests_gen() {
         if [[ ${refs["$br"]} ]]; then
             in_repo git commit -m "Add updated submodule references for $br"
             # ... and push it to our personal github repo.
-            if [[ $br = feature/* ]]; then
-                br_pulls["$br"]="$br"
-            else
-                local refname="pull-req-$(in_repo git_ref "$br")"
-                br_pulls["$br"]="$refname"
-            fi
+            br_pulls["$br"]="pull-req-$(in_repo git_ref "$br")"
         fi
         if [[ ${branches["$br"]} && ! ${br_pulls["$br"]} ]]; then
-            local refname="pull-req-$(in_repo git_ref "$br")"
-            br_pulls["$br"]="$refname"
+            br_pulls["$br"]="pull-req-$(in_repo git_ref "$br")"
         fi
     done
     # OK, now we know how many pull requests we have to issue.
@@ -1609,7 +1598,7 @@ pull_requests_gen() {
         local bc_base=${barclamp#*/}
         in_barclamp "$bc" git push personal "$bc_base:${bc_pulls[$barclamp]}"
         local bc_head="$DEV_GITHUB_ID:${bc_pulls[$barclamp]}"
-        [[ $bc_base = feature/* ]] && bc_base="${bc_base##*/}"
+        [[ $bc_base = feature/* ]] && bc_base="$(find_best_parent)${bc_base##*/}"
         local bc_name=$(in_barclamp $bc git config --get remote.origin.url)
         bc_name=${bc_name##*/}
         bc_name=${bc_name##*:}
@@ -1628,7 +1617,7 @@ pull_requests_gen() {
         [[ ${br_pulls["$br"]} ]] || continue
         in_repo git push personal "${br}:${br_pulls[$br]}"
         local br_head="$DEV_GITHUB_ID:${br_pulls[$br]}"
-        [[ $br = feature/* ]] && br="${br##*/}"
+        [[ $br = feature/* ]] && br="$(find_best_parent)${br##*/}"
         do_pull_request \
             "https://api.github.com/repos/dellcloudedge/crowbar/pulls" \
             --title "$title [$n/$prc]" --base "$br" --head "$br_head" \
@@ -1715,6 +1704,59 @@ release_for_branch() {
                 die "Not on a release branch"
             fi;;
     esac
+}
+
+find_best_parent() {
+    # $1 = release to find the "best" parent of.
+    #      If empty, use the release we are currently on.
+    local br distance best_distance ref candidate merge_base release
+    local best_candidates=()
+    if [[ $1 ]]; then
+        is_in "$1" "$(show_releases)" || \
+            die "find_best_parents: $1 is not a release"
+        release="$1"
+    else
+        release="$(release_for_branch $(git symbolic-ref HEAD))"
+    fi
+    [[ $release = feature/* ]] || \
+        die "Cannot find best parent of a non-feature release!"
+    br="$(branch_prefix "$release")master"
+    # Find the target that is the smallest number of commits away from us.
+    # There may be more than one.
+    while read ref candidate; do
+        candidate=${candidate#refs/heads/}
+        [[ $candidate = $br ]] && continue
+        distance="$(git rev-list --count "$br..$candidate")"
+        [[ $best_distance ]] || best_distance=$distance
+        if (( distance < best_distance )); then
+            best_distance=$distance
+            best_candidates=("$(release_for_branch "$candidate")")
+        elif (( distance == best_distance )); then
+            best_candidates+=("$(release_for_branch "$candidate")")
+        fi
+    done < <(git show-ref --heads master)
+    local VERBOSE=1
+    if (( best_distance == 0 )); then
+        # Oh boy, we are already merged into something else.
+        # Let the user know and die.
+        debug "$release has already been merged into: ${best_candidates[@]}"
+        die "No best parents for $release"
+    elif (( ${#best_candidates[@]} == 0 )); then
+        die "No best parent found for $release"
+    elif (( ${#best_candidates[@]} == 1 )); then
+        debug "It looks like $best_candidates is the parent of $release"
+        echo "$(branch_prefix "$best_candidates")"
+    else
+        debug "More than one good candidate for a parent found."
+        debug "Please pick the one you want:"
+        select candidate in "${best_candidates[@]}" quit; do
+            case $candidate in
+                quit) die "Aborting.";;
+                '') continue;;
+                *) echo "$(branch_prefix "$candidate")"; return;;
+            esac
+        done
+    fi
 }
 
 branches_in_release() {
