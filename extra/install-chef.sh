@@ -106,7 +106,7 @@ fi
     mkdir -p "$HOME/.ssh"
     ssh-keygen -q -b 2048 -P '' -f "$HOME/.ssh/id_rsa"
     cat "$HOME/.ssh/id_rsa.pub" >> "$HOME/.ssh/authorized_keys"
-    cp "$HOME/.ssh/authorized_keys" "$DVD_PATH/authorized_keys"
+    cp "$HOME/.ssh/authorized_keys" "/tftpboot/authorized_keys"
     cat "$HOME/.ssh/id_rsa.pub" >> /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/templates/default/authorized_keys.erb
 
 }
