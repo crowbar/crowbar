@@ -2058,9 +2058,15 @@ reset_release() {
                 esac;;
             *) die "Don't know how to reset to $target_method";;
         esac
-        in_repo git rev-parse --quiet --verify \
-            "${branches[$br]}" &>/dev/null || \
-            die "Cannot reset $br to ${branches[$br]}"
+        if ! in_repo git rev-parse --quiet --verify \
+            "${branches[$br]}" &>/dev/null; then
+            if [[ $target = backup ]]; then
+                debug "$br has never been backed up, skipping."
+                unset branches[$br]
+            elif [[ $target = upstream ]]; then
+                die "Cannot reset $br to ${branches[$br]}"
+            fi
+        fi
         [[ $skip_barclamps = true ]] && continue
         for bc in $(barclamps_from_branch "$br"); do
             [[ ${barclamps[$bc]} ]] && continue
@@ -2079,9 +2085,15 @@ reset_release() {
                     esac;;
                 *) die "Don't know how to reset barclamp $bc to $target_method";;
             esac
-            in_barclamp "$bc" git rev-parse --quiet --verify \
-                "${barclamp_targets[$bc]}" &>/dev/null || \
-                die "Cannot reset barclamp $bc to ${barclamp_targets[$bc]}"
+            if ! in_barclamp "$bc" git rev-parse --quiet --verify \
+                "${barclamp_targets[$bc]}" &>/dev/null; then
+                if [[ $target = backup ]]; then
+                    debug "${barclamps[$bc]} in $bc has never been backed up, skipping."
+                    unset barclamps[$bc]
+                elif [[ $target = upstream ]]; then
+                    die "Cannot reset barclamp $bc to ${barclamp_targets[$bc]}"
+                fi
+            fi
         done
     done
     for bc in "${!barclamps[@]}"; do
