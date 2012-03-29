@@ -1280,6 +1280,7 @@ cut_release:        Cut a new release from the current one.
 new-feature:        Create a new feature bundle from the current release.
 erase-feature:      Forget about branches for a feature you are not working on.
 find-parent:        Find the closest parent of a release or feature.
+reset-release:      Resets a release to upstream or your last backup.
 
 For more detailed help, use the "help" command or read README.dev-and-workflow.
 EOF
@@ -1405,6 +1406,19 @@ Command line options:
                  release passed to find-parent, so it is possible for more than
                  one release to be considered to be the parent. If that turns
                  out to be the case, find-parent wil ask you to disambiguate.
+
+  reset-release -- Reset a release or feature to either the last pull from
+                   upstream or your last backup.  Paremeters:
+                   --release: Release to reset.  Defaults to current.
+                   --target: Either "upstream" or "backup".
+                             Defaults to "backup".
+                   --skip-master: If set, will skip resetting the master branch
+                                  in the release and any barclamps that the
+                                  master branch pulls in.  Is automatically set
+                                  if --release is not specified.
+                   --skip-barclamps: Skip resetting the the barclamps for the
+                                     release.
+
 EOF
 }
 
@@ -2065,9 +2079,9 @@ reset_release() {
                     esac;;
                 *) die "Don't know how to reset barclamp $bc to $target_method";;
             esac
-            in_repo barclamp "$bc" git rev-parse --quiet --verify \
-            "${barclamp_targets[$bc]}" &>/dev/null || \
-            die "Cannot reset barclamp $bc to ${barclamp_targets[$bc]}"
+            in_barclamp "$bc" git rev-parse --quiet --verify \
+                "${barclamp_targets[$bc]}" &>/dev/null || \
+                die "Cannot reset barclamp $bc to ${barclamp_targets[$bc]}"
         done
     done
     for bc in "${!barclamps[@]}"; do
