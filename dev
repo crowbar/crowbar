@@ -2105,5 +2105,6 @@ case $1 in
     remote) shift; remote_wrapper "$@";;
     erase-feature) shift; erase_release "feature/$1";;
     find-parent) shift; find_best_parent "$@";;
+    reset-release) shift; reset_release "$@";;
     *) dev_short_help; exit 1;;
 esac
