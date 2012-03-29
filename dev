@@ -94,11 +94,14 @@ which gem &>/dev/null || \
 gem list -i json &>/dev/null || \
     die "JSON gem not installed.  Please install it with gem install json."
 
+get_repo_cfg() { in_repo git config --get "$1"; }
+get_barclamp_cfg() { in_barclamp "$1" git config --get "$2"; }
+
 dev_is_setup() {
     [[ $DEV_GITHUB_ID || $1 = setup ]] || \
         die "dev has not been configured. Please run $CROWBAR_DIR/dev setup first."
 
-    thisrev=$(in_repo git config --get crowbar.dev.version) && \
+    thisrev=$(get_repo_cfg crowbar.dev.version) && \
         (( thisrev  == DEV_VERSION )) || [[ $1 = setup ]] || {
         VERBOSE=true
         debug "Crowbar repository out of sync with dev tool revision."
@@ -112,15 +115,16 @@ unset thisrev
 set -o pipefail
 
 # Given a branch, echo all the child branches for this
-# branch in the current release.
+# branch in the same release.
 child_branches() {
-    local p=${1#$DEV_BRANCH_PREFIX} b
-    for b in "${!DEV_BRANCHES[@]}"; do
-        [[ ${DEV_BRANCHES[$b]} && \
-            ${DEV_BRANCHES[$b]} != $b && \
-            ${DEV_BRANCHES[$b]} = $p ]] || continue
-        in_repo branch_exists "$DEV_BRANCH_PREFIX$b" || continue
-        echo "$DEV_BRANCH_PREFIX$b"
+    local prefix="${1%/*}/" parent=${1##*/} br
+    [[ ${prefix%/} = $1 ]] && prefix=''
+    for br in "${!DEV_BRANCHES[@]}"; do
+        [[ ${DEV_BRANCHES[$br]} && \
+            ${DEV_BRANCHES[$br]} != $br && \
+            ${DEV_BRANCHES[$br]} = $parent ]] || continue
+        in_repo branch_exists "$prefix$br" || continue
+        echo "$prefix$br"
     done
     return 0
 }
@@ -169,11 +173,13 @@ ordered_branches() {
 
 all_ordered_branches() { ordered_branches $(root_branches --all); }
 
+branches_for_release() { ordered_branches $(root_branches "$1"); }
+
 # Given a branch, print the first remote that branch is "owned" by
 remote_for_branch() {
     local remote
     for remote in "${DEV_REMOTES[@]}"; do
-        is_in "$1" "${DEV_REMOTE_BRANCHES[$remote]}" || continue
+        is_in "${1##*/}" "${DEV_REMOTE_BRANCHES[$remote]}" || continue
         echo "$remote"
         return 0
     done
@@ -301,11 +307,11 @@ clone_barclamp() {
                 "$(barclamps_in_branch $branch)" || \
             continue
             in_repo git submodule init "barclamps/$1"
-            repo="$(in_repo git config --get submodule.barclamps/$1.url)"
+            repo="$(get_repo_cfg "submodule.barclamps/$1.url")"
             repo="${repo##*/}"
             repo="${repo##*:}"
             repo="${repo%.git}"
-            in_repo git config "submodule.barclamps/$1.url" \
+            get_repo_cfg "submodule.barclamps/$1.url" \
                 "${DEV_REMOTE_SOURCES[$remote]}/$repo"
             in_repo git submodule update "barclamps/$1" || \
                 die "Could not perform initial clone of barclamp $1"
@@ -745,7 +751,7 @@ setup() {
                         clone_barclamp "$bc"
                         fetched_barclamps["$bc"]="true"
                     }
-                    repo="$(in_repo git config --get submodule.barclamps/$bc.url)"
+                    repo="$(get_repo_cfg "submodule.barclamps/$bc.url")"
                     repo="${repo##*/}"
                     repo="${repo##*:}"
                     repo="${repo%.git}"
@@ -1805,8 +1811,8 @@ find_best_parent() {
 
 best_parent_prefix() {
     local res
-    if in_repo git_config_has 'crowbar.releases.$1.parent'; then
-        res=$(in_repo git config --get 'crowbar.releases.$1.parent')
+    if in_repo git_config_has "crowbar.releases.$1.parent"; then
+        res=$(get_repo_cfg "crowbar.releases.$1.parent")
     elif res="$(in_repo find_best_parent "$@")"; then
         in_repo git config "crowbar.releases$1.parent" "$res"
     else
@@ -1989,6 +1995,92 @@ build_crowbar() {
     update_all_tracking_branches
     build_args+=("--skip-lock")
     with_build_lock __build_crowbar
+}
+
+reset_release() {
+    crowbar_is_clean || exit 1
+    local target_release target exclude_master prefix br remote
+    local method bc skip_barclamps
+    local -A branches barclamps barclamp_targets
+    while [[ $1 ]]; do
+        case $1 in
+            --release) shift; target_release="$1";;
+            --target) shift; target="$1";;
+            --skip-master) exclude_master=true;;
+            --skip-barclamps) skip_barclamps=true;;
+            *) die "Unknown option $1 passed to reset-release";;
+        esac
+        shift
+    done
+    if [[ ! $target_release ]]; then
+        exclude_master=true
+        skip_barclamps=true
+        target_release="$(current_release)"
+    elif ! is_in "$target_release" "$(show_releases)"; then
+        die "Release $target_release does not exist, cannot reset."
+    fi
+    if [[ ! $target ]]; then
+        target=backup
+    elif [[ ! $target =~ ^upstream|backup$ ]]; then
+        die "Must reset to either upstream or backup!"
+    fi
+    prefix="$(branch_prefix "$target_release")"
+    # Figure out what the proper target branches are going to be.
+    for br in $(branches_for_release "$target_release"); do
+        [[ $exclude_master && ${br##*/} = master ]] && continue
+        remote="$(remote_for_branch "$br")"
+        case $target in
+            upstream) branches["$br"]="$remote/$br";;
+            backup)
+                case $(get_repo_cfg crowbar.backup.$remote.method) in
+                    prefix)
+                        branches["$br"]=$(get_repo_cfg "crowbar.backup.$remote.remote")
+                        branches["$br"]+="/$(get_repo_cfg "crowbar.backup.$remote.prefix")"
+                        branches["$br"]+="/$br";;
+                    remote)
+                        branches["$br"]=$(get_repo_cfg "crowbar.backup.$remote.remote")
+                        branches["$br"]+="/$br";;
+                    *) die "Unknown backup method for $br in Crowbar";;
+                esac;;
+            *) die "Don't know how to reset to $target_method";;
+        esac
+        in_repo git rev-parse --quiet --verify \
+            "${branches[$br]}" &>/dev/null || \
+            die "Cannot reset $br to ${branches[$br]}"
+        [[ $skip_barclamps = true ]] && continue
+        for bc in $(barclamps_from_branch "$br"); do
+            [[ ${barclamps[$bc]} ]] && continue
+            in_barclamp "$bc" branch_exists "${prefix}master" || continue
+            barclamps[$bc]="${prefix}master"
+            case $target in
+                upstream) barclamp_targets[$bc]="origin/${prefix}master";;
+                backup)
+                    case $(get_barclamp_cfg "$bc" crowbar.backup.origin.method) in
+                        prefix)
+                            barclamp_targets[$bc]="origin/$(get_barclamp_cfg "$bc" crowbar.backup.origin.prefix)"
+                            barclamp_targets[$bc]+="/${prefix}master";;
+                        remote)
+                            barclamp_targets[$bc]="$(get_barclamp_cfg "$bc" crowbar.backup.origin.remote)/${prefix}master";;
+                        *) die "Unknown backup method for barclamp $bc!";;
+                    esac;;
+                *) die "Don't know how to reset barclamp $bc to $target_method";;
+            esac
+            in_repo barclamp "$bc" git rev-parse --quiet --verify \
+            "${barclamp_targets[$bc]}" &>/dev/null || \
+            die "Cannot reset barclamp $bc to ${barclamp_targets[$bc]}"
+        done
+    done
+    for bc in "${!barclamps[@]}"; do
+        in_barclamp "$bc" git branch -f --no-track \
+            "${barclamps[$bc]}" "${barclamp_targets[$bc]}"
+    done
+    for br in "${!branches[@]}"; do
+        if [[ $(git symbolic-ref HEAD) = refs/heads/$br ]]; then
+            in_repo git reset --hard "${branches[$br]}"
+        else
+            in_repo git branch -f --no-track "$br" "${branches[$br]}"
+        fi
+    done
 }
 
 case $1 in
