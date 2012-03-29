@@ -45,6 +45,16 @@ DEV_REMOTES=("origin")
 [[ -f build-crowbar.conf ]] && \
     . "build-crowbar.conf"
 
+# If DEV_GITHUB_ORG is defined, the dev script will assume we're operating
+# out of an organization repo, instead of a user repo.  "personal" remotes
+# will point back to the org repo.  Note that DEV_GITHUB_ORG deliberately
+# overrides DEV_GITHUB_ID if set.  This means initial setup will be slightly
+# broken (you must create .netrc manually to have authentication work
+# correctly).
+if [[ $DEV_GITHUB_ORG ]]; then
+    DEV_GITHUB_ID=$DEV_GITHUB_ORG
+fi
+    
 # Set up our proxies if we were asked to.
 if [[ $USE_PROXY = "1" && $PROXY_HOST ]]; then
     proxy_str="http://"
@@ -343,7 +353,9 @@ keys() {
 show_github_repos() {
     local -A res
     local r
-    . <(curl_and_res -f "https://api.github.com/user/repos" | \
+    local url="https://api.github.com/user/repos"
+    [[ $DEV_GITHUB_ORG ]] && url="https://api.github.com/orgs/$DEV_GITHUB_ORG/repos"
+    . <(curl_and_res -f "$url" | \
         parse_yml_or_json - res 2>/dev/null)
     for r in $(keys '^[0-9]+\.name$' "${!res[@]}"); do
         printf "%s\n" "${res[$r]}"
@@ -533,8 +545,10 @@ curl_and_res() {
 github_fork() {
     # $1 = user to fork from
     # $2 = repo to fork
+    local org=""
+    [[ $DEV_GITHUB_ORG ]] && org="?org=$DEV_GITHUB_ORG"
     curl_and_res -f -X POST \
-        "https://api.github.com/repos/$1/$2/forks" >&/dev/null || \
+        "https://api.github.com/repos/$1/$2/forks$org" >&/dev/null || \
         die "Could not fork $1/$2!"
 }
 
