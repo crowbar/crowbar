@@ -1828,7 +1828,7 @@ best_parent_prefix() {
     if in_repo git_config_has "crowbar.releases.$1.parent"; then
         res=$(get_repo_cfg "crowbar.releases.$1.parent")
     elif res="$(in_repo find_best_parent "$@")"; then
-        in_repo git config "crowbar.releases$1.parent" "$res"
+        in_repo git config "crowbar.releases.$1.parent" "$res"
     else
         exit 1
     fi
