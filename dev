@@ -49,8 +49,9 @@ DEV_REMOTES=("origin")
 # out of an organization repo, instead of a user repo.  "personal" remotes
 # will point back to the org repo.  Note that DEV_GITHUB_ORG deliberately
 # overrides DEV_GITHUB_ID if set.  This means initial setup will be slightly
-# broken (you must create .netrc manually to have authentication work
-# correctly).
+# broken - you must create .netrc manually, containing:
+#  machine github.com login YOUR_GH_USERNAME password YOUR_GH_PASSWORD
+#  machine api.github.com login YOUR_GH_USERNAME password YOUR_GH_PASSWORD
 if [[ $DEV_GITHUB_ORG ]]; then
     DEV_GITHUB_ID=$DEV_GITHUB_ORG
 fi
