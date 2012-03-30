@@ -1091,6 +1091,8 @@ sync_branch_from_personal() {
     }
 }
 
+
+
 # Handle merges across releases.  Most of the ugliness here is around making
 # sure that we don't get merge conflicts due to different barclamp submodule
 # updates, which we don't care about locally.
@@ -1134,6 +1136,10 @@ merge_releases() {
                 unset do_commit
             fi
             git merge -q "${from_prefix}$br" || {
+                echo "Could not automatically merge.  Dropping to a shell."
+                echo "If you want to abort this merge, exit the shell with 'exit 1'"
+                /bin/bash
+            } || {
                 git merge --abort
                 die "$repo: Merge of $br from $rel into $cur_rel failed."
             }
