@@ -107,6 +107,19 @@ if [[ $DEV_GITHUB_ORG ]]; then
     DEV_GITHUB_ID=$DEV_GITHUB_ORG
 fi
 
+# Make sure the remote personal URL includes $DEV_GITHUB_ID (whether or not
+# that's based on $DEV_GITHUB_ORG) - this ensures that you don't accidentally
+# use a clone of a personal github repo when you think you're using a clone
+# of an org repo, or vice versa.
+if in_repo git config --get remote.personal.url &>/dev/null; then
+    [[ "$(git config --get remote.personal.url)" =~ /$DEV_GITHUB_ID/ ]] || {
+        VERBOSE=true
+        debug "Personal remote doesn't match \$DEV_GITHUB_ID."
+        debug "Please check settings in $HOME/.build-crowbar.conf"
+        exit 1
+    }
+fi
+
 which gem &>/dev/null || \
     die "Rubygems not installed, and some of our helpers need a JSON gem."
 
