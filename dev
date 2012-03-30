@@ -131,9 +131,11 @@ child_branches() {
 
 # Given a branch, echo its parent in the current release.
 parent_branch() {
+    local prefix="${1%/*}/" parent=${1##*/} br
+    [[ ${prefix%/} = $1 ]] && prefix=''
     local p="${DEV_BRANCHES[${1##*/}]}"
     if [[ $p && $p != ${1##*/} ]]; then
-        echo "${DEV_BRANCH_PREFIX}${p}"
+        echo "${prefix}${p}"
         return 0
     fi
     return 1
@@ -1835,23 +1837,6 @@ best_parent_prefix() {
     echo "$(branch_prefix "$res")"
 }
 
-branches_in_release() {
-    # $1 = release to look at. Defaults to current release if nothing passed.
-    if [[ $1 ]]; then
-        is_in "$1" "$(show_releases)" || \
-            die "branches_in_release: $1 is not a release."
-        local rel="$1"
-    else
-        local rel="$(current_release)"
-    fi
-     local prefix="$(branch_prefix "$rel")"
-    local ref branch
-    while read ref branch; do
-        [[ $branch =~ ^refs/heads/${prefix}[^/]+$ ]] || continue
-        echo ${branch#refs/heads/}
-    done < <(in_repo git show-ref --heads "${!DEV_BRANCHES[@]}")
-}
-
 DEV_BRANCH_PREFIX="$(branch_prefix $(current_release))"
 
 # Create a new release branch structure based on the current state of the
@@ -2124,7 +2109,7 @@ case $1 in
     cut_release) shift; cut_release "$@";;
     new-feature) shift; cut_release "feature/$1";;
     switch) shift; switch_release "$@";;
-    branches) shift; branches_in_release "$@";;
+    branches) shift; branches_for_release "$@";;
     checkout) shift; checkout "$@";;
     build) shift; build_crowbar "$@";;
     show-repos) show_github_repos;;
