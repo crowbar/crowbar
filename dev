@@ -45,16 +45,6 @@ DEV_REMOTES=("origin")
 [[ -f build-crowbar.conf ]] && \
     . "build-crowbar.conf"
 
-# If DEV_GITHUB_ORG is defined, the dev script will assume we're operating
-# out of an organization repo, instead of a user repo.  "personal" remotes
-# will point back to the org repo.  Note that DEV_GITHUB_ORG deliberately
-# overrides DEV_GITHUB_ID if set.  This means initial setup will be slightly
-# broken (you must create .netrc manually to have authentication work
-# correctly).
-if [[ $DEV_GITHUB_ORG ]]; then
-    DEV_GITHUB_ID=$DEV_GITHUB_ORG
-fi
-    
 # Set up our proxies if we were asked to.
 if [[ $USE_PROXY = "1" && $PROXY_HOST ]]; then
     proxy_str="http://"
@@ -96,6 +86,24 @@ if [[ $DEV_GITHUB_PASSWD ]]; then
     chmod 600 "$HOME/.netrc"
     sed -ie 's/DEV_GITHUB_PASSWD=.*//' "$HOME/.build-crowbar.conf"
     debug "Please remove your embedded login information from the remote URLS."
+fi
+
+# If DEV_GITHUB_ORG is defined, the dev script will assume we're operating
+# out of an organization repo, instead of a user repo.  "personal" remotes
+# will point back to the org repo.  Note that DEV_GITHUB_ORG deliberately
+# overrides DEV_GITHUB_ID if set.  This means initial setup will be slightly
+# broken (you must create .netrc manually to have authentication work
+# correctly).
+if [[ $DEV_GITHUB_ORG ]]; then
+    for mach in github.com api.github.com; do
+        grep -q "^machine $mach" "$HOME/.netrc" &>/dev/null || {
+            VERBOSE=true
+            debug "$HOME/.netrc does not contain github.com password information."
+            debug "Please add entries for github.com and api.github.com"
+            exit 1
+        }
+    done
+    DEV_GITHUB_ID=$DEV_GITHUB_ORG
 fi
 
 which gem &>/dev/null || \
