@@ -861,7 +861,9 @@ backup_to_remote() {
        else
            debug "Barclamp ${PWD##*/}: Backing up ${branches[*]}"
        fi
-       git push -qf "$remote" "${branches[@]}"
+       local f
+       [[ $DEV_GITHUB_ORG ]] || f=f
+       git push -q$f "$remote" "${branches[@]}"
     fi
 }
 
@@ -886,7 +888,7 @@ backup_with_prefix () {
         branch_exists "$branch" || continue
         if [[ $branch = ${prefix}* ]]; then
             debug "Cleaning up ${branch#refs/heads}"
-            git branch -D "${branch#refs/heads}"
+            [[ $DEV_GITHUB_ORG ]] || git branch -D "${branch#refs/heads}"
             git push -q "$remote" ":${branch#refs/heads}"
             continue
         fi
@@ -901,7 +903,9 @@ backup_with_prefix () {
         else
             debug "Barclamp ${PWD##*/}: Backing up ${branches[*]%%:*}"
         fi
-        git push -qf "$remote" "${branches[@]}"
+        local f
+        [[ $DEV_GITHUB_ORG ]] || f=f
+        git push -q$f "$remote" "${branches[@]}"
     fi
 }
 
