@@ -45,17 +45,6 @@ DEV_REMOTES=("origin")
 [[ -f build-crowbar.conf ]] && \
     . "build-crowbar.conf"
 
-# If DEV_GITHUB_ORG is defined, the dev script will assume we're operating
-# out of an organization repo, instead of a user repo.  "personal" remotes
-# will point back to the org repo.  Note that DEV_GITHUB_ORG deliberately
-# overrides DEV_GITHUB_ID if set.  This means initial setup will be slightly
-# broken - you must create .netrc manually, containing:
-#  machine github.com login YOUR_GH_USERNAME password YOUR_GH_PASSWORD
-#  machine api.github.com login YOUR_GH_USERNAME password YOUR_GH_PASSWORD
-if [[ $DEV_GITHUB_ORG ]]; then
-    DEV_GITHUB_ID=$DEV_GITHUB_ORG
-fi
-    
 # Set up our proxies if we were asked to.
 if [[ $USE_PROXY = "1" && $PROXY_HOST ]]; then
     proxy_str="http://"
@@ -103,8 +92,9 @@ fi
 # out of an organization repo, instead of a user repo.  "personal" remotes
 # will point back to the org repo.  Note that DEV_GITHUB_ORG deliberately
 # overrides DEV_GITHUB_ID if set.  This means initial setup will be slightly
-# broken (you must create .netrc manually to have authentication work
-# correctly).
+# broken - you must create .netrc manually, containing:
+#  machine github.com login YOUR_GH_USERNAME password YOUR_GH_PASSWORD
+#  machine api.github.com login YOUR_GH_USERNAME password YOUR_GH_PASSWORD
 if [[ $DEV_GITHUB_ORG ]]; then
     for mach in github.com api.github.com; do
         grep -q "^machine $mach" "$HOME/.netrc" &>/dev/null || {
@@ -879,7 +869,9 @@ backup_to_remote() {
        else
            debug "Barclamp ${PWD##*/}: Backing up ${branches[*]}"
        fi
-       git push -qf "$remote" "${branches[@]}"
+       local f
+       [[ $DEV_GITHUB_ORG ]] || f=f
+       git push -q$f "$remote" "${branches[@]}"
     fi
 }
 
@@ -904,7 +896,7 @@ backup_with_prefix () {
         branch_exists "$branch" || continue
         if [[ $branch = ${prefix}* ]]; then
             debug "Cleaning up ${branch#refs/heads}"
-            git branch -D "${branch#refs/heads}"
+            [[ $DEV_GITHUB_ORG ]] || git branch -D "${branch#refs/heads}"
             git push -q "$remote" ":${branch#refs/heads}"
             continue
         fi
@@ -919,7 +911,9 @@ backup_with_prefix () {
         else
             debug "Barclamp ${PWD##*/}: Backing up ${branches[*]%%:*}"
         fi
-        git push -qf "$remote" "${branches[@]}"
+        local f
+        [[ $DEV_GITHUB_ORG ]] || f=f
+        git push -q$f "$remote" "${branches[@]}"
     fi
 }
 
