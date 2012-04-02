@@ -718,6 +718,10 @@ setup() {
 	chmod 600 "$HOME/.netrc"
         echo "DEV_GITHUB_ID='$DEV_GITHUB_ID'" >> "$HOME/.build-crowbar.conf"
     }
+    # Force remote origin to canonical dellcloudedge repo (in case we're
+    # operating out of a clone from another org, in which case fetch would
+    # be against that other org):
+    in_repo git remote set-url origin "$(github_url crowbar.git)"
     # We have a baked-in assumption that Github is our origin, and that
     # any repositories that are named the same thing as a repository from
     # dellcloudedge is in fact a fork of a dellcloudedge repo.
