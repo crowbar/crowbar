@@ -2002,6 +2002,16 @@ build_crowbar() {
     with_build_lock __build_crowbar
 }
 
+reset_branch() {
+    # $1 = branch to reset
+    # $2 = target to reset it to.
+    if [[ $(git symbolic-ref HEAD) = refs/heads/$1 ]]; then
+        git reset --hard "$2"
+    else
+        git branch -f --no-track "$1" "$2"
+    fi
+}
+
 reset_release() {
     crowbar_is_clean || exit 1
     local target_release target exclude_master prefix br remote
@@ -2088,15 +2098,12 @@ reset_release() {
         done
     done
     for bc in "${!barclamps[@]}"; do
-        in_barclamp "$bc" git branch -f --no-track \
-            "${barclamps[$bc]}" "${barclamp_targets[$bc]}"
+        in_barclamp "$bc" branch_exists "${barclamps[$bc]}" || continue
+        in_barclamp "$bc" \
+            reset_branch "${barclamps[$bc]}" "${barclamp_targets[$bc]}"
     done
     for br in "${!branches[@]}"; do
-        if [[ $(git symbolic-ref HEAD) = refs/heads/$br ]]; then
-            in_repo git reset --hard "${branches[$br]}"
-        else
-            in_repo git branch -f --no-track "$br" "${branches[$br]}"
-        fi
+        in_repo reset_branch "$br" "${branches[$br]}"
     done
 }
 
