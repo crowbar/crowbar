@@ -288,14 +288,16 @@ kill_virt_net() {
 makenics() {
     # $1 = base name for each nic. Must be 9 characters or less.
     vm_nics=()
-    local node bridge
+    local node bridge idx
     for bridge in ${SMOKETEST_BRIDGES[@]}; do
-        local nic_name="$1-${bridge##*-}"
-        getmac
-        if [[ $nic_name =~ virt-.-pub ]]; then
-            SMOKETEST_SLAVES["$1"]="d${MACADDR//:/-}.smoke.test"
-        fi
-        vm_nics+=("$MACADDR,$nic_name")
+        for ((idx=0; idx < NICS_PER_BRIDGE; idx++));  do
+            local nic_name="$1-${idx}-${bridge##*-}"
+            getmac
+            if [[ $nic_name =~ virt-.-0-pub ]]; then
+                SMOKETEST_SLAVES["$1"]="d${MACADDR//:/-}.smoke.test"
+            fi
+            vm_nics+=("$MACADDR,$nic_name")
+        done
     done
 }
 
