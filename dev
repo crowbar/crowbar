@@ -744,7 +744,7 @@ setup() {
         checkout master
         for remote in "${DEV_REMOTES[@]}"; do
             for b in $(filter_branches_for_remote "$remote" \
-                $(ordered_branches)); do
+                $(branches_for_release)); do
                 in_repo quiet_checkout "$b" || \
                     die "Cannot checkout $b"
                 for bc in $(barclamps_from_branch "$b"); do
