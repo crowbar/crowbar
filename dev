@@ -1820,6 +1820,11 @@ find_best_parent() {
     [[ $release = development ]] && \
         die "By definition, the development release has no logical parent."
 
+    if in_repo git_config_has "crowbar.releases.$1.parent"; then
+        get_repo_cfg "crowbar.releases.$1.parent"
+        return 0
+    fi
+
     br="$(branch_prefix "$release")master"
     # Find the target that is the smallest number of commits away from us.
     # There may be more than one.  This algorithim is OK for a first pass,
@@ -1846,7 +1851,7 @@ find_best_parent() {
         die "No best parent found for $release"
     elif (( ${#best_candidates[@]} == 1 )); then
         debug "It looks like $best_candidates is the parent of $release"
-        echo "$best_candidates"
+        candidate="$best_candidates"
     else
         debug "More than one good candidate for a parent found."
         debug "Please pick the one you want:"
@@ -1854,21 +1859,16 @@ find_best_parent() {
             case $candidate in
                 'None of the above') die "Aborting.";;
                 '') continue;;
-                *) echo "$candidate"; return;;
+                *) break;;
             esac
         done
     fi
+    in_repo git config "crowbar.releases.$1.parent" "$candidate"
 }
 
 best_parent_prefix() {
     local res
-    if in_repo git_config_has "crowbar.releases.$1.parent"; then
-        res=$(get_repo_cfg "crowbar.releases.$1.parent")
-    elif res="$(in_repo find_best_parent "$@")"; then
-        in_repo git config "crowbar.releases.$1.parent" "$res"
-    else
-        exit 1
-    fi
+    res="$(find_best_parent "$1")"
     echo "$(branch_prefix "$res")"
 }
 
