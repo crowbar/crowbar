@@ -358,6 +358,35 @@ show_github_repos() {
     done
 }
 
+__switch_barclamp_to() {
+    local parent prefix parent_prefix ref
+    parent="$(find_best_parent "$1")"
+    prefix="$(branch_prefix "$1")"
+    parent_prefix=$(branch_prefix "$parent")
+    for ref in origin personal; do
+        if git rev-parse --verify -q "$ref/${prefix}master" &>/dev/null; then
+            git branch -f "${prefix}master" "$ref/${prefix}master"
+            return 0
+        fi
+    done
+    if ! branch_exists "${parent_prefix}master"; then
+        __switch_barclamp_to "$parent" || exit 1
+    fi
+    git branch -f --no-track \
+        "$(branch_prefix "$1")master" "${parent_prefix}master"
+}
+
+switch_barclamp_to() {
+    # $1 = barclamp
+    # $2 = release to switch to.
+    local prefix
+    prefix="$(branch_prefix "$2")"
+    if ! in_barclamp "$1" branch_exists "${prefix}master"; then
+        in_barclamp "$1" __switch_barclamp_to "$2" || exit 1
+    fi
+    in_barclamp "$1" quiet_checkout "${prefix}master";
+}
+
 # Set up barclamps for the appropriate branch.  Barclamps that are not members
 # of the current branch will be checked out to an empty branch, which will be
 # created if it does not exist.
@@ -405,7 +434,7 @@ switch_barclamps_to() {
         case ${barclamps[$bc]} in
             'the empty branch') in_barclamp "${bc##*/}" to_empty_branch;;
             '') continue;;
-            *) in_barclamp "${bc##*/}" quiet_checkout "${barclamps[$bc]}";;
+            *) switch_barclamp_to "${bc##*/}" "$(release_for_branch "$1")";;
         esac || die "barclamp ${bc##*/}: Could not check out ${barclamps[$bc]}"
         unset barclamps[$bc]
     done
