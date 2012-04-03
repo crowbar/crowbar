@@ -55,7 +55,9 @@ export CROWBAR_KEY="crowbar:crowbar"
 # 15 characters or less due to kernel name constraints.
 # The last part of the name will be used in tap interface name generation.
 # Please keep it at 4 characters or less.
-SMOKETEST_BRIDGES=(crowbar-pub crowbar-priv)
+SMOKETEST_BRIDGES=(crowbar-pub)
+
+NICS_PER_BRIDGE=2
 
 # An array of physical interfaces and the bridges they should be bound to.
 # We need to use real physical interfaces becasue Crowbar assumes
@@ -256,11 +258,13 @@ killtap() {
 # Build up our local virtual net infrastructure.
 make_virt_net() {
     smoketest_make_bridges
-    local node bridge
+    local node bridge idx
     for node in admin ${SMOKETEST_VIRT_NODES[@]}; do
         for bridge in "${SMOKETEST_BRIDGES[@]}"; do
-            local nic_name="${node}-${bridge##*-}"
-            maketap "$nic_name" "$bridge"
+            for ((idx=0; idx < NICS_PER_BRIDGE; idx++)); do
+                local nic_name="${node}-${idx}-${bridge##*-}"
+                maketap "$nic_name" "$bridge"
+            done
         done
     done
 }
@@ -268,11 +272,13 @@ make_virt_net() {
 # Tear down our local virtual net infrastructure.
 kill_virt_net() {
     set +e
-    local node bridge
+    local node bridge idx
     for node in admin ${SMOKETEST_VIRT_NODES[@]}; do
         for bridge in ${SMOKETEST_BRIDGES[@]}; do
-            local nic_name="${node}-${bridge##*-}"
-            killtap "$nic_name" "$bridge"
+            for ((idx=0; idx < NICS_PER_BRIDGE; idx++)); do
+                local nic_name="${node}-${idx}-${bridge##*-}"
+                killtap "$nic_name" "$bridge"
+            done
         done
     done
     smoketest_kill_bridges
@@ -282,14 +288,16 @@ kill_virt_net() {
 makenics() {
     # $1 = base name for each nic. Must be 9 characters or less.
     vm_nics=()
-    local node bridge
+    local node bridge idx
     for bridge in ${SMOKETEST_BRIDGES[@]}; do
-        local nic_name="$1-${bridge##*-}"
-        getmac
-        if [[ $nic_name =~ virt-.-pub ]]; then
-            SMOKETEST_SLAVES["$1"]="d${MACADDR//:/-}.smoke.test"
-        fi
-        vm_nics+=("$MACADDR,$nic_name")
+        for ((idx=0; idx < NICS_PER_BRIDGE; idx++));  do
+            local nic_name="$1-${idx}-${bridge##*-}"
+            getmac
+            if [[ $nic_name =~ virt-.-0-pub ]]; then
+                SMOKETEST_SLAVES["$1"]="d${MACADDR//:/-}.smoke.test"
+            fi
+            vm_nics+=("$MACADDR,$nic_name")
+        done
     done
 }
 
