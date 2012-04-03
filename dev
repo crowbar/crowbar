@@ -768,16 +768,18 @@ setup() {
         in_repo git fetch -q "$remote" || \
             die "Unable to fetch remote references for $remote"
 
-        case $remote in
-            origin)
-                in_repo git config crowbar.backup.$remote.method remote
-                in_repo git config crowbar.backup.$remote.remote personal;;
-            *)
-                in_repo git config crowbar.backup.$remote.method prefix
-                in_repo git config crowbar.backup.$remote.remote "$remote"
-                in_repo git config crowbar.backup.$remote.prefix \
-                    "personal/$DEV_GITHUB_ID";;
-        esac
+        if ! in_repo git_config_has "crowbar.backup.$remote.method"; then
+            case $remote in
+                origin)
+                    in_repo git config crowbar.backup.$remote.method remote
+                    in_repo git config crowbar.backup.$remote.remote personal;;
+                *)
+                    in_repo git config crowbar.backup.$remote.method prefix
+                    in_repo git config crowbar.backup.$remote.remote "$remote"
+                    in_repo git config crowbar.backup.$remote.prefix \
+                        "personal/$DEV_GITHUB_ID";;
+            esac
+        fi
 
         [[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
             die "HEAD does not point at a branch, cannot finish setup."
