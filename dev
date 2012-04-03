@@ -88,6 +88,38 @@ if [[ $DEV_GITHUB_PASSWD ]]; then
     debug "Please remove your embedded login information from the remote URLS."
 fi
 
+# If DEV_GITHUB_ORG is defined, the dev script will assume we're operating
+# out of an organization repo, instead of a user repo.  "personal" remotes
+# will point back to the org repo.  Note that DEV_GITHUB_ORG deliberately
+# overrides DEV_GITHUB_ID if set.  This means initial setup will be slightly
+# broken - you must create .netrc manually, containing:
+#  machine github.com login YOUR_GH_USERNAME password YOUR_GH_PASSWORD
+#  machine api.github.com login YOUR_GH_USERNAME password YOUR_GH_PASSWORD
+if [[ $DEV_GITHUB_ORG ]]; then
+    for mach in github.com api.github.com; do
+        grep -q "^machine $mach" "$HOME/.netrc" &>/dev/null || {
+            VERBOSE=true
+            debug "$HOME/.netrc does not contain github.com password information."
+            debug "Please add entries for github.com and api.github.com"
+            exit 1
+        }
+    done
+    DEV_GITHUB_ID=$DEV_GITHUB_ORG
+fi
+
+# Make sure the remote personal URL includes $DEV_GITHUB_ID (whether or not
+# that's based on $DEV_GITHUB_ORG) - this ensures that you don't accidentally
+# use a clone of a personal github repo when you think you're using a clone
+# of an org repo, or vice versa.
+if in_repo git config --get remote.personal.url &>/dev/null; then
+    [[ "$(git config --get remote.personal.url)" =~ /$DEV_GITHUB_ID/ ]] || {
+        VERBOSE=true
+        debug "Personal remote doesn't match \$DEV_GITHUB_ID."
+        debug "Please check settings in $HOME/.build-crowbar.conf"
+        exit 1
+    }
+fi
+
 which gem &>/dev/null || \
     die "Rubygems not installed, and some of our helpers need a JSON gem."
 
@@ -349,7 +381,9 @@ keys() {
 show_github_repos() {
     local -A res
     local r
-    . <(curl_and_res -f "https://api.github.com/user/repos" | \
+    local url="https://api.github.com/user/repos"
+    [[ $DEV_GITHUB_ORG ]] && url="https://api.github.com/orgs/$DEV_GITHUB_ORG/repos"
+    . <(curl_and_res -f "$url" | \
         parse_yml_or_json - res 2>/dev/null)
     for r in $(keys '^[0-9]+\.name$' "${!res[@]}"); do
         printf "%s\n" "${res[$r]}"
@@ -539,8 +573,10 @@ curl_and_res() {
 github_fork() {
     # $1 = user to fork from
     # $2 = repo to fork
+    local org=""
+    [[ $DEV_GITHUB_ORG ]] && org="?org=$DEV_GITHUB_ORG"
     curl_and_res -f -X POST \
-        "https://api.github.com/repos/$1/$2/forks" >&/dev/null || \
+        "https://api.github.com/repos/$1/$2/forks$org" >&/dev/null || \
         die "Could not fork $1/$2!"
 }
 
@@ -682,6 +718,10 @@ setup() {
 	chmod 600 "$HOME/.netrc"
         echo "DEV_GITHUB_ID='$DEV_GITHUB_ID'" >> "$HOME/.build-crowbar.conf"
     }
+    # Force remote origin to canonical dellcloudedge repo (in case we're
+    # operating out of a clone from another org, in which case fetch would
+    # be against that other org):
+    in_repo git remote set-url origin "$(github_url crowbar.git)"
     # We have a baked-in assumption that Github is our origin, and that
     # any repositories that are named the same thing as a repository from
     # dellcloudedge is in fact a fork of a dellcloudedge repo.
@@ -852,7 +892,9 @@ backup_to_remote() {
        else
            debug "Barclamp ${PWD##*/}: Backing up ${branches[*]}"
        fi
-       git push -qf "$remote" "${branches[@]}"
+       local f
+       [[ $DEV_GITHUB_ORG ]] || f=f
+       git push -q$f "$remote" "${branches[@]}"
     fi
 }
 
@@ -877,7 +919,7 @@ backup_with_prefix () {
         branch_exists "$branch" || continue
         if [[ $branch = ${prefix}* ]]; then
             debug "Cleaning up ${branch#refs/heads}"
-            git branch -D "${branch#refs/heads}"
+            [[ $DEV_GITHUB_ORG ]] || git branch -D "${branch#refs/heads}"
             git push -q "$remote" ":${branch#refs/heads}"
             continue
         fi
@@ -892,7 +934,9 @@ backup_with_prefix () {
         else
             debug "Barclamp ${PWD##*/}: Backing up ${branches[*]%%:*}"
         fi
-        git push -qf "$remote" "${branches[@]}"
+        local f
+        [[ $DEV_GITHUB_ORG ]] || f=f
+        git push -q$f "$remote" "${branches[@]}"
     fi
 }
 
