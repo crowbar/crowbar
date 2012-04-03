@@ -757,6 +757,7 @@ setup() {
     fi
     in_repo git config branch.autosetupmerge true &>/dev/null
     in_repo git config crowbar.backup.method per-remote
+    head_release="$(current_release)"
     # Set up the rest of our upstream remotes.
     for remote in "${DEV_REMOTES[@]}"; do
         # Add a remote if we don't already have one.
@@ -769,27 +770,26 @@ setup() {
         in_repo git fetch -q "$remote" || \
             die "Unable to fetch remote references for $remote"
 
-        case $remote in
-            origin)
-                in_repo git config crowbar.backup.$remote.method remote
-                in_repo git config crowbar.backup.$remote.remote personal;;
-            *)
-                in_repo git config crowbar.backup.$remote.method prefix
-                in_repo git config crowbar.backup.$remote.remote "$remote"
-                in_repo git config crowbar.backup.$remote.prefix \
-                    "personal/$DEV_GITHUB_ID";;
-        esac
+        if ! in_repo git_config_has "crowbar.backup.$remote.method"; then
+            case $remote in
+                origin)
+                    in_repo git config crowbar.backup.$remote.method remote
+                    in_repo git config crowbar.backup.$remote.remote personal;;
+                *)
+                    in_repo git config crowbar.backup.$remote.method prefix
+                    in_repo git config crowbar.backup.$remote.remote "$remote"
+                    in_repo git config crowbar.backup.$remote.prefix \
+                        "personal/$DEV_GITHUB_ID";;
+            esac
+        fi
 
         [[ $head ]] || head=$(in_repo git symbolic-ref HEAD) || \
             die "HEAD does not point at a branch, cannot finish setup."
 
         in_repo update_tracking_branches "$remote"
-    done
-    head_release="$(current_release)"
-    for release in $(show_releases); do
-        switch_release "$release"
-        checkout master
-        for remote in "${DEV_REMOTES[@]}"; do
+        for release in $(show_releases); do
+            switch_release "$release"
+            checkout master
             for b in $(filter_branches_for_remote "$remote" \
                 $(branches_for_release)); do
                 in_repo quiet_checkout "$b" || \
@@ -809,6 +809,8 @@ setup() {
                         fetched_barclamps["$bc"]="true"
                     }
                     in_barclamp "$bc" update_tracking_branches origin
+                    in_barclamp "$bc" git_config_has \
+                        crowbar.backup.origin.method && continue
                     if [[ $remote = origin ]]; then
                         if ! is_in "$repo" "${repos[*]}"; then
                             github_fork dellcloudedge "$repo" || \
