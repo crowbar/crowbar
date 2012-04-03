@@ -1990,29 +1990,12 @@ checkout() {
     switch_barclamps_to "${new_base}master"
 }
 
-__build_crowbar() {
-    if [[ $target_release || $exact ]]; then
-        switch_release "${target_release:=$(current_release)}" || \
-            die "Could not switch to $target_release for build!"
-    fi
-    if [[ $target_branch || $exact ]]; then
-        [[ $target_branch ]] || \
-            target_branch=$(in_repo git symbolic-ref HEAD) || \
-            die "Not on a branch, cannot continue!"
-        target_branch=${target_branch##*/}
-        checkout "${target_branch}"
-    fi
-    if [[ $exact ]]; then
-        in_repo git submodule update || \
-            die "Could not check out submodule revisions for $target_release!"
-        build_args+=("--no-cache-update" "--no-metadata-update")
-    fi
-    exec "$CROWBAR_DIR/build_crowbar.sh" "$target_os" "${build_args[@]}"
-}
-
 build_crowbar() {
     local build_args=() b c target_os target_release exact
     local switch_include_cache=true
+    target_release="$(current_release)"
+    target_branch="$(in_repo git symbolic-ref HEAD)"
+    target_branch="${target_branch##*/}"
     crowbar_is_clean || exit 1
     while [[ $1 ]]; do
         case $1 in
@@ -2028,7 +2011,15 @@ build_crowbar() {
         die "Cannot build Crowbar, need to know what OS to stage it on!"
     update_all_tracking_branches
     build_args+=("--skip-lock")
-    with_build_lock __build_crowbar
+    switch_release "${target_release:=$(current_release)}" || \
+            die "Could not switch to $target_release for build!"
+    [[ $target_branch ]] || die "Not on a branch, cannot continue!"
+    if [[ $exact ]]; then
+        in_repo git submodule update || \
+            die "Could not check out submodule revisions for $target_release!"
+    fi
+    with_build_lock exec "$CROWBAR_DIR/build_crowbar.sh" \
+        "$target_os" "${build_args[@]}"
 }
 
 reset_branch() {
