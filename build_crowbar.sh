@@ -238,6 +238,8 @@ while [[ $1 ]]; do
         # Force an update of the cache
         update-cache|--update-cache) shift;
             need_update=true
+            ALLOW_CACHE_UPDATE=true
+            ALLOW_CACHE_METADATA_UPDATE=true
             while [[ $1 && $1 != -* ]]; do
                 is_barclamp "$1" || \
                     die "Cannot update non-barclamp $1."
@@ -451,8 +453,11 @@ do_crowbar_build() {
             [[ $(type $updater) = "$updater is a function"* ]] || \
                 die "Might need to update $cache cache, but no updater!"
             if $checker "$bc"; then
-                [[ $ALLOW_CACHE_UPDATE = true ]] || \
-                    die "Need up update $cache cache for $bc, but updates are disabled."
+                [[ $ALLOW_CACHE_UPDATE = true ]] || {
+                    echo "Need up update $cache cache for $bc, but updates are disabled."
+                    echo "Please rerun the build with the --update-cache option."
+                    exit 1
+                } >&2
                 debug "Updating $cache cache for $bc"
                 [[ $cache =~ ^(pkg|gem)$ ]] && make_chroot
                 $updater "$bc"
