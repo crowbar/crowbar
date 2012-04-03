@@ -485,19 +485,22 @@ scrub_merged_pull_requests() {
         case $br in
             refs/heads/*) 
                 ref=${br#refs/heads/}
-                heads["${ref//\//-}"]+="$br ";;
+                heads[${ref//\//-}]+="$br ";;
             refs/remotes/personal/pull-req-*)
                 ref=${br#refs/remotes/personal/pull-req-}
+                ref=${ref#heads-}
                 ref=${ref%-*}
+                ref=${ref%-0}
                 pull_reqs["$br"]="$ref";;
         esac
     done < <(git show-ref)
-    [[ $!{pull_reqs[*]} ]] || return 0
+    [[ ${pull_reqs[*]} ]] || return 0
     for pull_req in "${!pull_reqs[@]}"; do
         ref="${pull_reqs[$pull_req]}"
         [[ ${heads[$ref]} ]] || continue
         for br in ${heads["$ref"]}; do
-            branches_synced . "$br" "$pull_req" || continue
+            branches_synced . "$br" "$pull_req" || \
+                [[ $1 = '--all' ]] || continue
             to_remove["${pull_req#refs/remotes/personal/}"]="true"
             continue 2
         done
@@ -550,7 +553,15 @@ fetch_all() {
             done
         fi
     done
-    in_repo scrub_merged_pull_requests
+    scrub_merged_pulls
+}
+
+scrub_merged_pulls() {
+    in_repo scrub_merged_pull_requests "$@"
+    for barclamp in "$CROWBAR_DIR/barclamps/"*; do
+        [[ -d $barclamp ]] || continue
+        in_barclamp "${barclamp##*/}" scrub_merged_pull_requests "$@"
+    done
 }
 
 # Helper function for calling curl to talk to github.
@@ -1483,12 +1494,6 @@ pull_requests_prep() {
     crowbar_is_clean || exit 1
     fetch_all && sync_everything || \
         die "Unable to prepare for pull requests"
-    debug "Scrubbing merged pull requests in Crowbar."
-    for barclamp in "$CROWBAR_DIR/barclamps/"*; do
-        [[ -d $barclamp ]] || continue
-        debug "Scrubbing merged pull requests in barclamp ${barclamp##*/}"
-        in_barclamp "${barclamp##*/}" scrub_merged_pull_requests
-    done
     local -A barclamps branches_to_push
     local barclamps_to_push=()
     local branch bc
@@ -2150,5 +2155,6 @@ case $1 in
     erase-feature) shift; erase_release "feature/$1";;
     find-parent) shift; find_best_parent "$@";;
     reset-release) shift; reset_release "$@";;
+    scrub-merged-pulls) shift; scrub_merged_pulls "$@";;
     *) dev_short_help; exit 1;;
 esac
