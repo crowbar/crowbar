@@ -33,6 +33,12 @@ BC_QUERY_STRINGS["test_deps"]="smoketest requires"
 BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 BC_QUERY_STRINGS["supercedes"]="barclamp supercedes"
 
+# By default, do not try to update the cache or the metadata.
+# These will be unset if --update-cache is passed to the build.
+ALLOW_CACHE_UPDATE=false
+ALLOW_CACHE_METADATA_UPDATE=false
+
+
 get_barclamp_info() {
     local bc yml_file line query newdeps dep d i
     local new_barclamps=()
