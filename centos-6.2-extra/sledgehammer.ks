@@ -35,6 +35,7 @@ nfs-utils
 wget
 dmidecode
 libxml2
+libxml2.i686
 libxml2-devel
 zlib
 zlib-devel
@@ -66,6 +67,8 @@ autoconf
 make
 perl-XML-Twig
 parted
+compat-libstdc++-33.i686
+libstdc++.i686
 
 %post
 
