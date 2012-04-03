@@ -131,9 +131,11 @@ child_branches() {
 
 # Given a branch, echo its parent in the current release.
 parent_branch() {
+    local prefix="${1%/*}/" parent=${1##*/} br
+    [[ ${prefix%/} = $1 ]] && prefix=''
     local p="${DEV_BRANCHES[${1##*/}]}"
     if [[ $p && $p != ${1##*/} ]]; then
-        echo "${DEV_BRANCH_PREFIX}${p}"
+        echo "${prefix}${p}"
         return 0
     fi
     return 1
@@ -236,6 +238,11 @@ git_is_clean() {
     }
     [[ $IGNORE_CLEAN ]] && return 0
     return 1
+}
+
+git_push() {
+    [[ $DEBUG = true ]] && return
+    git push "$@"
 }
 
 # Get the current release we are working on, which is a function of
@@ -356,6 +363,35 @@ show_github_repos() {
     done
 }
 
+__switch_barclamp_to() {
+    local parent prefix parent_prefix ref
+    parent="$(find_best_parent "$1")"
+    prefix="$(branch_prefix "$1")"
+    parent_prefix=$(branch_prefix "$parent")
+    for ref in origin personal; do
+        if git rev-parse --verify -q "$ref/${prefix}master" &>/dev/null; then
+            git branch -f "${prefix}master" "$ref/${prefix}master"
+            return 0
+        fi
+    done
+    if ! branch_exists "${parent_prefix}master"; then
+        __switch_barclamp_to "$parent" || exit 1
+    fi
+    git branch -f --no-track \
+        "$(branch_prefix "$1")master" "${parent_prefix}master"
+}
+
+switch_barclamp_to() {
+    # $1 = barclamp
+    # $2 = release to switch to.
+    local prefix
+    prefix="$(branch_prefix "$2")"
+    if ! in_barclamp "$1" branch_exists "${prefix}master"; then
+        in_barclamp "$1" __switch_barclamp_to "$2" || exit 1
+    fi
+    in_barclamp "$1" quiet_checkout "${prefix}master";
+}
+
 # Set up barclamps for the appropriate branch.  Barclamps that are not members
 # of the current branch will be checked out to an empty branch, which will be
 # created if it does not exist.
@@ -403,7 +439,7 @@ switch_barclamps_to() {
         case ${barclamps[$bc]} in
             'the empty branch') in_barclamp "${bc##*/}" to_empty_branch;;
             '') continue;;
-            *) in_barclamp "${bc##*/}" quiet_checkout "${barclamps[$bc]}";;
+            *) switch_barclamp_to "${bc##*/}" "$(release_for_branch "$1")";;
         esac || die "barclamp ${bc##*/}: Could not check out ${barclamps[$bc]}"
         unset barclamps[$bc]
     done
@@ -454,25 +490,28 @@ scrub_merged_pull_requests() {
         case $br in
             refs/heads/*) 
                 ref=${br#refs/heads/}
-                heads["${ref//\//-}"]+="$br ";;
+                heads[${ref//\//-}]+="$br ";;
             refs/remotes/personal/pull-req-*)
                 ref=${br#refs/remotes/personal/pull-req-}
+                ref=${ref#heads-}
                 ref=${ref%-*}
+                ref=${ref%-0}
                 pull_reqs["$br"]="$ref";;
         esac
     done < <(git show-ref)
-    [[ $!{pull_reqs[*]} ]] || return 0
+    [[ ${pull_reqs[*]} ]] || return 0
     for pull_req in "${!pull_reqs[@]}"; do
         ref="${pull_reqs[$pull_req]}"
         [[ ${heads[$ref]} ]] || continue
         for br in ${heads["$ref"]}; do
-            branches_synced . "$br" "$pull_req" || continue
+            branches_synced . "$br" "$pull_req" || \
+                [[ $1 = '--all' ]] || continue
             to_remove["${pull_req#refs/remotes/personal/}"]="true"
             continue 2
         done
     done
     [[ ${!to_remove[*]} ]] || return
-    git push --delete personal "${!to_remove[@]}"
+    git_push --delete personal "${!to_remove[@]}"
     git remote prune personal
 }
 
@@ -518,6 +557,15 @@ fetch_all() {
                 )
             done
         fi
+    done
+    scrub_merged_pulls
+}
+
+scrub_merged_pulls() {
+    in_repo scrub_merged_pull_requests "$@"
+    for barclamp in "$CROWBAR_DIR/barclamps/"*; do
+        [[ -d $barclamp ]] || continue
+        in_barclamp "${barclamp##*/}" scrub_merged_pull_requests "$@"
     done
 }
 
@@ -742,7 +790,7 @@ setup() {
         checkout master
         for remote in "${DEV_REMOTES[@]}"; do
             for b in $(filter_branches_for_remote "$remote" \
-                $(ordered_branches)); do
+                $(branches_for_release)); do
                 in_repo quiet_checkout "$b" || \
                     die "Cannot checkout $b"
                 for bc in $(barclamps_from_branch "$b"); do
@@ -852,7 +900,7 @@ backup_to_remote() {
        else
            debug "Barclamp ${PWD##*/}: Backing up ${branches[*]}"
        fi
-       git push -qf "$remote" "${branches[@]}"
+       git_push -qf "$remote" "${branches[@]}"
     fi
 }
 
@@ -878,7 +926,7 @@ backup_with_prefix () {
         if [[ $branch = ${prefix}* ]]; then
             debug "Cleaning up ${branch#refs/heads}"
             git branch -D "${branch#refs/heads}"
-            git push -q "$remote" ":${branch#refs/heads}"
+            git_push -q "$remote" ":${branch#refs/heads}"
             continue
         fi
         [[ $(git rev-parse --verify -q "$remote_prefix/$branch") && \
@@ -892,7 +940,7 @@ backup_with_prefix () {
         else
             debug "Barclamp ${PWD##*/}: Backing up ${branches[*]%%:*}"
         fi
-        git push -qf "$remote" "${branches[@]}"
+        git_push -qf "$remote" "${branches[@]}"
     fi
 }
 
@@ -965,7 +1013,7 @@ branches_to_backup_to_prefix() {
             git branch -D "$br"
             if [[ $br = $prefix/personal/* ]]; then
                 debug "Pruning unneeded branch $br on $remote"
-                git push -q "$remote" ":${br}"
+                git_push -q "$remote" ":${br}"
             fi
             continue
         elif [[ ${ignore[$br]} = true ]]; then
@@ -1089,6 +1137,8 @@ sync_branch_from_personal() {
     }
 }
 
+
+
 # Handle merges across releases.  Most of the ugliness here is around making
 # sure that we don't get merge conflicts due to different barclamp submodule
 # updates, which we don't care about locally.
@@ -1132,6 +1182,10 @@ merge_releases() {
                 unset do_commit
             fi
             git merge -q "${from_prefix}$br" || {
+                echo "Could not automatically merge.  Dropping to a shell."
+                echo "If you want to abort this merge, exit the shell with 'exit 1'"
+                /bin/bash
+            } || {
                 git merge --abort
                 die "$repo: Merge of $br from $rel into $cur_rel failed."
             }
@@ -1445,13 +1499,6 @@ pull_requests_prep() {
     crowbar_is_clean || exit 1
     fetch_all && sync_everything || \
         die "Unable to prepare for pull requests"
-    debug "Scrubbing merged pull requests in Crowbar."
-    in_repo scrub_merged_pull_requests
-    for barclamp in "$CROWBAR_DIR/barclamps/"*; do
-        [[ -d $barclamp ]] || continue
-        debug "Scrubbing merged pull requests in barclamp ${barclamp##*/}"
-        in_barclamp "${barclamp##*/}" scrub_merged_pull_requests
-    done
     local -A barclamps branches_to_push
     local barclamps_to_push=()
     local branch bc
@@ -1650,7 +1697,7 @@ pull_requests_gen() {
     for barclamp in "${!bc_pulls[@]}"; do
         local bc=${barclamp%%/*}
         local bc_base=${barclamp#*/}
-        in_barclamp "$bc" git push personal "$bc_base:${bc_pulls[$barclamp]}"
+        in_barclamp "$bc" git_push personal "$bc_base:${bc_pulls[$barclamp]}"
         local bc_head="$DEV_GITHUB_ID:${bc_pulls[$barclamp]}"
         if [[ $bc_base = feature/* ]]; then
             bc_base="$(best_parent_prefix)${bc_base##*/}" || exit 1
@@ -1671,7 +1718,7 @@ pull_requests_gen() {
     # Make sure they are ordered correctly.
     for br in $(filter_branches_for_remote origin $(ordered_branches)); do
         [[ ${br_pulls["$br"]} ]] || continue
-        in_repo git push personal "${br}:${br_pulls[$br]}"
+        in_repo git_push personal "${br}:${br_pulls[$br]}"
         local br_head="$DEV_GITHUB_ID:${br_pulls[$br]}"
         if [[ $br = feature/* ]]; then 
             br="$(best_parent_prefix)${br##*/}" || exit 1
@@ -1707,7 +1754,7 @@ push_branches() {
         fi
     done
     echo "Pushing ${btp[*]} to your Github fork of Crowbar."
-    in_repo git push personal "${btp[@]}"
+    in_repo git_push personal "${btp[@]}"
 }
 
 # Show the releases that either the local repo or the origin repo knows about.
@@ -1783,6 +1830,11 @@ find_best_parent() {
     [[ $release = development ]] && \
         die "By definition, the development release has no logical parent."
 
+    if in_repo git_config_has "crowbar.releases.$1.parent"; then
+        get_repo_cfg "crowbar.releases.$1.parent"
+        return 0
+    fi
+
     br="$(branch_prefix "$release")master"
     # Find the target that is the smallest number of commits away from us.
     # There may be more than one.  This algorithim is OK for a first pass,
@@ -1809,7 +1861,7 @@ find_best_parent() {
         die "No best parent found for $release"
     elif (( ${#best_candidates[@]} == 1 )); then
         debug "It looks like $best_candidates is the parent of $release"
-        echo "$best_candidates"
+        candidate="$best_candidates"
     else
         debug "More than one good candidate for a parent found."
         debug "Please pick the one you want:"
@@ -1817,39 +1869,17 @@ find_best_parent() {
             case $candidate in
                 'None of the above') die "Aborting.";;
                 '') continue;;
-                *) echo "$candidate"; return;;
+                *) break;;
             esac
         done
     fi
+    in_repo git config "crowbar.releases.$1.parent" "$candidate"
 }
 
 best_parent_prefix() {
     local res
-    if in_repo git_config_has "crowbar.releases.$1.parent"; then
-        res=$(get_repo_cfg "crowbar.releases.$1.parent")
-    elif res="$(in_repo find_best_parent "$@")"; then
-        in_repo git config "crowbar.releases$1.parent" "$res"
-    else
-        exit 1
-    fi
+    res="$(find_best_parent "$1")"
     echo "$(branch_prefix "$res")"
-}
-
-branches_in_release() {
-    # $1 = release to look at. Defaults to current release if nothing passed.
-    if [[ $1 ]]; then
-        is_in "$1" "$(show_releases)" || \
-            die "branches_in_release: $1 is not a release."
-        local rel="$1"
-    else
-        local rel="$(current_release)"
-    fi
-     local prefix="$(branch_prefix "$rel")"
-    local ref branch
-    while read ref branch; do
-        [[ $branch =~ ^refs/heads/${prefix}[^/]+$ ]] || continue
-        echo ${branch#refs/heads/}
-    done < <(in_repo git show-ref --heads "${!DEV_BRANCHES[@]}")
 }
 
 DEV_BRANCH_PREFIX="$(branch_prefix $(current_release))"
@@ -1970,29 +2000,12 @@ checkout() {
     switch_barclamps_to "${new_base}master"
 }
 
-__build_crowbar() {
-    if [[ $target_release || $exact ]]; then
-        switch_release "${target_release:=$(current_release)}" || \
-            die "Could not switch to $target_release for build!"
-    fi
-    if [[ $target_branch || $exact ]]; then
-        [[ $target_branch ]] || \
-            target_branch=$(in_repo git symbolic-ref HEAD) || \
-            die "Not on a branch, cannot continue!"
-        target_branch=${target_branch##*/}
-        checkout "${target_branch}"
-    fi
-    if [[ $exact ]]; then
-        in_repo git submodule update || \
-            die "Could not check out submodule revisions for $target_release!"
-        build_args+=("--no-cache-update" "--no-metadata-update")
-    fi
-    exec "$CROWBAR_DIR/build_crowbar.sh" "$target_os" "${build_args[@]}"
-}
-
 build_crowbar() {
     local build_args=() b c target_os target_release exact
     local switch_include_cache=true
+    target_release="$(current_release)"
+    target_branch="$(in_repo git symbolic-ref HEAD)"
+    target_branch="${target_branch##*/}"
     crowbar_is_clean || exit 1
     while [[ $1 ]]; do
         case $1 in
@@ -2008,7 +2021,25 @@ build_crowbar() {
         die "Cannot build Crowbar, need to know what OS to stage it on!"
     update_all_tracking_branches
     build_args+=("--skip-lock")
-    with_build_lock __build_crowbar
+    switch_release "${target_release:=$(current_release)}" || \
+            die "Could not switch to $target_release for build!"
+    [[ $target_branch ]] || die "Not on a branch, cannot continue!"
+    if [[ $exact ]]; then
+        in_repo git submodule update || \
+            die "Could not check out submodule revisions for $target_release!"
+    fi
+    with_build_lock exec "$CROWBAR_DIR/build_crowbar.sh" \
+        "$target_os" "${build_args[@]}"
+}
+
+reset_branch() {
+    # $1 = branch to reset
+    # $2 = target to reset it to.
+    if [[ $(git symbolic-ref HEAD) = refs/heads/$1 ]]; then
+        git reset --hard "$2"
+    else
+        git branch -f --no-track "$1" "$2"
+    fi
 }
 
 reset_release() {
@@ -2097,15 +2128,12 @@ reset_release() {
         done
     done
     for bc in "${!barclamps[@]}"; do
-        in_barclamp "$bc" git branch -f --no-track \
-            "${barclamps[$bc]}" "${barclamp_targets[$bc]}"
+        in_barclamp "$bc" branch_exists "${barclamps[$bc]}" || continue
+        in_barclamp "$bc" \
+            reset_branch "${barclamps[$bc]}" "${barclamp_targets[$bc]}"
     done
     for br in "${!branches[@]}"; do
-        if [[ $(git symbolic-ref HEAD) = refs/heads/$br ]]; then
-            in_repo git reset --hard "${branches[$br]}"
-        else
-            in_repo git branch -f --no-track "$br" "${branches[$br]}"
-        fi
+        in_repo reset_branch "$br" "${branches[$br]}"
     done
 }
 
@@ -2124,7 +2152,7 @@ case $1 in
     cut_release) shift; cut_release "$@";;
     new-feature) shift; cut_release "feature/$1";;
     switch) shift; switch_release "$@";;
-    branches) shift; branches_in_release "$@";;
+    branches) shift; branches_for_release "$@";;
     checkout) shift; checkout "$@";;
     build) shift; build_crowbar "$@";;
     show-repos) show_github_repos;;
@@ -2132,5 +2160,6 @@ case $1 in
     erase-feature) shift; erase_release "feature/$1";;
     find-parent) shift; find_best_parent "$@";;
     reset-release) shift; reset_release "$@";;
+    scrub-merged-pulls) shift; scrub_merged_pulls "$@";;
     *) dev_short_help; exit 1;;
 esac
