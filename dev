@@ -240,6 +240,11 @@ git_is_clean() {
     return 1
 }
 
+git_push() {
+    [[ $DEBUG = true ]] && return
+    git push "$@"
+}
+
 # Get the current release we are working on, which is a function of
 # the currently checked-out branch.
 current_release() {
@@ -506,7 +511,7 @@ scrub_merged_pull_requests() {
         done
     done
     [[ ${!to_remove[*]} ]] || return
-    git push --delete personal "${!to_remove[@]}"
+    git_push --delete personal "${!to_remove[@]}"
     git remote prune personal
 }
 
@@ -895,7 +900,7 @@ backup_to_remote() {
        else
            debug "Barclamp ${PWD##*/}: Backing up ${branches[*]}"
        fi
-       git push -qf "$remote" "${branches[@]}"
+       git_push -qf "$remote" "${branches[@]}"
     fi
 }
 
@@ -921,7 +926,7 @@ backup_with_prefix () {
         if [[ $branch = ${prefix}* ]]; then
             debug "Cleaning up ${branch#refs/heads}"
             git branch -D "${branch#refs/heads}"
-            git push -q "$remote" ":${branch#refs/heads}"
+            git_push -q "$remote" ":${branch#refs/heads}"
             continue
         fi
         [[ $(git rev-parse --verify -q "$remote_prefix/$branch") && \
@@ -935,7 +940,7 @@ backup_with_prefix () {
         else
             debug "Barclamp ${PWD##*/}: Backing up ${branches[*]%%:*}"
         fi
-        git push -qf "$remote" "${branches[@]}"
+        git_push -qf "$remote" "${branches[@]}"
     fi
 }
 
@@ -1008,7 +1013,7 @@ branches_to_backup_to_prefix() {
             git branch -D "$br"
             if [[ $br = $prefix/personal/* ]]; then
                 debug "Pruning unneeded branch $br on $remote"
-                git push -q "$remote" ":${br}"
+                git_push -q "$remote" ":${br}"
             fi
             continue
         elif [[ ${ignore[$br]} = true ]]; then
@@ -1692,7 +1697,7 @@ pull_requests_gen() {
     for barclamp in "${!bc_pulls[@]}"; do
         local bc=${barclamp%%/*}
         local bc_base=${barclamp#*/}
-        in_barclamp "$bc" git push personal "$bc_base:${bc_pulls[$barclamp]}"
+        in_barclamp "$bc" git_push personal "$bc_base:${bc_pulls[$barclamp]}"
         local bc_head="$DEV_GITHUB_ID:${bc_pulls[$barclamp]}"
         if [[ $bc_base = feature/* ]]; then
             bc_base="$(best_parent_prefix)${bc_base##*/}" || exit 1
@@ -1713,7 +1718,7 @@ pull_requests_gen() {
     # Make sure they are ordered correctly.
     for br in $(filter_branches_for_remote origin $(ordered_branches)); do
         [[ ${br_pulls["$br"]} ]] || continue
-        in_repo git push personal "${br}:${br_pulls[$br]}"
+        in_repo git_push personal "${br}:${br_pulls[$br]}"
         local br_head="$DEV_GITHUB_ID:${br_pulls[$br]}"
         if [[ $br = feature/* ]]; then 
             br="$(best_parent_prefix)${br##*/}" || exit 1
@@ -1749,7 +1754,7 @@ push_branches() {
         fi
     done
     echo "Pushing ${btp[*]} to your Github fork of Crowbar."
-    in_repo git push personal "${btp[@]}"
+    in_repo git_push personal "${btp[@]}"
 }
 
 # Show the releases that either the local repo or the origin repo knows about.
