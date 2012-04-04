@@ -1359,6 +1359,7 @@ new-feature:        Create a new feature bundle from the current release.
 erase-feature:      Forget about branches for a feature you are not working on.
 find-parent:        Find the closest parent of a release or feature.
 reset-release:      Resets a release to upstream or your last backup.
+scrub-merged-pulls: Scrub merged pull request branches.
 
 For more detailed help, use the "help" command or read README.dev-and-workflow.
 EOF
@@ -1497,6 +1498,11 @@ Command line options:
                    --skip-barclamps: Skip resetting the the barclamps for the
                                      release.
 
+  scrub-merged-pulls -- Delete any tracking branches created as placeholders
+                        for pull requests.  Without any options, this just
+                        scrubs tracking branches for pull requests that have
+                        already been merged.  If --all is passed as an option,
+                        then all pull request tracking branches will be deleted.
 EOF
 }
 
