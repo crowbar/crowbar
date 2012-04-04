@@ -8,7 +8,7 @@ GEM_RE='([^0-9].*)-([0-9].*)'
 readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 declare -A DEV_BRANCHES DEV_REMOTE_SOURCES DEV_REMOTE_BRANCHES DEV_ORIGIN_TYPES
-declare -a DEV_REMOTES
+declare -a DEV_REMOTES DEV_ALL_REMOTES
 
 # The generation of the dev tool this is.
 readonly DEV_VERSION=1
@@ -64,6 +64,7 @@ else
     unset no_proxy http_proxy https_proxy
 fi
 
+DEV_ALL_REMOTES=("${DEV_REMOTES[@]}")
 [[ $DEV_AVAILABLE_REMOTES ]] && DEV_REMOTES=($DEV_AVAILABLE_REMOTES)
 
 # Location of the Crowbar checkout we are building from.
@@ -180,7 +181,7 @@ branches_for_release() { ordered_branches $(root_branches "$1"); }
 # Given a branch, print the first remote that branch is "owned" by
 remote_for_branch() {
     local remote
-    for remote in "${DEV_REMOTES[@]}"; do
+    for remote in "${DEV_ALL_REMOTES[@]}"; do
         is_in "${1##*/}" "${DEV_REMOTE_BRANCHES[$remote]}" || continue
         echo "$remote"
         return 0
@@ -1232,11 +1233,9 @@ sync_repo() (
         head=$(git rev-parse HEAD) || die "$repo: Cannot find head commit."
     while read ref branch; do
         branch=${branch#refs/heads/}
-        for remote in "${!DEV_REMOTE_BRANCHES[@]}" personal; do
-            git_config_has "remote.$remote.url" || continue
-            sync_branch_from_remote "$remote" "$branch"
-            sync_branch_from_personal "$remote" "$branch"
-        done
+        remote="$(remote_for_branch "$branch")" || continue
+        git_config_has "remote.$remote.url" || continue
+        sync_branch_from_remote "$remote" "$branch"
     done < <(git show-ref --heads)
     if [[ $(git rev-parse --verify -q HEAD) != \
         $(git rev-parse --verify -q $head) ]]; then
