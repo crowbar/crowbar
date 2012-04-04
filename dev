@@ -1917,27 +1917,38 @@ DEV_BRANCH_PREFIX="$(branch_prefix $(current_release))"
 # Create a new release branch structure based on the current state of the
 # Crowbar repositories.
 cut_release() {
-    local b this_prefix new_prefix
+    local b remote this_prefix new_prefix
+    local this_release new_release
+    local -A barclamps branches
 
     [[ $1 ]] || die "cut_release: Please specify a name for the new release"
 
     # Test to see if release exists.
     is_in "$1" "$(show_releases)" && die "cut_release: Name already exists"
 
+    this_release="$(current_release)"
+    this_prefix="$(branch_prefix "$this_release")"
+    new_prefix="$(branch_prefix $1)"
     crowbar_is_clean || \
         die "Crowbar repo must be clean before trying to cut a release!"
-    this_prefix=$DEV_BRANCH_PREFIX
-    new_prefix="$(branch_prefix $1)"
-    # Make release copy of all branches.
 
-    for b in "${!DEV_BRANCHES[@]}"; do
-        in_repo git branch "${new_prefix}${b}" "${this_prefix}${b}"
+    # Sanoty-check that all the branches
+    for b in $(branches_for_release); do
+        branches["$b"]="${new_prefix}${b##*/}"
     done
 
-    local barclamps="$(barclamps_in_branch "${!DEV_BRANCHES[@]}")" || \
-        die "Could not get list of barclamps for our dev branches!"
-    for b in $barclamps; do
-        in_barclamp "$b" git branch ${new_prefix}master ${this_prefix}master
+    for b in $(barclamps_in_branch "${!branches[@]}"); do
+        barclamps[$b]="master"
+    done
+
+    # Actaully create the new branches.
+    for b in "${!branches[@]}"; do
+        in_repo git branch -f --no-track "${branches[$b]}" "$b"
+    done
+
+    for b in "${!barclamps[@]}"; do
+        in_barclamp "$b" git branch -f --no-track "${new_prefix}master" \
+            "${old_prefix}master"
     done
     if git_managed_cache && ! branch_exists "${new_prefix}master"; then
         if in_cache branch_exists "${this_prefix}master"; then
@@ -1949,14 +1960,26 @@ cut_release() {
     in_repo git config "crowbar.releases.$1.parent" "$(current_release)"
 }
 
+cut_feature() {
+    [[ $1 ]] || die "Please give your new feature a name!"
+    cut_release "feature/$1"
+}
+
 erase_release() {
     # $1 = release refix
-    local b prefix
+    local b prefix parent parent_prefix
     [[ $1 = development ]] && die "Cannot erase the development release."
     is_in "$1" "$(show_releases)" || die "$1 is not a release we can erase!"
     prefix="$(branch_prefix "$1")"
-    in_repo branches_synced '.' origin/master "${prefix}master" || \
-        die "$1 is not merged into the development release, refusing to erase."
+    parent=$(find_best_parent "$1")
+    parent_prefix=$(branch_prefix "$parent")
+    if ! in_repo branches_synced '.' \
+        "${parent_prefix}master" "${prefix}master"; then
+        printf "$1 is not merged into $parent.  Really erase? (y/n): " &>2
+        read -n 1
+        [[ $REPLY != 'y' ]] && exit
+    fi
+    #    die "$1 is not merged into the development release, refusing to erase."
     for b in $(barclamps_in_branch "${!DEV_BRANCHES[@]}"); do
         in_barclamp "$b" branch_exists "${prefix}master" || continue
         in_barclamp "$b" git branch -D "${prefix}master"
@@ -2180,7 +2203,7 @@ case $1 in
     release) current_release;;
     releases) show_releases;;
     cut_release) shift; cut_release "$@";;
-    new-feature) shift; cut_release "feature/$1";;
+    new-feature) shift; cut_feature "$1";;
     switch) shift; switch_release "$@";;
     branches) shift; branches_for_release "$@";;
     checkout) shift; checkout "$@";;
