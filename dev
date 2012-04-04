@@ -1111,19 +1111,44 @@ backup_everything() {
     done
 }
 
-sync_branch_from_remote() {
+merge_or_rebase_from_remote() {
     # $1 = remote
     # $2 = local branch
-    git rev-parse --verify -q "$1/$2" &>/dev/null || return 0
-    branches_synced "." "refs/heads/$2" "refs/remotes/$1/$2" && return 0
+    local remote branch rebase_temp
+    remote="$1" branch="$2" rebase_temp="$branch-rebase"
+    git rev-parse --verify -q "$remote/$branch" &>/dev/null || return 0
+    branches_synced "." "refs/heads/$branch" "refs/remotes/$remote/$branch" && return 0
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
         head=$(git rev-parse HEAD) || die "$repo: Cannot find head commit."
-    quiet_checkout "$2" || die"$1: Unable to checkout $2!"
-    debug "$repo: Merging $1/$2 into $2"
-    git merge -q "$1/$2" || {
+    quiet_checkout "$branch" || die "$remote: Unable to checkout $branch!"
+    git branch -f --no-track "$rebase_temp" "$branch"
+    debug "$repo: Merging $remote/$branch into $branch"
+    git merge -q "$remote/$branch" || {
         git merge --abort
-        die "$repo: Unable to merge $1/$2 into $2, aborted"
+        die "$repo: Unable to merge $remote/$branch into $branch, aborted"
     }
+    is_in "$remote" "${DEV_ALL_REMOTES[*]}" || return 0
+    debug "$repo: Testing to see if rebasing $branch from $remote works"
+    if ! git rebase -p -q "$remote/$branch" "$rebase_temp" &>/dev/null; then
+        debug "$repo: Rebase of $branch from $remote failed"
+        debug "$repo: We will use the merged version."
+        git rebase --abort
+        quiet_checkout "$branch"
+        git branch -D "$rebase_temp"
+        return 0
+    fi
+    if ! git diff --exit-code "$branch" "$rebase_temp"; then
+        debug "$repo: Rebased working tree for $branch has differences."
+        debug "$repo: We will use the merged version."
+        quiet_checkout "$branch"
+        git branch -D "$rebase_temp"
+        return 0
+    fi
+    debug "$repo: Rebased version of $branch is identical to merged version."
+    debug "$repo: Using the rebased version instead."
+    quiet_checkout "$branch"
+    git reset --hard "$rebase_temp"
+    git branch -D "$rebase_temp"
 }
 
 sync_branch_from_personal() {
@@ -1140,8 +1165,6 @@ sync_branch_from_personal() {
         die "$repo: Unable to merge $1/$2 into $2, aborted"
     }
 }
-
-
 
 # Handle merges across releases.  Most of the ugliness here is around making
 # sure that we don't get merge conflicts due to different barclamp submodule
@@ -1236,7 +1259,7 @@ sync_repo() (
         branch=${branch#refs/heads/}
         remote="$(remote_for_branch "$branch")" || continue
         git_config_has "remote.$remote.url" || continue
-        sync_branch_from_remote "$remote" "$branch"
+        merge_or_rebase_from_remote "$remote" "$branch"
     done < <(git show-ref --heads)
     if [[ $(git rev-parse --verify -q HEAD) != \
         $(git rev-parse --verify -q $head) ]]; then
