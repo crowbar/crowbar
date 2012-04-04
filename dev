@@ -1091,9 +1091,11 @@ backup_repo() {
 
 backup_everything() {
     local bc remote branches=() branch
+    local remotes=("${DEV_REMOTES[@]}")
     local -A touched_bcs
     dev_is_setup
-    for remote in "${DEV_REMOTES[@]}"; do
+    [[ $@ ]] && remotes=("$@")
+    for remote in "${remotes[@]}"; do
         # Back up all the barclamps that are references as submodules for
         # branches that this remote is "authoritative" for.
         for branch in $(filter_branches_for_remote "$remote" \
@@ -2195,7 +2197,7 @@ case $1 in
     fetch) shift; fetch_all "$@";;
     sync) shift; sync_everything "$@";;
     setup) setup;;
-    backup) backup_everything;;
+    backup) shift; backup_everything "$@";;
     push) shift; push_branches "$@";;
     pull-requests-prep) pull_requests_prep;;
     pull-requests-gen) shift; pull_requests_gen "$@";;
