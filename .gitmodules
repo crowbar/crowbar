@@ -55,3 +55,6 @@
 [submodule "barclamps/keystone"]
 	path = barclamps/keystone
 	url = http://github.com/dellcloudedge/barclamp-keystone.git
+[submodule "barclamps/quantum"]
+	path = barclamps/quantum
+	url = http://github.com/dellcloudedge/barclamp-quantum.git
