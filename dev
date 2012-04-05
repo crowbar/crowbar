@@ -1961,7 +1961,7 @@ cut_release() {
             in_cache git branch "${new_prefix}master" master
         fi
     fi
-    in_repo git config "crowbar.releases.$1.parent" "$(current_release)"
+    in_repo git config "crowbar.releases.$1.parent" "$this_release"
 }
 
 cut_feature() {
