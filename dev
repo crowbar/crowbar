@@ -724,11 +724,12 @@ setup() {
             die "Please try again when you have Github access."
         }
 	for mach in github.com api.github.com; do
+	    grep -q "^$mach" "$HOME/.netrc" &>/dev/null && continue
 	    printf "\nmachine %s login %s password %s\n" \
 		"$mach" "$DEV_GITHUB_ID" "$DEV_GITHUB_PASSWD" >> "$HOME/.netrc"
 	done
 	chmod 600 "$HOME/.netrc"
-        echo "DEV_GITHUB_ID='$DEV_GITHUB_ID'" >> "$HOME/.build-crowbar.conf"
+        printf "DEV_GITHUB_ID=%q\n" "$DEV_GITHUB_ID" >> "$HOME/.build-crowbar.conf"
     }
     # We have a baked-in assumption that Github is our origin, and that
     # any repositories that are named the same thing as a repository from
