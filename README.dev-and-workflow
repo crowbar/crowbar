@@ -46,9 +46,11 @@ Regular Development:
     the dellcloudedge repositories.
     a: Dev will fetch all changes from all upstream remotes for all
        repositories.
-    b: Dev will attempt to merge in all the changes fetched.  If there
-       are merge conflicts, the sync process will stop.  From there,
-       you can manually fix the conflicts and rerun dev sync.
+    b: Dev will attempt to synchronize all the local branches with
+       their corresponding remote branches.  If there are merge
+       conflicts, the sync process will stop at the branch that was
+       having problems.  From there, you can manually fix the
+       conflicts and rerun dev sync.
  2: Run dev new-feature <featurename> to start working on a new
     feature.
     a: This command shold be run from the development release.
@@ -56,11 +58,11 @@ Regular Development:
        in the main Crowbar repository and in all the barclamps.  The
        initial starting point for these branches will be the tips of
        the corresponding branches in the development namespace.
- 2: Hack/build/test/commit.
- 3: Run dev backup to back up your changes.  This force-pushes your
+ 3: Hack/build/test/commit.
+ 4: Run dev backup to back up your changes.  This force-pushes your
     changes to your personal forks of the crowbar repositories on
     Github, or creates new personal branches for non-Github upstreams.
- 4: If you are not ready to create a pull request for your changes, go
+ 5: If you are not ready to create a pull request for your changes, go
     to 1.
 
 Ready for pull request:
@@ -248,17 +250,35 @@ sync: Sychronize local branches with their upstreams and local edits.
     been done, dev sync will perform the following operations:
 
     1: For each barclamp that is considered to be part of the current
-    release, merge all the changes from the origin remote with the
+    release, sync all the changes from the origin remote with the
     corresponding local branches for that barclamp.  If any merge
     conflicts are reported, dev will remember them for later.
 
-    2: For each local branch in the Crowbar repository, merge in all
-    the remote changes for each remote into their corresponding local
-    branches. If any merge conflicts are detected, dev will exit with
-    an error message.
+    2: For each local branch in the Crowbar repository, sync that
+    branch with the proper upstream branch. If any merge conflicts
+    are detected, dev will exit with an error message.
 
     3: Ripple changes out from parent to child branches for this
     release.
+
+    dev sync may use either a rebase or a merge to synchronize a local
+    branch with its corresponding upstream.  This decision is made on
+    a per-branch basis, and the algorithm that it uses is:
+
+    1: Create a temporary branch that holds the state of the current
+    branch we are looking at.
+
+    2: Merge the upstream branch into the branchwe are looking at.  If
+    that fails, we had a merge conflict which the user will have to
+    resolve, and we abort.
+
+    3: Switch over to the temporary branch, and rebase it onto its
+    upstream branch.  If the rebase fails for any reason, abort it can
+    decide to use the merged branch.
+
+    4: Compare the working trees for the merged branch and the rebased
+    branch.  If they are identical, use the rebased branch.  If they
+    are not, use the merged branch.
 
 backup: Backs up local commits to Github forks or personal branches.
 
@@ -368,3 +388,40 @@ erase-feature: Erases feature branches created with new-feature.
     changes in the feature that have not been merged.
 
 branches: Show the branches that are part of the current release
+
+find-parent: Find the best logical parent of a feature bundle.
+
+    This command tries to find the release that has the smallest
+    number of commits that would have to be examined in order to merge
+    the feature into it.  
+
+reset-release: Reset a release or feature bundle.
+
+    This command allows you to reset a release or feature bundle to
+    the exact state it was in at either the last backup or from the
+    upstream repositories.  It takes the following options:
+    --release = The release or feature you want to reset.
+    --target  = The state you want the release to be reset to.
+       This can be either upstream (which will reset the branches to
+       their corresponding remotes), or backup (which will reset the
+       branches to their last backup).
+    --skip-master - If present, this will cause reset-release to leave
+       the master branch in the release alone.  It is implicitly set if
+       you are resetting the current release.
+    --skip-barclamps - If present, this will cause reset-release to
+      leave the barclams alone.
+
+    If run without any options, it will all
+    the branches for the current release to the state they were in as
+    of the last backup, except for the master branch of the current
+    release in the crowbar repository, which will be left alone.
+
+scrub-merged-pulls: Scrub tracking branches for pull requests
+
+    Normally, you should not have to run this command, because it is
+    implicitly run after every fetch.  However, if you have pull
+    requests that were not merged in for whatever reason, your
+    personal remote will slowly accumulate these branches.  To clear
+    them all out, you can add the --all parameter, which will
+    unconditionally delete all the pull request tracking branches.
+
