@@ -189,6 +189,10 @@ final_build_fixups() {
             tar xzf data.tar.gz
             rm -rf debian-binary *.tar.gz
         done 
+        # bnx2x nic drivers require firmware images from the kernel image .deb
+        ar x "$IMAGE_DIR/pool/main/l/linux/"linux-image-*-generic_*.deb
+        tar xjf data.tar.bz2 --wildcards './lib/firmware/*/bnx2x/*'
+        rm -rf debian-binary control.tar.gz data.tar.bz2
         # Make sure installing off a USB connected DVD will work
         debug "Adding USB connected DVD support"
         mkdir -p var/lib/dpkg/info
@@ -205,7 +209,7 @@ final_build_fixups() {
 	    [[ -f $IMAGE_DIR/$initrd ]] || continue
 	    mkdir -p "$BUILD_DIR/${initrd%/*}"
 	    gunzip -c "$IMAGE_DIR/$initrd" >"$BUILD_DIR/initrd.tmp"
-	    find . -type f | \
+	    find . | \
 		cpio --format newc --owner root:root \
 		-oAF "$BUILD_DIR/initrd.tmp"
 	    cat "$BUILD_DIR/initrd.tmp" | \
