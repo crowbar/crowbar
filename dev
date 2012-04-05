@@ -1298,10 +1298,10 @@ sync_everything() {
     local b u head res=0 ref branch rel allow_remote_rebase=true
     crowbar_is_clean || exit 1
     # Do barclamps first.
-    for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES[@]}); do
-        debug "Syncing $b"
-        if ! sync_repo "$CROWBAR_DIR/barclamps/$b" "$@"; then
-            unsynced_barclamps+=("$b")
+    for b in "$CROWBAR_DIR/barclamps/"*; do
+        debug "Syncing ${b##*/}"
+        if ! sync_repo "$CROWBAR_DIR/barclamps/${b##*/}" "$@"; then
+            unsynced_barclamps+=("${b##*/}")
             continue
         fi
     done
