@@ -141,8 +141,11 @@ __make_chroot() {
 	"file://$IMAGE_DIR" || \
 	die 1 "Could not bootstrap our scratch target!"
     # mount some important directories for the chroot
-    for d in proc sys dev dev/pts; do
-	bind_mount "/$d" "$CHROOT/$d"
+
+    for d in /proc /sys /dev /dev/pts /dev/shm; do
+        [[ -L $d ]] && d="$(readlink -f "$d")"
+        mkdir -p "${CHROOT}$d"
+        sudo mount --bind "$d" "${CHROOT}$d"
     done
     # make sure the chroot can resolve hostnames
     sudo cp /etc/resolv.conf "$CHROOT/etc/resolv.conf"

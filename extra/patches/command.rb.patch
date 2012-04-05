@@ -1,0 +1,19 @@
+--- /usr/lib/ruby/gems/1.8/gems/ohai-0.6.10/lib/ohai/mixin/command.rb	2011-10-24 10:14:47.000000000 +0100
++++ command.rb	2012-03-17 02:27:56.000000000 +0000
+@@ -128,6 +128,7 @@
+       #
+       # Thanks Ara!
+       def popen4(cmd, args={}, &b)
++        GC.disable
+ 
+         # Waitlast - this is magic.
+         #
+@@ -334,6 +335,8 @@
+         end
+       rescue Errno::ENOENT
+         raise Ohai::Exceptions::Exec, "command #{cmd} doesn't exist or is not in the PATH"
++      ensure
++        GC.enable
+       end
+ 
+       module_function :popen4
