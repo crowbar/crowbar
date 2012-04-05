@@ -222,6 +222,7 @@ cleanup() {
     # If we saved unadded changes, resurrect them.
     [[ $THROWAWAY_STASH ]] && git stash apply "$THROWAWAY_STASH" &>/dev/null
     # Do the same thing as above, but for the build cache instead.
+    mkdir -p "$CACHE_DIR"
     cd "$CACHE_DIR"
     if ! in_cache git diff-index --cached --quiet HEAD; then
         in_cache git commit -m "Updated by build_crowbar.sh @ $(date) for ${OS_TOKEN}"
