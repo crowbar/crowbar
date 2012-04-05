@@ -1128,28 +1128,20 @@ merge_or_rebase_from_remote() {
         git merge --abort
         die "$repo: Unable to merge $remote/$branch into $branch, aborted"
     }
-    [[ $allow_remote_rebase = true ]] || return 0
-    is_in "$remote" "${DEV_ALL_REMOTES[*]}" || return 0
-    debug "$repo: Testing to see if rebasing $branch from $remote works"
-    if ! git rebase -p -q "$remote/$branch" "$rebase_temp" &>/dev/null; then
-        debug "$repo: Rebase of $branch from $remote failed"
-        debug "$repo: We will use the merged version."
-        git rebase --abort
-        quiet_checkout "$branch"
-        git branch -D "$rebase_temp"
-        return 0
+    if [[ $allow_remote_rebase = true ]] && \
+        is_in "$remote" "${DEV_ALL_REMOTES[*]}"; then
+        if ! git rebase -p -q "$remote/$branch" "$rebase_temp" &>/dev/null; then
+            git rebase --abort
+            quiet_checkout "$branch"
+        elif ! git diff --exit-code "$branch" "$rebase_temp"; then
+            quiet_checkout "$branch"
+        else
+            debug "$repo: Rebased version of $branch is identical to merged version."
+            debug "$repo: Using the rebased version instead."
+            quiet_checkout "$branch"
+            git reset --hard "$rebase_temp"
+        fi
     fi
-    if ! git diff --exit-code "$branch" "$rebase_temp"; then
-        debug "$repo: Rebased working tree for $branch has differences."
-        debug "$repo: We will use the merged version."
-        quiet_checkout "$branch"
-        git branch -D "$rebase_temp"
-        return 0
-    fi
-    debug "$repo: Rebased version of $branch is identical to merged version."
-    debug "$repo: Using the rebased version instead."
-    quiet_checkout "$branch"
-    git reset --hard "$rebase_temp"
     git branch -D "$rebase_temp"
 }
 
