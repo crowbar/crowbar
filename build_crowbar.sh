@@ -242,6 +242,8 @@ while [[ $1 ]]; do
         # Force an update of the cache
         update-cache|--update-cache) shift;
             need_update=true
+            ALLOW_CACHE_UPDATE=true
+            ALLOW_CACHE_METADATA_UPDATE=true
             while [[ $1 && $1 != -* ]]; do
                 is_barclamp "$1" || \
                     die "Cannot update non-barclamp $1."

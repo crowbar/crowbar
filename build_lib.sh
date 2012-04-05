@@ -20,6 +20,7 @@ ulimit -Sn unlimited
 declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
 declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
+declare -A BC_SUPERCEDES
 
 # Build OS independent query strings.
 BC_QUERY_STRINGS["deps"]="barclamp requires"
@@ -30,6 +31,13 @@ BC_QUERY_STRINGS["os_support"]="barclamp os_support"
 BC_QUERY_STRINGS["gems"]="gems pkgs"
 BC_QUERY_STRINGS["test_deps"]="smoketest requires"
 BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
+BC_QUERY_STRINGS["supercedes"]="barclamp supercedes"
+
+# By default, do not try to update the cache or the metadata.
+# These will be unset if --update-cache is passed to the build.
+ALLOW_CACHE_UPDATE=false
+ALLOW_CACHE_METADATA_UPDATE=false
+
 
 get_barclamp_info() {
     local bc yml_file line query newdeps dep d i
@@ -70,6 +78,10 @@ get_barclamp_info() {
                         die "Only one os_build_cmd stanza per OS per barclamp allowed!"
                         BC_BUILD_CMDS["$bc"]="$line";;
                     test_timeouts) BC_SMOKETEST_TIMEOUTS["$bc"]+="$line ";;
+                    supercedes) 
+                        [[ ${BC_SUPERCEDES[$line]} ]] && \
+                            die "$line is already superceded by ${BC_SUPERCEDES[$line]}!"
+                        BC_SUPERCEDES["$line"]="$bc";;
                     *) die "Cannot handle query for $query."
                 esac
             done < <("$CROWBAR_DIR/parse_yml.rb" \
@@ -88,13 +100,9 @@ get_barclamp_info() {
                 [[ ${BC_GROUPS["${dep#@}"]} ]] || \
                     die "$bc depends on group ${dep#@}, but that group does not exist!"
                 for d in ${BC_GROUPS["${dep#@}"]}; do
-                    is_barclamp "$d" || \
-                        die "$bc depends on barclamp $d from group ${dep#@}, but $d does not exist!"
                     newdeps+="$d "
                 done
             else
-                is_barclamp "$dep" || \
-                    die "$bc depends on barclamp $dep, but $dep is not a barclamp!"
                 newdeps+="$dep "
             fi
         done
@@ -120,10 +128,17 @@ get_barclamp_info() {
     new_barclamps=("crowbar")
     while [[ t = t ]]; do
         for bc in "${BARCLAMPS[@]}"; do
+            if [[ ${BC_SUPERCEDES[$bc]} ]]; then
+                debug "$bc is superceded by ${BC_SUPERCEDES[$bc]}. Skipping."
+                continue
+            fi
             for dep in ${BC_DEPS["$bc"]}; do
+                dep="${BC_SUPERCEDES[$dep]:-$dep}"
+                is_barclamp "$bc" || die "$bc depends on $dep, which is not a barclamp!"
                 is_in "$dep" "${new_barclamps[@]}" && continue
                 new_barclamps+=("$dep")
             done
+            is_barclamp "$bc" || die "$bc is not a barclamp!"
             is_in "$bc" "${new_barclamps[@]}" || new_barclamps+=("$bc")
         done
         [[ ${BARCLAMPS[*]} = ${new_barclamps[*]} ]] && break
@@ -353,6 +368,7 @@ make_chroot() {
     sudo mkdir -p "$CHROOT/$CHROOT_PKGDIR"
     sudo mkdir -p "$CHROOT/$CHROOT_GEMDIR"
     __make_chroot
+    in_chroot ln -s /proc/self/mounts /etc/mtab
 
     if [[ $ALLOW_CACHE_UPDATE = true ]]; then
         read_base_repos
@@ -436,8 +452,12 @@ cache_rm() {
 }
 
 make_barclamp_pkg_metadata() {
+    [[ $ALLOW_CACHE_UPDATE != true && \
+        $ALLOW_CACHE_METADATA_UPDATE != true ]] && return 0
     [[ -d $CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs ]] || return 0
-    __barclamp_pkg_metadata_needs_update "$1" || return 0
+    if [[ $force_update != true ]]; then
+        __barclamp_pkg_metadata_needs_update "$1" || return 0
+    fi
     [[ $ALLOW_CACHE_METADATA_UPDATE = false ]] && \
         die "Need to update cache metadata for $1, but --no-metadata-update passed."
     debug "Updating package cache metadata for $1"
@@ -487,7 +507,8 @@ update_barclamp_pkg_cache() {
         fi
         cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
-    touch "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    local force_update=true
+    make_barclamp_pkg_metadata "$1"
 }
 
 # Update the gem cache for a barclamp
@@ -576,6 +597,8 @@ barclamp_pkg_cache_needs_update() {
     local -A pkgs
 
     [[ $need_update = true || ${FORCE_BARCLAMP_UPDATE["$1"]} = true ]] && return 0
+    [[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs ]] && \
+        touch "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
     # First, check to see if we have all the packages we need.
     for bc in $(all_deps "$1"); do
         [[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" ]] && \
@@ -673,11 +696,11 @@ to_empty_branch() {
         return $?
     fi
     if [[ -d .git ]]; then
-	git symbolic-ref HEAD refs/heads/empty-branch
-	rm -f .git/index
+        git symbolic-ref HEAD refs/heads/empty-branch
+        rm -f .git/index
     elif [[ -f .git ]]; then
-	git checkout --orphan empty-branch
-	git rm -r --cached .
+        git checkout --orphan empty-branch
+        git rm -r --cached .
     fi
     git clean -f -x -d
     echo "This branch intentionally left blank" >README.empty-branch
