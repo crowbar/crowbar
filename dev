@@ -1128,6 +1128,7 @@ merge_or_rebase_from_remote() {
         git merge --abort
         die "$repo: Unable to merge $remote/$branch into $branch, aborted"
     }
+    [[ $allow_remote_rebase = true ]] || return 0
     is_in "$remote" "${DEV_ALL_REMOTES[*]}" || return 0
     debug "$repo: Testing to see if rebasing $branch from $remote works"
     if ! git rebase -p -q "$remote/$branch" "$rebase_temp" &>/dev/null; then
@@ -1300,8 +1301,8 @@ ripple_changes_out() {
 # repository, and then update the branches for the current release according
 # to the branch structure defined in DEV_BRANCHES.
 sync_everything() {
-    local unsynced_barclamps=()
-    local b u head res=0 ref branch rel
+    local unsynced_barclamps=() 
+    local b u head res=0 ref branch rel allow_remote_rebase=true
     crowbar_is_clean || exit 1
     # Do barclamps first.
     for b in $(barclamps_in_branch ${DEV_REMOTE_BRANCHES[@]}); do
@@ -1312,6 +1313,7 @@ sync_everything() {
         fi
     done
     # Finished with barclamps, now for crowbar.
+    allow_remote_rebase=false
     debug "Syncing crowbar"
     [[ $head ]] || head=$(git symbolic-ref HEAD) || \
         head=$(git rev-parse HEAD) || die "$repo: Cannot find head commit."
