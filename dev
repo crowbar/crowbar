@@ -1656,7 +1656,6 @@ pull_requests_gen() {
                     br="${1#*/}"
                     [[ $bc = $br ]] && br="${DEV_BRANCH_PREFIX}master"
                     shift
-                    is_barclamp "$bc" || die "$bc is not a barclamp!"
                     in_barclamp "$bc" branch_exists "$br" || \
                         die "$br is not a branch in barclamp $bc!"
                     [[ $br = *master ]] || \
