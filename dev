@@ -1971,7 +1971,7 @@ erase_release() {
     parent_prefix=$(branch_prefix "$parent")
     if ! in_repo branches_synced '.' \
         "${parent_prefix}master" "${prefix}master"; then
-        printf "$1 is not merged into $parent.  Really erase? (y/n): " &>2
+        printf "$1 is not merged into $parent.  Really erase? (y/n): " >&2
         read -n 1
         [[ $REPLY != 'y' ]] && exit
     fi
