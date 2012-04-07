@@ -412,17 +412,12 @@ wait_for_kvm() {
             if [[ $daemonif ]]; then
                 # We assign the output of $daemonif to a variable so that
                 # we don't spam up the test run transcript.
-                if thisres=$($daemonif); then
+                if thisres=$($daemonif 2>&1); then
                     # If it is, stop watching this VM.
                     smoketest_update_status "$vmname" "$thisres"
                     smoketest_update_status "$vmname" \
                         "Daemonizing node with $(($deadline - $(date +%s))) seconds left."
                     return 0
-                elif [[ $thisres =~ problem && $vmname =~ admin && \
-                    ! $develop_mode ]]; then
-                    smoketest_update_status "$vmname" "$thisres"
-                    smoketest_update_status "$vmname" "Transition to problem state not allowed"
-                    return 1
                 elif [[ $thisres && $lastres != $thisres ]]; then
                     smoketest_update_status "$vmname" "$thisres"
                     lastres="$thisres"
@@ -690,8 +685,7 @@ run_admin_node() {
     # start installing compute nodes.
     smoketest_update_status admin "Deploying admin node crowbar tasks"
     if ! run_kvm -reboot -timeout 1800 -bootc \
-        -dieif "test_admin_deploy.sh" \
-        -daemonif "check_ready admin.smoke.test" \
+        -daemonif "ping -q -c 1 -t 5 192.168.124.10" \
         "$nodename"; then
         smoketest_update_status admin "Node failed to deploy."
         return 1
@@ -699,6 +693,28 @@ run_admin_node() {
     # Once the KVM instance has launched, start watching the system log.
     screen -S "$SMOKETEST_SCREEN" -X screen -t "Syslog Capture" \
         tail -f "$LOGDIR/admin.2/ttyS0.log"
+    #Spin until we can SSH into the admin node.
+    while ! ssh root@192.168.124.10 true; do
+        sleep 5
+    done
+    # COpy over the network.json we want to use.
+    scp "$CROWBAR_DIR/test_framework/network.json" \
+        "root@192.168.124.10:/opt/dell/barclamps/network/chef/data_bags/crowbar/bc-template-network.json"
+    # Kick off the install.
+    ssh root@192.168.124.10 /opt/dell/bin/install-crowbar admin.smoke.test
+    sleep 5
+    # Wait for the screen session to terminate
+    printf "Waiting for crowbar to install: "
+    while grep -q crowbar-install < <(ssh root@192.168.124.10 screen -ls); do
+        sleep 30
+        printf "."
+    done
+    echo
+    if ! ssh root@192.168.124.10 \
+        test -f /opt/dell/crowbar_framework/.crowbar-installed-ok; then
+        smoketest_update_status admin "Install of Crowbar failed."
+        return 1
+    fi
     # Grab the latest crowbar CLI code off the admin node.
     (
         cd "$CROWBAR_DIR/testing/cli"
