@@ -698,7 +698,7 @@ run_admin_node() {
         sleep 5
     done
     # COpy over the network.json we want to use.
-    scp "$CROWBAR_DIR/test_framework/network.json" \
+    scp "$CROWBAR_DIR/test_framework/network-${network_mode}.json" \
         "root@192.168.124.10:/opt/dell/barclamps/network/chef/data_bags/crowbar/bc-template-network.json"
     # Kick off the install.
     ssh root@192.168.124.10 /opt/dell/bin/install-crowbar admin.smoke.test
@@ -1075,6 +1075,7 @@ run_test() {
         [[ $line =~ $screen_re ]] && screen -S "${BASH_REMATCH[1]}" -X quit || :
     done < <(screen -ls)
     local tests_to_run=()
+    local network_mode=team
     # Process our commandline arguments.
     while [[ $1 ]]; do
         case $1 in
@@ -1084,6 +1085,7 @@ run_test() {
             develop-mode) local develop_mode=true;;
             manual-deploy) local manual_deploy=true;;
             use-iso) shift; SMOKETEST_ISO="$1";;
+            single|dual|team) local network_mode="$1";;
             scratch);;
             *)
                 if [[ -d $CROWBAR_DIR/barclamps/$1 ]]; then
@@ -1094,6 +1096,9 @@ run_test() {
         esac
         shift
     done
+    [[ -f $CROWBAR_DIR/test_framework/network-${network_mode}.json ]] || \
+        die "Cannot use network mode $network_mode, no JSON for it."
+
 
     [[ $SMOKETEST_ISO = /* ]] || SMOKETEST_ISO="$PWD/$SMOKETEST_ISO"
     [[ -f $SMOKETEST_ISO ]] || die "Cannot find $SMOKETEST_ISO to test!"
