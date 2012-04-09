@@ -1656,7 +1656,6 @@ pull_requests_gen() {
                     br="${1#*/}"
                     [[ $bc = $br ]] && br="${DEV_BRANCH_PREFIX}master"
                     shift
-                    is_barclamp "$bc" || die "$bc is not a barclamp!"
                     in_barclamp "$bc" branch_exists "$br" || \
                         die "$br is not a branch in barclamp $bc!"
                     [[ $br = *master ]] || \
@@ -1879,12 +1878,7 @@ find_best_parent() {
         fi
     done < <(git show-ref --heads master)
     local VERBOSE=1
-    if (( best_distance == 0 )); then
-        # Oh boy, we are already merged into something else.
-        # Let the user know and die.
-        debug "$release has already been merged into: ${best_candidates[@]}"
-        die "No best parents for $release"
-    elif (( ${#best_candidates[@]} == 0 )); then
+    if (( ${#best_candidates[@]} == 0 )); then
         die "No best parent found for $release"
     elif (( ${#best_candidates[@]} == 1 )); then
         debug "It looks like $best_candidates is the parent of $release"
@@ -1972,7 +1966,7 @@ erase_release() {
     parent_prefix=$(branch_prefix "$parent")
     if ! in_repo branches_synced '.' \
         "${parent_prefix}master" "${prefix}master"; then
-        printf "$1 is not merged into $parent.  Really erase? (y/n): " &>2
+        printf "$1 is not merged into $parent.  Really erase? (y/n): " >&2
         read -n 1
         [[ $REPLY != 'y' ]] && exit
     fi
