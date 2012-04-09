@@ -16,6 +16,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if [[ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]]; then
+    echo "Crowbar is already installed, refusing to let install run."
+    echo "If you really want to do this, "
+    echo "remove /opt/dell/crowbar_framework/.crowbar-installed-ok"
+    exit 1
+fi
+
 export FQDN="$1"
 export PATH="/opt/dell/bin:/usr/local/bin:$PATH"
 export DEBUG=true
@@ -420,3 +427,4 @@ echo "Admin node deployed."
 # Run tests -- currently the host will run this.
 /opt/dell/bin/barclamp_test.rb -t || \
     die "Crowbar validation has errors! Please check the logs and correct."
+touch /opt/dell/crowbar_framework/.crowbar-installed-ok
