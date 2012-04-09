@@ -700,6 +700,10 @@ run_admin_node() {
     # COpy over the network.json we want to use.
     scp "$CROWBAR_DIR/test_framework/network-${network_mode}.json" \
         "root@192.168.124.10:/opt/dell/barclamps/network/chef/data_bags/crowbar/bc-template-network.json"
+    # Copy over our post-install hooks
+    ssh root@192.168.124.10 mkdir -p /opt/dell/.hooks/admin-post-install.d
+    scp -r "$CROWBAR_DIR/test_framework/admin-post-hooks/." \
+        "root@192.168.124.10:/opt/dell/.hooks/admin-post-install.d/"
     # Kick off the install.
     ssh root@192.168.124.10 /opt/dell/bin/install-crowbar admin.smoke.test
     sleep 5
