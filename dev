@@ -1878,12 +1878,7 @@ find_best_parent() {
         fi
     done < <(git show-ref --heads master)
     local VERBOSE=1
-    if (( best_distance == 0 )); then
-        # Oh boy, we are already merged into something else.
-        # Let the user know and die.
-        debug "$release has already been merged into: ${best_candidates[@]}"
-        die "No best parents for $release"
-    elif (( ${#best_candidates[@]} == 0 )); then
+    if (( ${#best_candidates[@]} == 0 )); then
         die "No best parent found for $release"
     elif (( ${#best_candidates[@]} == 1 )); then
         debug "It looks like $best_candidates is the parent of $release"
