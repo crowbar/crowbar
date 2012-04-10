@@ -18,6 +18,11 @@ SUDO_CMDS="brctl ip umount mount make_cgroups.sh"
 NEEDED_CMDS="ruby gem kvm screen qemu-img sudo"
 # Gems we have to have installed.
 NEEDED_GEMS="json net-http-digest_auth"
+declare -a SMOKETEST_VLANS
+SMOKETEST_VLANS[200]="192.168.125.1/24"
+SMOKETEST_VLANS[300]="192.168.126.1/24"
+SMOKETEST_VLANS[500]="192.168.127.1/24"
+
 
 # THis lock is held whenever we are running tests.  It exists to
 # prevent multiple instances of the smoketest from running at once.
@@ -118,6 +123,13 @@ smoketest_make_bridges() {
             die "Could not set link on $bridge up!"
         if [[ $bridge =~ $pub_re ]]; then
             sudo -n ip addr add 192.168.124.1/24 dev "$bridge"
+            for vlan in "${!SMOKETEST_VLANS[@]}"; do
+                sudo -n ip link add link "$bridge" \
+                    name "$bridge.$vlan" type vlan id $vlan
+                sudo -n ip link set "$bridge.$vlan" up
+                sudo -n ip addr add "${SMOKETEST_VLANS[$vlan]}" \
+                    dev "$bridge.$vlan"
+            done
         fi
     done
     # Bind the physical nics we want to use to the appropriate bridges.
@@ -142,6 +154,15 @@ smoketest_kill_bridges() {
     done
     # Tear down the bridges we created.
     for bridge in "${SMOKETEST_BRIDGES[@]}"; do
+        if [[ $bridge =~ $pub_re ]]; then
+            sudo -n ip addr del 192.168.124.1/24 dev "$bridge"
+            for vlan in "${!SMOKETEST_VLANS[@]}"; do
+                sudo -n ip addr del "${SMOKETEST_VLAN[$vlan]}" \
+                    dev "$bridge.$vlan"
+                sudo -n ip link set "$bridge.$vlan" down
+                sudo -n ip link del dev "$bridge.$vlan" type vlan id "$vlan"
+            done
+        fi
         sudo -n ip link set "$bridge" down
         sudo -n brctl delbr "$bridge"
     done
@@ -700,6 +721,10 @@ run_admin_node() {
     # COpy over the network.json we want to use.
     scp "$CROWBAR_DIR/test_framework/network-${network_mode}.json" \
         "root@192.168.124.10:/opt/dell/barclamps/network/chef/data_bags/crowbar/bc-template-network.json"
+    # Copy over our post-install hooks
+    ssh root@192.168.124.10 mkdir -p /opt/dell/.hooks/admin-post-install.d
+    scp -r "$CROWBAR_DIR/test_framework/admin-post-hooks/." \
+        "root@192.168.124.10:/opt/dell/.hooks/admin-post-install.d/"
     # Kick off the install.
     ssh root@192.168.124.10 /opt/dell/bin/install-crowbar admin.smoke.test
     sleep 5
