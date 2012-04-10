@@ -69,6 +69,7 @@ perl-XML-Twig
 parted
 compat-libstdc++-33.i686
 libstdc++.i686
+lvm2
 
 %post
 

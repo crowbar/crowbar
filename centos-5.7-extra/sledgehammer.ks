@@ -72,6 +72,7 @@ autoconf
 make
 perl-XML-Twig
 parted
+lvm2
 
 %post
 
