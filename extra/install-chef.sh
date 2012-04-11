@@ -422,6 +422,14 @@ bluepill load /etc/bluepill/chef-client.pill
 cd $DVD_PATH/extra
 [[ $IP ]] && sed "s@localhost@$IP@g" < index.html.tmpl >/var/www/index.html
 
+if [[ -d /opt/dell/.hooks/admin-post-install.d ]]; then
+    local hook
+    for hook in /opt/dell/.hooks/admin-post-install.d/*; do
+        [[ -x $hook ]] || continue
+        $hook || die "Post-install hook ${hook##*/} failed."
+    done
+fi
+
 echo "Admin node deployed."
 
 # Run tests -- currently the host will run this.
