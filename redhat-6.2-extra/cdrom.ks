@@ -36,6 +36,7 @@ OpenIPMI-tools
 emacs-nox
 openssh
 createrepo
+screen
 
 %post --nochroot
 export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
