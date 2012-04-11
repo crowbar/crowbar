@@ -73,8 +73,6 @@ lvm2
 
 %post
 
-yum -y remove '*.i?86'
-
 # Hack to really turn down SELINUX
 sed -i -e 's/\(^SELINUX=\).*$/\1disabled/' /etc/selinux/config
 
