@@ -382,6 +382,10 @@ done
 sleep 30 # This is lame - the queue can be empty, but still processing and mess up future operations.
 check_machine_role
 
+##
+# if we have baked in BMC support, make sure the BMC is responsive.
+[[ -f /updates/unbmc.sh ]] && . /updates/unbmc.sh
+ 
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
 # to the next.
