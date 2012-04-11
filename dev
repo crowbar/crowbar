@@ -2068,6 +2068,7 @@ build_crowbar() {
     switch_release "${target_release:=$(current_release)}" || \
             die "Could not switch to $target_release for build!"
     [[ $target_branch ]] || die "Not on a branch, cannot continue!"
+    checkout "$target_branch"
     if [[ $exact ]]; then
         in_repo git submodule update || \
             die "Could not check out submodule revisions for $target_release!"
