@@ -1,0 +1,7 @@
+#!/bin/bash
+# Give the admin node IP addresses on the other networks we care about.
+# This will make the life of the smoketests easier.
+for n in "public host" "storage host" "nova_fixed router"; do
+    crowbar network allocate_ip default admin.smoke.test $n
+done
+chef-client
