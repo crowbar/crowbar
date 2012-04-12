@@ -36,7 +36,11 @@ EOF
 
     # Install the rpm and gem packages
     log_to yum yum -q -y install rubygems gcc make ruby-devel \
-        libxml2-devel zlib-devel tcpdump
+        libxml2-devel zlib-devel tcpdump nginx
+
+    # stop nginx
+    service nginx stop
+    rm -f /etc/nginx/sites-enabled/default
 }
 
 bring_up_chef() {
