@@ -172,6 +172,7 @@ mkdir -p /etc/bluepill
 
 # Copy all our pills to
 cp "$DVD_PATH/extra/"*.pill /etc/bluepill
+cp "$DVD_PATH/extra/chef-server.conf" /etc/nginx
 cp "$DVD_PATH/extra/chef-client.pill" /tftpboot
 
 # Fire up a Webrick instance on port 3001 to serve gems.
