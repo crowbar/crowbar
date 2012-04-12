@@ -2206,5 +2206,14 @@ case $1 in
     find-parent) shift; find_best_parent "$@";;
     reset-release) shift; reset_release "$@";;
     scrub-merged-pulls) shift; scrub_merged_pulls "$@";;
+    create-barclamp) shift
+        [[ -d $CROWBAR_DIR/barclamps/$1 ]] || \
+            die "Barclamp $1 already exists"
+        "$CROWBAR_DIR/extra/barclamp_create.rb" "$@" || exit 1
+        (   cd "$CROWBAR_DIR/barclamps/$1"
+            git init .
+            git add .
+            git commit -m "Initial commit"
+        );;
     *) dev_short_help; exit 1;;
 esac
