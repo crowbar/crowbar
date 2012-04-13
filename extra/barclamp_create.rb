@@ -19,18 +19,27 @@
   # the 1st choice is to use the code from the framework since it is most up to date
   # however, that code is not always available when installing
 
-require '/opt/dell/bin/barclamp_mgmt_lib.rb'
+barclamp_dir='/opt/dell/barclamps'
+require_dir='/opt/dell/bin'
+
+if ENV["CROWBAR_DIR"]
+  barclamp_dir="#{ENV["CROWBAR_DIR"]}/barclamps"
+  require_dir="#{ENV["CROWBAR_DIR"]}/extra"
+end
+
+require "#{require_dir}/barclamp_mgmt_lib.rb"
   # this is used by the install-chef installer script 
   if __FILE__ == $0
     bc = ARGV[0]
     org = ARGV[1] || "Dell, Inc."
-    path = ARGV[2] || "/opt/dell/barclamps"
-    target = File.join path, bc
-    
     if bc.nil? or bc == ""
       puts "You must supply a name to create a barclamp"
       exit -3
-    elsif File.exist? File.join target, "crowbar.yml"
+    end
+    path = ARGV[2] || "#{barclamp_dir}"
+    target = File.join path, bc
+    
+    if File.exist? File.join target, "crowbar.yml"
       puts "Aborting! A barclamp already exists in '#{target}'."
       exit -3
     elsif ! ( bc =~ /^[a-zA-Z0-9_]*$/ )
