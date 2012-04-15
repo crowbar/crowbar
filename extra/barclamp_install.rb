@@ -167,7 +167,7 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
     end
     puts "DEBUG: installing barclamp" if debug
     begin
-      bc_install bc[:name], bc[:src], bc[:yaml], :debug => true
+      bc_install bc[:name], bc[:src], bc[:yaml], :debug => debug
     rescue Exception => e
       puts "DEBUG: exception occured while installing barclamp" if debug
       raise e
