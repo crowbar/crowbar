@@ -34,7 +34,6 @@ def usage()
   exit
 end
 
-debug = false
 force_install = false
 
 opts.each do |opt, arg|
@@ -113,9 +112,13 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
     unless /^\/opt\/dell\/barclamps\// =~ bc[:src]
       target="/opt/dell/barclamps/#{bc[:src].split("/")[-1]}"
       if File.directory? target
+        puts "DEBUG: target directory #{target} exists" if debug
         if File.exists? "#{target}/crowbar.yml"
+          puts "DEBUG: #{target}/crowbar.yml file exists" if debug
           if File.exists? "#{target}/sha1sums"
+            puts "DEBUG: #{target}/sha1sums file exists" if debug
             unless force_install or system "cd \"#{target}\"; sha1sum --status -c sha1sums"
+              puts "DEBUG: force_install mode is disabled and not all file checksums do match" if debug
               puts "Refusing to install over non-pristine target #{target}"
               puts "Please back up the following files:"
               system "cd \"#{target}\"; sha1sum -c sha1sums |grep -v OK"
@@ -123,26 +126,33 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
               puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
               puts"       xargs -0 sha1sum -b >sha1sums"
               puts "(or use the --force switch)"
+              puts "DEBUG: temporary directory #{tmpdir} will be removed if it exists" if debug
               system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
               exit -1
             end
           elsif not force_install
+            puts "DEBUG: force_install mode is disabled and #{target}/sha1sums file does not exist" if debug
             puts "#{target} already exists, but it does not have checksums."
             puts "Please back up any local changes you may have made, and then"
             puts "create a checksums file with:"
             puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
             puts"       xargs -0 sha1sum -b >sha1sums"
             puts "(or use the --force switch)"
+            puts "DEBUG: temporary directory #{tmpdir} will be removed if it exists" if debug
             system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
             exit -1
           end
         else
+          puts "DEBUG: #{target}/crowbar.yml does not exist" if debug
           puts "#{target} exists, but it is not a barclamp."
           puts "Cowardly refusing to overwrite it."
+          puts "DEBUG: temporary directory #{tmpdir} will be removed if it exists" if debug
           system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
           exit -1
         end
       else
+        puts "DEBUG: target directory \"#{target}\" does not exist" if debug
+        puts "DEBUG: creating directory \"#{target}\"" if debug
         system "mkdir -p \"#{target}\""
       end
       # Only rsync over the changes if this is a different install
@@ -150,17 +160,26 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
       unless File.exists?("#{bc[:src]}/sha1sums") and \
         File.exists?("#{target}/sha1sums") and \
         system "/bin/bash -c 'diff -q <(sort \"#{bc[:src]}/sha1sums\") <(sort \"#{target}/sha1sums\")'"
+        puts "DEBUG: syncing \"#{bc[:src]}\" directory and \"#{target}\" directory" if debug
         system "rsync -r \"#{bc[:src]}/\" \"#{target}\""
       end
       bc[:src] = target
     end
-    bc_install bc[:name],bc[:src],bc[:yaml]
+    puts "DEBUG: installing barclamp" if debug
+    begin
+      bc_install bc[:name], bc[:src], bc[:yaml], :debug => true
+    rescue Exception => e
+      puts "DEBUG: exception occured while installing barclamp" if debug
+      raise e
+    end
   rescue
     puts "Install of #{bc[:name]} failed."
+    puts "DEBUG: temporary directory #{tmpdir} will be removed if it exists" if debug
     system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
     exit -3
   end
 end
+puts "DEBUG: temporary directory #{tmpdir} will be removed if it exists" if debug
 system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
 
 exit 0
