@@ -34,6 +34,7 @@ def usage()
   exit
 end
 
+debug = false
 force_install = false
 
 opts.each do |opt, arg|
@@ -41,6 +42,7 @@ opts.each do |opt, arg|
     when "--help"
     usage
     when "--debug"
+    puts "DEBUG: debug mode is enabled"
     debug = true
     when "--force"
     force_install = true
