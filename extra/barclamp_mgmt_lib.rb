@@ -27,16 +27,20 @@ MODEL_SUBSTRING_BASE = '==BC-MODEL=='
 MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
 MODEL_SUBSTRING_HUMAN = '==*BC-MODEL=='
 MODEL_SUBSTRING_CAPSS = '==%BC-MODEL=='
-BASE_PATH = File.join '/opt', 'dell'
-MODEL_TARGET = File.join BASE_PATH, 'barclamps'
-BARCLAMP_PATH = File.join BASE_PATH, 'barclamps'
-CROWBAR_PATH = File.join BASE_PATH, 'crowbar_framework'
-MODEL_SOURCE = File.join CROWBAR_PATH, 'barclamp_model'
-BIN_PATH = File.join BASE_PATH, 'bin'
-UPDATE_PATH = '/updates'
-ROOT_PATH = '/'
-DEBUG = ENV['DEBUG'] === 'true'
-
+if ENV["CROWBAR_DIR"]
+  MODEL_SOURCE = File.join ENV["CROWBAR_DIR"], "barclamps","crowbar","crowbar_framework",'barclamp_model'
+  BARCLAMP_PATH = File.join ENV["CROWBAR_DIR"], "barclamps"
+else
+  BASE_PATH = File.join '/opt', 'dell'
+  BARCLAMP_PATH = File.join BASE_PATH, 'barclamps'
+  CROWBAR_PATH = File.join BASE_PATH, 'crowbar_framework'
+  MODEL_SOURCE = File.join CROWBAR_PATH, 'barclamp_model'
+  BIN_PATH = File.join BASE_PATH, 'bin'
+  UPDATE_PATH = '/updates'
+  ROOT_PATH = '/'
+end
+DEBUG = ENV['DEBUG'] === "true"
+ 
 # entry point for scripts
 def bc_install(bc, path, barclamp, options={})
   options = {:debug => false}.merge! options
