@@ -2167,7 +2167,8 @@ reset_release() {
                     debug "${barclamps[$bc]} in $bc has never been backed up, skipping."
                     unset barclamps[$bc]
                 elif [[ $target = upstream ]]; then
-                    die "Cannot reset barclamp $bc to ${barclamp_targets[$bc]}"
+                    debug "Cannot reset barclamp $bc to ${barclamp_targets[$bc]}"
+                    unset barclamps[$bc]
                 fi
             fi
         done
