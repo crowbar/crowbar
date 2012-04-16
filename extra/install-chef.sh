@@ -172,6 +172,7 @@ mkdir -p /etc/bluepill
 
 # Copy all our pills to
 cp "$DVD_PATH/extra/"*.pill /etc/bluepill
+cp "$DVD_PATH/extra/chef-server.conf" /etc/nginx
 cp "$DVD_PATH/extra/chef-client.pill" /tftpboot
 
 # Fire up a Webrick instance on port 3001 to serve gems.
@@ -382,6 +383,10 @@ done
 sleep 30 # This is lame - the queue can be empty, but still processing and mess up future operations.
 check_machine_role
 
+##
+# if we have baked in BMC support, make sure the BMC is responsive.
+[[ -f /updates/unbmc.sh ]] && . /updates/unbmc.sh
+ 
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
 # to the next.
@@ -421,6 +426,14 @@ bluepill load /etc/bluepill/chef-client.pill
 # transform our friendlier Crowbar default home page.
 cd $DVD_PATH/extra
 [[ $IP ]] && sed "s@localhost@$IP@g" < index.html.tmpl >/var/www/index.html
+
+if [[ -d /opt/dell/.hooks/admin-post-install.d ]]; then
+    local hook
+    for hook in /opt/dell/.hooks/admin-post-install.d/*; do
+        [[ -x $hook ]] || continue
+        $hook || die "Post-install hook ${hook##*/} failed."
+    done
+fi
 
 echo "Admin node deployed."
 

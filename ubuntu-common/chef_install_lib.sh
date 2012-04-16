@@ -30,7 +30,11 @@ install_base_packages() {
     log_to apt apt-get update
     log_to apt apt-get -y remove apparmor
     log_to apt apt-get -y install rubygems gcc ruby tcpdump \
-        libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev
+        libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev nginx
+
+    # stop nginx
+    service nginx stop
+    rm -f /etc/nginx/sites-enabled/default
 }
 
 bring_up_chef() {
