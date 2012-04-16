@@ -1908,8 +1908,8 @@ DEV_BRANCH_PREFIX="$(branch_prefix $(current_release))"
 # Create a new release branch structure based on the current state of the
 # Crowbar repositories.
 cut_release() {
-    local b remote this_prefix new_prefix
-    local this_release new_release
+    local b remote old_prefix new_prefix
+    local old_release new_release
     local -A barclamps branches
 
     [[ $1 ]] || die "cut_release: Please specify a name for the new release"
@@ -1917,8 +1917,8 @@ cut_release() {
     # Test to see if release exists.
     is_in "$1" "$(show_releases)" && die "cut_release: Name already exists"
 
-    this_release="$(current_release)"
-    this_prefix="$(branch_prefix "$this_release")"
+    old_release="$(current_release)"
+    old_prefix="$(branch_prefix "$old_release")"
     new_prefix="$(branch_prefix $1)"
     crowbar_is_clean || \
         die "Crowbar repo must be clean before trying to cut a release!"
@@ -1942,13 +1942,13 @@ cut_release() {
             "${old_prefix}master"
     done
     if git_managed_cache && ! branch_exists "${new_prefix}master"; then
-        if in_cache branch_exists "${this_prefix}master"; then
-            in_cache git branch "${new_prefix}master" "${this_prefix}master"
+        if in_cache branch_exists "${old_prefix}master"; then
+            in_cache git branch "${new_prefix}master" "${old_prefix}master"
         else
             in_cache git branch "${new_prefix}master" master
         fi
     fi
-    in_repo git config "crowbar.releases.$1.parent" "$this_release"
+    in_repo git config "crowbar.releases.$1.parent" "$old_release"
 }
 
 cut_feature() {
@@ -2167,7 +2167,8 @@ reset_release() {
                     debug "${barclamps[$bc]} in $bc has never been backed up, skipping."
                     unset barclamps[$bc]
                 elif [[ $target = upstream ]]; then
-                    die "Cannot reset barclamp $bc to ${barclamp_targets[$bc]}"
+                    debug "Cannot reset barclamp $bc to ${barclamp_targets[$bc]}"
+                    unset barclamps[$bc]
                 fi
             fi
         done
@@ -2206,5 +2207,14 @@ case $1 in
     find-parent) shift; find_best_parent "$@";;
     reset-release) shift; reset_release "$@";;
     scrub-merged-pulls) shift; scrub_merged_pulls "$@";;
+    create-barclamp) shift
+        [[ -d $CROWBAR_DIR/barclamps/$1 ]] || \
+            die "Barclamp $1 already exists"
+        "$CROWBAR_DIR/extra/barclamp_create.rb" "$@" || exit 1
+        (   cd "$CROWBAR_DIR/barclamps/$1"
+            git init .
+            git add .
+            git commit -m "Initial commit"
+        );;
     *) dev_short_help; exit 1;;
 esac
