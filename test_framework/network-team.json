@@ -185,26 +185,26 @@
         },
         "bmc": {
           "conduit": "bmc",
-          "vlan": 100,
-          "use_vlan": false,
+          "vlan": 600,
+          "use_vlan": true,
           "add_bridge": false,
-          "subnet": "192.168.124.0",
+          "subnet": "192.168.128.0",
           "netmask": "255.255.255.0",
-          "broadcast": "192.168.124.255",
+          "broadcast": "192.168.128.255",
           "ranges": {
-            "host": { "start": "192.168.124.162", "end": "192.168.124.240" }
+            "host": { "start": "192.168.128.10", "end": "192.168.128.254" }
           }
         },
         "bmc_vlan": {
           "conduit": "intf2",
-          "vlan": 100,
+          "vlan": 600,
           "use_vlan": true,
           "add_bridge": false,
-          "subnet": "192.168.124.0",
+          "subnet": "192.168.128.0",
           "netmask": "255.255.255.0",
-          "broadcast": "192.168.124.255",
+          "broadcast": "192.168.128.255",
           "ranges": {
-            "host": { "start": "192.168.124.161", "end": "192.168.124.161" }
+            "host": { "start": "192.168.128.2", "end": "192.168.128.9" }
           }
         },
         "admin": {
