@@ -41,9 +41,12 @@ chroot_install() {
 
 # Fetch (but do not install) packages into the chroot environment
 chroot_fetch() {
+    local pkg
     if [[ $1 ]]; then
-	in_chroot /usr/bin/apt-get -y --force-yes \
-	    --allow-unauthenticated --download-only install "$@"
+	for pkg in $@; do
+	    in_chroot /usr/bin/apt-get -y --force-yes \
+		--allow-unauthenticated --download-only install "$pkg"
+	done
     fi
     in_chroot /usr/bin/apt-get -y --force-yes \
 	--allow-unauthenticated --download-only upgrade
