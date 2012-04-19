@@ -80,9 +80,9 @@ trap - 0 INT QUIT TERM
 if [[ $DEV_GITHUB_PASSWD ]]; then
     debug "Migrating Github password information to $HOME/.netrc"
     for mach in github.com api.github.com; do
-	grep -q "^$mach" "$HOME/.netrc" &>/dev/null && continue
-	printf "\nmachine %s login %s password %s\n" \
-	    "$mach" "$DEV_GITHUB_ID" "$DEV_GITHUB_PASSWD" >> "$HOME/.netrc"
+        grep -q "^$mach" "$HOME/.netrc" &>/dev/null && continue
+        printf "\nmachine %s login %s password %s\n" \
+            "$mach" "$DEV_GITHUB_ID" "$DEV_GITHUB_PASSWD" >> "$HOME/.netrc"
     done
     chmod 600 "$HOME/.netrc"
     sed -ie 's/DEV_GITHUB_PASSWD=.*//' "$HOME/.build-crowbar.conf"
@@ -489,7 +489,7 @@ scrub_merged_pull_requests() {
     git_config_has remote.personal.url || return
     while read ref br; do
         case $br in
-            refs/heads/*) 
+            refs/heads/*)
                 ref=${br#refs/heads/}
                 heads[${ref//\//-}]+="$br ";;
             refs/remotes/personal/pull-req-*)
@@ -707,7 +707,7 @@ setup() {
         die "Crowbar repo must be clean before trying to set things up!"
     # Make sure we have Github login credentials as the very first thing.
     [[ $DEV_GITHUB_ID ]] || {
-	local DEV_GITHUB_PASSWD
+        local DEV_GITHUB_PASSWD
         read -p "Enter your Github username: " DEV_GITHUB_ID
         curl_and_res -f \
             "https://api.github.com/users/$DEV_GITHUB_ID" &>/dev/null || \
@@ -724,12 +724,12 @@ setup() {
             echo "Unable to authenticate as Github user $DEV_GITHUB_ID." >&2
             die "Please try again when you have Github access."
         }
-	for mach in github.com api.github.com; do
-	    grep -q "^$mach" "$HOME/.netrc" &>/dev/null && continue
-	    printf "\nmachine %s login %s password %s\n" \
-		"$mach" "$DEV_GITHUB_ID" "$DEV_GITHUB_PASSWD" >> "$HOME/.netrc"
-	done
-	chmod 600 "$HOME/.netrc"
+        for mach in github.com api.github.com; do
+            grep -q "^$mach" "$HOME/.netrc" &>/dev/null && continue
+            printf "\nmachine %s login %s password %s\n" \
+                "$mach" "$DEV_GITHUB_ID" "$DEV_GITHUB_PASSWD" >> "$HOME/.netrc"
+        done
+        chmod 600 "$HOME/.netrc"
         printf "DEV_GITHUB_ID=%q\n" "$DEV_GITHUB_ID" >> "$HOME/.build-crowbar.conf"
     }
     # We have a baked-in assumption that Github is our origin, and that
@@ -1294,7 +1294,7 @@ ripple_changes_out() {
 # repository, and then update the branches for the current release according
 # to the branch structure defined in DEV_BRANCHES.
 sync_everything() {
-    local unsynced_barclamps=() 
+    local unsynced_barclamps=()
     local b u head res=0 ref branch rel allow_remote_rebase=true
     crowbar_is_clean || exit 1
     # Do barclamps first.
@@ -1385,13 +1385,13 @@ Command line options:
            You can run a fetch at any time without disturbing your working
            code, provided you have network connectivity.
            If you pass the name of a remote, fetch will try to fetch changes
-           from that remote in the main Crowbar repository and in each of the 
+           from that remote in the main Crowbar repository and in each of the
            barclamps
 
   remote -- Manage remotes across all dellcloudedge repositories.  It has the
             following subcommands:
             add <remote> <urlbase> : The add subcommand adds a new remote to
-                the Crowbar repositories.  
+                the Crowbar repositories.
             rm <remote> : The rm subcommand removes an already-existing remote
                 from the Crowbar repositories.
             set-url <remote> <urlbase> : The set-url subcommands allows you to
@@ -1746,7 +1746,7 @@ pull_requests_gen() {
         [[ ${br_pulls["$br"]} ]] || continue
         in_repo git_push personal "${br}:${br_pulls[$br]}"
         local br_head="$DEV_GITHUB_ID:${br_pulls[$br]}"
-        if [[ $br = feature/* ]]; then 
+        if [[ $br = feature/* ]]; then
             br="$(best_parent_prefix)${br##*/}" || exit 1
         fi
         do_pull_request \
