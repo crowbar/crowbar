@@ -185,7 +185,7 @@
         },
         "bmc": {
           "conduit": "bmc",
-          "vlan": 100,
+          "vlan": 600,
           "use_vlan": true,
           "add_bridge": false,
           "subnet": "192.168.128.0",
@@ -197,7 +197,7 @@
         },
         "bmc_vlan": {
           "conduit": "intf2",
-          "vlan": 100,
+          "vlan": 600,
           "use_vlan": true,
           "add_bridge": false,
           "subnet": "192.168.128.0",
