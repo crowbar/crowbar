@@ -22,7 +22,7 @@ declare -a SMOKETEST_VLANS
 SMOKETEST_VLANS[200]="192.168.125.1/24"
 SMOKETEST_VLANS[300]="192.168.126.1/24"
 SMOKETEST_VLANS[500]="192.168.127.1/24"
-
+SMOKETEST_VLANS[600]="192.168.128.1/24"
 
 # THis lock is held whenever we are running tests.  It exists to
 # prevent multiple instances of the smoketest from running at once.
@@ -69,6 +69,7 @@ NICS_PER_BRIDGE=2
 # it can create and destroy vlans as needed.
 # Each entry in this array is if the form ifname,bridgename
 # PHYSICAL_INTERFACES=(eth1,crowbar-pub)
+PHYSICAL_INTERFACES=()
 
 # An array of MAC addresses of the primary interfaces of the physical machines.
 # We need to have this information beforehand so that we can send
@@ -1111,6 +1112,14 @@ run_test() {
             manual-deploy) local manual_deploy=true;;
             use-iso) shift; SMOKETEST_ISO="$1";;
             single|dual|team) local network_mode="$1";;
+            bind-nic) shift;
+                [[ -d /sys/class/net/$1 ]] || \
+                    die "$1 is not a network interface!"
+                is_in "$2" "${SMOKETEST_BRIDGES[*]}" || \
+                    die "$2 is not a bridge of ours!"
+                PHYSICAL_INTERFACES+=("$1,$2")
+                shift;;
+            use-screen) unset DISPLAY;;
             scratch);;
             *)
                 if [[ -d $CROWBAR_DIR/barclamps/$1 ]]; then
