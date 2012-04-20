@@ -28,8 +28,9 @@ chroot_install() {
 
 # Fetch (but do not install) packages into the chroot environment
 chroot_fetch() {
-    if [[ $1 ]]; then
-        in_chroot /usr/bin/yum -y --downloadonly install "$@" || :
+    local p
+    for p in "$@"; do
+        in_chroot /usr/bin/yum -y --downloadonly install "$p" || :
     fi
     in_chroot /usr/bin/yum -y update
 }
