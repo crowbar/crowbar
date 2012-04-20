@@ -22,7 +22,7 @@ declare -a SMOKETEST_VLANS
 SMOKETEST_VLANS[200]="192.168.125.1/24"
 SMOKETEST_VLANS[300]="192.168.126.1/24"
 SMOKETEST_VLANS[500]="192.168.127.1/24"
-
+SMOKETEST_VLANS[600]="192.168.128.1/24"
 
 # THis lock is held whenever we are running tests.  It exists to
 # prevent multiple instances of the smoketest from running at once.
