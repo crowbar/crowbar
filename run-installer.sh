@@ -53,5 +53,5 @@ kvm -drive "file=$1,if=ide,media=disk,snapshot=on" \
     -cdrom "$2" \
     -net "nic,macaddr=52:54:00:00:00:8f,model=e1000" \
     -net "tap,ifname=admin-0-br,script=no,downscript=no" \
-    -m 512 -snapsho
+    -m 512 -snapshot
 kill_virt_net
