@@ -69,6 +69,7 @@ NICS_PER_BRIDGE=2
 # it can create and destroy vlans as needed.
 # Each entry in this array is if the form ifname,bridgename
 # PHYSICAL_INTERFACES=(eth1,crowbar-pub)
+PHYSICAL_INTERFACES=()
 
 # An array of MAC addresses of the primary interfaces of the physical machines.
 # We need to have this information beforehand so that we can send
@@ -1111,6 +1112,13 @@ run_test() {
             manual-deploy) local manual_deploy=true;;
             use-iso) shift; SMOKETEST_ISO="$1";;
             single|dual|team) local network_mode="$1";;
+            bind-nic) shift;
+                [[ -d /sys/class/net/$1 ]] || \
+                    die "$1 is not a network interface!"
+                is_in "$2" "${CROWBAR_BRIDGES[*]}" || \
+                    die "$2 is not a bridge of ours!"
+                PHYSICAL_INTERFACES+=("$1,$2")
+                shift;;
             scratch);;
             *)
                 if [[ -d $CROWBAR_DIR/barclamps/$1 ]]; then
