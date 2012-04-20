@@ -31,7 +31,7 @@ chroot_fetch() {
     local p
     for p in "$@"; do
         in_chroot /usr/bin/yum -y --downloadonly install "$p" || :
-    fi
+    done
     in_chroot /usr/bin/yum -y update
 }
 
