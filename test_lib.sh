@@ -527,8 +527,19 @@ run_kvm() {
       cpu_count=4
       mem_size=4G
     fi
-    if kvm -device \? 2>&1 |grep -q ahci && [[ $(kvm -version) =~ kvm-1 ]]; then
-        local kvm_use_ahci=true
+    # Hack to pick the fastest disk caching mode.
+    # We use unsafe caching if we can on the vms because we will just
+    # rebuild the filesystems from scratch if anything goes wrong.
+    if ! [[ $drive_cache ]]; then
+        if kvm --help |grep -q 'cache.*unsafe'; then
+            drive_cache=unsafe
+        else
+            drive_cache=writeback
+        fi
+        if kvm -device \? 2>&1 |grep -q ahci && \
+            [[ $(kvm -version) =~ kvm-1 ]]; then
+            kvm_use_ahci=true
+        fi
     fi
     local vm_gen="$vmname.${kvm_generations[$vmname]}"
     # create a new log directory for us.  vm_logdir needs to be global
@@ -1080,15 +1091,6 @@ run_test() {
         echo "$NEEDED_GEMS"
         exit 1
     done
-
-    # Hack to pick the fastest disk caching mode.
-    # We use unsafe caching if we can on the vms because we will just
-    # rebuild the filesystems from scratch if anything goes wrong.
-    if kvm --help |grep -q 'cache.*unsafe'; then
-        drive_cache=unsafe
-    else
-        drive_cache=writeback
-    fi
 
     mangle_ssh_config
 
