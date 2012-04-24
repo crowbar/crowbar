@@ -99,9 +99,11 @@ def catalog(path, options={})
     cat['barclamps'][name]['order'] = bc['crowbar']['order'] if bc['crowbar']['order']
     cat['barclamps'][name]['run_order'] = bc['crowbar']['run_order'] if bc['crowbar']['run_order']
     cat['barclamps'][name]['chef_order'] = bc['crowbar']['chef_order'] if bc['crowbar']['chef_order']
-    cat['barclamps'][name]['date'] = bc['git']['date'] if bc['git']['date']
-    cat['barclamps'][name]['commit'] = bc['git']['commit'] if bc['git']['commit']
-
+    if bc['git']
+      cat['barclamps'][name]['date'] = bc['git']['date'] if bc['git']['date']
+      cat['barclamps'][name]['commit'] = bc['git']['commit'] if bc['git']['commit']
+    end
+    
   end
   File.open( File.join(CROWBAR_PATH, 'config', 'catalog.yml'), 'w' ) do |out|
     YAML.dump( cat, out )
