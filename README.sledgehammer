@@ -1,2 +1,14 @@
-In order to build Crowbar, you need to build Sledgehammer first.
-Sledgehammer can be found at github:dellcloudedge/crowbar-sledgehammer
+Sledgehammer is the component of Crowbar that we use to perform
+initial discovery and configuration of systems with.  It is a slightly
+modified Centos 6.2 live environment.  To build it, you need:
+
+  * A CentOS 6.2 install DVD from bittorrent or your favorite CentOS
+    mirror. This install DVD will need to go in $ISO_LIBRARY
+    (usually $HOME/.crowbar-build-cache/iso).
+  * Ruby, rpm, and rpm2cpio.
+
+By default, the Crowbar build process will try and build Sledgehammer
+if it is not already present in the build cache, so you should not
+need to do anything special to build Sledgehammer.  If you need to
+update Sledgehammer, run the build_sledgehammer.sh script in the main
+Crowbar checkout.

@@ -106,24 +106,5 @@ for s in $(cat /proc/cmdline); do
     esac
 done
 
-if [[ $CHOSTNAME ]]; then
-    cat > /install_system.sh <<EOF
-#!/bin/bash
-set -e
-cd /tftpboot/redhat_dvd/extra
-./install $CHOSTNAME
-
-rm -f /etc/rc2.d/S99install
-rm -f /etc/rc3.d/S99install
-rm -f /etc/rc5.d/S99install
-
-rm -f /install_system.sh
-
-EOF
-
-    chmod +x /install_system.sh
-    ln -s /install_system.sh /etc/rc3.d/S99install
-    ln -s /install_system.sh /etc/rc5.d/S99install
-    ln -s /install_system.sh /etc/rc2.d/S99install
-
-fi
+mkdir -p /opt/dell/bin
+ln -s /tftpboot/redhat_dvd/extra/install /opt/dell/bin/install-crowbar

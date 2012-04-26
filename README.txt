@@ -12,7 +12,6 @@ This wiki maintains information about the operation of Crowbar. Documentation fo
 Please consult the release notes for known issues
 
 To build your own copy of Crowbar, consult the readme (https://github.com/dellcloudedge/crowbar/blob/master/README.build) in the crowbar repos. Some important notes about the build process: 
-* Build requires a component known as "sledgehammer" that is a CentOS based image for discovery. This TFTPboot image does not change often and is not part of the normal build steps. See the DellCloudEdge/crowbar-sledgehammer repo for details. 
 * Build process has been tested on Ubuntu 10.10 and CentOS
 
 With that said, from a fresh install off the crowbar-dev.iso, the next steps are:

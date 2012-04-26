@@ -18,19 +18,23 @@ install_base_packages() {
     mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra"
     mkdir -p /etc/apt/sources.list.d
     (cd "/tftpboot/$OS_TOKEN/crowbar-extra";
-	# Find all the staged barclamps
-	for bc in "/opt/dell/barclamps/"*; do
-	    [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
-	    # Link them in.
-	    ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
-	    echo "deb file:/tftpboot/$OS_TOKEN/crowbar-extra/${bc##*/} /" > \
-		/etc/apt/sources.list.d/10-barclamp-${bc##*/}.list
-	done
+        # Find all the staged barclamps
+        for bc in "/opt/dell/barclamps/"*; do
+            [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
+            # Link them in.
+            ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
+            echo "deb file:/tftpboot/$OS_TOKEN/crowbar-extra/${bc##*/} /" > \
+                /etc/apt/sources.list.d/10-barclamp-${bc##*/}.list
+        done
     )
     log_to apt apt-get update
     log_to apt apt-get -y remove apparmor
-    log_to apt apt-get -y install rubygems gcc ruby \
-	libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev
+    log_to apt apt-get -y install rubygems gcc ruby tcpdump \
+        libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev nginx
+
+    # stop nginx
+    service nginx stop
+    rm -f /etc/nginx/sites-enabled/default
 }
 
 bring_up_chef() {
@@ -38,23 +42,9 @@ bring_up_chef() {
     service chef-client stop
     killall chef-client
     log_to apt apt-get -y install chef-server chef-server-webui
-
-    # HACK AROUND CHEF-2005
-    cp patches/data_item.rb /usr/share/chef-server-api/app/controllers
-    # HACK AROUND CHEF-2005
-    rl=$(find /usr/lib/ruby -name run_list.rb)
-    cp -f "$rl" "$rl.bak"
-    cp -f patches/run_list.rb "$rl"
-    # Make the Rubygems provider in Chef respect gemrc files.
-    cp -f patches/rubygems.rb /usr/lib/ruby/vendor_ruby/chef/provider/package
-
-    # Fix seg fault (fixed in chef 0.10.10) OHAI-330 CHEF-2916
-    cp -r patches /tftpboot  # Make them available to the world.
-    cp -f patches/command.rb /usr/lib/ruby/1.8/ohai/mixin/command.rb    
-    cp -f patches/unix.rb /usr/lib/ruby/vendor_ruby/chef/mixin/command/unix.rb
-
+    (cd "$DVD_PATH/extra/patches"; chmod +x ./patch.sh ; ./patch.sh) || exit 1
     # increase chef-solr index field size
-    perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml 
+    perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml
 
     # Fix ruby-gems and merb-core mismatch
     sed -i -e "s/Gem.activate(dep)/dep.to_spec.activate/g" /usr/lib/ruby/1.8/merb-core/core_ext/kernel.rb

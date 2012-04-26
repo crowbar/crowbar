@@ -16,12 +16,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if [[ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]]; then
+    echo "Crowbar is already installed, refusing to let install run."
+    echo "If you really want to do this, "
+    echo "remove /opt/dell/crowbar_framework/.crowbar-installed-ok"
+    exit 1
+fi
+
 export FQDN="$1"
 export PATH="/opt/dell/bin:/usr/local/bin:$PATH"
 export DEBUG=true
 [[ ! $HOME || $HOME = / ]] && export HOME="/root"
 mkdir -p "$HOME"
-die() { echo "$(date '+%F %T %z'): $@"; exit 1; }
+die() {
+    if [[ $crowbar_up && $FQDN ]]; then
+        crowbar crowbar transition "$FQDN" problem
+    fi
+    echo "$(date '+%F %T %z'): $@"
+    exit 1
+}
 
 crowbar_up=
 admin_node_up=
@@ -49,14 +62,13 @@ log_to() {
     return $_ret
 }
 
+
+
 chef_or_die() {
     if [ -e /opt/dell/bin/blocking_chef_client.sh ]; then
         log_to chef blocking_chef_client.sh && return
     else
         log_to chef chef-client && return
-    fi
-    if [[ $crowbar_up && $FQDN ]]; then
-        crowbar crowbar transition "$FQDN" problem
     fi
     # If we were left without an IP address, rectify that.
     ip link set eth0 up
@@ -72,6 +84,17 @@ knifeloop() {
         (($RC == 139)); }; do
         :
     done
+}
+
+# Sometimes the machine role (crowbar-${FQDN//./_}) does not get properly
+# attached to the admin node.  We are in deep trouble if that happens.
+check_machine_role() {
+    local count
+    for ((count=0; count <= 5; count++)); do
+        grep -q "crowbar-${FQDN//./_}" < <(knife node show "$FQDN" ) && return 0
+        sleep 10
+    done
+    die "Node machine-specific role got lost.  Deploy failed."
 }
 
 # Include OS specific functionality
@@ -90,7 +113,7 @@ fi
     mkdir -p "$HOME/.ssh"
     ssh-keygen -q -b 2048 -P '' -f "$HOME/.ssh/id_rsa"
     cat "$HOME/.ssh/id_rsa.pub" >> "$HOME/.ssh/authorized_keys"
-    cp "$HOME/.ssh/authorized_keys" "$DVD_PATH/authorized_keys"
+    cp "$HOME/.ssh/authorized_keys" "/tftpboot/authorized_keys"
     cat "$HOME/.ssh/id_rsa.pub" >> /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/templates/default/authorized_keys.erb
 
 }
@@ -149,6 +172,7 @@ mkdir -p /etc/bluepill
 
 # Copy all our pills to
 cp "$DVD_PATH/extra/"*.pill /etc/bluepill
+cp "$DVD_PATH/extra/chef-server.conf" /etc/nginx
 cp "$DVD_PATH/extra/chef-client.pill" /tftpboot
 
 # Fire up a Webrick instance on port 3001 to serve gems.
@@ -234,15 +258,8 @@ EOF
     chmod 755 /etc/init.d/bluepill
 fi
 
-# Make sure our initial instance of tcpdump is in place
-if [[ ! -x /opt/tcpdump/tcpdump ]]; then
-    mkdir -p /opt/tcpdump
-    [[ -x /opt/dell/barclamps/deployer/cache/files/tcpdump ]] || \
-        die "Cannot stage initial copy of tcpdump!"
-    cp /opt/dell/barclamps/deployer/cache/files/tcpdump /opt/tcpdump
-    mkdir -p /updates
-    cp /opt/tcpdump/tcpdump /updates/tcpdump
-fi
+# Bundle up our patches and put them in a sane place
+(cd "$DVD_PATH/extra"; tar czf "/tftpboot/patches.tar.gz" patches)
 
 chef_or_die "Initial chef run failed"
 
@@ -296,8 +313,20 @@ echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
     die "Crowbar configuration has errors.  Please fix and rerun install."
 
+echo "$(date '+%F %T %z'): Create Admin node role"
+NODE_ROLE="crowbar-${FQDN//./_}" 
+cat > /tmp/role.rb <<EOF
+name "$NODE_ROLE"
+description "Role for $FQDN"
+run_list()
+default_attributes( "crowbar" => { "network" => {} } )
+override_attributes()
+EOF
+knifeloop role from file /tmp/role.rb
+rm -rf /tmp/role.rb
+
 echo "$(date '+%F %T %z'): Update run list..."
-for role in crowbar deployer-client; do
+for role in crowbar deployer-client $NODE_ROLE; do
     knifeloop node run_list add "$FQDN" role["$role"] || \
         die "Could not add $role to Chef. Crowbar bringup will fail."
 done
@@ -311,9 +340,6 @@ chef_or_die "Failed to bring up Crowbar"
 touch /tmp/deploying
 
 post_crowbar_fixups
-
-# have chef_or_die change our status to problem if we fail
-crowbar_up=true
 
 # Add configured crowbar proposal
 if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
@@ -342,6 +368,8 @@ crowbar crowbar proposal show default >/var/log/default-proposal.json
 crowbar crowbar proposal commit default || \
     die "Could not commit default proposal!"
 crowbar crowbar show default >/var/log/default.json
+# have die change our status to problem if we fail
+crowbar_up=true
 chef_or_die "Chef run after default proposal commit failed!"
 
 # Need to make sure that we have the indexer/expander finished
@@ -355,7 +383,12 @@ do
     COUNT=$(($COUNT + 1))
 done
 sleep 30 # This is lame - the queue can be empty, but still processing and mess up future operations.
+check_machine_role
 
+##
+# if we have baked in BMC support, make sure the BMC is responsive.
+[[ -f /updates/unbmc.sh ]] && . /updates/unbmc.sh
+ 
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
 # to the next.
@@ -372,6 +405,7 @@ do
             die "Sanity check for transitioning to $state failed!"
     fi
     chef_or_die "Chef run for $state transition failed!"
+    check_machine_role
 done
 
 # OK, let looper_chef_client run normally now.
@@ -395,8 +429,17 @@ bluepill load /etc/bluepill/chef-client.pill
 cd $DVD_PATH/extra
 [[ $IP ]] && sed "s@localhost@$IP@g" < index.html.tmpl >/var/www/index.html
 
+if [[ -d /opt/dell/.hooks/admin-post-install.d ]]; then
+    local hook
+    for hook in /opt/dell/.hooks/admin-post-install.d/*; do
+        [[ -x $hook ]] || continue
+        $hook || die "Post-install hook ${hook##*/} failed."
+    done
+fi
+
 echo "Admin node deployed."
 
 # Run tests -- currently the host will run this.
 /opt/dell/bin/barclamp_test.rb -t || \
     die "Crowbar validation has errors! Please check the logs and correct."
+touch /opt/dell/crowbar_framework/.crowbar-installed-ok

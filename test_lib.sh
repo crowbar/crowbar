@@ -18,6 +18,11 @@ SUDO_CMDS="brctl ip umount mount make_cgroups.sh"
 NEEDED_CMDS="ruby gem kvm screen qemu-img sudo"
 # Gems we have to have installed.
 NEEDED_GEMS="json net-http-digest_auth"
+declare -a SMOKETEST_VLANS
+SMOKETEST_VLANS[200]="192.168.125.1/24"
+SMOKETEST_VLANS[300]="192.168.126.1/24"
+SMOKETEST_VLANS[500]="192.168.127.1/24"
+SMOKETEST_VLANS[600]="192.168.128.1/24"
 
 # THis lock is held whenever we are running tests.  It exists to
 # prevent multiple instances of the smoketest from running at once.
@@ -55,13 +60,16 @@ export CROWBAR_KEY="crowbar:crowbar"
 # 15 characters or less due to kernel name constraints.
 # The last part of the name will be used in tap interface name generation.
 # Please keep it at 4 characters or less.
-SMOKETEST_BRIDGES=(crowbar-pub crowbar-priv)
+SMOKETEST_BRIDGES=(crowbar-pub)
+
+NICS_PER_BRIDGE=2
 
 # An array of physical interfaces and the bridges they should be bound to.
 # We need to use real physical interfaces becasue Crowbar assumes
 # it can create and destroy vlans as needed.
 # Each entry in this array is if the form ifname,bridgename
 # PHYSICAL_INTERFACES=(eth1,crowbar-pub)
+PHYSICAL_INTERFACES=()
 
 # An array of MAC addresses of the primary interfaces of the physical machines.
 # We need to have this information beforehand so that we can send
@@ -116,6 +124,13 @@ smoketest_make_bridges() {
             die "Could not set link on $bridge up!"
         if [[ $bridge =~ $pub_re ]]; then
             sudo -n ip addr add 192.168.124.1/24 dev "$bridge"
+            for vlan in "${!SMOKETEST_VLANS[@]}"; do
+                sudo -n ip link add link "$bridge" \
+                    name "$bridge.$vlan" type vlan id $vlan
+                sudo -n ip link set "$bridge.$vlan" up
+                sudo -n ip addr add "${SMOKETEST_VLANS[$vlan]}" \
+                    dev "$bridge.$vlan"
+            done
         fi
     done
     # Bind the physical nics we want to use to the appropriate bridges.
@@ -140,6 +155,15 @@ smoketest_kill_bridges() {
     done
     # Tear down the bridges we created.
     for bridge in "${SMOKETEST_BRIDGES[@]}"; do
+        if [[ $bridge =~ $pub_re ]]; then
+            sudo -n ip addr del 192.168.124.1/24 dev "$bridge"
+            for vlan in "${!SMOKETEST_VLANS[@]}"; do
+                sudo -n ip addr del "${SMOKETEST_VLAN[$vlan]}" \
+                    dev "$bridge.$vlan"
+                sudo -n ip link set "$bridge.$vlan" down
+                sudo -n ip link del dev "$bridge.$vlan" type vlan id "$vlan"
+            done
+        fi
         sudo -n ip link set "$bridge" down
         sudo -n brctl delbr "$bridge"
     done
@@ -256,11 +280,13 @@ killtap() {
 # Build up our local virtual net infrastructure.
 make_virt_net() {
     smoketest_make_bridges
-    local node bridge
+    local node bridge idx
     for node in admin ${SMOKETEST_VIRT_NODES[@]}; do
         for bridge in "${SMOKETEST_BRIDGES[@]}"; do
-            local nic_name="${node}-${bridge##*-}"
-            maketap "$nic_name" "$bridge"
+            for ((idx=0; idx < NICS_PER_BRIDGE; idx++)); do
+                local nic_name="${node}-${idx}-${bridge##*-}"
+                maketap "$nic_name" "$bridge"
+            done
         done
     done
 }
@@ -268,11 +294,13 @@ make_virt_net() {
 # Tear down our local virtual net infrastructure.
 kill_virt_net() {
     set +e
-    local node bridge
+    local node bridge idx
     for node in admin ${SMOKETEST_VIRT_NODES[@]}; do
         for bridge in ${SMOKETEST_BRIDGES[@]}; do
-            local nic_name="${node}-${bridge##*-}"
-            killtap "$nic_name" "$bridge"
+            for ((idx=0; idx < NICS_PER_BRIDGE; idx++)); do
+                local nic_name="${node}-${idx}-${bridge##*-}"
+                killtap "$nic_name" "$bridge"
+            done
         done
     done
     smoketest_kill_bridges
@@ -282,14 +310,16 @@ kill_virt_net() {
 makenics() {
     # $1 = base name for each nic. Must be 9 characters or less.
     vm_nics=()
-    local node bridge
+    local node bridge idx
     for bridge in ${SMOKETEST_BRIDGES[@]}; do
-        local nic_name="$1-${bridge##*-}"
-        getmac
-        if [[ $nic_name =~ virt-.-pub ]]; then
-            SMOKETEST_SLAVES["$1"]="d${MACADDR//:/-}.smoke.test"
-        fi
-        vm_nics+=("$MACADDR,$nic_name")
+        for ((idx=0; idx < NICS_PER_BRIDGE; idx++));  do
+            local nic_name="$1-${idx}-${bridge##*-}"
+            getmac
+            if [[ $nic_name =~ virt-.-0-pub ]]; then
+                SMOKETEST_SLAVES["$1"]="d${MACADDR//:/-}.smoke.test"
+            fi
+            vm_nics+=("$MACADDR,$nic_name")
+        done
     done
 }
 
@@ -404,17 +434,12 @@ wait_for_kvm() {
             if [[ $daemonif ]]; then
                 # We assign the output of $daemonif to a variable so that
                 # we don't spam up the test run transcript.
-                if thisres=$($daemonif); then
+                if thisres=$($daemonif 2>&1); then
                     # If it is, stop watching this VM.
                     smoketest_update_status "$vmname" "$thisres"
                     smoketest_update_status "$vmname" \
                         "Daemonizing node with $(($deadline - $(date +%s))) seconds left."
                     return 0
-                elif [[ $thisres =~ problem && $vmname =~ admin && \
-                    ! $develop_mode ]]; then
-                    smoketest_update_status "$vmname" "$thisres"
-                    smoketest_update_status "$vmname" "Transition to problem state not allowed"
-                    return 1
                 elif [[ $thisres && $lastres != $thisres ]]; then
                     smoketest_update_status "$vmname" "$thisres"
                     lastres="$thisres"
@@ -502,8 +527,19 @@ run_kvm() {
       cpu_count=4
       mem_size=4G
     fi
-    if kvm -device \? 2>&1 |grep -q ahci && [[ $(kvm -version) =~ kvm-1 ]]; then
-        local kvm_use_ahci=true
+    # Hack to pick the fastest disk caching mode.
+    # We use unsafe caching if we can on the vms because we will just
+    # rebuild the filesystems from scratch if anything goes wrong.
+    if ! [[ $drive_cache ]]; then
+        if kvm --help |grep -q 'cache.*unsafe'; then
+            drive_cache=unsafe
+        else
+            drive_cache=writeback
+        fi
+        if kvm -device \? 2>&1 |grep -q ahci && \
+            [[ $(kvm -version) =~ kvm-1 ]]; then
+            kvm_use_ahci=true
+        fi
     fi
     local vm_gen="$vmname.${kvm_generations[$vmname]}"
     # create a new log directory for us.  vm_logdir needs to be global
@@ -682,8 +718,7 @@ run_admin_node() {
     # start installing compute nodes.
     smoketest_update_status admin "Deploying admin node crowbar tasks"
     if ! run_kvm -reboot -timeout 1800 -bootc \
-        -dieif "test_admin_deploy.sh" \
-        -daemonif "check_ready admin.smoke.test" \
+        -daemonif "ping -q -c 1 -t 5 192.168.124.10" \
         "$nodename"; then
         smoketest_update_status admin "Node failed to deploy."
         return 1
@@ -691,6 +726,32 @@ run_admin_node() {
     # Once the KVM instance has launched, start watching the system log.
     screen -S "$SMOKETEST_SCREEN" -X screen -t "Syslog Capture" \
         tail -f "$LOGDIR/admin.2/ttyS0.log"
+    #Spin until we can SSH into the admin node.
+    while ! ssh root@192.168.124.10 true; do
+        sleep 5
+    done
+    # COpy over the network.json we want to use.
+    scp "$CROWBAR_DIR/test_framework/network-${network_mode}.json" \
+        "root@192.168.124.10:/opt/dell/barclamps/network/chef/data_bags/crowbar/bc-template-network.json"
+    # Copy over our post-install hooks
+    ssh root@192.168.124.10 mkdir -p /opt/dell/.hooks/admin-post-install.d
+    scp -r "$CROWBAR_DIR/test_framework/admin-post-hooks/." \
+        "root@192.168.124.10:/opt/dell/.hooks/admin-post-install.d/"
+    # Kick off the install.
+    ssh root@192.168.124.10 /opt/dell/bin/install-crowbar admin.smoke.test
+    sleep 5
+    # Wait for the screen session to terminate
+    printf "Waiting for crowbar to install: "
+    while grep -q crowbar-install < <(ssh root@192.168.124.10 screen -ls); do
+        sleep 30
+        printf "."
+    done
+    echo
+    if ! ssh root@192.168.124.10 \
+        test -f /opt/dell/crowbar_framework/.crowbar-installed-ok; then
+        smoketest_update_status admin "Install of Crowbar failed."
+        return 1
+    fi
     # Grab the latest crowbar CLI code off the admin node.
     (
         cd "$CROWBAR_DIR/testing/cli"
@@ -1031,15 +1092,6 @@ run_test() {
         exit 1
     done
 
-    # Hack to pick the fastest disk caching mode.
-    # We use unsafe caching if we can on the vms because we will just
-    # rebuild the filesystems from scratch if anything goes wrong.
-    if kvm --help |grep -q 'cache.*unsafe'; then
-        drive_cache=unsafe
-    else
-        drive_cache=writeback
-    fi
-
     mangle_ssh_config
 
     CGROUP_DIR=$(sudo -n "$(which make_cgroups.sh)" $$ crowbar-test) || \
@@ -1051,6 +1103,7 @@ run_test() {
         [[ $line =~ $screen_re ]] && screen -S "${BASH_REMATCH[1]}" -X quit || :
     done < <(screen -ls)
     local tests_to_run=()
+    local network_mode=team
     # Process our commandline arguments.
     while [[ $1 ]]; do
         case $1 in
@@ -1060,6 +1113,15 @@ run_test() {
             develop-mode) local develop_mode=true;;
             manual-deploy) local manual_deploy=true;;
             use-iso) shift; SMOKETEST_ISO="$1";;
+            single|dual|team) local network_mode="$1";;
+            bind-nic) shift;
+                [[ -d /sys/class/net/$1 ]] || \
+                    die "$1 is not a network interface!"
+                is_in "$2" "${SMOKETEST_BRIDGES[*]}" || \
+                    die "$2 is not a bridge of ours!"
+                PHYSICAL_INTERFACES+=("$1,$2")
+                shift;;
+            use-screen) unset DISPLAY;;
             scratch);;
             *)
                 if [[ -d $CROWBAR_DIR/barclamps/$1 ]]; then
@@ -1070,6 +1132,9 @@ run_test() {
         esac
         shift
     done
+    [[ -f $CROWBAR_DIR/test_framework/network-${network_mode}.json ]] || \
+        die "Cannot use network mode $network_mode, no JSON for it."
+
 
     [[ $SMOKETEST_ISO = /* ]] || SMOKETEST_ISO="$PWD/$SMOKETEST_ISO"
     [[ -f $SMOKETEST_ISO ]] || die "Cannot find $SMOKETEST_ISO to test!"

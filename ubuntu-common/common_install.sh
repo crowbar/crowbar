@@ -112,24 +112,5 @@ iface eth0 inet static
 EOF
 fi
 
-if [[ $CHOSTNAME ]]; then
-    cat > /install_system.sh <<EOF
-#!/bin/bash
-set -e
-cd /tftpboot/ubuntu_dvd/extra
-./install $CHOSTNAME
-
-rm -f /etc/rc2.d/S99install
-rm -f /etc/rc3.d/S99install
-rm -f /etc/rc5.d/S99install
-
-rm -f /install_system.sh
-
-EOF
-
-    chmod +x /install_system.sh
-    ln -s /install_system.sh /etc/rc3.d/S99install
-    ln -s /install_system.sh /etc/rc5.d/S99install
-    ln -s /install_system.sh /etc/rc2.d/S99install
-    
-fi
+mkdir -p /opt/dell/bin
+ln -s /tftpboot/ubuntu_dvd/extra/install /opt/dell/bin/install-crowbar

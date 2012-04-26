@@ -1,0 +1,10 @@
+#!/usr/bin/expect
+
+spawn ./build_sledgehammer.sh
+expect -timeout 600 {
+       -re "^.*$" { exp_continue }
+       eof {
+       	   catch wait result
+	   exit [lindex $result 3]
+       }
+}

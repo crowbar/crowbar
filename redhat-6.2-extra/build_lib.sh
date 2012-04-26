@@ -36,8 +36,6 @@ OS_REPO_POOL=""
 
 # The name of the OS iso we are using as a base.
 [[ $ISO ]] || ISO="RHEL6.2-20111117.0-Server-x86_64-DVD1.iso"
-[[ $PRIORITIES_HTTP ]] || PRIORITIES_HTTP="http://mirror.centos.org/centos/5/extras/i386/RPMS/yum-priorities-1.1.16-13.el5.centos.noarch.rpm"
-[[ $PRIORITIES_RPM ]] || PRIORITIES_RPM="yum-priorities-1.1.16-13.el5.centos.noarch.rpm"
 
 # The location of OS packages on $ISO
 find_cd_pool() ( echo "$IMAGE_DIR/Packages" )

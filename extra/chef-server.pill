@@ -18,13 +18,21 @@ Bluepill.application("chef-server") do |app|
     process.daemonize = true
   end
   app.process("chef-server") do |process|
-    process.start_command = "chef-server -c 16 -p 4000 -e production -a thin -C /etc/chef/server.rb -N -L /var/log/chef/server.log"
+    process.start_command = "chef-server -c 16 -p 4001 -e production -a thin -C /etc/chef/server.rb -N -L /var/log/chef/server.log"
     process.uid = "chef"
     process.gid = "chef"
     process.stop_grace_time = 5.seconds
     process.environment = { "HOME" => "/var/lib/chef" }
     process.stdout = process.stderr = "/var/log/chef/server.log"
     process.daemonize = true
+  end
+  app.process("chef-server-frontend") do |p|
+    p.daemonize = false
+    p.pid_file = "/var/run/chef-server-frontend.pid"
+    p.start_command = "nginx -c /etc/nginx/chef-server.conf"
+    p.stderr = "/var/log/chef-server-frontend.log"
+    p.stdout = "/var/log/chef-server-frontend.log"
+    p.stop_grace_time = 5.seconds
   end
   app.process("chef-server-webui") do |process|
     process.start_command = "chef-server-webui -p 4040 -e production -a thin -C /etc/chef/webui.rb -N -L /var/log/chef/server-webui.log"

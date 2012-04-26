@@ -33,6 +33,12 @@ BC_QUERY_STRINGS["test_deps"]="smoketest requires"
 BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 BC_QUERY_STRINGS["supercedes"]="barclamp supercedes"
 
+# By default, do not try to update the cache or the metadata.
+# These will be unset if --update-cache is passed to the build.
+ALLOW_CACHE_UPDATE=false
+ALLOW_CACHE_METADATA_UPDATE=false
+
+
 get_barclamp_info() {
     local bc yml_file line query newdeps dep d i
     local new_barclamps=()
@@ -216,6 +222,7 @@ cleanup() {
     # If we saved unadded changes, resurrect them.
     [[ $THROWAWAY_STASH ]] && git stash apply "$THROWAWAY_STASH" &>/dev/null
     # Do the same thing as above, but for the build cache instead.
+    mkdir -p "$CACHE_DIR"
     cd "$CACHE_DIR"
     if ! in_cache git diff-index --cached --quiet HEAD; then
         in_cache git commit -m "Updated by build_crowbar.sh @ $(date) for ${OS_TOKEN}"
@@ -362,6 +369,7 @@ make_chroot() {
     sudo mkdir -p "$CHROOT/$CHROOT_PKGDIR"
     sudo mkdir -p "$CHROOT/$CHROOT_GEMDIR"
     __make_chroot
+    in_chroot ln -s /proc/self/mounts /etc/mtab
 
     if [[ $ALLOW_CACHE_UPDATE = true ]]; then
         read_base_repos
@@ -448,8 +456,9 @@ make_barclamp_pkg_metadata() {
     [[ $ALLOW_CACHE_UPDATE != true && \
         $ALLOW_CACHE_METADATA_UPDATE != true ]] && return 0
     [[ -d $CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs ]] || return 0
-    [[ $force_update=true ]] || __barclamp_pkg_metadata_needs_update "$1" || \
-        return 0
+    if [[ $force_update != true ]]; then
+        __barclamp_pkg_metadata_needs_update "$1" || return 0
+    fi
     [[ $ALLOW_CACHE_METADATA_UPDATE = false ]] && \
         die "Need to update cache metadata for $1, but --no-metadata-update passed."
     debug "Updating package cache metadata for $1"
