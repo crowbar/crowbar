@@ -8,7 +8,7 @@ OS=ubuntu
 OS_VERSION=12.04
 OS_TOKEN="$OS-$OS_VERSION"
 OS_CODENAME=precise
-ISO=ubuntu-12.04-beta2-server-amd64.iso
+ISO=ubuntu-12.04-server-amd64.iso
 # uncomment to use the daily beta build, if you have it...
 #ISO=precise-server-amd64.iso
 
