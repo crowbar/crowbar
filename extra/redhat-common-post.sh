@@ -15,10 +15,14 @@ EOF
     cd "/tftpboot/$OS_TOKEN"
     ln -s ../redhat_dvd install)
 
+REPO_URL="file:///tftpboot/$OS_TOKEN/install/Server"
+[[ -d tftpboot/$OS_TOKEN/install/repodata ]] && \
+    REPO_URL="file:///tftpboot/$OS_TOKEN/install"
+
 cat >"/etc/yum.repos.d/$OS_TOKEN-Base.repo" <<EOF
 [$OS_TOKEN-Base]
 name=$OS_TOKEN Base
-baseurl=file:///tftpboot/$OS_TOKEN/install/Server
+baseurl=$REPO_URL
 gpgcheck=0
 EOF
 
