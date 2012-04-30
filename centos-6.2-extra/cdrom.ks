@@ -11,7 +11,7 @@ rootpw --iscrypted $1$H6F/NLec$Fps2Ut0zY4MjJtsa1O2yk0
 firewall --disabled
 authconfig --enableshadow --enablemd5
 selinux --disabled
-timezone --utc Europe/London
+timezone --utc
 bootloader --location=mbr --driveorder=sda
 zerombr
 ignoredisk --only-use=sda
