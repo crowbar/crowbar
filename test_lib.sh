@@ -594,7 +594,7 @@ run_kvm() {
     if [[ $pxeboot ]]; then
         kvmargs+=(-boot "order=n")
     elif [[ $driveboot ]]; then
-        kvmargs+=(-boot "order=c")
+        kvmargs+=(-boot "order=nc")
     fi
 
     if [[ $reboot = false ]]; then
