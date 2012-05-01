@@ -684,7 +684,7 @@ run_admin_node() {
         # create our admin disk image
     smoketest_update_status admin "Creating disk image"
     screen -S "$SMOKETEST_SCREEN" -X screen -t Status "$CROWBAR_DIR/test_framework/watch_Status.sh"
-    qemu-img create -f raw "$smoketest_dir/admin.disk" 16G &>/dev/null
+    qemu-img create -f raw "$smoketest_dir/admin.disk" 20G &>/dev/null
 
     # makenics populates vm_nics with the appropriate information for
     # run_kvm.  This part cannot run in a subshell, because it relies
