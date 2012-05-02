@@ -284,6 +284,9 @@
     "network": {
       "crowbar-revision": 0,
       "elements": {},
+      "element_states": {
+        "network": [ "readying", "ready", "applying" ]
+      },
       "element_order": [
         [ "network" ]
       ],
