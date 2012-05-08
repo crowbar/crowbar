@@ -88,5 +88,8 @@ knifeloop role from file /tmp/role.rb
 
 knife node run_list add "$FQDN" role["crowbar"]
 knife node run_list add "$FQDN" role["deployer-client"]
-knife node run_list add "$FQDN" role["crowbar-admin_crowbar_site"]
+knife node run_list add "$FQDN" role["$NODE_ROLE"]
+
+# at this point you can run chef-client from the command line to start
+# the crowbar bootstrapping
 
