@@ -1,7 +1,18 @@
 #! /bin/bash
 
+# NOTE: Actually running this script has not been tested!  At this stage you
+# might be best off just copy & pasting it into an interactive shell line by
+# line to have the full experience.
+# -- tserong 2011-05-14
+
 # 1. Copy all barclamps to /opt/dell/barclamps
+#    You'll want:
+#      crowbar database deployer dns glance ipmi keystone logging
+#      mysql nagios network nova nova_dashboard ntp openstack postgresql
+#      provisioner swift
 # 2. Copy extra/barclamp* to /opt/dell/bin/
+# 3. Prepend /opt/dell/bin to $PATH (else crowbar command won't be found)
+# 4. You should probably set eth0 to be static IP 192.168.124.10/24.
 
 # This is suppose to go way once the Chef dependencies are included in the
 # addon image
@@ -12,7 +23,38 @@ zypper ar -f http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk
 # install chef and its dependencies
 zypper in rubygem-chef-server rubygem-chef rabbitmq-server couchdb java-1_6_0-ibm rubygem-activesupport
 
+# patch chef to fix http://tickets.opscode.com/browse/CHEF-2005:
+# you need to apply extra/patches/data_item.rb.patch to
+# /usr/lib64/ruby/gems/1.8/gems/chef-server-api-0.10.8/app/controllers/data_item.rb
+# (we should apply this to our chef package directly)
 
+# also need these (crowbar dependencies):
+zypper in rubygem-kwalify rubygem-ruby-shadow tcpdump
+
+# couchdb needs this (it might not be present if you start from a JeOS image)
+zypper in sudo
+
+# Need this for provisioner to work:
+mkdir -p /tftpboot/discovery/pxelinux.cfg
+cat > /tftpboot/discovery/pxelinux.cfg/default <<EOF
+DEFAULT pxeboot
+TIMEOUT 20
+PROMPT 0
+LABEL pxeboot
+        KERNEL vmlinuz0
+        APPEND initrd=initrd0.img root=/sledgehammer.iso rootfstype=iso9660 rootflags=loop
+ONERROR LOCALBOOT 0
+EOF
+
+# You'll also need:
+#   /tftpboot/discovery/initrd0.img
+#   /tftpboot/discovery/vmlinuz0
+# These can be obtained from the existing ubuntu admin node
+
+
+# It is exceedinly important that 'hostname -f' actually return an FQDN!
+# if it doesn't, add an entry to /etc/hosts, e.g.:
+#    192.168.124.10 cb-admin.example.com cb-admin
 FQDN=$(hostname -f)
 # setup rabbitmq
 chkconfig rabbitmq-server on
@@ -50,7 +92,11 @@ chef-client
 
 # now set the correct domain name in /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
 
-
+# Also, create a crowbar.json somewhere (/root/crowbar.json, or
+# $DVD_PATH/extra/config/crowbar.json).  This file is from the 
+# root directory of the crowbar github repo.  Remove nagios and
+# ganglia (until we decide what to do with them), then set
+# $CROWBAR_FILE to point to this file.
 
 # generate the machine install username and password
 CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
@@ -71,6 +117,9 @@ if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
 fi
 
 /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/crowbar
+# Note you may have to do some of the following barclamps manually if you've
+# got a full openstack set installed, e.g.: nagios has to be installed before
+# keystone, postgresql has to be installed before database, etc.
 /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/*
 
 knife configure -i
@@ -84,7 +133,7 @@ run_list()
 default_attributes( "crowbar" => { "network" => {} } )
 override_attributes()
 EOF
-knifeloop role from file /tmp/role.rb
+knife role from file /tmp/role.rb
 
 knife node run_list add "$FQDN" role["crowbar"]
 knife node run_list add "$FQDN" role["deployer-client"]
@@ -93,3 +142,80 @@ knife node run_list add "$FQDN" role["$NODE_ROLE"]
 # at this point you can run chef-client from the command line to start
 # the crowbar bootstrapping
 
+chef-client
+
+# OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
+service crowbar start
+
+# what's this for?
+touch /tmp/deploying
+
+# from here, you should probably read along with the equivalent steps in
+# install-chef.sh for comparison
+
+if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
+    proposal_opts=()
+    # If your custom crowbar.json is somewhere else, probably substitute that here
+    if [[ -e $DVD_PATH/extra/config/crowbar.json ]]; then
+        proposal_opts+=(--file $DVD_PATH/extra/config/crowbar.json)
+    fi
+    proposal_opts+=(proposal create default)
+    crowbar crowbar "${proposal_opts[@]}"
+    chef-client
+    # Note; original script loops here and dies on failure
+fi
+
+# this has machine key world readable? care?
+crowbar crowbar proposal show default >/var/log/default-proposal.json
+
+# next will fail if ntp barclamp not present (or did for me...)
+crowbar crowbar proposal commit default || \
+    die "Could not commit default proposal!"
+    
+crowbar crowbar show default >/var/log/default.json
+
+crowbar_up = true
+chef-client
+
+# here we whould check indexer/expander is finished
+
+# original script has several calls to check_machine_role -- see source for
+# this, in my limited testing it wasn't necessary on SUSE, but we should still
+# do it anyway (if the role isn't present things break, apparently)
+
+# BMC support?
+
+# transition though all the states to ready.  Make sure that
+# Chef has completly finished with transition before proceeding
+# to the next.
+
+for state in "discovering" "discovered" "hardware-installing" \
+    "hardware-installed" "installing" "installed" "readying" "ready"
+do
+    while [[ -f "/tmp/chef-client.lock" ]]; do sleep 1; done
+    printf "$state: "
+    crowbar crowbar transition "$FQDN" "$state" || \
+        die "Transition to $state failed!"
+    if type -f "transition_check_$state"&>/dev/null; then
+        "transition_check_$state" || \
+            die "Sanity check for transitioning to $state failed!"
+    fi
+    # chef_or_die "Chef run for $state transition failed!"
+    chef-client
+    # check_machine_role
+done
+
+# missing check for admin node IP address, probably need to start 
+# chef-client daemon too.
+
+rm /tmp/deploying
+
+echo "Admin node deployed."
+
+# missing tests here
+
+# now, if you PXE boot a client, it "should just work".  Note that I had
+# some trouble with the sledgehammer image nfs mounting the admin node
+# (which is a rather non-obvious failure).  Restarting nfsserver on the
+# admin node seemed to fix it -- possibly the provisioner barclamp still
+# needs some work in that regard -- tserong
