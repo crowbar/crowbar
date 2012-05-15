@@ -339,6 +339,8 @@ chef_or_die "Failed to bring up Crowbar"
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /tmp/deploying
 
+post_crowbar_fixups
+
 # Add configured crowbar proposal
 if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
     proposal_opts=()
