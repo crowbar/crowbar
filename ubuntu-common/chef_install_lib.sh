@@ -46,10 +46,30 @@ bring_up_chef() {
     # increase chef-solr index field size
     perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml
 
+    # Fix ruby-gems and merb-core mismatch
+    sed -i -e "s/Gem.activate(dep)/dep.to_spec.activate/g" /usr/lib/ruby/1.8/merb-core/core_ext/kernel.rb
+
     log_to svc service chef-server restart
 }
 
 pre_crowbar_fixups() { : ; }
+
+post_crowbar_fixups() {
+    # HACKHACKHACKHACK
+    # Let me begin with that this is really crappy.  Ubuntu gem management is confusing
+    # at best or busted at worst.
+    # We have two versions of rack (one by deb and one by gem)
+    # They use each others files and break on 12.04
+    # So here comes the hack.  Currently, only thin needs the deb version and it can
+    # use most of the old one in gem with bits from the other.  Make this happen.
+    mv /usr/lib/ruby/vendor_ruby/rack.rb /usr/lib/ruby/vendor_ruby/rack-deb.rb
+    mv /usr/lib/ruby/vendor_ruby/rack /usr/lib/ruby/vendor_ruby/rack-deb
+    sed -i -e "s/\/rack\//\/rack-deb\//g" /usr/lib/ruby/vendor_ruby/thin.rb
+    # HACKHACKHACKHACK
+
+    log_to svc service chef-server restart
+    log_to svc bluepill crowbar-webserver restart
+}
 
 update_admin_node() {
     log_to apt apt-get -y upgrade
