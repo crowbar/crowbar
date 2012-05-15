@@ -23,11 +23,6 @@ zypper ar -f http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk
 # install chef and its dependencies
 zypper in rubygem-chef-server rubygem-chef rabbitmq-server couchdb java-1_6_0-ibm rubygem-activesupport
 
-# patch chef to fix http://tickets.opscode.com/browse/CHEF-2005:
-# you need to apply extra/patches/data_item.rb.patch to
-# /usr/lib64/ruby/gems/1.8/gems/chef-server-api-0.10.8/app/controllers/data_item.rb
-# (we should apply this to our chef package directly)
-
 # also need these (crowbar dependencies):
 zypper in rubygem-kwalify rubygem-ruby-shadow tcpdump
 
