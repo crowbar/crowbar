@@ -14,7 +14,7 @@
 # 3. Prepend /opt/dell/bin to $PATH (else crowbar command won't be found)
 # 4. You should probably set eth0 to be static IP 192.168.124.10/24.
 
-# This is suppose to go way once the Chef dependencies are included in the
+# This is supposed to go away once the Chef dependencies are included in the
 # addon image
 zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
 zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
@@ -48,10 +48,11 @@ EOF
 # These can be obtained from the existing ubuntu admin node
 
 
-# It is exceedinly important that 'hostname -f' actually return an FQDN!
+# It is exceedingly important that 'hostname -f' actually returns an FQDN!
 # if it doesn't, add an entry to /etc/hosts, e.g.:
 #    192.168.124.10 cb-admin.example.com cb-admin
 FQDN=$(hostname -f)
+
 # setup rabbitmq
 chkconfig rabbitmq-server on
 service rabbitmq-server start
