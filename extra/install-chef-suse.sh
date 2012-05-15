@@ -61,8 +61,8 @@ service rabbitmq-server start
 
 rabbitmqctl add_vhost /chef
 
-# FIXME Hm, do we need a secure default password?
-rabbitmqctl add_user chef testing
+rabbit_chef_password=$( dd if=/dev/urandom count=1 bs=16 2>/dev/null | base64 | tr -d / )
+rabbitmqctl add_user chef "$rabbit_chef_password"
 
 rabbitmqctl set_permissions -p /chef chef ".*" ".*" ".*"
 
@@ -71,9 +71,10 @@ chkconfig couchdb on
 service couchdb start
 
 # Update "amqp_pass" in  /etc/chef/server.rb and solr.rb
-sed -i 's/amqp_pass ".*"/amqp_pass "testing"/' /etc/chef/server.rb
-sed -i 's/amqp_pass ".*"/amqp_pass "testing"/' /etc/chef/solr.rb
+sed -i 's/amqp_pass ".*"/amqp_pass "'"$rabbit_chef_password"'"/' /etc/chef/{server,solr}.rb
 sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
+chmod o-rwx /etc/chef /etc/chef/{server,solr,webui}.rb
+
 # increase chef-solr index field size
 perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml
 
