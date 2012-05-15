@@ -22,7 +22,7 @@ zypper ar -f http://dist.suse.de/ibs/Devel:/Cloud/SLE_11_SP2/ cloud
 zypper ar -f http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk
 
 # install chef and its dependencies
-zypper in rubygem-chef-server rubygem-chef rabbitmq-server couchdb java-1_6_0-ibm rubygem-activesupport
+zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server couchdb java-1_6_0-ibm rubygem-activesupport
 
 # also need these (crowbar dependencies):
 zypper in rubygem-kwalify rubygem-ruby-shadow tcpdump
