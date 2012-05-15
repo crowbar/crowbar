@@ -69,6 +69,8 @@ pre_crowbar_fixups() {
         /usr/lib/ruby/gems/1.8/specifications/
 }
 
+post_crowbar_fixups() { : ; }
+
 update_admin_node() {
     log_to yum yum -q -y upgrade
 }
