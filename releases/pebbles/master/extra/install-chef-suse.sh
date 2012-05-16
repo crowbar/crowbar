@@ -131,10 +131,18 @@ if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
 fi
 
 /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/crowbar
-# Note you may have to do some of the following barclamps manually if you've
-# got a full openstack set installed, e.g.: nagios has to be installed before
-# keystone, postgresql has to be installed before database, etc.
-/opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/*
+
+#
+# Take care that the barclamps are installed in the right order
+# If you've got a full openstack set installed, e.g.: nagios has to be
+# installed before keystone, postgresql and mysql has to be installed
+# before database, etc.
+#
+for i in deployer dns mysql postgresql database ipmi nagios keystone \
+         glance logging network nova nova_dashboard ntp openstack \
+         provisioner swift ; do
+    /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/$i
+done
 
 knife configure -i
 
