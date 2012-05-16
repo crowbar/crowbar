@@ -14,19 +14,19 @@
 # 3. Prepend /opt/dell/bin to $PATH (else crowbar command won't be found)
 # 4. You should probably set eth0 to be static IP 192.168.124.10/24.
 
+die() { echo "$(date '+%F %T %z'): $*" >&2; res=1; exit 1; }
 
 # It is exceedingly important that 'hostname -f' actually returns an FQDN!
 # if it doesn't, add an entry to /etc/hosts, e.g.:
 #    192.168.124.10 cb-admin.example.com cb-admin
 FQDN=$(hostname -f 2> /dev/null)
 if [ $? != 0 ]; then
-    echo "Unable to resolve hostname. Exiting."
-    exit -1
+    die "Unable to resolve hostname. Exiting."
 fi
+
 DOMAIN=$(hostname -d 2> /dev/null)
 if [ $? != 0 ]; then
-    echo "Unable to resolve domain name. Exiting."
-    exit -1
+    die "Unable to resolve domain name. Exiting."
 fi
 
 # This is supposed to go away once the Chef dependencies are included in the
