@@ -10,8 +10,6 @@
         "network": [ "default" ],
         "ntp": [ "default" ],
         "dns": [ "default" ],
-        "nagios": [ "default" ],
-        "ganglia": [ "default" ],
         "logging": [ "default" ]
       },
       "realm": "Crowbar - By selecting OK are agreeing to the License Agreement",
