@@ -167,28 +167,28 @@ touch /tmp/deploying
 # from here, you should probably read along with the equivalent steps in
 # install-chef.sh for comparison
 
-if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
+if [ "$(/opt/dell/bin/crowbar crowbar proposal list)" != "default" ] ; then
     proposal_opts=()
     # If your custom crowbar.json is somewhere else, probably substitute that here
-    if [[ -e $DVD_PATH/extra/config/crowbar.json ]]; then
-        proposal_opts+=(--file $DVD_PATH/extra/config/crowbar.json)
+    if [[ -e $CROWBAR_FILE ]]; then
+        proposal_opts+=(--file $CROWBAR_FILE)
     fi
     proposal_opts+=(proposal create default)
-    crowbar crowbar "${proposal_opts[@]}"
+    /opt/dell/bin/crowbar crowbar "${proposal_opts[@]}"
     chef-client
     # Note; original script loops here and dies on failure
 fi
 
 # this has machine key world readable? care?
-crowbar crowbar proposal show default >/var/log/default-proposal.json
+/opt/dell/bin/crowbar crowbar proposal show default >/var/log/default-proposal.json
 
 # next will fail if ntp barclamp not present (or did for me...)
-crowbar crowbar proposal commit default || \
+/opt/dell/bin/crowbar crowbar proposal commit default || \
     die "Could not commit default proposal!"
     
-crowbar crowbar show default >/var/log/default.json
+/opt/dell/bin/crowbar crowbar show default >/var/log/default.json
 
-crowbar_up = true
+crowbar_up=true
 chef-client
 
 # here we whould check indexer/expander is finished
@@ -208,7 +208,7 @@ for state in "discovering" "discovered" "hardware-installing" \
 do
     while [[ -f "/tmp/chef-client.lock" ]]; do sleep 1; done
     printf "$state: "
-    crowbar crowbar transition "$FQDN" "$state" || \
+    /opt/dell/bin/crowbar crowbar transition "$FQDN" "$state" || \
         die "Transition to $state failed!"
     if type -f "transition_check_$state"&>/dev/null; then
         "transition_check_$state" || \
