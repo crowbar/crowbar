@@ -48,6 +48,8 @@ log_to() {
     local __timestamp="$(date '+%F %T %z')"
     local log_skip_re='^gem|knife$'
     shift
+    [[ -e $__log.log ]] || echo "Install run done for version: $VERSION" >> $__log.log
+    [[ -e $__log.err ]] || echo "Install run done for version: $VERSION" >> $__log.err
     printf "\n%s\n" "$__timestamp: Running $*" | \
         tee -a "$__log.err" >> "$__log.log"
     "$@" 2>> "$__log.err" >>"$__log.log" || {
@@ -99,6 +101,10 @@ check_machine_role() {
 
 # Include OS specific functionality
 . chef_install_lib.sh || die "Could not include OS specific functionality"
+
+# Set Version for all to use.
+VERSION=$(cat $DVD_PATH/dell/Version)
+echo "Installing admin with version: $VERSION"
 
 # Verify that our install bits are intact.
 if [[ ! -f $DVD_PATH/sha1_passed ]]; then
@@ -293,7 +299,6 @@ fi
 
 # Crowbar will hack up the pxeboot files appropriatly.
 # Set Version in Crowbar UI
-VERSION=$(cat $DVD_PATH/dell/Version)
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
     /opt/dell/barclamps/crowbar/crowbar_framework/config/environments/production.rb
 
