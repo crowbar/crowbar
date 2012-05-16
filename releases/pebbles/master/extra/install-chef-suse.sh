@@ -23,7 +23,11 @@ if [ $? != 0 ]; then
     echo "Unable to resolve hostname. Exiting."
     exit -1
 fi
-
+DOMAIN=$(hostname -d 2> /dev/null)
+if [ $? != 0 ]; then
+    echo "Unable to resolve domain name. Exiting."
+    exit -1
+fi
 
 # This is supposed to go away once the Chef dependencies are included in the
 # addon image
@@ -95,6 +99,12 @@ done
 chef-client
 
 # now set the correct domain name in /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
+if [ -f /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json ]; then
+    sed -i "s/^\(\s*\"domain\"\s*\:\s*\)\".*\"/\1\"$DOMAIN\"/" \
+        /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
+else
+    echo "/opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json doesn't exist"
+fi
 
 # Also, create a crowbar.json somewhere (/root/crowbar.json, or
 # $DVD_PATH/extra/config/crowbar.json).  This file is from the 
