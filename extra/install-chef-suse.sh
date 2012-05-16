@@ -14,6 +14,21 @@
 # 3. Prepend /opt/dell/bin to $PATH (else crowbar command won't be found)
 # 4. You should probably set eth0 to be static IP 192.168.124.10/24.
 
+die() { echo "$(date '+%F %T %z'): $*" >&2; res=1; exit 1; }
+
+# It is exceedingly important that 'hostname -f' actually returns an FQDN!
+# if it doesn't, add an entry to /etc/hosts, e.g.:
+#    192.168.124.10 cb-admin.example.com cb-admin
+FQDN=$(hostname -f 2> /dev/null)
+if [ $? != 0 ]; then
+    die "Unable to resolve hostname. Exiting."
+fi
+
+DOMAIN=$(hostname -d 2> /dev/null)
+if [ $? != 0 ]; then
+    die "Unable to resolve domain name. Exiting."
+fi
+
 # This is supposed to go away once the Chef dependencies are included in the
 # add-on image.  Note that SP1 is required for rubygem-haml at least, but
 # the new maintenance model requires SP1 repos alongside SP2 anyway.
@@ -49,11 +64,6 @@ EOF
 #   /tftpboot/discovery/vmlinuz0
 # These can be obtained from the existing ubuntu admin node
 
-
-# It is exceedingly important that 'hostname -f' actually returns an FQDN!
-# if it doesn't, add an entry to /etc/hosts, e.g.:
-#    192.168.124.10 cb-admin.example.com cb-admin
-FQDN=$(hostname -f)
 
 # setup rabbitmq
 chkconfig rabbitmq-server on
@@ -95,6 +105,12 @@ EOF
 chef-client
 
 # now set the correct domain name in /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
+if [ -f /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json ]; then
+    sed -i "s/^\(\s*\"domain\"\s*\:\s*\)\".*\"/\1\"$DOMAIN\"/" \
+        /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
+else
+    echo "/opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json doesn't exist"
+fi
 
 # Also, create a crowbar.json somewhere (/root/crowbar.json, or
 # $DVD_PATH/extra/config/crowbar.json).  This file is from the 
