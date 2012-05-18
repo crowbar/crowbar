@@ -176,10 +176,24 @@ chef-client
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 service crowbar start
 
-# what's this for?
+# Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /tmp/deploying
+# This works because
+#
+#   crowbar_framework/app/models/provisioner_service.rb
+#   crowbar_framework/app/models/service_object.rb
+#
+# both invoke
+#
+#   /opt/dell/bin/single_chef_client.sh (from barclamps/crowbar/bin)
+#
+# which invokes
+#
+#   /opt/dell/bin/looper_chef_client.sh
+#
+# which exits immediately if /tmp/deploying exists.
 
-# from here, you should probably read along with the equivalent steps in
+# From here, you should probably read along with the equivalent steps in
 # install-chef.sh for comparison
 
 if [ "$(/opt/dell/bin/crowbar crowbar proposal list)" != "default" ] ; then
@@ -237,6 +251,7 @@ done
 # missing check for admin node IP address, probably need to start 
 # chef-client daemon too.
 
+# OK, let looper_chef_client run normally now.
 rm /tmp/deploying
 
 echo "Admin node deployed."
