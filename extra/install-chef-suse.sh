@@ -42,9 +42,6 @@ zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-serve
 # also need these (crowbar dependencies):
 zypper in rubygem-kwalify rubygem-ruby-shadow tcpdump
 
-# couchdb needs this (it might not be present if you start from a JeOS image)
-zypper in sudo
-
 # Need this for provisioner to work:
 mkdir -p /tftpboot/discovery/pxelinux.cfg
 cat > /tftpboot/discovery/pxelinux.cfg/default <<EOF
