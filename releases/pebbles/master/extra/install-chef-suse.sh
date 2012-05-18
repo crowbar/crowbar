@@ -95,7 +95,12 @@ for service in $services; do
     service chef-${service} start
 done
 
-#initial chef-client run
+# Initial chef-client run - expect this to cause warnings:
+#
+#   WARN: Can not find config file: /etc/chef/client.rb, using defaults.
+#   WARN: No such file or directory - /etc/chef/client.rb
+# [...]
+#   WARN: Node crowbar-admin-sles.crowbar.site has an empty run list.
 chef-client
 
 # now set the correct domain name in /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
