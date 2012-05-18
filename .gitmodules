@@ -55,3 +55,9 @@
 [submodule "barclamps/keystone"]
 	path = barclamps/keystone
 	url = http://github.com/dellcloudedge/barclamp-keystone.git
+[submodule "barclamps/database"]
+	path = barclamps/database
+	url = https://github.com/SUSE-Cloud/barclamp-database
+[submodule "barclamps/postgresql"]
+	path = barclamps/postgresql
+	url = https://github.com/SUSE-Cloud/barclamp-postgresql
