@@ -1,6 +1,6 @@
 --- /usr/lib/ruby/vendor_ruby/chef/provider/package/rubygems.rb	2012-01-17 16:19:36.000000000 -0600
 +++ rubygems.rb	2012-03-17 01:32:16.000000000 -0500
-@@ -332,13 +332,13 @@
+@@ -332,10 +332,10 @@
  
          def initialize(new_resource, run_context=nil)
            super
@@ -13,9 +13,6 @@
              end
 -            @gem_env = AlternateGemEnvironment.new(new_resource.gem_binary)
 +            @gem_env = AlternateGemEnvironment.new(new_resource.gem_binary || "gem")
-           else
-             @gem_env = CurrentGemEnvironment.new
-           end
 @@ -396,22 +396,19 @@
          # 2. shell out to `gem install` when a String of options is given
          # 3. use gems API with options if a hash of options is given
