@@ -1,6 +1,6 @@
 --- /usr/lib/ruby/vendor_ruby/chef/provider/package/rubygems.rb	2012-01-17 16:19:36.000000000 -0600
 +++ rubygems.rb	2012-03-17 01:32:16.000000000 -0500
-@@ -332,10 +332,10 @@
+@@ -332,13 +332,13 @@
  
          def initialize(new_resource, run_context=nil)
            super
@@ -13,6 +13,9 @@
              end
 -            @gem_env = AlternateGemEnvironment.new(new_resource.gem_binary)
 +            @gem_env = AlternateGemEnvironment.new(new_resource.gem_binary || "gem")
+             Chef::Log.debug("#{@new_resource} using gem '#{new_resource.gem_binary}'")
+           elsif is_omnibus? && (!@new_resource.instance_of? Chef::Resource::ChefGem)
+             # Opscode Omnibus - The ruby that ships inside omnibus is only used for Chef
 @@ -396,22 +396,19 @@
          # 2. shell out to `gem install` when a String of options is given
          # 3. use gems API with options if a hash of options is given
