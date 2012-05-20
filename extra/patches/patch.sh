@@ -3,7 +3,6 @@
 # function the way we expect.
 patches=(
     'ohai/mixin/command.rb' # OHAI-330
-    'chef/mixin/command/unix.rb' # CHEF-2916
     'chef-server-ap*/app/controllers/data_item.rb' # CHEF-2005
     'chef/run_list.rb' # Always return run_lists sanely.
     'ohai-0.6.6/lib/ohai/plugins/linux/platform.rb'
