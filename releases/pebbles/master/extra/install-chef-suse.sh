@@ -71,7 +71,7 @@ service rabbitmq-server start
 
 rabbitmqctl add_vhost /chef
 
-rabbit_chef_password=$( dd if=/dev/random count=1 bs=16 2>/dev/null | base64 | tr -d / )
+rabbit_chef_password=$( dd if=/dev/urandom count=1 bs=16 2>/dev/null | base64 | tr -d / )
 rabbitmqctl add_user chef "$rabbit_chef_password"
 
 rabbitmqctl set_permissions -p /chef chef ".*" ".*" ".*"
