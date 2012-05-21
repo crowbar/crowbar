@@ -14,7 +14,6 @@
 #      mysql nagios network nova nova_dashboard ntp openstack postgresql
 #      provisioner swift
 # 2. Copy extra/barclamp* to /opt/dell/bin/
-# 3. Prepend /opt/dell/bin to $PATH (else crowbar command won't be found)
 # 4. You should probably set eth0 to be static IP 192.168.124.10/24.
 
 die() { echo "$(date '+%F %T %z'): $*" >&2; res=1; exit 1; }
@@ -35,6 +34,8 @@ fi
 if [ -z "$DVD_PATH" ]; then
     die "You must set \$DVD_PATH to something like /tftpboot/sles_dvd."
 fi
+
+CROWBAR=/opt/dell/bin/crowbar
 
 if [ -n "$CROWBAR_TESTING" ]; then
     # This is supposed to go away once the Chef dependencies are included in the
@@ -211,26 +212,26 @@ touch /tmp/deploying
 # From here, you should probably read along with the equivalent steps in
 # install-chef.sh for comparison
 
-if [ "$(/opt/dell/bin/crowbar crowbar proposal list)" != "default" ] ; then
+if [ "$($CROWBAR crowbar proposal list)" != "default" ] ; then
     proposal_opts=()
     # If your custom crowbar.json is somewhere else, probably substitute that here
     if [[ -e $CROWBAR_FILE ]]; then
         proposal_opts+=(--file $CROWBAR_FILE)
     fi
     proposal_opts+=(proposal create default)
-    /opt/dell/bin/crowbar crowbar "${proposal_opts[@]}"
+    $CROWBAR crowbar "${proposal_opts[@]}"
     chef-client
     # Note; original script loops here and dies on failure
 fi
 
 # this has machine key world readable? care?
-/opt/dell/bin/crowbar crowbar proposal show default >/var/log/default-proposal.json
+$CROWBAR crowbar proposal show default >/var/log/default-proposal.json
 
 # next will fail if ntp barclamp not present (or did for me...)
-/opt/dell/bin/crowbar crowbar proposal commit default || \
+$CROWBAR crowbar proposal commit default || \
     die "Could not commit default proposal!"
     
-/opt/dell/bin/crowbar crowbar show default >/var/log/default.json
+$CROWBAR crowbar show default >/var/log/default.json
 
 crowbar_up=true
 chef-client
@@ -252,7 +253,7 @@ for state in "discovering" "discovered" "hardware-installing" \
 do
     while [[ -f "/tmp/chef-client.lock" ]]; do sleep 1; done
     printf "$state: "
-    /opt/dell/bin/crowbar crowbar transition "$FQDN" "$state" || \
+    $CROWBAR crowbar transition "$FQDN" "$state" || \
         die "Transition to $state failed!"
     if type -f "transition_check_$state"&>/dev/null; then
         "transition_check_$state" || \
