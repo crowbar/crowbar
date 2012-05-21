@@ -15,6 +15,9 @@
 #      provisioner swift
 # 2. Copy extra/barclamp* to /opt/dell/bin/
 # 4. You should probably set eth0 to be static IP 192.168.124.10/24.
+# 5. rsync the Devel:Cloud, SLES-11-SP2-LATEST, SLE-11-SP2-SDK-LATEST,
+#    and possibly other repos into locations under /tftpboot -
+#    see https://github.com/SUSE/cloud/wiki/Crowbar for details.
 
 die() { echo "$(date '+%F %T %z'): $*" >&2; res=1; exit 1; }
 
@@ -36,6 +39,17 @@ if [ -z "$DVD_PATH" ]; then
 fi
 
 CROWBAR=/opt/dell/bin/crowbar
+
+for repo in suse-11.2/install repos/{sdk,Cloud}; do
+    repo=/tftpboot/$repo
+    if [ "$( ls $repo 2>/dev/null | wc -l )" = 0 ]; then
+        if [ -n "$CROWBAR_TESTING" ]; then
+            die "$repo has not been set up yet; please see https://github.com/SUSE/cloud/wiki/Crowbar"
+        else
+            die "$repo has not been set up yet; please check you didn't miss a step in the installation guide."
+        fi
+    fi
+done
 
 if [ -n "$CROWBAR_TESTING" ]; then
     # This is supposed to go away once the Chef dependencies are included in the
