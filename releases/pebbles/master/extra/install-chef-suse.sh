@@ -88,7 +88,7 @@ chmod o-rwx /etc/chef /etc/chef/{server,solr,webui}.rb
 # increase chef-solr index field size
 perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml
 
-services='server server-webui solr expander'
+services='solr expander server server-webui'
 for service in $services; do
     chkconfig chef-${service} on
 done
