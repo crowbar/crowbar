@@ -1,18 +1,23 @@
 #! /bin/bash
 
-# NOTE: Actually running this script has not been tested!  At this stage you
-# might be best off just copy & pasting it into an interactive shell line by
-# line to have the full experience.
-# -- tserong 2011-05-14
-
+# This script is supposed to be run after being installed via the
+# crowbar rpm from the SUSE Cloud ISO.  In that context, it is
+# expected that all other required repositories (SP2, Updates, etc.)
+# are already set up, and a lot of the required files will already be
+# in the right place.  However if you want to test setup on a vanilla
+# SLES system, you can follow the manual steps below:
+#
+# 0. export CROWBAR_TESTING=true
 # 1. Copy all barclamps to /opt/dell/barclamps
 #    You'll want:
 #      crowbar database deployer dns glance ipmi keystone logging
 #      mysql nagios network nova nova_dashboard ntp openstack postgresql
 #      provisioner swift
 # 2. Copy extra/barclamp* to /opt/dell/bin/
-# 3. Prepend /opt/dell/bin to $PATH (else crowbar command won't be found)
 # 4. You should probably set eth0 to be static IP 192.168.124.10/24.
+# 5. rsync the Devel:Cloud, SLES-11-SP2-LATEST, SLE-11-SP2-SDK-LATEST,
+#    and possibly other repos into locations under /tftpboot -
+#    see https://github.com/SUSE/cloud/wiki/Crowbar for details.
 
 die() { echo "$(date '+%F %T %z'): $*" >&2; res=1; exit 1; }
 
@@ -29,27 +34,44 @@ if [ $? != 0 ]; then
     die "Unable to resolve domain name. Exiting."
 fi
 
-# This is supposed to go away once the Chef dependencies are included in the
-# add-on image.  Note that SP1 is required for rubygem-haml at least, but
-# the new maintenance model requires SP1 repos alongside SP2 anyway.
-zypper ar -f http://dist.suse.de/install/SLP/SLES-11-SP2-LATEST/x86_64/DVD1 sp2
-zypper ar -f http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk-sp2
-zypper ar -f http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-LATEST/x86_64/DVD1/ sdk-sp2
-zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
-zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
-zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
-zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
-zypper ar -f http://dist.suse.de/ibs/Devel:/Cloud/SLE_11_SP2/ cloud
+if [ -z "$DVD_PATH" ]; then
+    die "You must set \$DVD_PATH to something like /tftpboot/sles_dvd."
+fi
 
-# install chef and its dependencies
-zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server couchdb java-1_6_0-ibm rubygem-activesupport
+CROWBAR=/opt/dell/bin/crowbar
 
-# also need these (crowbar dependencies):
-zypper in rubygem-kwalify rubygem-ruby-shadow tcpdump
+for repo in suse-11.2/install repos/Cloud; do
+    repo=/tftpboot/$repo
+    if [ "$( ls $repo 2>/dev/null | wc -l )" = 0 ]; then
+        if [ -n "$CROWBAR_TESTING" ]; then
+            die "$repo has not been set up yet; please see https://github.com/SUSE/cloud/wiki/Crowbar"
+        else
+            die "$repo has not been set up yet; please check you didn't miss a step in the installation guide."
+        fi
+    fi
+done
 
-# Need this for provisioner to work:
-mkdir -p /tftpboot/discovery/pxelinux.cfg
-cat > /tftpboot/discovery/pxelinux.cfg/default <<EOF
+if [ -n "$CROWBAR_TESTING" ]; then
+    # This is supposed to go away once the Chef dependencies are included in the
+    # add-on image.  Note that SP1 is required for rubygem-haml at least, but
+    # the new maintenance model requires SP1 repos alongside SP2 anyway.
+    zypper ar    http://dist.suse.de/install/SLP/SLES-11-SP2-GM/x86_64/DVD1 sp2
+    zypper ar    http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk-sp2
+    zypper ar    http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
+    zypper ar    http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
+    zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
+    zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
+    zypper ar -f http://dist.suse.de/ibs/Devel:/Cloud/SLE_11_SP2/ cloud
+
+    # install chef and its dependencies
+    zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server couchdb java-1_6_0-ibm rubygem-activesupport
+
+    # also need these (crowbar dependencies):
+    zypper in rubygem-kwalify rubygem-ruby-shadow tcpdump
+
+    # Need this for provisioner to work:
+    mkdir -p /tftpboot/discovery/pxelinux.cfg
+    cat > /tftpboot/discovery/pxelinux.cfg/default <<EOF
 DEFAULT pxeboot
 TIMEOUT 20
 PROMPT 0
@@ -59,10 +81,12 @@ LABEL pxeboot
 ONERROR LOCALBOOT 0
 EOF
 
-# You'll also need:
-#   /tftpboot/discovery/initrd0.img
-#   /tftpboot/discovery/vmlinuz0
-# These can be obtained from the existing ubuntu admin node
+    # You'll also need:
+    #   /tftpboot/discovery/initrd0.img
+    #   /tftpboot/discovery/vmlinuz0
+    # These can be obtained from a sleshammer image or from an existing
+    # ubuntu admin node.
+fi
 
 
 # setup rabbitmq
@@ -118,14 +142,19 @@ fi
 # ganglia (until we decide what to do with them), then set
 # $CROWBAR_FILE to point to this file.
 
-# generate the machine install username and password
-CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
+# Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
+#CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
 if [[ -e $DVD_PATH/extra/config/crowbar.json ]]; then
-  CROWBAR_FILE="$DVD_PATH/extra/config/crowbar.json"
+    CROWBAR_FILE="$DVD_PATH/extra/config/crowbar.json"
+else
+    die "Couldn't find $CROWBAR_FILE; is your \$DVD_PATH set correctly?"
 fi
+
 mkdir -p /opt/dell/crowbar_framework
 CROWBAR_REALM=$(/opt/dell/barclamps/provisioner/updates/parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
 CROWBAR_REALM=${CROWBAR_REALM##*=}
+
+# Generate the machine install username and password.
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
         (read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
@@ -199,26 +228,38 @@ touch /tmp/deploying
 # From here, you should probably read along with the equivalent steps in
 # install-chef.sh for comparison
 
-if [ "$(/opt/dell/bin/crowbar crowbar proposal list)" != "default" ] ; then
+if [ "$($CROWBAR crowbar proposal list)" != "default" ] ; then
     proposal_opts=()
     # If your custom crowbar.json is somewhere else, probably substitute that here
     if [[ -e $CROWBAR_FILE ]]; then
         proposal_opts+=(--file $CROWBAR_FILE)
     fi
     proposal_opts+=(proposal create default)
-    /opt/dell/bin/crowbar crowbar "${proposal_opts[@]}"
-    chef-client
-    # Note; original script loops here and dies on failure
+
+    # Sometimes proposal creation fails if Chef and Crowbar are not quite
+    # fully prepared -- this can happen due to solr not having everything
+    # fully indexed yet.  So we don't want to just fail immediatly if
+    # we fail to create a proposal -- instead, we will kick Chef, sleep a bit,
+    # and try again up to 5 times before bailing out.
+    for ((x=1; x<6; x++)); do
+        $CROWBAR crowbar "${proposal_opts[@]}" && { proposal_created=true; break; }
+        echo "Proposal create failed, pass $x.  Will kick Chef and try again."
+        chef-client
+        sleep 1
+    done
+    if [[ ! $proposal_created ]]; then
+        die "Could not create default proposal"
+    fi
 fi
 
 # this has machine key world readable? care?
-/opt/dell/bin/crowbar crowbar proposal show default >/var/log/default-proposal.json
+$CROWBAR crowbar proposal show default >/var/log/default-proposal.json
 
 # next will fail if ntp barclamp not present (or did for me...)
-/opt/dell/bin/crowbar crowbar proposal commit default || \
+$CROWBAR crowbar proposal commit default || \
     die "Could not commit default proposal!"
     
-/opt/dell/bin/crowbar crowbar show default >/var/log/default.json
+$CROWBAR crowbar show default >/var/log/default.json
 
 crowbar_up=true
 chef-client
@@ -240,7 +281,7 @@ for state in "discovering" "discovered" "hardware-installing" \
 do
     while [[ -f "/tmp/chef-client.lock" ]]; do sleep 1; done
     printf "$state: "
-    /opt/dell/bin/crowbar crowbar transition "$FQDN" "$state" || \
+    $CROWBAR crowbar transition "$FQDN" "$state" || \
         die "Transition to $state failed!"
     if type -f "transition_check_$state"&>/dev/null; then
         "transition_check_$state" || \
