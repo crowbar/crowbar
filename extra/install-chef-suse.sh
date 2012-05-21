@@ -1,10 +1,13 @@
 #! /bin/bash
 
-# NOTE: Actually running this script has not been tested!  At this stage you
-# might be best off just copy & pasting it into an interactive shell line by
-# line to have the full experience.
-# -- tserong 2011-05-14
-
+# This script is supposed to be run after being installed via the
+# crowbar rpm from the SUSE Cloud ISO.  In that context, it is
+# expected that all other required repositories (SP2, Updates, etc.)
+# are already set up, and a lot of the required files will already be
+# in the right place.  However if you want to test setup on a vanilla
+# SLES system, you can follow the manual steps below:
+#
+# 0. export CROWBAR_TESTING=true
 # 1. Copy all barclamps to /opt/dell/barclamps
 #    You'll want:
 #      crowbar database deployer dns glance ipmi keystone logging
@@ -29,27 +32,32 @@ if [ $? != 0 ]; then
     die "Unable to resolve domain name. Exiting."
 fi
 
-# This is supposed to go away once the Chef dependencies are included in the
-# add-on image.  Note that SP1 is required for rubygem-haml at least, but
-# the new maintenance model requires SP1 repos alongside SP2 anyway.
-zypper ar -f http://dist.suse.de/install/SLP/SLES-11-SP2-LATEST/x86_64/DVD1 sp2
-zypper ar -f http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk-sp2
-zypper ar -f http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-LATEST/x86_64/DVD1/ sdk-sp2
-zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
-zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
-zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
-zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
-zypper ar -f http://dist.suse.de/ibs/Devel:/Cloud/SLE_11_SP2/ cloud
+if [ -z "$DVD_PATH" ]; then
+    die "You must set \$DVD_PATH to something like /tftpboot/sles_dvd."
+fi
 
-# install chef and its dependencies
-zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server couchdb java-1_6_0-ibm rubygem-activesupport
+if [ -n "$CROWBAR_TESTING" ]; then
+    # This is supposed to go away once the Chef dependencies are included in the
+    # add-on image.  Note that SP1 is required for rubygem-haml at least, but
+    # the new maintenance model requires SP1 repos alongside SP2 anyway.
+    zypper ar -f http://dist.suse.de/install/SLP/SLES-11-SP2-LATEST/x86_64/DVD1 sp2
+    zypper ar -f http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk-sp2
+    zypper ar -f http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-LATEST/x86_64/DVD1/ sdk-sp2
+    zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
+    zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
+    zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
+    zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
+    zypper ar -f http://dist.suse.de/ibs/Devel:/Cloud/SLE_11_SP2/ cloud
 
-# also need these (crowbar dependencies):
-zypper in rubygem-kwalify rubygem-ruby-shadow tcpdump
+    # install chef and its dependencies
+    zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server couchdb java-1_6_0-ibm rubygem-activesupport
 
-# Need this for provisioner to work:
-mkdir -p /tftpboot/discovery/pxelinux.cfg
-cat > /tftpboot/discovery/pxelinux.cfg/default <<EOF
+    # also need these (crowbar dependencies):
+    zypper in rubygem-kwalify rubygem-ruby-shadow tcpdump
+
+    # Need this for provisioner to work:
+    mkdir -p /tftpboot/discovery/pxelinux.cfg
+    cat > /tftpboot/discovery/pxelinux.cfg/default <<EOF
 DEFAULT pxeboot
 TIMEOUT 20
 PROMPT 0
@@ -59,10 +67,12 @@ LABEL pxeboot
 ONERROR LOCALBOOT 0
 EOF
 
-# You'll also need:
-#   /tftpboot/discovery/initrd0.img
-#   /tftpboot/discovery/vmlinuz0
-# These can be obtained from the existing ubuntu admin node
+    # You'll also need:
+    #   /tftpboot/discovery/initrd0.img
+    #   /tftpboot/discovery/vmlinuz0
+    # These can be obtained from a sleshammer image or from an existing
+    # ubuntu admin node.
+fi
 
 
 # setup rabbitmq
@@ -119,14 +129,19 @@ fi
 # ganglia (until we decide what to do with them), then set
 # $CROWBAR_FILE to point to this file.
 
-# generate the machine install username and password
-CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
+# Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
+#CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
 if [[ -e $DVD_PATH/extra/config/crowbar.json ]]; then
-  CROWBAR_FILE="$DVD_PATH/extra/config/crowbar.json"
+    CROWBAR_FILE="$DVD_PATH/extra/config/crowbar.json"
+else
+    die "Couldn't find $CROWBAR_FILE; is your \$DVD_PATH set correctly?"
 fi
+
 mkdir -p /opt/dell/crowbar_framework
 CROWBAR_REALM=$(/opt/dell/barclamps/provisioner/updates/parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
 CROWBAR_REALM=${CROWBAR_REALM##*=}
+
+# Generate the machine install username and password.
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
     dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
         (read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
