@@ -300,14 +300,13 @@ done
 # OK, let looper_chef_client run normally now.
 rm /tmp/deploying
 
-echo "Admin node deployed."
+cat <<EOF
+Admin node deployed.
 
-# missing tests here
+You can now visit the Crowbar web UI on http://$IP:3000/
+and the Chef web UI on http://$IP:4040/
 
-# now, if you PXE boot a client, it "should just work".  Note that I had
-# some trouble with the sledgehammer image nfs mounting the admin node
-# (which is a rather non-obvious failure).  Restarting nfsserver on the
-# admin node seemed to fix it -- possibly the provisioner barclamp still
-# needs some work in that regard -- tserong
+You should also now be able to PXE-boot a client.
+EOF
 
 success=hooray
