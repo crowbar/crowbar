@@ -20,7 +20,7 @@ ulimit -Sn unlimited
 declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
 declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
-declare -A BC_SUPERCEDES
+declare -A BC_SUPERCEDES BC_SRC_PKGS
 
 # Build OS independent query strings.
 BC_QUERY_STRINGS["deps"]="barclamp requires"
@@ -64,6 +64,8 @@ get_barclamp_info() {
                         BC_GROUPS["$line"]+="$bc ";;
                     pkgs|os_pkgs) is_in "$line" ${BC_PKGS["$bc"]} || \
                         BC_PKGS["$bc"]+="$line ";;
+                    src_pkgs) is_in "$line" ${BC_SRC_PKGS["$bc"]} || \
+                        BC_SRC_PKGS["$bc"]+="$line ";;
                     extra_files) BC_EXTRA_FILES["$bc"]+="$line\n";;
                     os_support) BC_OS_SUPPORT["$bc"]+="$line ";;
                     gems) BC_GEMS["$bc"]+="$line ";;
@@ -476,6 +478,18 @@ install_build_packages() {
     chroot_install ${BC_BUILD_PKGS["$1"]}
 }
 
+update_barclamp_src_pkg_cache() {
+    [[ ${BC_SRC_PKGS["$1"]} ]] || return 0
+    local CHROOT_PKGDIR="tmp/$1"
+    in_chroot mkdir -p "/$CHROOT_PKGDIR"
+    chroot_fetch_source ${BC_SRC_PKGS["$1"]}
+    local p
+    for p in "$CHROOT/$CHROOT_PKGDIR/"*; do
+        [[ -f $p ]] || continue
+        cache_add "$p" "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/${p##*/}"
+    done
+}
+
 # Update the package cache for a barclamp.
 update_barclamp_pkg_cache() {
     # $1 = barclamp we are working with
@@ -509,6 +523,7 @@ update_barclamp_pkg_cache() {
         cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
     local force_update=true
+    update_barclamp_src_pkg_cache "$1"
     make_barclamp_pkg_metadata "$1"
 }
 
