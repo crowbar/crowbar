@@ -62,7 +62,7 @@ if [ $? != 0 ]; then
 fi
 
 if [ -z "$DVD_PATH" ]; then
-    die "You must set \$DVD_PATH to something like /tftpboot/sles_dvd."
+    die "You must set \$DVD_PATH to a directory containing crowbar.json; typically something like: /srv/tftpboot/sles_dvd"
 fi
 
 CROWBAR=/opt/dell/bin/crowbar
@@ -168,12 +168,6 @@ if [ -f /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json ]; t
 else
     echo "/opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json doesn't exist"
 fi
-
-# Also, create a crowbar.json somewhere (/root/crowbar.json, or
-# $DVD_PATH/extra/config/crowbar.json).  This file is from the 
-# root directory of the crowbar github repo.  Remove nagios and
-# ganglia (until we decide what to do with them), then set
-# $CROWBAR_FILE to point to this file.
 
 # Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
 #CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
