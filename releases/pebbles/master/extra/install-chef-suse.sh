@@ -55,11 +55,10 @@ if [ -n "$CROWBAR_TESTING" ]; then
     # This is supposed to go away once the Chef dependencies are included in the
     # add-on image.  Note that SP1 is required for rubygem-haml at least, but
     # the new maintenance model requires SP1 repos alongside SP2 anyway.
-    zypper ar -f http://dist.suse.de/install/SLP/SLES-11-SP2-LATEST/x86_64/DVD1 sp2
-    zypper ar -f http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk-sp2
-    zypper ar -f http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-LATEST/x86_64/DVD1/ sdk-sp2
-    zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
-    zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
+    zypper ar    http://dist.suse.de/install/SLP/SLES-11-SP2-GM/x86_64/DVD1 sp2
+    zypper ar    http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk-sp2
+    zypper ar    http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
+    zypper ar    http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
     zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
     zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
     zypper ar -f http://dist.suse.de/ibs/Devel:/Cloud/SLE_11_SP2/ cloud
