@@ -312,8 +312,18 @@ do
     # check_machine_role
 done
 
-# missing check for admin node IP address, probably need to start 
-# chef-client daemon too.
+# OK, let looper_chef_client run normally now.
+rm /tmp/deploying
+
+# Need chef-client daemon now
+ensure_service_running chef-client
+
+# Spit out a warning message if we managed to not get an IP address
+IPSTR=$($CROWBAR network show default | /opt/dell/barclamps/provisioner/updates/parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
+IP=${IPSTR##*=}
+ip addr | grep -q $IP || {
+    die "eth0 not configured, but should have been."
+}
 
 # Run tests -- currently the host will run this.
 # 2012-05-24: test is failing, so only run if CROWBAR_RUN_TESTS=true
@@ -325,9 +335,6 @@ fi
 
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 
-# OK, let looper_chef_client run normally now.
-rm /tmp/deploying
-
 cat <<EOF
 Admin node deployed.
 
@@ -335,6 +342,10 @@ You can now visit the Crowbar web UI on http://$IP:3000/
 and the Chef web UI on http://$IP:4040/
 
 You should also now be able to PXE-boot a client.
+
+Note that to run the crowbar CLI tool, you will need to log out
+and log back in again for the correct environment variables to
+be set up.
 EOF
 
 run_succeeded=hooray
