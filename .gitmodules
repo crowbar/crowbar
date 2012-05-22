@@ -43,9 +43,6 @@
 [submodule "barclamps/mysql"]
 	path = barclamps/mysql
 	url = http://github.com/dellcloudedge/barclamp-mysql.git
-[submodule "barclamps/kong"]
-        path = barclamps/kong
-        url = http://github.com/dellcloudedge/barclamp-kong.git
 [submodule "barclamps/nova_dashboard"]
         path = barclamps/nova_dashboard
         url = http://github.com/dellcloudedge/barclamp-nova_dashboard.git

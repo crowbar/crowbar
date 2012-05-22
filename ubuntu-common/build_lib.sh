@@ -51,6 +51,14 @@ chroot_fetch() {
     in_chroot /usr/bin/apt-get -y --force-yes \
         --allow-unauthenticated --download-only upgrade
 }
+chroot_fetch_source() {
+    [[ $1 ]] || return 0
+    local p
+    for p in "$@"; do
+        in_chroot /bin/bash -c "cd /$CHROOT_PKGDIR; /usr/bin/apt-get -y --force-yes --allow-unauthenticated --download-only source \"$p\""
+    done
+    in_chroot /bin/bash -c "cd /$CHROOT_PKGDIR; dpkg-scansources . 2>/dev/null |gzip -9 >Sources.gz"
+}
 
 # Add repositories to the local chroot environment.
 add_repos() {
@@ -116,6 +124,7 @@ __make_barclamp_pkg_metadata() {
     sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
     if [[ $CURRENT_CACHE_BRANCH ]]; then
         in_cache git add "barclamps/$1/$OS_TOKEN/pkgs/Packages.gz"
+        in_cache git add "barclamps/$1/$OS_TOKEN/pkgs/Sources.gz"
     fi
 }
 
