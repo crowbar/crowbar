@@ -16,15 +16,15 @@ for p in "${patches[@]}"; do
         echo "Cannot find file to patch for $p, will skip."
         continue
     }
-    patch="$PWD/${f##*/}.patch"
-    [[ -f $patch ]] || {
-        echo "No patch file for $f, will skip."
-        continue
-    }
-    [[ -f $f.crowbar-backup ]] && continue
-    cp "$f" "$f.crowbar-backup"
-    (cd "${f%/*}"; patch  <"$patch") && continue
-    echo "Patch $patch did not cleanly apply to $f"
-    echo "Assuming things went horribly wrong."
-    exit 1
+    for patch in "$PWD/${f##*/}"*".patch"; do
+        [[ -f $patch ]] || {
+            echo "No patch file for $f, will skip."
+            continue 2
+        }
+        [[ -f $f.crowbar-backup ]] && continue 2
+        cp "$f" "$f.crowbar-backup"
+        (cd "${f%/*}"; patch <"$patch") && continue 2
+        mv "$f.crowbar-backup" "$f"
+        echo "Patch $patch did not cleanly apply to $f, skipping it."
+    done
 done
