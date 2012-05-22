@@ -314,6 +314,11 @@ done
 # missing check for admin node IP address, probably need to start 
 # chef-client daemon too.
 
+# Run tests -- currently the host will run this.
+/opt/dell/bin/barclamp_test.rb -t || \
+    die "Crowbar validation has errors! Please check the logs and correct."
+touch /opt/dell/crowbar_framework/.crowbar-installed-ok
+
 # OK, let looper_chef_client run normally now.
 rm /tmp/deploying
 
