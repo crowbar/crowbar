@@ -110,7 +110,7 @@ sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "pass
 chmod o-rwx /etc/chef /etc/chef/{server,solr,webui}.rb
 
 # increase chef-solr index field size
-perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml
+perl -i -pe 's{<maxFieldLength>.*</maxFieldLength>}{<maxFieldLength>200000</maxFieldLength>}' /var/lib/chef/solr/conf/solrconfig.xml
 
 services='solr expander server server-webui'
 for service in $services; do
