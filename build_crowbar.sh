@@ -184,6 +184,7 @@ fi
 # Build OS dependent query strings
 # These have to be created after we know what OS we are building on.
 BC_QUERY_STRINGS["pkgs"]="$PKG_TYPE pkgs"
+BC_QUERY_STRINGS["src_pkgs"]="$PKG_TYPE src_pkgs"
 BC_QUERY_STRINGS["repos"]="$PKG_TYPE repos"
 BC_QUERY_STRINGS["ppas"]="$PKG_TYPE ppas"
 BC_QUERY_STRINGS["build_pkgs"]="$PKG_TYPE build_pkgs"
