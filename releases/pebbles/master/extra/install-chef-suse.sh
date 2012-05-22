@@ -311,8 +311,14 @@ do
     # check_machine_role
 done
 
-# missing check for admin node IP address, probably need to start 
-# chef-client daemon too.
+# Spit out a warning message if we managed to not get an IP address
+IPSTR=$(crowbar network show default | parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
+IP=${IPSTR##*=}
+ip addr | grep -q $IP || {
+    die "eth0 not configured, but should have been."
+}
+
+# FIXME: do we need to start chef-client daemon here?
 
 # Run tests -- currently the host will run this.
 /opt/dell/bin/barclamp_test.rb -t || \
