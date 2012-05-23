@@ -1123,7 +1123,7 @@ run_test() {
             develop-mode) local develop_mode=true;;
             manual-deploy) local manual_deploy=true;;
             use-iso) shift; SMOKETEST_ISO="$1";;
-            single|dual|team|team-novlan) local network_mode="$1";;
+            single*|dual*|team*) local network_mode="$1";;
             bind-nic) shift;
                 [[ -d /sys/class/net/$1 ]] || \
                     die "$1 is not a network interface!"
