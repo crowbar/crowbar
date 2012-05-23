@@ -149,12 +149,11 @@ for service in $services; do
     ensure_service_running chef-${service}
 done
 
-# Initial chef-client run - expect this to cause warnings:
-#
-#   WARN: Can not find config file: /etc/chef/client.rb, using defaults.
-#   WARN: No such file or directory - /etc/chef/client.rb
-# [...]
-#   WARN: Node crowbar-admin-sles.crowbar.site has an empty run list.
+cat <<EOF
+Performing initial chef-client run ...
+This can cause warnings about /etc/chef/client.rb missing and
+the run list being empty; they can be safely ignored.
+EOF
 chef-client
 
 # now set the correct domain name in /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
