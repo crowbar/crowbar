@@ -61,10 +61,6 @@ if [ $? != 0 ]; then
     die "Unable to resolve domain name. Exiting."
 fi
 
-if [ -z "$DVD_PATH" ]; then
-    die "You must set \$DVD_PATH to a directory containing crowbar.json; typically something like: /srv/tftpboot/sles_dvd"
-fi
-
 CROWBAR=/opt/dell/bin/crowbar
 
 for repo in suse-11.2/install repos/{sdk,Cloud}; do
@@ -171,11 +167,7 @@ fi
 
 # Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
 #CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
-if [[ -e $DVD_PATH/extra/config/crowbar.json ]]; then
-    CROWBAR_FILE="$DVD_PATH/extra/config/crowbar.json"
-else
-    die "Couldn't find $CROWBAR_FILE; is your \$DVD_PATH set correctly?"
-fi
+: ${CROWBAR_FILE:="/etc/crowbar/crowbar.json"}
 
 mkdir -p /opt/dell/crowbar_framework
 CROWBAR_REALM=$(/opt/dell/barclamps/provisioner/updates/parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
