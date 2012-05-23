@@ -38,6 +38,16 @@ trap exit_handler EXIT
 
 die() { echo "$(date '+%F %T %z'): $*" >&2; res=1; exit 1; }
 
+ensure_service_running () {
+    service="$1"
+    regexp="${2:-running}"
+    if service $service status | egrep -q "$regexp"; then
+        echo "$service is already running - no need to start."
+    else
+        service $service start
+    fi
+}
+
 # It is exceedingly important that 'hostname -f' actually returns an FQDN!
 # if it doesn't, add an entry to /etc/hosts, e.g.:
 #    192.168.124.10 cb-admin.example.com cb-admin
@@ -105,26 +115,31 @@ EOF
     # ubuntu admin node.
 fi
 
-
-# setup rabbitmq
 chkconfig rabbitmq-server on
-service rabbitmq-server start
+ensure_service_running rabbitmq-server '^Node .+ with Pid [0-9]+: running'
 
-rabbitmqctl add_vhost /chef
+if rabbitmqctl list_vhosts | grep -q '^/chef$'; then
+    : /chef vhost already added
+else
+    rabbitmqctl add_vhost /chef
+fi
 
-rabbit_chef_password=$( dd if=/dev/urandom count=1 bs=16 2>/dev/null | base64 | tr -d / )
-rabbitmqctl add_user chef "$rabbit_chef_password"
+if rabbitmqctl list_users 2>&1 | grep -q '^chef	'; then
+    : chef user already added
+else
+    rabbit_chef_password=$( dd if=/dev/urandom count=1 bs=16 2>/dev/null | base64 | tr -d / )
+    rabbitmqctl add_user chef "$rabbit_chef_password"
+    # Update "amqp_pass" in  /etc/chef/server.rb and solr.rb
+    sed -i 's/amqp_pass ".*"/amqp_pass "'"$rabbit_chef_password"'"/' /etc/chef/{server,solr}.rb
+fi
+
+sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
+chmod o-rwx /etc/chef /etc/chef/{server,solr,webui}.rb
 
 rabbitmqctl set_permissions -p /chef chef ".*" ".*" ".*"
 
-# setup couchdb
 chkconfig couchdb on
-service couchdb start
-
-# Update "amqp_pass" in  /etc/chef/server.rb and solr.rb
-sed -i 's/amqp_pass ".*"/amqp_pass "'"$rabbit_chef_password"'"/' /etc/chef/{server,solr}.rb
-sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
-chmod o-rwx /etc/chef /etc/chef/{server,solr,webui}.rb
+ensure_service_running couchdb
 
 # increase chef-solr index field size
 perl -i -pe 's{<maxFieldLength>.*</maxFieldLength>}{<maxFieldLength>200000</maxFieldLength>}' /var/lib/chef/solr/conf/solrconfig.xml
@@ -135,7 +150,7 @@ for service in $services; do
 done
 
 for service in $services; do
-    service chef-${service} start
+    ensure_service_running chef-${service}
 done
 
 # Initial chef-client run - expect this to cause warnings:
