@@ -231,7 +231,7 @@ knife node run_list add "$FQDN" role["$NODE_ROLE"]
 chef-client
 
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
-service crowbar start
+ensure_service_running crowbar
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /tmp/deploying
