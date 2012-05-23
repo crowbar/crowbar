@@ -203,7 +203,11 @@ fi
 for i in deployer dns mysql postgresql database ipmi nagios keystone \
          glance logging network nova nova_dashboard ntp openstack \
          provisioner swift ; do
-    /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/$i
+    if [ -e /opt/dell/crowbar_framework/barclamps/$i.yml ]; then
+        echo "$i barclamp is already installed"
+    else
+        /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/$i
+    fi
 done
 
 if ! [ -e ~/.chef/knife.rb ]; then
