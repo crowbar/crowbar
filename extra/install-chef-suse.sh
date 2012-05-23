@@ -212,7 +212,9 @@ for i in deployer dns mysql postgresql database ipmi nagios keystone \
     /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/$i
 done
 
-knife configure -i
+if ! [ -e ~/.chef/knife.rb ]; then
+    yes '' | knife configure -i
+fi
 
 echo "Create Admin node role"
 NODE_ROLE="crowbar-${FQDN//./_}" 
