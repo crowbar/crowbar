@@ -149,19 +149,20 @@ for service in $services; do
     ensure_service_running chef-${service}
 done
 
-cat <<EOF
+if ! [ -e ~/.chef/knife.rb ]; then
+    yes '' | knife configure -i
+fi
+
+has_runlist=$(knife node show $FQDN 2>/dev/null | grep -q 'Run List: *$' && echo true)
+if [ $has_runlist ]; then
+    echo "Chef runlist for $FQDN is already populated; skipping initial chef-client run."
+else
+    cat <<EOF
 Performing initial chef-client run ...
 This can cause warnings about /etc/chef/client.rb missing and
 the run list being empty; they can be safely ignored.
 EOF
-chef-client
-
-# now set the correct domain name in /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
-if [ -f /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json ]; then
-    sed -i "s/^\(\s*\"domain\"\s*\:\s*\)\".*\"/\1\"$DOMAIN\"/" \
-        /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
-else
-    echo "/opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json doesn't exist"
+    chef-client
 fi
 
 # Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
@@ -201,9 +202,14 @@ for i in deployer dns mysql postgresql database ipmi nagios keystone \
     fi
 done
 
-if ! [ -e ~/.chef/knife.rb ]; then
-    yes '' | knife configure -i
-fi
+# Configure chef to set up bind with correct local domain and DNS forwarders.
+dns_template=/opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
+[ -f $dns_template ] || die "$dns_template doesn't exist"
+nameservers=$( awk '/^nameserver/ {print $2}' /etc/resolv.conf )
+# This will still work if there are no nameservers.
+/opt/dell/bin/bc-dns-json.rb $DOMAIN $nameservers < $dns_template > /tmp/bc-template-dns.json
+echo "Instructing chef to configure bind with the following DNS forwarders: $nameservers"
+knife data bag from file crowbar /tmp/bc-template-dns.json
 
 echo "Create Admin node role"
 NODE_ROLE="crowbar-${FQDN//./_}" 
