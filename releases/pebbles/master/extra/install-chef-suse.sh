@@ -260,9 +260,21 @@ if [ "$($CROWBAR crowbar proposal list)" != "default" ] ; then
         proposal_opts+=(--file $CROWBAR_FILE)
     fi
     proposal_opts+=(proposal create default)
-    $CROWBAR crowbar "${proposal_opts[@]}"
-    chef-client
-    # Note; original script loops here and dies on failure
+
+    # Sometimes proposal creation fails if Chef and Crowbar are not quite
+    # fully prepared -- this can happen due to solr not having everything
+    # fully indexed yet.  So we don't want to just fail immediatly if
+    # we fail to create a proposal -- instead, we will kick Chef, sleep a bit,
+    # and try again up to 5 times before bailing out.
+    for ((x=1; x<6; x++)); do
+        $CROWBAR crowbar "${proposal_opts[@]}" && { proposal_created=true; break; }
+        echo "Proposal create failed, pass $x.  Will kick Chef and try again."
+        chef-client
+        sleep 1
+    done
+    if [[ ! $proposal_created ]]; then
+        die "Could not create default proposal"
+    fi
 fi
 
 # this has machine key world readable? care?
