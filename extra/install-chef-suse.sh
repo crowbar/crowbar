@@ -149,6 +149,18 @@ for service in $services; do
     ensure_service_running chef-${service}
 done
 
+# chef-server-webui won't start if /etc/chef/webui.pem doesn't exist, which
+# may be the case (chef-server generates it if not present, and if the webui
+# starts too soon, it won't be there yet).
+for ((x=1; x<6; x++)); do
+    sleep 10
+    service chef-server-webui status >/dev/null && { chef_webui_running=true; break; }
+    service chef-server-webui start
+done
+if [[ ! $chef_webui_running ]]; then
+    echo "WARNING: unable to start chef-server-webui"
+fi
+
 if ! [ -e ~/.chef/knife.rb ]; then
     yes '' | knife configure -i
 fi
