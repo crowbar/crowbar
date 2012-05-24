@@ -165,8 +165,8 @@ if ! [ -e ~/.chef/knife.rb ]; then
     yes '' | knife configure -i
 fi
 
-has_runlist=$(knife node show $FQDN 2>/dev/null | grep -q 'Run List: *$' && echo true)
-if [ $has_runlist ]; then
+node_info=$(knife node show $FQDN 2>/dev/null || :)
+if echo "$node_info" | grep -q 'Run List:.*role'; then
     echo "Chef runlist for $FQDN is already populated; skipping initial chef-client run."
 else
     cat <<EOF
