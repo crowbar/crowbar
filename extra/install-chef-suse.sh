@@ -63,7 +63,7 @@ fi
 
 CROWBAR=/opt/dell/bin/crowbar
 
-for repo in suse-11.2/install repos/{sdk,Cloud}; do
+for repo in suse-11.2/install repos/Cloud; do
     repo=/tftpboot/$repo
     if [ "$( ls $repo 2>/dev/null | wc -l )" = 0 ]; then
         if [ -n "$CROWBAR_TESTING" ]; then
