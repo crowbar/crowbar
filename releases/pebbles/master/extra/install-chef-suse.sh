@@ -165,10 +165,8 @@ if ! [ -e ~/.chef/knife.rb ]; then
     yes '' | knife configure -i
 fi
 
-# Don't abort if this pipeline fails (which it will the first time)
-set +e
-has_runlist=$(knife node show $FQDN 2>/dev/null | grep -q 'Run List: *$' && echo true)
-if [ $has_runlist ]; then
+node_info=$(knife node show $FQDN 2>/dev/null || :)
+if echo "$node_info" | grep -q 'Run List:.*role'; then
     echo "Chef runlist for $FQDN is already populated; skipping initial chef-client run."
 else
     cat <<EOF
@@ -178,7 +176,6 @@ the run list being empty; they can be safely ignored.
 EOF
     chef-client
 fi
-set -e
 
 # Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
 #CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
