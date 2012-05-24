@@ -369,4 +369,4 @@ and log back in again for the correct environment variables to
 be set up.
 EOF
 
-success=hooray
+run_succeeded=hooray
