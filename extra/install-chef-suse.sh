@@ -153,7 +153,7 @@ done
 # may be the case (chef-server generates it if not present, and if the webui
 # starts too soon, it won't be there yet).
 for ((x=1; x<6; x++)); do
-    sleep 1
+    sleep 10
     service chef-server-webui status >/dev/null && { chef_webui_running=true; break; }
     service chef-server-webui start
 done
