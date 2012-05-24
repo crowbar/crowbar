@@ -165,25 +165,17 @@ if ! [ -e ~/.chef/knife.rb ]; then
     yes '' | knife configure -i
 fi
 
-if knife node show $FQDN | grep -q 'Run List: *$'; then
+has_runlist=$(knife node show $FQDN 2>/dev/null | grep -q 'Run List: *$' && echo true)
+if [ $has_runlist ]; then
+    echo "Chef runlist for $FQDN is already populated; skipping initial chef-client run."
+else
     cat <<EOF
 Performing initial chef-client run ...
 This can cause warnings about /etc/chef/client.rb missing and
 the run list being empty; they can be safely ignored.
 EOF
     chef-client
-else
-    echo "Chef runlist for $FQDN is already populated; skipping initial chef-client run."
 fi
-
-# Configure chef to set up bind with correct local domain and DNS forwarders.
-dns_template=/opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
-[ -f $dns_template ] || die "$dns_template doesn't exist"
-nameservers=$( awk '/^nameserver/ {print $2}' /etc/resolv.conf )
-# This will still work if there are no nameservers.
-/opt/dell/bin/bc-dns-json.rb $DOMAIN $nameservers < $dns_template > /tmp/bc-template-dns.json
-echo "Instructing chef to configure bind with the following DNS forwarders: $nameservers"
-knife data bag from file crowbar /tmp/bc-template-dns.json
 
 # Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
 #CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
@@ -221,6 +213,15 @@ for i in deployer dns mysql postgresql database ipmi nagios keystone \
         /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/$i
     fi
 done
+
+# Configure chef to set up bind with correct local domain and DNS forwarders.
+dns_template=/opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
+[ -f $dns_template ] || die "$dns_template doesn't exist"
+nameservers=$( awk '/^nameserver/ {print $2}' /etc/resolv.conf )
+# This will still work if there are no nameservers.
+/opt/dell/bin/bc-dns-json.rb $DOMAIN $nameservers < $dns_template > /tmp/bc-template-dns.json
+echo "Instructing chef to configure bind with the following DNS forwarders: $nameservers"
+knife data bag from file crowbar /tmp/bc-template-dns.json
 
 echo "Create Admin node role"
 NODE_ROLE="crowbar-${FQDN//./_}" 
