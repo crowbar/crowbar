@@ -51,13 +51,11 @@ ensure_service_running () {
 # It is exceedingly important that 'hostname -f' actually returns an FQDN!
 # if it doesn't, add an entry to /etc/hosts, e.g.:
 #    192.168.124.10 cb-admin.example.com cb-admin
-FQDN=$(hostname -f 2> /dev/null)
-if [ $? != 0 ]; then
+if ! FQDN=$(hostname -f 2>/dev/null); then
     die "Unable to resolve hostname. Exiting."
 fi
 
-DOMAIN=$(hostname -d 2> /dev/null)
-if [ $? != 0 ]; then
+if ! DOMAIN=$(hostname -d 2>/dev/null); then
     die "Unable to resolve domain name. Exiting."
 fi
 
