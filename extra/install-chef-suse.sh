@@ -52,11 +52,38 @@ ensure_service_running () {
 # if it doesn't, add an entry to /etc/hosts, e.g.:
 #    192.168.124.10 cb-admin.example.com cb-admin
 if ! FQDN=$(hostname -f 2>/dev/null); then
-    die "Unable to resolve hostname. Exiting."
+    die "Unable to detect fully-qualified hostname. Aborting."
 fi
 
 if ! DOMAIN=$(hostname -d 2>/dev/null); then
-    die "Unable to resolve domain name. Exiting."
+    die "Unable to detect DNS domain name. Aborting."
+fi
+
+if ! resolved=$(host $FQDN 2>/dev/null); then
+    die "Unable to resolve hostname $FQDN via host(1). Please check your configuration of DNS, hostname, and /etc/hosts. Aborting."
+fi
+
+IPv4_addr=$( echo "$resolved" | awk '/ has address /      { print $4 }' )
+IPv6_addr=$( echo "$resolved" | awk '/ has IPv6 address / { print $4 }' )
+if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
+    die "Could not resolve $FQDN to an IPv4 or IPv6 address. Aborting."
+fi
+
+if [ -n "$IPv4_addr" ]; then
+    echo "$FQDN resolved to IPv4 address: $IPv4_addr"
+    if ! ip addr | grep -q "inet $IPv4_addr"; then
+        die "No local interfaces configured with address $IPv4_addr. Aborting."
+    fi
+fi
+if [ -n "$IPv6_addr" ]; then
+    echo "$FQDN resolved to IPv6 address: $IPv6_addr"
+    if ! ip addr | grep -q "inet6 $IPv6_addr"; then
+        die "No local interfaces configured with address $IPv6_addr. Aborting."
+    fi
+fi
+
+if ! ping -c 1 $FQDN >/dev/null 2>&1; then
+    die "Failed to ping $FQDN; please check your network configuration. Aborting."
 fi
 
 CROWBAR=/opt/dell/bin/crowbar
