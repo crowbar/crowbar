@@ -22,7 +22,7 @@ require 'json'
 require 'fileutils'
 require 'active_support/all'
 require 'pp'
-require 'I18n'
+require 'i18n'
 
 MODEL_SUBSTRING_BASE = '==BC-MODEL=='
 MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
