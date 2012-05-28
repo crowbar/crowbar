@@ -59,12 +59,12 @@ if ! DOMAIN=$(hostname -d 2>/dev/null); then
     die "Unable to detect DNS domain name. Aborting."
 fi
 
-if ! resolved=$(host $FQDN 2>/dev/null); then
+if ! resolved=$(getent ahosts $FQDN 2>/dev/null); then
     die "Unable to resolve hostname $FQDN via host(1). Please check your configuration of DNS, hostname, and /etc/hosts. Aborting."
 fi
 
-IPv4_addr=$( echo "$resolved" | awk '/ has address /      { print $4 }' )
-IPv6_addr=$( echo "$resolved" | awk '/ has IPv6 address / { print $4 }' )
+IPv4_addr=$( echo "$resolved" | awk '{ if ($1 !~ /:/) { print $1; exit } }' )
+IPv6_addr=$( echo "$resolved" | awk '{ if ($1  ~ /:/) { print $1; exit } }' )
 if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
     die "Could not resolve $FQDN to an IPv4 or IPv6 address. Aborting."
 fi
