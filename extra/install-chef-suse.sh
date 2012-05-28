@@ -16,7 +16,7 @@
 # 2. Copy extra/barclamp* to /opt/dell/bin/
 # 4. You should probably set eth0 to be static IP 192.168.124.10/24.
 # 5. rsync the Devel:Cloud, SLES-11-SP2-LATEST, SLE-11-SP2-SDK-LATEST,
-#    and possibly other repos into locations under /tftpboot -
+#    and possibly other repos into locations under /srv/tftpboot -
 #    see https://github.com/SUSE/cloud/wiki/Crowbar for details.
 
 run_succeeded=
@@ -96,7 +96,7 @@ fi
 CROWBAR=/opt/dell/bin/crowbar
 
 for repo in suse-11.2/install repos/Cloud; do
-    repo=/tftpboot/$repo
+    repo=/srv/tftpboot/$repo
     if [ "$( ls $repo 2>/dev/null | wc -l )" = 0 ]; then
         if [ -n "$CROWBAR_TESTING" ]; then
             die "$repo has not been set up yet; please see https://github.com/SUSE/cloud/wiki/Crowbar"
@@ -125,8 +125,8 @@ if [ -n "$CROWBAR_TESTING" ]; then
     zypper in rubygem-kwalify rubygem-ruby-shadow tcpdump
 
     # Need this for provisioner to work:
-    mkdir -p /tftpboot/discovery/pxelinux.cfg
-    cat > /tftpboot/discovery/pxelinux.cfg/default <<EOF
+    mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
+    cat > /srv/tftpboot/discovery/pxelinux.cfg/default <<EOF
 DEFAULT pxeboot
 TIMEOUT 20
 PROMPT 0
@@ -137,8 +137,8 @@ ONERROR LOCALBOOT 0
 EOF
 
     # You'll also need:
-    #   /tftpboot/discovery/initrd0.img
-    #   /tftpboot/discovery/vmlinuz0
+    #   /srv/tftpboot/discovery/initrd0.img
+    #   /srv/tftpboot/discovery/vmlinuz0
     # These can be obtained from a sleshammer image or from an existing
     # ubuntu admin node.
 fi
