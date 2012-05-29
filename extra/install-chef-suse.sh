@@ -58,6 +58,10 @@ fi
 if ! DOMAIN=$(hostname -d 2>/dev/null); then
     die "Unable to detect DNS domain name. Aborting."
 fi
+ 
+if [ -z "$FQDN" -o -z "$DOMAIN" ]; then
+    die "Unable to detect fully-qualified hostname. Aborting."
+fi
 
 if ! resolved=$(getent ahosts $FQDN 2>/dev/null); then
     die "Unable to resolve hostname $FQDN via host(1). Please check your configuration of DNS, hostname, and /etc/hosts. Aborting."
