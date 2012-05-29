@@ -78,6 +78,9 @@ if [ -n "$IPv4_addr" ]; then
     if ! ip addr | grep -q "inet $IPv4_addr"; then
         die "No local interfaces configured with address $IPv4_addr. Aborting."
     fi
+    if [[ "$IPv4_addr" =~ ^127 ]]; then
+        die "$FQDN resolves to a loopback address. Aborting."
+    fi
 fi
 if [ -n "$IPv6_addr" ]; then
     echo "$FQDN resolved to IPv6 address: $IPv6_addr"
