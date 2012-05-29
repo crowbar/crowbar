@@ -22,6 +22,7 @@ require 'json'
 require 'fileutils'
 require 'active_support/all'
 require 'pp'
+require 'i18n'
 
 MODEL_SUBSTRING_BASE = '==BC-MODEL=='
 MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
@@ -99,6 +100,9 @@ def catalog(path, options={})
     cat['barclamps'][name]['order'] = bc['crowbar']['order'] if bc['crowbar']['order']
     cat['barclamps'][name]['run_order'] = bc['crowbar']['run_order'] if bc['crowbar']['run_order']
     cat['barclamps'][name]['chef_order'] = bc['crowbar']['chef_order'] if bc['crowbar']['chef_order']
+    # git tagging
+    cat['barclamps'][name]['date'] = I18n.t('unknown')
+    cat['barclamps'][name]['commit'] = I18n.t('not_set')  
     if bc['git']
       cat['barclamps'][name]['date'] = bc['git']['date'] if bc['git']['date']
       cat['barclamps'][name]['commit'] = bc['git']['commit'] if bc['git']['commit']
