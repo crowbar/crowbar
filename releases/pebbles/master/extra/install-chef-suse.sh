@@ -93,6 +93,17 @@ if ! ping -c 1 $FQDN >/dev/null 2>&1; then
     die "Failed to ping $FQDN; please check your network configuration. Aborting."
 fi
 
+
+# output details, that will make remote debugging via bugzilla much easier  
+# for us
+/usr/bin/zypper lr -d   
+/bin/rpm -qV crowbar || :
+/usr/bin/lscpu  
+/bin/df -h  
+/usr/bin/free -m
+/bin/ls -la /srv/tftpboot/repos/ /srv/tftpboot/repos/Cloud/ /srv/tftpboot/suse-11.2/install/
+/usr/bin/grep media_url /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb
+
 CROWBAR=/opt/dell/bin/crowbar
 
 for repo in suse-11.2/install repos/Cloud; do
