@@ -134,7 +134,7 @@
         "storage": {
           "conduit": "intf1",
           "vlan": 200,
-          "use_vlan": true,
+          "use_vlan": false,
           "add_bridge": false,
           "subnet": "192.168.125.0",
           "netmask": "255.255.255.0",
@@ -146,7 +146,7 @@
         "public": {
           "conduit": "intf1",
           "vlan": 300,
-          "use_vlan": true,
+          "use_vlan": false,
           "add_bridge": false,
           "subnet": "192.168.126.0",
           "netmask": "255.255.255.0",
@@ -161,7 +161,7 @@
         "nova_fixed": {
           "conduit": "intf1",
           "vlan": 500,
-          "use_vlan": true,
+          "use_vlan": false,
           "add_bridge": true,
           "subnet": "192.168.127.0",
           "netmask": "255.255.255.0",
@@ -174,7 +174,7 @@
         "nova_floating": {
           "conduit": "intf1",
           "vlan": 300,
-          "use_vlan": true,
+          "use_vlan": false,
           "add_bridge": false,
           "subnet": "192.168.126.128",
           "netmask": "255.255.255.192",
@@ -198,7 +198,7 @@
         "bmc_vlan": {
           "conduit": "intf2",
           "vlan": 100,
-          "use_vlan": true,
+          "use_vlan": false,
           "add_bridge": false,
           "subnet": "192.168.124.0",
           "netmask": "255.255.255.0",
