@@ -61,8 +61,6 @@ chmod a+x $bc_dir/bin/*
 find $bc_dir -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\)$' | xargs chmod a-x
 find $bc_dir -regex '.+/README.*' | xargs chmod a-x
 
-%pre
-
 %post
 echo FIXME: should do: %{dell_bin_dir}/barclamp_install.rb %{bc_dir}
 
@@ -74,7 +72,7 @@ echo FIXME: should do: %{dell_bin_dir}/barclamp_install.rb %{bc_dir}
 %{dell_bin_dir}/*
 %dir %{bc_dir}
 %{bc_dir}/*
-%{bc_dir}/*
+
 # FIXME: FHS violation, should not have config files in /opt
 # https://github.com/dellcloudedge/crowbar/issues/833
 %config(noreplace) %{bc_dir}/chef/data_bags/crowbar/bc-template-%{barclamp}.json
