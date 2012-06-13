@@ -51,30 +51,21 @@ functioning operating systems using Chef.
 
 %install
 dell_dir=%{buildroot}%{dell_dir}
-install -d -m 755 $dell_dir/bin
-install    -m 755 bin/* $dell_dir/bin
 
 bc_dir=$dell_dir/barclamps/%{barclamp}
 install -d -m 755 $bc_dir
 cp -a * $bc_dir
 chmod a+x $bc_dir/bin/*
-find $bc_dir -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\)$' | xargs chmod a-x
-find $bc_dir -regex '.+/README.*' | xargs chmod a-x
-
-%post
-echo FIXME: should do: %{dell_bin_dir}/barclamp_install.rb %{bc_dir}
+find $bc_dir -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\|erb\)$' | xargs chmod a-x
+find $bc_dir -regex '.+/README.*\|.+/chef/cookbooks/.+/recipes/.+.rb' | xargs chmod a-x
+mv $bc_dir/{bin,chef,crowbar_framework} $dell_dir
 
 %files
 %defattr(-,root,root,-)
 %dir %{dell_dir}
-%dir %{dell_dir}/barclamps
-%dir %{dell_bin_dir}
-%{dell_bin_dir}/*
-%dir %{bc_dir}
-%{bc_dir}/*
-
+%{dell_dir}/*
 # FIXME: FHS violation, should not have config files in /opt
 # https://github.com/dellcloudedge/crowbar/issues/833
-%config(noreplace) %{bc_dir}/chef/data_bags/crowbar/bc-template-%{barclamp}.json
+%config(noreplace) %{dell_dir}/chef/data_bags/crowbar/bc-template-%{barclamp}.json
 
 %changelog
