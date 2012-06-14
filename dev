@@ -1884,7 +1884,7 @@ find_best_parent() {
         debug "It looks like $best_candidates is the parent of $release"
         candidate="$best_candidates"
     else
-        debug "More than one good candidate for a parent found."
+        debug "More than one good candidate for a parent of $release found."
         debug "Please pick the one you want:"
         select candidate in "${best_candidates[@]}" "None of the above"; do
             case $candidate in
