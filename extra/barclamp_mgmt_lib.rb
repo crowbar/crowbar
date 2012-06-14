@@ -429,7 +429,6 @@ end
 
 # upload the chef parts for a barclamp
 def bc_install_layout_1_chef(bc, bc_path, yaml)
-
   log_path = File.join '/var', 'log', 'barclamps'
   FileUtils.mkdir log_path unless File.directory? log_path
   log = File.join log_path, "#{bc}.log"
@@ -440,48 +439,111 @@ def bc_install_layout_1_chef(bc, bc_path, yaml)
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
 
-  upload_cookbooks cookbooks, path, log
-  upload_databags databags, path, log
-  upload_roles roles, path, log
+  if File.exists? '/etc/SuSE-release'
+    rpm = 'crowbar-barclamp-' + bc
+    debug "on SUSE machine; obtaining chef components from #{rpm}"
+    rpm_files = get_rpm_file_list(rpm)
+    upload_cookbooks_from_rpm rpm_files, bc_path, log
+    upload_data_bags_from_rpm rpm_files, bc_path, log
+    upload_roles_from_rpm     rpm_files, bc_path, log
+  else
+    debug "obtaining chef components from " + bc_path
+    upload_cookbooks_from_dir cookbooks, ['ALL'], bc_path, log
+    upload_data_bags_from_dir databags, bc_path, log
+    upload_roles_from_dir     roles,    bc_path, log
+  end
 
   puts "Barclamp #{bc} (format v1) Chef Components Uploaded."
 end
 
-def upload_cookbooks(cookbooks, bc_path, log)
-  if File.directory? cookbooks
-    FileUtils.cd cookbooks
-    knife_cookbook = "knife cookbook upload -o . -a -V -k /etc/chef/webui.pem -u chef-webui"
+def get_rpm_file_list(rpm)
+  cmd = "rpm -ql #{rpm}"
+  file_list = IO.popen(cmd).readlines().map { |line| line.rstrip }
+  raise cmd + " failed" unless $? == 0
+  raise "got empty file list from #{cmd}" if file_list.empty?
+  debug "obtained file list from #{rpm} rpm"
+  return file_list
+end
+
+def upload_cookbooks_from_rpm(rpm_files, bc_path, log)
+  cookbooks_dir = "#{BASE_PATH}/chef/cookbooks"
+  cookbooks = rpm_files.inject([]) do |acc, file|
+    if File.directory?(file) and file =~ %r!^#{cookbooks_dir}/([^/]+)$!
+      cookbook = File.basename(file)
+      debug "will upload #{cookbook} from #{file} from rpm"
+      acc.push cookbook
+    end
+    acc
+  end
+  if cookbooks.empty?
+    puts "WARNING: didn't find any cookbooks in " + cookbooks_dir
+  else
+    upload_cookbooks_from_dir(cookbooks_dir, cookbooks, bc_path, log)
+  end
+end
+
+def upload_data_bags_from_rpm(rpm_files, bc_path, log)
+  data_bags_dir = "#{BASE_PATH}/chef/data_bags"
+  data_bag_files = rpm_files.grep(%r!^#{data_bags_dir}/([^/]+)/[^/]+\.json$!) do |path|
+    [ $1, path ]
+  end
+  if data_bag_files.empty?
+    puts "WARNING: didn't find any data bags in " + data_bags_dir
+  else
+    data_bag_files.each do |bag, bag_item_path|
+      debug "uploading #{bag} from rpm"
+      upload_data_bag_from_file(bag, bag_item_path, bc_path, log)
+    end
+  end
+end
+
+def upload_roles_from_rpm(rpm_files, bc_path, log)
+  roles_dir = "#{BASE_PATH}/chef/roles"
+  roles = rpm_files.grep(%r!^#{roles_dir}/([^/]+)$!)
+  if roles.empty?
+    puts "WARNING: didn't find any roles in " + roles_dir
+  else
+    roles.each do |role|
+      upload_role_from_dir(role, bc_path, log)
+    end
+  end
+end
+
+def upload_cookbooks_from_dir(cookbooks_dir, cookbooks, bc_path, log)
+  upload_all = cookbooks.length == 1 && cookbooks[0] == 'ALL'
+  if File.directory? cookbooks_dir
+    FileUtils.cd cookbooks_dir
+    opts = upload_all ? '-a' : cookbooks.join(' ')
+    knife_cookbook = "knife cookbook upload -o . #{opts} -V -k /etc/chef/webui.pem -u chef-webui"
+    debug "running #{knife_cookbook} from #{cookbooks_dir}"
     unless system knife_cookbook + " >> #{log} 2>&1"
       fatal "#{bc_path} #{knife_cookbook} upload failed.", log
     end
     debug "\texecuted: #{bc_path} #{knife_cookbook}"
   else
-    debug "\tNOTE: could not find cookbooks #{cookbooks}"
+    debug "\tNOTE: could not find cookbooks dir #{cookbooks_dir}"
   end
 end
 
-def upload_databags(databags, bc_path, log)
-  if File.exists? databags
-    Dir.entries(databags).each do |bag|
+def upload_data_bags_from_dir(databags_dir, bc_path, log)
+  if File.exists? databags_dir
+    Dir.entries(databags_dir).each do |bag|
       next if bag == "." or bag == ".."
-      bag_path = File.join databags, bag
+      bag_path = File.join databags_dir, bag
       FileUtils.chmod 0755, bag_path
       chmod_dir 0644, bag_path
       upload_data_bag_from_dir bag, bag_path, bc_path, log
     end
   else
-    debug "\tNOTE: could not find databags #{databags}"
+    debug "\tNOTE: could not find data bags dir #{databags}"
   end
 end
 
 # Upload data bag items from any JSON files in the provided directory
 def upload_data_bag_from_dir(bag, bag_path, bc_path, log)
-  FileUtils.cd bag_path
-  create_data_bag(bag, log, bc_path)
-  
   json = Dir.glob(bag_path + '/*.json')
-  json.each do |bag_file|
-    upload_data_bag_from_file(bag, bag_file, bc_path, log)
+  json.each do |bag_item_path|
+    upload_data_bag_from_file(bag, bag_item_path, bc_path, log)
   end
 end
 
@@ -493,27 +555,34 @@ def create_data_bag(bag, log, bc_path)
   debug "\texecuted: #{bc_path} #{knife_bag}"
 end
 
-def upload_data_bag_from_file(bag, bag_file, bc_path, log)
-  knife_databag  = "knife data bag from file #{bag} #{bag_file} -V -k /etc/chef/webui.pem -u chef-webui"
+def upload_data_bag_from_file(bag, bag_item_path, bc_path, log)
+  create_data_bag(bag, log, bc_path)
+
+  knife_databag  = "knife data bag from file #{bag} #{bag_item_path} -V -k /etc/chef/webui.pem -u chef-webui"
   unless system knife_databag + " >> #{log} 2>&1"
     fatal "#{knife_databag} failed.", log
   end
   debug "\texecuted: #{bc_path} #{knife_databag}"
 end
 
-def upload_roles(roles, bc_path, log)
+def upload_roles_from_dir(roles, bc_path, log)
   if File.directory? roles
     FileUtils.cd roles
-    Dir[roles + "*.rb"].each do |role|
-      knife_role = "knife role from file #{role} -V -k /etc/chef/webui.pem -u chef-webui"
-      unless system knife_role + " >> #{log} 2>&1"
-        fatal "#{knife_role} failed.", log
-      end
-      debug "\texecuted: #{bc_path} #{knife_role}"
+    Dir[roles + "*.rb"].each do |role_path|
+      upload_role_from_dir(role_path, bc_path, log)
     end
   else
-    debug "\tNOTE: could not find roles #{roles}"
+    debug "\tNOTE: could not find roles dir #{roles}"
   end
+end
+
+def upload_role_from_dir(role_path, bc_path, log)
+  debug "will upload #{role_path} from rpm"
+  knife_role = "knife role from file #{role_path} -V -k /etc/chef/webui.pem -u chef-webui"
+  unless system knife_role + " >> #{log} 2>&1"
+    fatal "#{knife_role} failed.", log
+  end
+  debug "\texecuted: #{bc_path} #{knife_role}"
 end
 
 def bc_install_layout_1_cache(bc, bc_path)
