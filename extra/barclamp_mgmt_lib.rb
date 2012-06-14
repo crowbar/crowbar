@@ -39,12 +39,13 @@ else
   UPDATE_PATH = '/updates'
   ROOT_PATH = '/'
 end
+
 DEBUG = ENV['DEBUG'] === "true"
  
 # entry point for scripts
 def bc_install(bc, path, barclamp, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   case barclamp["crowbar"]["layout"].to_i
   when 1
     puts "DEBUG: Installing app components" if debug
@@ -62,7 +63,7 @@ end
 # regenerate the barclamp catalog (does a complete regen each install)
 def catalog(path, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   puts "DEBUG: Creating catalog in #{path}" if debug
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
   cat = { 'barclamps'=>{} }
@@ -113,7 +114,7 @@ end
 # copies paths from one place to another (recursive)
 def bc_cloner(item, bc, entity, source, target, replace, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   puts "DEBUG: bc_cloner method called with debug option enabled" if debug
   puts "DEBUG: bc_cloner args: item=#{item}, bc=#{bc}, entity=#{entity}, source=#{source}, target=#{target}, replace=#{replace}" if debug
   
@@ -154,7 +155,7 @@ end
 # fix permissions
 def chmod_dir(value, path, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   f = Dir.entries(path).find_all { |e| !e.start_with? '.'}
   f.each do |i|
     file = File.join(path,i)
@@ -170,7 +171,7 @@ end
 # remove model placeholders
 def bc_replacer(item, bc, entity, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   puts "DEBUG: bc_replacer method called with debug option enabled" if debug
   puts "DEBUG: bc_replacer args: item=#{item}, bc=#{bc}, entity=#{entity}" if debug
 
@@ -186,7 +187,7 @@ end
 #merges localizations from config into the matching translation files
 def merge_i18n(barclamp, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   locales = barclamp['locale_additions']
   locales.each do |key, value|
     #translation file (can be multiple)
@@ -207,7 +208,7 @@ end
 # makes sure that sass overrides are injected into the application.sass
 def merge_sass(barclamp, bc, path, installing, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   sass_path = File.join path, 'crowbar_framework', 'public', 'stylesheets', 'sass'
   application_sass = File.join CROWBAR_PATH, 'public', 'stylesheets', 'sass', 'application.sass'
   if File.exist? application_sass and File.exists? sass_path
@@ -268,7 +269,7 @@ end
 # injects/cleans barclamp items from framework navigation
 def merge_nav(barclamp, installing, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   unless barclamp['nav'].nil?
     bc_flag = "#FROM BARCLAMP: #{barclamp['barclamp']['name']}."
     # get raw file
@@ -311,7 +312,7 @@ end
 # helper for localization merge
 def merge_tree(key, value, target, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   if target.key? key
     if target[key].class == Hash
       value.each do |k, v|
@@ -332,7 +333,7 @@ end
 # cleanup (anti-install) assumes the install generates a file list
 def bc_remove_layout_1(bc, path, barclamp, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
   if File.exist? filelist      
     files = [ filelist ]
@@ -348,7 +349,7 @@ end
 
 def framework_permissions(bc, path, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'db')
   chmod_dir 0644, File.join(CROWBAR_PATH, 'db')
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'tmp')
@@ -360,7 +361,7 @@ end
 # install the framework files for a barclamp
 def bc_install_layout_1_app(bc, path, barclamp, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   
   #TODO - add a roll back so there are NOT partial results if a step fails
   files = []
@@ -444,7 +445,7 @@ end
 # upload the chef parts for a barclamp
 def bc_install_layout_1_chef(bc, path, barclamp, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   
   log_path = File.join '/var', 'log', 'barclamps'
   FileUtils.mkdir log_path unless File.directory? log_path
@@ -519,7 +520,7 @@ end
 
 def bc_install_layout_1_cache(bc, path, barclamp, options={})
   options = {:debug => false}.merge! options
-  debug = options[:debug] or ENV['DEBUG'] === "true"
+  debug = options[:debug] or DEBUG
   return unless File.directory?(File.join(path,"cache"))
   Dir.entries(File.join(path,"cache")).each do |ent|
     puts ent.inspect if debug
