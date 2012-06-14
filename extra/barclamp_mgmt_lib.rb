@@ -52,24 +52,24 @@ def fatal(msg, log)
 end
 
 # entry point for scripts
-def bc_install(bc, path, barclamp)
-  case barclamp["crowbar"]["layout"].to_i
+def bc_install(bc, bc_path, yaml)
+  case yaml["crowbar"]["layout"].to_i
   when 1
     debug "Installing app components"
-    bc_install_layout_1_app bc, path, barclamp
+    bc_install_layout_1_app bc, bc_path, yaml
     debug "Installing chef components"
-    bc_install_layout_1_chef bc, path, barclamp
+    bc_install_layout_1_chef bc, bc_path, yaml
     debug "Installing cache components"
-    bc_install_layout_1_cache bc, path, barclamp
+    bc_install_layout_1_cache bc, bc_path
   else
     throw "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
   end
-  catalog path
+  catalog bc_path
 end
 
 # regenerate the barclamp catalog (does a complete regen each install)
-def catalog(path)
-  debug "Creating catalog in #{path}"
+def catalog(bc_path)
+  debug "Creating catalog in #{bc_path}"
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
   cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
@@ -83,15 +83,15 @@ def catalog(path)
     description = bc['barclamp']['description']
     if description.nil?
       debug "Trying to find description"
-      [ File.join(path, '..', name, 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
-        File.join(path, '..', "barclamp-#{name}", 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json")].each do |f|
+      [ File.join(bc_path, '..', name, 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
+        File.join(bc_path, '..', "barclamp-#{name}", 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json")].each do |f|
         next unless File.exist? f
         s = JSON::load File.open(f, 'r')
         description = s['description'] unless s.nil?
 	break if description
       end
     end
-    # template = File.join path, name,
+    # template = File.join bc_path, name,
     debug "Adding catalog info for #{bc['barclamp']['name']}"
     cat['barclamps'][name]['description'] = description || "No description for #{bc['barclamp']['name']}"
     cat['barclamps'][name]['user_managed'] = (bc['barclamp']['user_managed'].nil? ? true : bc['barclamp']['user_managed'])
@@ -184,8 +184,8 @@ def bc_replacer(item, bc, entity)
 end
 
 #merges localizations from config into the matching translation files
-def merge_i18n(barclamp)
-  locales = barclamp['locale_additions']
+def merge_i18n(yaml)
+  locales = yaml['locale_additions']
   locales.each do |key, value|
     #translation file (can be multiple)
     f = File.join CROWBAR_PATH, 'config', 'locales', "#{key}.yml"
@@ -203,7 +203,7 @@ def merge_i18n(barclamp)
 end
 
 # makes sure that sass overrides are injected into the application.sass
-def merge_sass(barclamp, bc, path, installing)
+def merge_sass(yaml, bc, path, installing)
   sass_path = File.join path, 'crowbar_framework', 'public', 'stylesheets', 'sass'
   application_sass = File.join CROWBAR_PATH, 'public', 'stylesheets', 'sass', 'application.sass'
   if File.exist? application_sass and File.exists? sass_path
@@ -215,11 +215,11 @@ def merge_sass(barclamp, bc, path, installing)
     end
     # figure out where to insert the sass item
     top = -1
-    if !barclamp['application_sass'].nil? and  barclamp['application_sass']['add'] === 'top'
+    if !yaml['application_sass'].nil? and  yaml['application_sass']['add'] === 'top'
       top = (sapp.find_index("// top of import list") || 3)+1
     end
     # remove items that we don't want
-    barclamp['application_sass']['remove'].each do |item|
+    yaml['application_sass']['remove'].each do |item|
       if installing and sapp.include? item
         sapp.delete item
         debug "removing '#{item}' from application.sass based on crowbar.yml"
@@ -231,7 +231,7 @@ def merge_sass(barclamp, bc, path, installing)
         end
         debug "restoring '#{item}' to application.sass based on crowbar.yml in position #{top}"
       end
-    end unless barclamp['application_sass'].nil? or barclamp['application_sass']['remove'].nil?
+    end unless yaml['application_sass'].nil? or yaml['application_sass']['remove'].nil?
     # scan the sass files from the barclamp
     sass_files.each do |sf|
       entry = "@import #{sf[/^_(.*).sass$/,1]}"
@@ -262,9 +262,9 @@ def merge_sass(barclamp, bc, path, installing)
 end
 
 # injects/cleans barclamp items from framework navigation
-def merge_nav(barclamp, installing)
-  unless barclamp['nav'].nil?
-    bc_flag = "#FROM BARCLAMP: #{barclamp['barclamp']['name']}."
+def merge_nav(yaml, installing)
+  unless yaml['nav'].nil?
+    bc_flag = "#FROM BARCLAMP: #{yaml['barclamp']['name']}."
     # get raw file
     nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'
     nav_raw = []
@@ -279,8 +279,8 @@ def merge_nav(barclamp, installing)
     # now add new items
     new_nav = []
     nav.each do |line|
-      unless barclamp['nav']['primary'].nil?
-        barclamp['nav']['primary'].each do |key, value|
+      unless yaml['nav']['primary'].nil?
+        yaml['nav']['primary'].each do |key, value|
           #insert new items before
           new_nav << "primary.item :#{value} #{bc_flag}" if installing and line.lstrip.start_with? "primary.item :#{key}"
         end
@@ -288,7 +288,7 @@ def merge_nav(barclamp, installing)
       # add the line
       new_nav << line
       # add submenu items (REQUIRIES KEYS IN NAV FILE!!)
-      barclamp['nav'].each do |key, value|
+      yaml['nav'].each do |key, value|
         if installing and line.lstrip.start_with? "# insert here for :#{key}"
           value.each do |k, v|
             new_nav << "secondary.item :#{k}, t('nav.#{k}'), #{v} #{bc_flag}" unless v.nil?
@@ -322,7 +322,7 @@ def merge_tree(key, value, target)
 end
 
 # cleanup (anti-install) assumes the install generates a file list
-def bc_remove_layout_1(bc, path, barclamp)
+def bc_remove_layout_1(bc, bc_path, yaml)
   filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
   if File.exist? filelist
     files = [ filelist ]
@@ -330,13 +330,13 @@ def bc_remove_layout_1(bc, path, barclamp)
       f.each_line { |line| files << line }
     end
     FileUtils.rm files
-    merge_nav barclamp, false
-    merge_sass barclamp, bc, path, false
+    merge_nav yaml, false
+    merge_sass yaml, bc, bc_path, false
     debug "Barclamp #{bc} UNinstalled"
   end
 end
 
-def framework_permissions(bc, path)
+def framework_permissions(bc, bc_path)
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'db')
   chmod_dir 0644, File.join(CROWBAR_PATH, 'db')
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'tmp')
@@ -346,39 +346,39 @@ def framework_permissions(bc, path)
 end
 
 # install the framework files for a barclamp
-def bc_install_layout_1_app(bc, path, barclamp)
+def bc_install_layout_1_app(bc, bc_path, yaml)
 
   #TODO - add a roll back so there are NOT partial results if a step fails
   files = []
 
-  puts "Installing barclamp #{bc} from #{path}"
+  puts "Installing barclamp #{bc} from #{bc_path}"
 
   #copy the rails parts (required for render BEFORE import into chef)
-  dirs = Dir.entries(path)
+  dirs = Dir.entries(bc_path)
   debug "path entries #{dirs.pretty_inspect}"
   if dirs.include? 'crowbar_framework'
     debug "path entries include \"crowbar_framework\""
-    files += bc_cloner('crowbar_framework', bc, nil, path, BASE_PATH, false)
-    framework_permissions bc, path
+    files += bc_cloner('crowbar_framework', bc, nil, bc_path, BASE_PATH, false)
+    framework_permissions bc, bc_path
   end
 
   #merge i18n information (least invasive operations first)
   debug "merge_i18n"
-  merge_i18n barclamp
+  merge_i18n yaml
   debug "merge_nav"
-  merge_nav barclamp, true
+  merge_nav yaml, true
   debug "merge_sass"
-  merge_sass barclamp, bc, path, true
+  merge_sass yaml, bc, bc_path, true
 
   if dirs.include? 'bin'
     debug "path entries include \"bin\""
-    files += bc_cloner('bin', bc, nil, path, BASE_PATH, false)
+    files += bc_cloner('bin', bc, nil, bc_path, BASE_PATH, false)
     FileUtils.chmod_R 0755, BIN_PATH
     debug "\tcopied command line files"
   end
   if dirs.include? 'updates'
     debug "path entries include \"updates\""
-    files += bc_cloner('updates', bc, nil, path, ROOT_PATH, false)
+    files += bc_cloner('updates', bc, nil, bc_path, ROOT_PATH, false)
     FileUtils.chmod_R 0755, UPDATE_PATH
     debug "\tcopied updates files"
   end
@@ -386,14 +386,14 @@ def bc_install_layout_1_app(bc, path, barclamp)
   # copy all the files to the target
   if dirs.include? 'chef'
     debug "path entries include \"chef\""
-    files += bc_cloner('chef', bc, nil, path, BASE_PATH, false)
-    debug "\tcopied over chef parts from #{path} to #{BASE_PATH}"
+    files += bc_cloner('chef', bc, nil, bc_path, BASE_PATH, false)
+    debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
   end
 
   # Migrate base crowbar schema if needed
-  bc_schema_version = barclamp["crowbar"]["proposal_schema_version"].to_i rescue 1
+  bc_schema_version = yaml["crowbar"]["proposal_schema_version"].to_i rescue 1
   if bc_schema_version < 2
-    name = barclamp['barclamp']['name']
+    name = yaml['barclamp']['name']
     schema_file = File.join BASE_PATH, 'chef','data_bags','crowbar', "bc-template-#{name}.schema"
     if File.exists? schema_file
       a = []
@@ -420,7 +420,7 @@ def bc_install_layout_1_app(bc, path, barclamp)
 
   #copy over the crowbar.yml file
   yml_path = File.join CROWBAR_PATH, 'barclamps'
-  yml_barclamp = File.join path, "crowbar.yml"
+  yml_barclamp = File.join bc_path, "crowbar.yml"
   FileUtils.mkdir yml_path unless File.directory? yml_path
   FileUtils.cp yml_barclamp, File.join(yml_path, "#{bc}.yml")
 
@@ -428,14 +428,14 @@ def bc_install_layout_1_app(bc, path, barclamp)
 end
 
 # upload the chef parts for a barclamp
-def bc_install_layout_1_chef(bc, path, barclamp)
+def bc_install_layout_1_chef(bc, bc_path, yaml)
 
   log_path = File.join '/var', 'log', 'barclamps'
   FileUtils.mkdir log_path unless File.directory? log_path
   log = File.join log_path, "#{bc}.log"
   system "date >> #{log}"
   debug "Capturing chef install logs to #{log}"
-  chef = File.join path, 'chef'
+  chef = File.join bc_path, 'chef'
   cookbooks = File.join chef, 'cookbooks'
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
@@ -447,27 +447,27 @@ def bc_install_layout_1_chef(bc, path, barclamp)
   puts "Barclamp #{bc} (format v1) Chef Components Uploaded."
 end
 
-def upload_cookbooks(cookbooks, path, log)
+def upload_cookbooks(cookbooks, bc_path, log)
   if File.directory? cookbooks
     FileUtils.cd cookbooks
     knife_cookbook = "knife cookbook upload -o . -a -V -k /etc/chef/webui.pem -u chef-webui"
     unless system knife_cookbook + " >> #{log} 2>&1"
-      fatal "#{path} #{knife_cookbook} upload failed.", log
+      fatal "#{bc_path} #{knife_cookbook} upload failed.", log
     end
-    debug "\texecuted: #{path} #{knife_cookbook}"
+    debug "\texecuted: #{bc_path} #{knife_cookbook}"
   else
     debug "\tNOTE: could not find cookbooks #{cookbooks}"
   end
 end
 
-def upload_databags(databags, path, log)
+def upload_databags(databags, bc_path, log)
   if File.exists? databags
     Dir.entries(databags).each do |bag|
       next if bag == "." or bag == ".."
       bag_path = File.join databags, bag
       FileUtils.chmod 0755, bag_path
       chmod_dir 0644, bag_path
-      upload_data_bag_from_dir bag, bag_path, path, log
+      upload_data_bag_from_dir bag, bag_path, bc_path, log
     end
   else
     debug "\tNOTE: could not find databags #{databags}"
@@ -475,33 +475,33 @@ def upload_databags(databags, path, log)
 end
 
 # Upload data bag items from any JSON files in the provided directory
-def upload_data_bag_from_dir(bag, bag_path, path, log)
+def upload_data_bag_from_dir(bag, bag_path, bc_path, log)
   FileUtils.cd bag_path
-  create_data_bag(bag, log, path)
+  create_data_bag(bag, log, bc_path)
   
   json = Dir.glob(bag_path + '/*.json')
   json.each do |bag_file|
-    upload_data_bag_from_file(bag, bag_file, path, log)
+    upload_data_bag_from_file(bag, bag_file, bc_path, log)
   end
 end
 
-def create_data_bag(bag, log, path)
+def create_data_bag(bag, log, bc_path)
   knife_bag  = "knife data bag create #{bag} -V -k /etc/chef/webui.pem -u chef-webui"
   unless system knife_bag + " >> #{log} 2>&1"
     fatal "#{knife_bag} failed.", log
   end
-  debug "\texecuted: #{path} #{knife_bag}"
+  debug "\texecuted: #{bc_path} #{knife_bag}"
 end
 
-def upload_data_bag_from_file(bag, bag_file, path, log)
+def upload_data_bag_from_file(bag, bag_file, bc_path, log)
   knife_databag  = "knife data bag from file #{bag} #{bag_file} -V -k /etc/chef/webui.pem -u chef-webui"
   unless system knife_databag + " >> #{log} 2>&1"
     fatal "#{knife_databag} failed.", log
   end
-  debug "\texecuted: #{path} #{knife_databag}"
+  debug "\texecuted: #{bc_path} #{knife_databag}"
 end
 
-def upload_roles(roles, path, log)
+def upload_roles(roles, bc_path, log)
   if File.directory? roles
     FileUtils.cd roles
     Dir[roles + "*.rb"].each do |role|
@@ -509,46 +509,46 @@ def upload_roles(roles, path, log)
       unless system knife_role + " >> #{log} 2>&1"
         fatal "#{knife_role} failed.", log
       end
-      debug "\texecuted: #{path} #{knife_role}"
+      debug "\texecuted: #{bc_path} #{knife_role}"
     end
   else
     debug "\tNOTE: could not find roles #{roles}"
   end
 end
 
-def bc_install_layout_1_cache(bc, path, barclamp)
-  return unless File.directory?(File.join(path,"cache"))
-  Dir.entries(File.join(path,"cache")).each do |ent|
+def bc_install_layout_1_cache(bc, bc_path)
+  return unless File.directory?(File.join(bc_path,"cache"))
+  Dir.entries(File.join(bc_path,"cache")).each do |ent|
     debug ent.inspect
     case
     when ent == "files"
       debug "Copying files"
-      system "cp -r \"#{path}/cache/#{ent}\" /tftpboot"
+      system "cp -r \"#{bc_path}/cache/#{ent}\" /tftpboot"
     when ent == "gems"
       # Symlink the gems into One Flat Directory.
       debug "Installing gems"
-      Dir.entries("#{path}/cache/gems").each do |gem|
+      Dir.entries("#{bc_path}/cache/gems").each do |gem|
         next unless /\.gem$/ =~ gem
         unless File.directory? "/tftpboot/gemsite/gems"
           system "mkdir -p /tftpboot/gemsite/gems"
         end
         unless File.symlink? "/tftpboot/gemsite/gems/#{gem}"
-	  debug "Symlinking #{path}/cache/gems/#{gem} into /tftpboot/gemsite/gems"
-          File.symlink "#{path}/cache/gems/#{gem}", "/tftpboot/gemsite/gems/#{gem}"
+	  debug "Symlinking #{bc_path}/cache/gems/#{gem} into /tftpboot/gemsite/gems"
+          File.symlink "#{bc_path}/cache/gems/#{gem}", "/tftpboot/gemsite/gems/#{gem}"
         end
       end
       debug "Done"
-    when File.directory?("#{path}/cache/#{ent}/pkgs")
+    when File.directory?("#{bc_path}/cache/#{ent}/pkgs")
       debug "Installing packages"
       # We have actual packages here.  They map into the target like so:
-      # path/ent/pkgs -> /tftboot/ent/crowbar-extras/bc
+      # bc_path/ent/pkgs -> /tftboot/ent/crowbar-extras/bc
       unless File.directory? "/tftpboot/#{ent}/crowbar-extra/"
         system "mkdir -p \"/tftpboot/#{ent}/crowbar-extra/\""
       end
       # sigh, ubuntu-install and redhat-install.
-      unless File.symlink? "/tftpboot/#{ent}/crowbar-extra/#{path.split('/')[-1]}"
-	debug "Symlinking #{path}/cache/#{ent}/pkgs into /tftpboot/#{ent}/crowbar-extra"
-        File.symlink "#{path}/cache/#{ent}/pkgs", "/tftpboot/#{ent}/crowbar-extra/#{path.split('/')[-1]}"
+      unless File.symlink? "/tftpboot/#{ent}/crowbar-extra/#{bc_path.split('/')[-1]}"
+	debug "Symlinking #{bc_path}/cache/#{ent}/pkgs into /tftpboot/#{ent}/crowbar-extra"
+        File.symlink "#{bc_path}/cache/#{ent}/pkgs", "/tftpboot/#{ent}/crowbar-extra/#{bc_path.split('/')[-1]}"
       end
     end
     debug "Done"
