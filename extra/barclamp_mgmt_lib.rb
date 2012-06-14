@@ -169,11 +169,11 @@ def bc_replacer(item, bc, entity)
   debug "bc_replacer method called with debug option enabled"
   debug "bc_replacer args: item=#{item}, bc=#{bc}, entity=#{entity}"
 
-  item = item.gsub(MODEL_SUBSTRING_BASE, bc)
-  item = item.gsub(MODEL_SUBSTRING_CAMEL, bc.camelize)
-  item = item.gsub(MODEL_SUBSTRING_HUMAN, bc.humanize)
-  item = item.gsub(MODEL_SUBSTRING_CAPSS, bc.capitalize)
-  item = item.gsub('Copyright 2011, Dell', "Copyright #{Time.now.year}, #{entity}")
+  item.gsub!(MODEL_SUBSTRING_BASE, bc)
+  item.gsub!(MODEL_SUBSTRING_CAMEL, bc.camelize)
+  item.gsub!(MODEL_SUBSTRING_HUMAN, bc.humanize)
+  item.gsub!(MODEL_SUBSTRING_CAPSS, bc.capitalize)
+  item.gsub!('Copyright 2011, Dell', "Copyright #{Time.now.year}, #{entity}")
   debug "bc_replacer returns item=#{item}"
   return item
 end
