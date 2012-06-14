@@ -440,7 +440,14 @@ def bc_install_layout_1_chef(bc, path, barclamp)
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
 
-  #upload the cookbooks
+  upload_cookbooks cookbooks, path, log
+  upload_databags databags, path, log
+  upload_roles roles, path, log
+
+  puts "Barclamp #{bc} (format v1) Chef Components Uploaded."
+end
+
+def upload_cookbooks(cookbooks, path, log)
   if File.directory? cookbooks
     FileUtils.cd cookbooks
     knife_cookbook = "knife cookbook upload -o . -a -V -k /etc/chef/webui.pem -u chef-webui"
@@ -451,38 +458,53 @@ def bc_install_layout_1_chef(bc, path, barclamp)
   else
     debug "\tNOTE: could not find cookbooks #{cookbooks}"
   end
+end
 
-  #upload the databags
+def upload_databags(databags, path, log)
   if File.exists? databags
     Dir.entries(databags).each do |bag|
       next if bag == "." or bag == ".."
       bag_path = File.join databags, bag
       FileUtils.chmod 0755, bag_path
       chmod_dir 0644, bag_path
-      FileUtils.cd bag_path
-      knife_bag  = "knife data bag create #{bag} -V -k /etc/chef/webui.pem -u chef-webui"
-      unless system knife_bag + " >> #{log} 2>&1"
-        fatal "#{knife_bag} failed.", log
-      end
-      debug "\texecuted: #{path} #{knife_bag}"
-
-      json = Dir.entries(bag_path).find_all { |r| r.end_with?(".json") }
-      json.each do |bag_file|
-        knife_databag  = "knife data bag from file #{bag} #{bag_file} -V -k /etc/chef/webui.pem -u chef-webui"
-          unless system knife_databag + " >> #{log} 2>&1"
-            fatal "#{knife_databag} failed.", log
-          end
-        debug "\texecuted: #{path} #{knife_databag}"
-      end
+      upload_data_bag_from_dir bag, bag_path, path, log
     end
   else
     debug "\tNOTE: could not find databags #{databags}"
   end
+end
 
-  #upload the roles
+# Upload data bag items from any JSON files in the provided directory
+def upload_data_bag_from_dir(bag, bag_path, path, log)
+  FileUtils.cd bag_path
+  create_data_bag(bag, log, path)
+  
+  json = Dir.glob(bag_path + '/*.json')
+  json.each do |bag_file|
+    upload_data_bag_from_file(bag, bag_file, path, log)
+  end
+end
+
+def create_data_bag(bag, log, path)
+  knife_bag  = "knife data bag create #{bag} -V -k /etc/chef/webui.pem -u chef-webui"
+  unless system knife_bag + " >> #{log} 2>&1"
+    fatal "#{knife_bag} failed.", log
+  end
+  debug "\texecuted: #{path} #{knife_bag}"
+end
+
+def upload_data_bag_from_file(bag, bag_file, path, log)
+  knife_databag  = "knife data bag from file #{bag} #{bag_file} -V -k /etc/chef/webui.pem -u chef-webui"
+  unless system knife_databag + " >> #{log} 2>&1"
+    fatal "#{knife_databag} failed.", log
+  end
+  debug "\texecuted: #{path} #{knife_databag}"
+end
+
+def upload_roles(roles, path, log)
   if File.directory? roles
     FileUtils.cd roles
-    Dir.entries(roles).find_all { |r| r.end_with?(".rb") }.each do |role|
+    Dir[roles + "*.rb"].each do |role|
       knife_role = "knife role from file #{role} -V -k /etc/chef/webui.pem -u chef-webui"
       unless system knife_role + " >> #{log} 2>&1"
         fatal "#{knife_role} failed.", log
@@ -492,9 +514,6 @@ def bc_install_layout_1_chef(bc, path, barclamp)
   else
     debug "\tNOTE: could not find roles #{roles}"
   end
-
-  puts "Barclamp #{bc} (format v1) Chef Components Uploaded."
-
 end
 
 def bc_install_layout_1_cache(bc, path, barclamp)
