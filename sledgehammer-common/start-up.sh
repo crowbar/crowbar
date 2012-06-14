@@ -2,6 +2,14 @@
 
 set -x
 
+DHCPDIR=/var/lib/dhclient
+RSYSLOGSERVICE=rsyslog
+
+[ -e /etc/SuSE-release ] && {
+ DHCPDIR=/var/lib/dhcp
+ RSYSLOGSERVICE=syslog
+}
+
 # Figure out where we PXE booted from.
 bootif_re='BOOTIF=([^ ]+)'
 ip_re='inet ([0-9.]+)/([0-9]+)'
@@ -24,6 +32,7 @@ if [[ ! $BOOTDEV ]]; then
     MAC=$(cat /sys/class/net/eth0/address)
 fi
 
+killall dhclient && sleep 5
 # Make sure our PXE interface is up, then fire up DHCP on it.
 ip link set "$BOOTDEV" up
 dhclient "$BOOTDEV"
@@ -34,9 +43,9 @@ if ! [[ $(ip -4 -o addr show dev $BOOTDEV) =~ $ip_re ]]; then
 fi
 MYIP="${BASH_REMATCH[1]}"
 
-ADMIN_IP=$(grep dhcp-server /var/lib/dhclient/dhclient*.leases | \
+ADMIN_IP=$(grep dhcp-server $DHCPDIR/dhclient*.leases | \
     uniq | cut -d" " -f5 | cut -d";" -f1)
-DOMAIN=$(grep "domain-name " /var/lib/dhclient/dhclient*.leases | \
+DOMAIN=$(grep "domain-name " $DHCPDIR/dhclient*.leases | \
     uniq | cut -d" " -f5 | cut -d";" -f1 | awk -F\" '{ print $2 }')
 HOSTNAME_MAC="h${MAC//:/-}.${DOMAIN}"
 
@@ -52,7 +61,7 @@ HOSTNAME=$(hostname)
 # enable remote logging to our admin node.
 echo "# Sledgehammer added to log to the admin node" >> /etc/rsyslog.conf
 echo "*.* @@${ADMIN_IP}" >> /etc/rsyslog.conf
-service rsyslog restart
+service $RSYSLOGSERVICE restart
 
 # Setup common dirs
 for d in updates install-logs; do
