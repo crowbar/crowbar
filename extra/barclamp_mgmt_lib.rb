@@ -46,6 +46,11 @@ def debug(msg)
   puts "DEBUG: " + msg if @@debug
 end
 
+def fatal(msg, log)
+  puts "ERROR: #{msg}  Aborting; examine #{log} for more info."
+  exit 1
+end
+
 # entry point for scripts
 def bc_install(bc, path, barclamp)
   case barclamp["crowbar"]["layout"].to_i
@@ -440,8 +445,7 @@ def bc_install_layout_1_chef(bc, path, barclamp)
     FileUtils.cd cookbooks
     knife_cookbook = "knife cookbook upload -o . -a -V -k /etc/chef/webui.pem -u chef-webui"
     unless system knife_cookbook + " >> #{log} 2>&1"
-      puts "\t#{path} #{knife_cookbook} upload failed. Examine #{log} for more into"
-      exit 1
+      fatal "#{path} #{knife_cookbook} upload failed.", log
     end
     debug "\texecuted: #{path} #{knife_cookbook}"
   else
@@ -458,8 +462,7 @@ def bc_install_layout_1_chef(bc, path, barclamp)
       FileUtils.cd bag_path
       knife_bag  = "knife data bag create #{bag} -V -k /etc/chef/webui.pem -u chef-webui"
       unless system knife_bag + " >> #{log} 2>&1"
-        puts "\t#{knife_bag} failed.  Examine #{log} for more information."
-        exit 1
+        fatal "#{knife_bag} failed.", log
       end
       debug "\texecuted: #{path} #{knife_bag}"
 
@@ -467,8 +470,7 @@ def bc_install_layout_1_chef(bc, path, barclamp)
       json.each do |bag_file|
         knife_databag  = "knife data bag from file #{bag} #{bag_file} -V -k /etc/chef/webui.pem -u chef-webui"
           unless system knife_databag + " >> #{log} 2>&1"
-            puts "\t#{knife_databag} failed.  Examine #{log} for more information."
-            exit 1
+            fatal "#{knife_databag} failed.", log
           end
         debug "\texecuted: #{path} #{knife_databag}"
       end
@@ -483,8 +485,7 @@ def bc_install_layout_1_chef(bc, path, barclamp)
     Dir.entries(roles).find_all { |r| r.end_with?(".rb") }.each do |role|
       knife_role = "knife role from file #{role} -V -k /etc/chef/webui.pem -u chef-webui"
       unless system knife_role + " >> #{log} 2>&1"
-        puts "\t#{knife_role} failed.  Examine #{log} for more information."
-        exit 1
+        fatal "#{knife_role} failed.", log
       end
       debug "\texecuted: #{path} #{knife_role}"
     end
