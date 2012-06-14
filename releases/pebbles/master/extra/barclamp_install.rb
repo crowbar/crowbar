@@ -55,6 +55,13 @@ debug "tarball tmpdir: #{tmpdir}"
 Dir.mkdir(tmpdir)
 candidates = Array.new
 
+def rm_tmpdir(tmpdir)
+  if File.directory?(tmpdir)
+    debug "temporary directory #{tmpdir} will be removed"
+    system "rm -rf #{tmpdir}"
+  end
+end
+
 ARGV.each do |src|
   debug "src: #{src}"
   case
@@ -173,14 +180,19 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
       debug "exception occured while installing barclamp"
       raise e
     end
-  rescue
+  rescue Exception => e
+    if @@debug
+      debug "temporary directory #{tmpdir} will be left for debugging if it exists"
+    else
+      rm_tmpdir(tmpdir)
+    end
+    puts e
+    puts e.backtrace
     puts "Install of #{bc[:name]} failed."
-    debug "temporary directory #{tmpdir} will be removed if it exists"
-    system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
     exit -3
   end
 end
-debug "temporary directory #{tmpdir} will be removed if it exists"
-system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
+
+rm_tmpdir(tmpdir)
 
 exit 0
