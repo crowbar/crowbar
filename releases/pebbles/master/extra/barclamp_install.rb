@@ -176,11 +176,11 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
     debug "installing barclamp"
     begin
       bc_install bc[:name], bc[:src], bc[:yaml]
-    rescue Exception => e
-      debug "exception occured while installing barclamp"
+    rescue StandardError => e
+      debug "exception occurred while installing barclamp"
       raise e
     end
-  rescue Exception => e
+  rescue StandardError => e
     if @@debug
       debug "temporary directory #{tmpdir} will be left for debugging if it exists"
     else
