@@ -443,9 +443,9 @@ def bc_install_layout_1_chef(bc, bc_path, yaml)
     rpm = 'crowbar-barclamp-' + bc
     debug "on SUSE machine; obtaining chef components from #{rpm}"
     rpm_files = get_rpm_file_list(rpm)
-    upload_cookbooks_from_rpm rpm_files, bc_path, log
-    upload_data_bags_from_rpm rpm_files, bc_path, log
-    upload_roles_from_rpm     rpm_files, bc_path, log
+    upload_cookbooks_from_rpm rpm, rpm_files, bc_path, log
+    upload_data_bags_from_rpm rpm, rpm_files, bc_path, log
+    upload_roles_from_rpm     rpm, rpm_files, bc_path, log
   else
     debug "obtaining chef components from " + bc_path
     upload_cookbooks_from_dir cookbooks, ['ALL'], bc_path, log
@@ -465,43 +465,43 @@ def get_rpm_file_list(rpm)
   return file_list
 end
 
-def upload_cookbooks_from_rpm(rpm_files, bc_path, log)
+def upload_cookbooks_from_rpm(rpm, rpm_files, bc_path, log)
   cookbooks_dir = "#{BASE_PATH}/chef/cookbooks"
   cookbooks = rpm_files.inject([]) do |acc, file|
     if File.directory?(file) and file =~ %r!^#{cookbooks_dir}/([^/]+)$!
       cookbook = File.basename(file)
-      debug "will upload #{cookbook} from #{file} from rpm"
+      debug "will upload #{cookbook} from #{file} from #{rpm} rpm"
       acc.push cookbook
     end
     acc
   end
   if cookbooks.empty?
-    puts "WARNING: didn't find any cookbooks in " + cookbooks_dir
+    puts "WARNING: didn't find any cookbooks from #{rpm} rpm in #{cookbooks_dir}"
   else
     upload_cookbooks_from_dir(cookbooks_dir, cookbooks, bc_path, log)
   end
 end
 
-def upload_data_bags_from_rpm(rpm_files, bc_path, log)
+def upload_data_bags_from_rpm(rpm, rpm_files, bc_path, log)
   data_bags_dir = "#{BASE_PATH}/chef/data_bags"
   data_bag_files = rpm_files.grep(%r!^#{data_bags_dir}/([^/]+)/[^/]+\.json$!) do |path|
     [ $1, path ]
   end
   if data_bag_files.empty?
-    puts "WARNING: didn't find any data bags in " + data_bags_dir
+    puts "WARNING: didn't find any data bags from #{rpm} rpm in #{data_bags_dir}"
   else
     data_bag_files.each do |bag, bag_item_path|
-      debug "uploading #{bag} from rpm"
+      debug "uploading #{bag} from #{rpm} rpm"
       upload_data_bag_from_file(bag, bag_item_path, bc_path, log)
     end
   end
 end
 
-def upload_roles_from_rpm(rpm_files, bc_path, log)
+def upload_roles_from_rpm(rpm, rpm_files, bc_path, log)
   roles_dir = "#{BASE_PATH}/chef/roles"
   roles = rpm_files.grep(%r!^#{roles_dir}/([^/]+)$!)
   if roles.empty?
-    puts "WARNING: didn't find any roles in " + roles_dir
+    puts "WARNING: didn't find any roles from #{rpm} rpm in #{roles_dir}"
   else
     roles.each do |role|
       upload_role_from_dir(role, bc_path, log)
