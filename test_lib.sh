@@ -125,11 +125,16 @@ smoketest_make_bridges() {
         if [[ $bridge =~ $pub_re ]]; then
             sudo -n ip addr add 192.168.124.1/24 dev "$bridge"
             for vlan in "${!SMOKETEST_VLANS[@]}"; do
-                sudo -n ip link add link "$bridge" \
-                    name "$bridge.$vlan" type vlan id $vlan
-                sudo -n ip link set "$bridge.$vlan" up
-                sudo -n ip addr add "${SMOKETEST_VLANS[$vlan]}" \
-                    dev "$bridge.$vlan"
+                if [[ $network_mode = *novlan ]]; then
+                    sudo -n ip addr add "${SMOKETEST_VLANS[$vlan]}" \
+                        dev $bridge
+                else
+                    sudo -n ip link add link "$bridge" \
+                        name "$bridge.$vlan" type vlan id $vlan
+                    sudo -n ip link set "$bridge.$vlan" up
+                    sudo -n ip addr add "${SMOKETEST_VLANS[$vlan]}" \
+                        dev "$bridge.$vlan"
+                fi
             done
         fi
     done
@@ -158,10 +163,15 @@ smoketest_kill_bridges() {
         if [[ $bridge =~ $pub_re ]]; then
             sudo -n ip addr del 192.168.124.1/24 dev "$bridge"
             for vlan in "${!SMOKETEST_VLANS[@]}"; do
-                sudo -n ip addr del "${SMOKETEST_VLAN[$vlan]}" \
-                    dev "$bridge.$vlan"
-                sudo -n ip link set "$bridge.$vlan" down
-                sudo -n ip link del dev "$bridge.$vlan" type vlan id "$vlan"
+                if [[ $network_mode = *-novlan ]]; then
+                    sudo -n ip addr del "${SMOKETEST_VLAN[$vlan]}" \
+                        dev "$bridge"
+                else
+                    sudo -n ip addr del "${SMOKETEST_VLAN[$vlan]}" \
+                        dev "$bridge.$vlan"
+                    sudo -n ip link set "$bridge.$vlan" down
+                    sudo -n ip link del dev "$bridge.$vlan" type vlan id "$vlan"
+                fi
             done
         fi
         sudo -n ip link set "$bridge" down
@@ -1113,7 +1123,7 @@ run_test() {
             develop-mode) local develop_mode=true;;
             manual-deploy) local manual_deploy=true;;
             use-iso) shift; SMOKETEST_ISO="$1";;
-            single|dual|team) local network_mode="$1";;
+            single*|dual*|team*) local network_mode="$1";;
             bind-nic) shift;
                 [[ -d /sys/class/net/$1 ]] || \
                     die "$1 is not a network interface!"
