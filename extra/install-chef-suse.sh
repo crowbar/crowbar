@@ -102,7 +102,7 @@ fi
 /bin/df -h  
 /usr/bin/free -m
 /bin/ls -la /srv/tftpboot/repos/ /srv/tftpboot/repos/Cloud/ /srv/tftpboot/suse-11.2/install/
-/usr/bin/grep media_url /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb
+/usr/bin/grep media_url /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb
 
 CROWBAR=/opt/dell/bin/crowbar
 
@@ -258,7 +258,7 @@ for i in deployer dns mysql postgresql database ipmi nagios keystone \
 done
 
 # Configure chef to set up bind with correct local domain and DNS forwarders.
-dns_template=/opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
+dns_template=/opt/dell/chef/data_bags/crowbar/bc-template-dns.json
 [ -f $dns_template ] || die "$dns_template doesn't exist"
 nameservers=$( awk '/^nameserver/ {print $2}' /etc/resolv.conf )
 # This will still work if there are no nameservers.
