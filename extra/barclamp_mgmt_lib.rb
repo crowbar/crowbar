@@ -568,7 +568,7 @@ end
 def upload_roles_from_dir(roles, bc_path, log)
   if File.directory? roles
     FileUtils.cd roles
-    Dir[roles + "*.rb"].each do |role_path|
+    Dir[roles + "/*.rb"].each do |role_path|
       upload_role_from_dir(role_path, bc_path, log)
     end
   else
@@ -577,7 +577,7 @@ def upload_roles_from_dir(roles, bc_path, log)
 end
 
 def upload_role_from_dir(role_path, bc_path, log)
-  debug "will upload #{role_path} from rpm"
+  debug "will upload #{role_path}"
   knife_role = "knife role from file #{role_path} -V -k /etc/chef/webui.pem -u chef-webui"
   unless system knife_role + " >> #{log} 2>&1"
     fatal "#{knife_role} failed.", log
