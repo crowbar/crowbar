@@ -1,0 +1,71 @@
+#
+# spec file for package crowbar
+#
+# Copyright (c) 2012 SUSE LINUX Products GmbH, Nuernberg, Germany.
+#
+# All modifications and additions to the file contributed by third parties
+# remain the property of their copyright owners, unless otherwise agreed
+# upon. The license for this file, and modifications and additions to the
+# file, is the same license as for the pristine package itself (unless the
+# license for the pristine package is not an Open Source License, in which
+# case the license is the MIT License). An "Open Source License" is a
+# license that conforms to the Open Source Definition (Version 1.9)
+# published by the Open Source Initiative.
+
+# Please submit bugfixes or comments via http://bugs.opensuse.org/
+#
+
+%define barclamp <%= name %>
+%define barclamp_displayname <%= displayname %>
+%define tarball %{name}-git-%{version}.tar.bz2
+%define tar_subdir %{name}-git-%{version}
+%define dell_dir /opt/dell
+%define dell_bin_dir %{dell_dir}/bin
+%define bc_dir %{dell_dir}/barclamps/%{barclamp}
+
+Name:           crowbar-barclamp-%{barclamp}
+Version:        RUN 'osc service disabledrun' !
+Release:        0
+License:        Apache-2.0
+Summary:        Crowbar barclamp for %{barclamp_displayname}
+Url:            https://github.com/dellcloudedge/crowbar/wiki
+Group:          System/Management
+Source0:        %{tarball}
+Requires:       <%= requires %>
+BuildRoot:      %{_tmppath}/%{name}-%{version}-build
+BuildArch:      noarch
+
+%description
+This is the %{barclamp_displayname} barclamp for Crowbar.
+
+Crowbar is a platform for server provisioning and deployment from bare
+metal.  It provides server discovery, firmware upgrades, and operating
+system installation using PXE Boot.  It deploys applications on top of
+functioning operating systems using Chef.
+
+
+%prep
+%setup -q -n %{tar_subdir}
+
+%build
+
+%install
+dell_dir=%{buildroot}%{dell_dir}
+
+bc_dir=$dell_dir/barclamps/%{barclamp}
+install -d -m 755 $bc_dir
+cp -a * $bc_dir
+chmod a+x $bc_dir/bin/*
+find $bc_dir -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\|erb\)$' | xargs chmod a-x
+find $bc_dir -regex '.+/README.*\|.+/chef/cookbooks/.+/recipes/.+.rb' | xargs chmod a-x
+mv $bc_dir/{bin,chef,crowbar_framework} $dell_dir
+
+%files
+%defattr(-,root,root,-)
+%dir %{dell_dir}
+%{dell_dir}/*
+# FIXME: FHS violation, should not have config files in /opt
+# https://github.com/dellcloudedge/crowbar/issues/833
+%config(noreplace) %{dell_dir}/chef/data_bags/crowbar/bc-template-%{barclamp}.json
+
+%changelog
