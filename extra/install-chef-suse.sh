@@ -11,7 +11,7 @@
 # 1. Copy all barclamps to /opt/dell/barclamps
 #    You'll want:
 #      crowbar database deployer dns glance ipmi keystone logging
-#      mysql nagios network nova nova_dashboard ntp openstack postgresql
+#      nagios network nova nova_dashboard ntp openstack
 #      provisioner swift
 # 2. Copy extra/barclamp* to /opt/dell/bin/
 # 4. You should probably set eth0 to be static IP 192.168.124.10/24.
@@ -244,10 +244,9 @@ fi
 #
 # Take care that the barclamps are installed in the right order
 # If you've got a full openstack set installed, e.g.: nagios has to be
-# installed before keystone, postgresql and mysql has to be installed
-# before database, etc.
+# installed before keystone, etc.
 #
-for i in deployer dns mysql postgresql database ipmi nagios keystone \
+for i in deployer dns database ipmi nagios keystone \
          glance logging network nova nova_dashboard ntp openstack \
          provisioner swift ; do
     if [ -e /opt/dell/crowbar_framework/barclamps/$i.yml ]; then
