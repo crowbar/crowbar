@@ -45,6 +45,7 @@ ensure_service_running () {
         echo "$service is already running - no need to start."
     else
         service $service start
+        sleep 4
     fi
 }
 
