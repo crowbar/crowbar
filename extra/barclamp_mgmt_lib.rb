@@ -539,7 +539,7 @@ def upload_data_bags_from_dir(databags_dir, bc_path, log)
       upload_data_bag_from_dir bag, bag_path, bc_path, log
     end
   else
-    debug "\tNOTE: could not find data bags dir #{databags}"
+    debug "\tNOTE: could not find data bags dir #{databags_dir}"
   end
 end
 
