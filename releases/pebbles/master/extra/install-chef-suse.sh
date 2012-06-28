@@ -377,6 +377,7 @@ done
 rm /tmp/deploying
 
 # Need chef-client daemon now
+chkconfig chef-client on
 ensure_service_running chef-client
 
 # Spit out a warning message if we managed to not get an IP address
