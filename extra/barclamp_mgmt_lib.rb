@@ -400,16 +400,17 @@ def bc_install_layout_1_app(bc, bc_path, yaml)
       File.open(schema_file, 'r') { |f|
         a = f.readlines
       }
-
-      File.open(schema_file, 'w') { |f|
-        a.each do |line|
-          if line =~ /crowbar-committing/
-            f.write("  \"crowbar-status\": { \"type\": \"str\" },\n")
-            f.write("  \"crowbar-failed\": { \"type\": \"str\" },\n")
+      if a.grep(/^\s+\"crowbar-status\"/).empty?
+        File.open(schema_file, 'w') { |f|
+          a.each do |line|
+            if line =~ /crowbar-committing/
+              f.write("  \"crowbar-status\": { \"type\": \"str\" },\n")
+              f.write("  \"crowbar-failed\": { \"type\": \"str\" },\n")
+            end
+            f.write(line)
           end
-          f.write(line)
-        end
-      }
+        }
+      end
     end
   end
 
