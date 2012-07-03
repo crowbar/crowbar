@@ -762,7 +762,8 @@ build_iso() (
     rm -f isolinux/boot.cat
     find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
     find . -type f -not -name isolinux.bin -not -name sha1sums \
-        -not -path '*/.git/*' | xargs sha1sum -b >sha1sums
+        -not -name crowbar.json -not -path '*/.git/*' -print0 | \
+        xargs -0 -- sha1sum -b >sha1sums
     mkdir -p "$ISO_DEST"
         # Save the sha1sums and the build-info files along side the iso.
     cp sha1sums build-info "$ISO_DEST"
