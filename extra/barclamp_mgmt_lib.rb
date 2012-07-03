@@ -74,11 +74,21 @@ def catalog(bc_path)
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
   cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
+  system("knife data bag create -k /etc/chef/webui.pem -u chef-webui barclamps")
   list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
   # scan the installed barclamps
   list.each do |bc_file|
+    unless File.directory?("#{barclamps}/bc_meta")
+      Dir.mkdir("#{barclamps}/bc_meta")
+    end
     debug "Loading #{bc_file}"
     bc = YAML.load_file File.join(barclamps, bc_file)
+    File.open("#{barclamps}/bc_meta/#{bc_file}.json","w+") { |f|
+      f.truncate(0)
+      bc["id"] = bc_file.split('.')[0]
+      f.puts(JSON.pretty_generate(bc))
+    }
+    Kernel.system("knife data bag from file -k /etc/chef/webui.pem -u chef-webui barclamps \"#{barclamps}/bc_meta/#{bc_file}.json\"")
     name =  bc['barclamp']['name']
     cat['barclamps'][name] = {} if cat['barclamps'][name].nil?
     description = bc['barclamp']['description']
@@ -113,7 +123,6 @@ def catalog(bc_path)
       cat['barclamps'][name]['date'] = bc['git']['date'] if bc['git']['date']
       cat['barclamps'][name]['commit'] = bc['git']['commit'] if bc['git']['commit']
     end
-
   end
   File.open( File.join(CROWBAR_PATH, 'config', 'catalog.yml'), 'w' ) do |out|
     YAML.dump( cat, out )
