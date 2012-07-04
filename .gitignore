@@ -6,3 +6,4 @@ sha1sums
 testing/
 *~
 .#*
+*.vim
