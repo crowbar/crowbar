@@ -52,3 +52,6 @@
 [submodule "barclamps/keystone"]
 	path = barclamps/keystone
 	url = http://github.com/dellcloudedge/barclamp-keystone.git
+[submodule "barclamps/tempest"]
+	path = barclamps/tempest
+	url = git://github.com/MirantisDellCrowbar/barclamp-tempest.git
