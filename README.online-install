@@ -1,6 +1,15 @@
 This file documents how to install Crowbar on a basic install of
 Ubuntu or CentOS without needing to create a crowbar ISO first.
 
+Caveats:
+ * Online install mode still has plenty of bugs to work out.
+ * Especially where the Crowbar web UI is concerned.  Doing an online
+   install as described by this README will result in a broken web
+   UI.  The Crowbar CLI still works, though.
+ * Online install mode is primarily intended as a development aid for
+   now.  If you want to deploy something more production oriented,
+   build the ISO using the usual build process.
+
 Assumptions:
  * Your primary NIC has an IP address of 192.168.124.10/24
  * You have at least 20 gigs of disk space and 4 gigs of ram.
