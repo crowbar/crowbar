@@ -43,7 +43,7 @@ find_cd_pool() ( echo "$IMAGE_DIR/Packages" )
 # There is no public location to fetch the RHEL .iso from.  If you have one,
 # you can change this function.
 fetch_os_iso() {
-    die "build_crowbar.sh does not know how to automatically download $ISO"
+    die "Cannot download $ISO.  Please manually install it into $ISO_LIBRARY."
 }
 
 # Throw away packages we will not need on the iso
