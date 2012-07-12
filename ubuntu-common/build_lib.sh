@@ -22,7 +22,7 @@ fetch_os_iso() {
     echo "$(date '+%F %T %z'): Downloading and caching $ISO"
     curl -o "$ISO_LIBRARY/$ISO" \
         "$ISO_MIRROR/ubuntu-iso/CDs/$OS_VERSION/$ISO" || \
-        die 1 "Missing our source image"
+        die "Missing our source image.  Please install $ISO in $ISO_LIBRARY."
 }
 
 # Have the chroot update its package databases.
