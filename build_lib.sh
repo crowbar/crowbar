@@ -520,7 +520,7 @@ update_barclamp_pkg_cache() {
             [[ -d $bc_cache/${pkg%/*} ]] || mkdir -p "$bc_cache/${pkg%/*}"
             [[ -f $bc_cache/${pkg##*/} ]] && cache_rm "$bc_cache/${pkg##*/}"
         fi
-        cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
+        cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/${pkg//%3a/:}"
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
     local force_update=true
     update_barclamp_src_pkg_cache "$1"
