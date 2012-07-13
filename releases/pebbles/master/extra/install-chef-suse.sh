@@ -109,7 +109,7 @@ CROWBAR=/opt/dell/bin/crowbar
 
 for repo in suse-11.2/install repos/Cloud; do
     repo=/srv/tftpboot/$repo
-    if [ "$( ls $repo 2>/dev/null | wc -l )" = 0 ]; then
+    if ! [ -e $repo/content.asc ] && ! [ -e $repo/repodata/repomd.xml.asc ]; then
         if [ -n "$CROWBAR_TESTING" ]; then
             die "$repo has not been set up yet; please see https://github.com/SUSE/cloud/wiki/Crowbar"
         else
