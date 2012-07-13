@@ -250,7 +250,7 @@ fi
 # installed before keystone, etc.
 #
 for i in deployer dns database ipmi nagios keystone \
-         glance logging network nova nova_dashboard ntp openstack \
+         glance logging network ceph nova nova_dashboard ntp openstack \
          provisioner swift ; do
     if [ -e /opt/dell/crowbar_framework/barclamps/$i.yml ]; then
         echo "$i barclamp is already installed"
