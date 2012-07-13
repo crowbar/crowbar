@@ -1,4 +1,4 @@
-#! /bin/bash -e
+#! /bin/bash
 
 # This script is supposed to be run after being installed via the
 # crowbar rpm from the SUSE Cloud ISO.  In that context, it is
@@ -18,6 +18,8 @@
 # 5. rsync the Devel:Cloud, SLES-11-SP2-LATEST, SLE-11-SP2-SDK-LATEST,
 #    and possibly other repos into locations under /srv/tftpboot -
 #    see https://github.com/SUSE/cloud/wiki/Crowbar for details.
+
+set -e
 
 run_succeeded=
 
