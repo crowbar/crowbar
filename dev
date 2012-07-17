@@ -945,7 +945,7 @@ backup_to_remote() {
            debug "Barclamp ${PWD##*/}: Backing up ${branches[*]}"
        fi
        local f
-       [[ $DEV_GITHUB_ORG ]] || f=f
+       #[[ $DEV_GITHUB_ORG ]] || f=f # by bmwiedemann: we never want to force-push
        git_push -q$f "$remote" "${branches[@]}"
     fi
 }
