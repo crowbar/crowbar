@@ -520,7 +520,7 @@ update_barclamp_pkg_cache() {
             [[ -d $bc_cache/${pkg%/*} ]] || mkdir -p "$bc_cache/${pkg%/*}"
             [[ -f $bc_cache/${pkg##*/} ]] && cache_rm "$bc_cache/${pkg##*/}"
         fi
-        cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
+        cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/${pkg//%3a/:}"
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
     local force_update=true
     update_barclamp_src_pkg_cache "$1"
@@ -762,7 +762,8 @@ build_iso() (
     rm -f isolinux/boot.cat
     find -name '.svn' -type d -exec rm -rf '{}' ';' 2>/dev/null >/dev/null
     find . -type f -not -name isolinux.bin -not -name sha1sums \
-        -not -path '*/.git/*' | xargs sha1sum -b >sha1sums
+        -not -name crowbar.json -not -path '*/.git/*' -print0 | \
+        xargs -0 -- sha1sum -b >sha1sums
     mkdir -p "$ISO_DEST"
         # Save the sha1sums and the build-info files along side the iso.
     cp sha1sums build-info "$ISO_DEST"

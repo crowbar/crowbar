@@ -60,8 +60,6 @@ if [[ $USE_PROXY = "1" && $PROXY_HOST ]]; then
     [[ $http_proxy ]] || http_proxy="$proxy_str/"
     [[ $https_proxy ]] || https_proxy="$http_proxy"
     export no_proxy http_proxy https_proxy
-else
-    unset no_proxy http_proxy https_proxy
 fi
 
 DEV_ALL_REMOTES=("${DEV_REMOTES[@]}")
@@ -99,8 +97,7 @@ get_repo_cfg() { in_repo git config --get "$1"; }
 get_barclamp_cfg() { in_barclamp "$1" git config --get "$2"; }
 
 dev_is_setup() {
-    [[ $DEV_GITHUB_ID || $1 = setup ]] || \
-        die "dev has not been configured. Please run $CROWBAR_DIR/dev setup first."
+    [[ $DEV_GITHUB_ID || $1 = setup ]] || return 1
 
     thisrev=$(get_repo_cfg crowbar.dev.version) && \
         (( thisrev  == DEV_VERSION )) || [[ $1 = setup ]] || {
@@ -483,6 +480,7 @@ update_all_tracking_branches() {
 }
 
 scrub_merged_pull_requests() {
+    dev_is_setup || return 0
     # $@ = branches to test for mergedness
     local br ref pull_req
     local -A to_remove pull_reqs heads
@@ -520,11 +518,12 @@ scrub_merged_pull_requests() {
 # main Crowbar repository and the barclamps.
 fetch_all() {
     local remote remotes=() barclamp b branches=()
-    dev_is_setup
     if [[ $@ ]]; then
         remotes=("$@")
-    else
+    elif dev_is_setup; then
         remotes=("${DEV_REMOTES[@]}" personal)
+    else
+        remotes=("${DEV_REMOTES[@]}")
     fi
     for remote in "${remotes[@]}"; do
         in_repo git_config_has "remote.$remote.url" || continue
@@ -559,7 +558,7 @@ fetch_all() {
             done
         fi
     done
-    scrub_merged_pulls
+    [[ ${REMOTES[*]} = *personal* ]] && scrub_merged_pulls || :
 }
 
 scrub_merged_pulls() {
@@ -1094,7 +1093,7 @@ backup_everything() {
     local bc remote branches=() branch
     local remotes=("${DEV_REMOTES[@]}")
     local -A touched_bcs
-    dev_is_setup
+    dev_is_setup || die "You must run dev setup before trying to back things up to Github."
     [[ $@ ]] && remotes=("$@")
     for remote in "${remotes[@]}"; do
         # Back up all the barclamps that are references as submodules for
@@ -1618,7 +1617,7 @@ git_ref() {
 # pull_requests_prep generated.
 pull_requests_gen() {
     # $@ = options to parse
-    dev_is_setup
+    dev_is_setup || die "You must run dev setup before trying to generate pull requests."
     local -A barclamps branches barclamp_branches bc_pulls br_pulls refs
     local bc br bcr title body option bc_name head
     local prc=0 n=1
@@ -1767,7 +1766,7 @@ pull_requests_gen() {
 # passed on the command line to the personal remote.
 push_branches() {
     # $@ = Local branches to push
-    dev_is_setup
+    dev_is_setup || die "You must run dev setup before pushing branches to Github."
     local branches=("$@") br btp=()
     [[ $branches ]] || br=($(in_repo git symbolic-ref HEAD)) || \
         die "Main Crowbar repo is not on a branch we can push!"
