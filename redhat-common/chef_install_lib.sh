@@ -67,11 +67,6 @@ pre_crowbar_fixups() {
     #patch bad gemspecs.
     cp $DVD_PATH/extra/patches/*.gemspec \
         /usr/lib/ruby/gems/1.8/specifications/
-
-    # HACK UNTIL WE ADD THIS TO COOKBOOK
-    (cd /opt/dell/crowbar_framework;
-        bundle
-    )
 }
 
 post_crowbar_fixups() { : ; }

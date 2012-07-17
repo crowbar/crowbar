@@ -53,12 +53,7 @@ bring_up_chef() {
     log_to svc service chef-server restart
 }
 
-pre_crowbar_fixups() {
-    # HACK UNTIL WE ADD THIS TO COOKBOOK
-    (cd /opt/dell/crowbar_framework;
-        bundle
-    )
-}
+pre_crowbar_fixups() { : ; }
 
 post_crowbar_fixups() {
     # HACKHACKHACKHACK
