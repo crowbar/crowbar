@@ -217,8 +217,8 @@ end
 
 # makes sure that sass overrides are injected into the application.sass
 def merge_sass(yaml, bc, path, installing)
-  sass_path = File.join path, 'crowbar_framework', 'public', 'stylesheets', 'sass'
-  application_sass = File.join CROWBAR_PATH, 'public', 'stylesheets', 'sass', 'application.sass'
+  sass_path = File.join path, 'crowbar_framework', 'app', 'assets', 'stylesheets', 'sass'
+  application_sass = File.join CROWBAR_PATH, 'app', 'assets', 'stylesheets', 'sass', 'application.sass'
   if File.exist? application_sass and File.exists? sass_path
     sass_files = Dir.entries(sass_path).find_all { |r| r =~ /^_(.*).sass$/ }
     # get entries from the applicaiton.sass file
@@ -354,7 +354,6 @@ def framework_permissions(bc, bc_path)
   chmod_dir 0644, File.join(CROWBAR_PATH, 'db')
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'tmp')
   chmod_dir 0644, File.join(CROWBAR_PATH, 'tmp')
-  FileUtils.chmod_R 0755, File.join(CROWBAR_PATH, 'public', 'stylesheets')
   debug "\tcopied crowbar_framework files"
 end
 
