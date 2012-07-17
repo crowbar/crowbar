@@ -61,3 +61,6 @@
 [submodule "barclamps/postgresql"]
 	path = barclamps/postgresql
 	url = https://github.com/SUSE-Cloud/barclamp-postgresql
+[submodule "barclamps/ceph"]
+	path = barclamps/ceph
+	url = https://github.com/SUSE-Cloud/barclamp-ceph
