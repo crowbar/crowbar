@@ -160,7 +160,7 @@ __make_chroot() {
     sudo rm -f "$CHROOT/etc/yum.repos.d/"*
     for d in /proc /sys /dev /dev/pts /dev/shm; do
         [[ -L $d ]] && d="$(readlink -f "$d")"
-        mkdir -p "${CHROOT}$d"
+        sudo mkdir -p "${CHROOT}$d"
         sudo mount --bind "$d" "${CHROOT}$d"
     done
     # third, run any post cmds we got earlier
@@ -209,6 +209,11 @@ __make_chroot() {
         /etc/yum/pluginconf.d/fastestmirror.conf
     if [[ $ALLOW_CACHE_UPDATE = true ]]; then
         in_chroot /bin/bash -c 'cp /etc/yum.repos.d.old/* /etc/yum.repos.d'
+    fi
+    if [[ -f $CHROOT/etc/yum.conf ]]; then
+        in_chroot /bin/bash -c 'echo "exclude=centos-release redhat-release" >>/etc/yum.conf'
+    else
+        in_chroot /bin/bash -c 'printf "[main]\nexclude=centos-release redhat-release" >/etc/yum.conf'
     fi
 }
 
