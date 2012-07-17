@@ -1,0 +1,39 @@
+#!/bin/bash
+set -e
+
+# Figure out what OS we are running on.
+
+# Install prerequisites needed to run the dev tool
+# Also adds repos that let us fetch nginx and the Chef bits we need.
+
+export ISO_LIBRARY=/opt/dell/isos
+if [[ -f /etc/centos-release ]] && grep -q '6\.2' /etc/centos-release; then
+    OUR_OS=centos-6.2
+elif [[ -f /etc/redhat-release ]] && grep -q '6\.2' /etc/redhat-release; then 
+    OUR_OS=redhat-6.2
+elif [[ -f /etc/lsb-release ]]; then
+    . /etc/lsb-release
+    if [[ $DISTRIB_CODENAME = precise ]]; then
+        OUR_OS=ubuntu-12.04
+    fi
+fi
+
+if [[ ! $OUR_OS ]]; then
+    echo "This OS is not supported."
+    exit 1
+fi
+
+sudo ./install-prereqs $OUR_OS || exit 1
+
+if [[ ! -f /tftpboot/discovery/initrd0.img ]]; then
+    sudo mkdir -p /tftpboot/discovery
+    ./build_sledgehammer.sh || exit 1
+    for f in vmlinuz0 initrd0.img pxelinux.cfg; do
+        sudo mv ~/.crowbar-build-cache/tftpboot/$f /tftpboot/discovery
+    done
+    sudo rm -rf "$HOME/.crowbar-build-cache"
+fi
+# Initialize ourselves and pull down the barclamps we need.
+while ! ./dev switch; do sleep 5; done
+
+sudo ./install-crowbar $OUR_OS || exit 1
