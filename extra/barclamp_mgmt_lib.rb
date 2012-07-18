@@ -217,8 +217,8 @@ end
 
 # makes sure that sass overrides are injected into the application.sass
 def merge_sass(yaml, bc, path, installing)
-  sass_path = File.join path, 'crowbar_framework', 'app', 'assets', 'stylesheets', 'sass'
-  application_sass = File.join CROWBAR_PATH, 'app', 'assets', 'stylesheets', 'sass', 'application.sass'
+  sass_path = File.join path, 'crowbar_framework', 'app', 'assets', 'stylesheets'
+  application_sass = File.join CROWBAR_PATH, 'app', 'assets', 'stylesheets', 'application.sass'
   if File.exist? application_sass and File.exists? sass_path
     sass_files = Dir.entries(sass_path).find_all { |r| r =~ /^_(.*).sass$/ }
     # get entries from the applicaiton.sass file
