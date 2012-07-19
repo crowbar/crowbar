@@ -38,6 +38,11 @@ export PATH=$PATH:/opt/dell/bin:/usr/local/bin
 sed -i '/"online":/ s/false/true/' \
     /opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
 
+# Set the default OS for the provisioner
+sed -i "s/%default_os%/$OS_TOKEN/g" \
+    /opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
+
+
 if [[ ! -f /etc/polipo/config ]]; then
     case $OS in
 	ubuntu)

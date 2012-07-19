@@ -238,6 +238,10 @@ if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
     sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" $CROWBAR_FILE
 fi
+# Set the default OS for the provisioner
+sed -i 's/%default_os%/suse-11.2/g' \
+    /opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
+
 
 /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/crowbar
 
