@@ -22,26 +22,13 @@ Instructions:
  3: Install git, rubygems, the ruby development packages, rpm, sudo,
     debootstrap, and the json gem. If you are not running as root,
     give yourself passwordless sudo rights
- 4: Put your ISO files in the /opt/dell/isos.
-    Ubuntu needs ubuntu-12.04-server-amd64.iso and
-    CentOS-6.2-x86_64-bin-DVD1.iso.  CentOS just needs
-    CentOS-6.2-x86_64-bin-DVD1.iso.  For now, we always need the
-    CentOS ISO to build Sledgehammer.  Getting rid of these
-    requirements is on the to-do list.
- 5: Clone the Crowbar repository from
+ 4: Clone the Crowbar repository from
     http://github.com/dellcloudedge/crowbar.git, and cd into the
     newly-created crowbar directory.
- 6: In the crowbar repository, run ./dev switch.  This will check out
+ 5: In the crowbar repository, run ./dev switch.  This will check out
     the barclamps we need.
- 7: In the crowbar repository, run git remote add personal
-    http://github.com/VictorLowther/crowbar.git. After that is done,
-    run git checkout feature/online-install/master.
- 8: Run ./dev remote add personal http://github.com/VictorLowther.
-    This will add the proper remotes to all of the barclamps.
- 9: Run git submodule foreach git fetch personal, and then git
-    submodule foreach git checkout feature/online-install/master.
-10: Run ./install, and wait.
-11: Profit.
+ 6: Run ./install, and wait.
+ 7: Profit.
 
 Neato things:
 
@@ -55,9 +42,5 @@ Neato things:
  * The current code deploys its own caching proxy before installing
    anything.  This allows us to minimize the amout of data we have to
    pull from the Internet.
- * The current code does not currently implement it, but it should be
-   trivial to get rid of the need for and Ubuntu CD at all.
-   Sledgehammer will be a little trickier.
- * Steps 7 - 9 will go away once this code is merged into mainline.
- * CentOS probably does not work yet.  You can fully deploy a basic
-   Ubuntu-based Crowbar cluster with this code.
+ * You don't need to have ISO images of the operating systems you want
+   to install as long as you have an active Internet connection.
