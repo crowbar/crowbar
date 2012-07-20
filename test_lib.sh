@@ -657,73 +657,76 @@ run_admin_node() {
     local vm_nics
     makenics admin
 
-    smoketest_update_status admin "Mounting .iso"
-    sudo -n /bin/mount -o loop "$SMOKETEST_ISO" "$LOOPDIR" &>/dev/null || \
-        die "Could not loopback mount $SMOKETEST_ISO on $LOOPDIR."
-    smoketest_cleanup_cmds+=("sudo -n /bin/umount -d '$LOOPDIR'")
-
-    smoketest_update_status admin "Hacking up kernel parameters"
-    # OK, now figure out what we need to grab by reading the
-    # isolinux.cfg file.
-    kernel_re='kernel (.+)$'
-    append_re='append([^a-zA-Z/=?]+)(.*)$'
-    initrd_re='initrd=([^ ]+)'
-    console_re='console=([^ ]+)'
-    unset kernel kernel_params initrd
-
-    while read line; do
-        [[ ! $kernel && ( $line =~ $kernel_re ) ]] && \
-            kernel="${BASH_REMATCH[1]}" || :
-        [[ ! $kernel_params && ( $line =~ $append_re ) ]] && \
-            kernel_params=${BASH_REMATCH[2]} || :
-        [[ ! $initrd && $kernel_params && ( $kernel_params =~ $initrd_re ) ]] && {
-            kernel_params=${kernel_params/append=${BASH_REMATCH[1]}/}
-            initrd="${BASH_REMATCH[1]}"
-        } || :
-    done < "$LOOPDIR/isolinux/isolinux.cfg"
-
-    # Fix up our paths to the initrd and the kernel
-    for d in "$LOOPDIR/isolinux" "$LOOPDIR"; do
-        [[ -f $d/$kernel && -f $d/$initrd ]] || continue
-        kernel="$d/$kernel"
-        initrd="$d/$initrd"
-        break
-    done
-    [[ $kernel && -f $kernel && $kernel_params && $initrd && -f $initrd ]] || \
-        die "Could not find our kernel!"
-        # create our admin disk image
     smoketest_update_status admin "Creating disk image"
     screen -S "$SMOKETEST_SCREEN" -X screen -t Status "$CROWBAR_DIR/test_framework/watch_Status.sh"
     qemu-img create -f raw "$smoketest_dir/admin.disk" 20G &>/dev/null
 
-    # makenics populates vm_nics with the appropriate information for
-    # run_kvm.  This part cannot run in a subshell, because it relies
-    # on getmac being able to hand out unique mac addresses.
-    kernel_params+=" crowbar.url=http://192.168.124.10:8091/config crowbar.debug.logdest=/dev/ttyS0 crowbar.use_serial_console=true"
-    [[ $DISPLAY ]] || kernel_params+=" console=ttyS1,115200n81"
-    [[ -r $HOME/.ssh/id_rsa.pub ]] && kernel_params+=" crowbar.authkey=$(sed 's/ /\\040/g' <"$HOME/.ssh/id_rsa.pub")"
-    if ! [[ $manual_deploy = true ]]; then
-        kernel_params+=" crowbar.hostname=admin.smoke.test"
-    fi
-    if [[ $develop_mode ]]; then
-        kernel_params+=" crowbar.debug"
-    fi
-    smoketest_update_status admin "Performing install from ${SMOKETEST_ISO##*/}"
-    # First run of the admin node.  Note that we do not actaully boot off the
-    # .iso image, instead we boot the vm directly using the extracted kernel
-    # and initrd, and arrange for the kernel arguments to contain the
-    # extra arguments that the test framework needs.
-    if ! run_kvm -timeout 1200 "$nodename" \
-        -cdrom "$SMOKETEST_ISO" -kernel "$kernel" -initrd "$initrd" \
-        -append "$kernel_params"; then
-        smoketest_update_status "$nodename" "Failed to install admin node after 1200 seconds."
-        smoketest_update_status "$nodename" "Node failed to deploy."
-        return 1
-    fi
+    if [[ $online = true ]]; then
+        if ! run_kvm "$nodename" -cdrom "$SMOKETEST_ISO" ; then
+            smoketest_update_status "$nodename" "Failed to install admin node after 1200 seconds."
+            smoketest_update_status "$nodename" "Node failed to deploy."
+            return 1
+        fi
+    else
+        smoketest_update_status admin "Mounting .iso"
+        sudo -n /bin/mount -o loop "$SMOKETEST_ISO" "$LOOPDIR" &>/dev/null || \
+            die "Could not loopback mount $SMOKETEST_ISO on $LOOPDIR."
+        smoketest_cleanup_cmds+=("sudo -n /bin/umount -d '$LOOPDIR'")
+        
+        smoketest_update_status admin "Hacking up kernel parameters"
+        # OK, now figure out what we need to grab by reading the
+        # isolinux.cfg file.
+        kernel_re='kernel (.+)$'
+        append_re='append([^a-zA-Z/=?]+)(.*)$'
+        initrd_re='initrd=([^ ]+)'
+        console_re='console=([^ ]+)'
+        unset kernel kernel_params initrd
+        
+        while read line; do
+            [[ ! $kernel && ( $line =~ $kernel_re ) ]] && \
+                kernel="${BASH_REMATCH[1]}" || :
+            [[ ! $kernel_params && ( $line =~ $append_re ) ]] && \
+                kernel_params=${BASH_REMATCH[2]} || :
+            [[ ! $initrd && $kernel_params && ( $kernel_params =~ $initrd_re ) ]] && {
+                kernel_params=${kernel_params/append=${BASH_REMATCH[1]}/}
+                initrd="${BASH_REMATCH[1]}"
+            } || :
+        done < "$LOOPDIR/isolinux/isolinux.cfg"
+        
+        # Fix up our paths to the initrd and the kernel
+        for d in "$LOOPDIR/isolinux" "$LOOPDIR"; do
+            [[ -f $d/$kernel && -f $d/$initrd ]] || continue
+            kernel="$d/$kernel"
+            initrd="$d/$initrd"
+            break
+        done
+        [[ $kernel && -f $kernel && $kernel_params && $initrd && -f $initrd ]] || \
+            die "Could not find our kernel!"
+        kernel_params+=" crowbar.url=http://192.168.124.10:8091/config crowbar.debug.logdest=/dev/ttyS0 crowbar.use_serial_console=true"
+        [[ $DISPLAY ]] || kernel_params+=" console=ttyS1,115200n81"
+        [[ -r $HOME/.ssh/id_rsa.pub ]] && kernel_params+=" crowbar.authkey=$(sed 's/ /\\040/g' <"$HOME/.ssh/id_rsa.pub")"
+        if ! [[ $manual_deploy = true ]]; then
+            kernel_params+=" crowbar.hostname=admin.smoke.test"
+        fi
+        if [[ $develop_mode ]]; then
+            kernel_params+=" crowbar.debug"
+        fi
+        smoketest_update_status admin "Performing install from ${SMOKETEST_ISO##*/}"
+        # First run of the admin node.  Note that we do not actaully boot off the
+        # .iso image, instead we boot the vm directly using the extracted kernel
+        # and initrd, and arrange for the kernel arguments to contain the
+        # extra arguments that the test framework needs.
+        if ! run_kvm -timeout 1200 "$nodename" \
+            -cdrom "$SMOKETEST_ISO" -kernel "$kernel" -initrd "$initrd" \
+            -append "$kernel_params"; then
+            smoketest_update_status "$nodename" "Failed to install admin node after 1200 seconds."
+            smoketest_update_status "$nodename" "Node failed to deploy."
+            return 1
+        fi
 
-    # Once this is finished, we no longer need the .iso image mounted.
-    sudo -n /bin/umount -d "$LOOPDIR" &>/dev/null
-
+        # Once this is finished, we no longer need the .iso image mounted.
+        sudo -n /bin/umount -d "$LOOPDIR" &>/dev/null
+    fi
     # restart the admin node as a daemon, and wait for it to be ready to
     # start installing compute nodes.
     smoketest_update_status admin "Deploying admin node crowbar tasks"
@@ -732,6 +735,13 @@ run_admin_node() {
         "$nodename"; then
         smoketest_update_status admin "Node failed to deploy."
         return 1
+    fi
+    if [[ $online = true ]]; then
+        local cont=false
+        while [[ $cont != "continue" ]]; do
+            read -p "Type 'continue' when the admin node is deployed." cont
+        done
+        return 0
     fi
     # Once the KVM instance has launched, start watching the system log.
     screen -S "$SMOKETEST_SCREEN" -X screen -t "Syslog Capture" \
@@ -1132,6 +1142,8 @@ run_test() {
                 PHYSICAL_INTERFACES+=("$1,$2")
                 shift;;
             use-screen) unset DISPLAY;;
+            online) online=true;;
+            local_proxy) proxy="$2"; shift;;
             scratch);;
             *)
                 if [[ -d $CROWBAR_DIR/barclamps/$1 ]]; then

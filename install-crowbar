@@ -1,0 +1,325 @@
+#!/bin/bash
+set -e
+EXTRA_DIR="$1-extra"
+OS_TOKEN="$1"
+OS="${1##-*}"
+FQDN=$(hostname --fqdn)
+export CROWBAR_DIR=$PWD
+export ISO_LIBRARY=/opt/dell/isos
+mkdir -p "$ISO_LIBRARY"
+
+die() { echo "$*"; exit 1; }
+
+fqdn_re='^([a-z]+[0-9a-z]\.){2,}[a-z]+[0-9a-z]+$'
+# Make sure there is something of a domain name
+[[ $FQDN =~ $fqdn_re ]] || \
+    die "Please specify an FQDN for the admin name with valid characters"
+
+[[ -d $EXTRA_DIR ]] || die "Unsupported OS $1. Cannot install crowbar."
+. "$EXTRA_DIR/build_lib.sh"
+
+(
+    [[ -f $ISO_LIBRARY/$ISO ]] || fetch_os_iso
+
+    mkdir -p /tftpboot/$1/install
+    grep -qF "/tftpboot/$OS_TOKEN/install" /proc/mounts || \
+	mount -o loop,ro "$ISO_LIBRARY/$ISO" "/tftpboot/$OS_TOKEN/install"
+) || die "Initial installation of $ISO into $ISO_LIBRARY failed."
+
+mkdir -p /opt/dell/bin
+cp change-image/dell/* /opt/dell/bin
+cp extra/barclamp* /opt/dell/bin
+export PATH=$PATH:/opt/dell/bin:/usr/local/bin
+
+# Put our barclamps in the proper location
+[[ -d /opt/dell/barclamps/crowbar ]] || cp -a barclamps /opt/dell
+
+# Since we are running this script, we want an online mode install.
+sed -i '/"online":/ s/false/true/' \
+    /opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
+
+if [[ ! -f /etc/polipo/config ]]; then
+    case $OS in
+	ubuntu)
+	    cp "ubuntu-common/apt.conf" /etc/apt
+	    debconf-set-selections < \
+		<(sed "s/__HOSTNAME__/$FQDN/g" "ubuntu-common/debsel.conf")
+	    apt-get update
+	    apt-get -y install polipo;;
+	centos|redhat)
+	    yum -y makecache
+	    yum -y install polipo;;
+    esac
+        cp extra/polipo.config /etc/polipo/config
+        if [[ $http_proxy && \
+            $http_proxy =~ http://([0-9a-z.]+:[0-9]+) ]] && \
+            ! grep -q parentProxy /etc/polipo/config; 
+        then
+            printf "\nparentProxy = \"${BASH_REMATCH[1]}\"\n">> \
+                /etc/polipo/config
+        fi
+	cp extra/polipo.uncachable /etc/polipo/uncachable
+	service polipo restart
+fi
+
+if [[ ! -f /opt/dell/.base_installed ]]; then
+    case $OS in
+        ubuntu)
+	    echo 'Acquire::http::Proxy "http://127.0.0.1:8123";' > \
+		/etc/apt/apt.conf.d/00proxy
+	    apt-get -y remove apparmor 
+	    apt-get -y install rubygems gcc ruby tcpdump \
+		libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev \
+		zlib1g-dev nginx ipmitool;;
+        centos|redhat)
+	    grep -q proxy /etc/yum.conf || \
+                echo 'proxy=http://localhost:8123' >>/etc/yum.conf
+            # matahari and qpid conflict with rabbitmq.
+            # Kill them with fire if they are around.
+            yum -y erase '*qpid*' 'matahari*' || :
+	    yum -q -y install rubygems gcc make ruby-devel \
+		libxml2-devel zlib-devel tcpdump nginx;;
+	*) die "Unknown OS $OS";;
+    esac
+    # stop nginx
+    service nginx stop
+    rm -f /etc/nginx/sites-enabled/default
+    > /opt/dell/.base_installed
+fi
+
+# Arrange for all our gem binaries to be installed into /usr/local/bin
+cat >/etc/gemrc <<EOF
+gem: --no-ri --no-rdoc --bindir /usr/local/bin --http-proxy http://localhost:8123
+EOF
+
+if [[ ! -f /opt/dell/.gems_installed ]]; then
+    for gem in builder json net-http-digest_auth activesupport i18n \
+	daemons bluepill xml-simple libxml-ruby cstruct ; do
+	gem install $gem
+    done
+    >/opt/dell/.gems_installed
+fi
+
+mkdir -p /var/run/bluepill
+mkdir -p /var/lib/bluepill
+mkdir -p /etc/bluepill
+
+# Copy all our pills to
+for p in chef-client chef-server; do
+    cp extra/$p.pill /etc/bluepill
+done
+
+cp extra/chef-client.pill /tftpboot
+cp "extra/chef-server.conf" /etc/nginx
+
+if [[ ! -x /etc/init.d/bluepill ]]; then
+    echo "$(date '+%F %T %z'): Installing Chef"
+    case $OS in
+	ubuntu)
+	    apt-get -y install chef kwalify
+	    service chef-client stop
+	    killall chef-client
+	    apt-get -y install chef-server chef-server-webui
+	    (cd "extra/patches"; chmod +x ./patch.sh ; ./patch.sh) || exit 1
+	    # increase chef-solr index field size
+	    perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml
+
+	    # Fix ruby-gems and merb-core mismatch
+	    sed -i -e "s/Gem.activate(dep)/dep.to_spec.activate/g" \
+		/usr/lib/ruby/1.8/merb-core/core_ext/kernel.rb
+
+	    service chef-server restart;;
+	redhat|centos)
+	     yum -q -y install rubygem-chef rubygem-kwalify
+	     service chef-client stop
+	     killall chef-client
+	     yum -q -y install rubygem-chef-server \
+		 curl-devel ruby-shadow patch
+	     (cd "extra/patches"; chmod +x ./patch.sh; ./patch.sh) || exit 1
+	     # Default password in chef webui to password
+	     sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
+	     redhat-common/start-chef-server.sh
+
+	     ## Missing client.rb for this system - Others get it ##
+	     touch /etc/chef/client.rb
+	     chown chef:chef /etc/chef/client.rb
+
+	     # increase chef-solr index field size
+	     perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/chef/solr/conf/solrconfig.xml
+	     service chef-server restart;;
+	*) die "Unknown OS $OS";;
+    esac
+
+    chef_services=(rabbitmq-server couchdb chef-server chef-server-webui \
+	chef-solr chef-expander chef-client)
+    # Have Bluepill manage our Chef services instead of letting sysvinit do it.
+    echo "$(date '+%F %T %z'): Arranging for Chef to run under Bluepill..."
+    for svc in "${chef_services[@]}"; do
+	service "$svc" stop || :
+    done
+    # sometimes couchdb does not die when asked.  Kill it manually.
+    if ps aux |grep -q [c]ouchdb; then
+	kill $(ps aux |awk '/^couchdb/ {print $2}')
+    fi
+
+    # Create an init script for bluepill
+    cat > /etc/init.d/bluepill <<EOF
+#!/bin/bash
+# chkconfig: 2345 90 10
+# description: Bluepill Daemon runner
+PATH=$PATH
+case \$1 in
+    start) for pill in /etc/bluepill/*.pill; do
+	      [[ -f \$pill ]] || continue
+	      bluepill load "\$pill"
+	   done;;
+    stop) bluepill stop
+	  bluepill quit;;
+    status) if ps aux |grep [b]luepilld; then
+	     echo "Bluepill is running."
+	     exit 0
+	    else
+	     echo "Bluepill is not running."
+	     exit 1
+	    fi;;
+    *) echo "\$1: Not supported.";;
+esac
+EOF
+
+    # enable the bluepill init script and disable the old sysv init scripts.
+    if which chkconfig &>/dev/null; then
+	chkconfig --add bluepill
+	chkconfig bluepill on
+	for svc in "${chef_services[@]}"; do
+	    chkconfig "$svc" off
+	    chmod ugo-x /etc/init.d/"$svc"
+	done
+	# to be implemented
+    elif which update-rc.d &>/dev/null; then
+	update-rc.d bluepill defaults 90 10
+	for svc in "${chef_services[@]}"; do
+	    update-rc.d "$svc" disable
+	    chmod ugo-x /etc/init.d/"$svc"
+	done
+    else
+	echo "Don't know how to handle services on this system!"
+	exit 1
+    fi
+    # Make sure that the chef log dir has the right permissions
+    chown -R chef:chef /var/log/chef
+    mkdir -p /var/lib/chef
+    chown -R chef:chef /var/lib/chef
+    mkdir -p /var/chef
+    chown -R chef:chef /var/chef
+    bluepill load /etc/bluepill/chef-server.pill
+    sleep 30
+    chmod 755 /etc/init.d/bluepill
+fi
+
+# Bundle up our patches and put them in a sane place
+(cd extra ; tar czf "/tftpboot/patches.tar.gz" patches)
+
+chef-client || die "Initial run of chef-client failed!"
+
+if [[ ! -f /opt/dell/.crowbar_configured ]]; then
+    sed -i "s/pod.your.cloud.org/$(dnsdomainname)/g" \
+	/opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
+
+# generate the machine install username and password
+    CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
+    if [[ -e crowbar.json ]]; then
+	sed -e '/"id": "default"/ s/default/bc-template/crowbar/' < \
+            crowbar.json > \
+            /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json
+    fi
+
+    # Mangle the provisioner appropriatly
+    sed -i -e '/"online"/ s/false/true/' /opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
+    if grep -q parentProxy /etc/polipo/config; then
+        parent_proxy=$(awk '/parentProxy/ {print $3}' /etc/polipo/config)
+        if [[ $parent_proxy ]]; then
+            sed -i -e "/\"upstream_proxy\"/ s/\"\"/${parent_proxy}/" \
+                /opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
+        else
+            die "Cannot find parent proxy"
+        fi
+    fi
+
+    mkdir -p /opt/dell/crowbar_framework
+    CROWBAR_REALM=$(parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
+    CROWBAR_REALM=${CROWBAR_REALM##*=}
+    if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
+	dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
+	    (read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
+    fi
+
+    if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
+	export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
+	sed -ie "s/machine_password/${CROWBAR_KEY##*:}/g" "$CROWBAR_FILE"
+    fi
+fi
+
+# Install our barclamps
+if [[ ! -f /opt/dell/.barclamps_installed ]]; then
+    (
+	unset CROWBAR_DIR
+	/opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/*
+    ) || die "Could not install barclamps"
+
+# Now validate them
+    /opt/dell/bin/validate_bags.rb /opt/dell/chef/data_bags || die "Could not validate data bags."
+fi
+
+if [[ ! -f /opt/dell/.crowbar_installed ]]; then
+    NODE_ROLE="crowbar-${FQDN//./_}"
+    cat > /tmp/role.rb <<EOF
+name "$NODE_ROLE"
+description "Role for $FQDN"
+run_list()
+default_attributes( "crowbar" => { "network" => {} } )
+override_attributes()
+EOF
+    knife role from file /tmp/role.rb -u chef-webui -k /etc/chef/webui.pem || \
+	die "Unable to create machine role for admin node."
+    rm -rf /tmp/role.rb
+
+    echo "$(date '+%F %T %z'): Update run list..."
+    for role in crowbar deployer-client $NODE_ROLE; do
+	knife node run_list add "$FQDN" role["$role"] \
+	    -u chef-webui -k /etc/chef/webui.pem || \
+	    die "Could not add $role to Chef. Crowbar bringup will fail."
+    done
+
+    chef-client || die "Could not bring up Crowbar"
+
+# Add configured crowbar proposal
+    if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
+	proposal_opts=(proposal create default)
+
+    # Sometimes proposal creation fails if Chef and Crowbar are not quite
+    # fully prepared -- this can happen due to solr not having everything
+    # fully indexed yet.  So we don't want to just fail immediatly if
+    # we fail to create a proposal -- instead, we will kick Chef, sleep a bit,
+    # and try again up to 5 times before bailing out.
+	for ((x=1; x<6; x++)); do
+	    crowbar crowbar "${proposal_opts[@]}" && { proposal_created=true; break; }
+	    echo "Proposal create failed, pass $x.  Will kick Chef and try again."
+	    chef-client "Kicking proposal bits"
+	    sleep 1
+	done
+	if [[ ! $proposal_created ]]; then
+	    die "Could not create default proposal"
+	fi
+    fi
+    crowbar crowbar proposal show default >/var/log/default-proposal.json
+    crowbar crowbar proposal commit default || \
+	die "Could not commit default proposal!"
+    crowbar crowbar show default >/var/log/default.json
+fi
+
+for state in discovering discovered hardware-installing hardware-installed \
+    installing installed readying ready; do
+    /opt/dell/bin/crowbar crowbar transition $FQDN $state || \
+        die "Could not transition to $state"
+    chef-client || die "Chef-client run for $state failed."
+done
