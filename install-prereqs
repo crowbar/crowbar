@@ -1,0 +1,61 @@
+#!/bin/bash
+
+REDHAT_REPOS=("rpm http://rbel.frameos.org/rbel6" 
+    "rpm http://mirrors.servercentral.net/fedora/epel/6/i386/epel-release-6-7.noarch.rpm"
+    "bare nginx http://nginx.org/packages/rhel/6/x86_64/")
+UBUNTU_REPOS=("http://apt.opscode.com precise-0.10 main"
+    "http://ppa.launchpad.net/nginx/stable/ubuntu precise main")
+
+mkdir -p /opt/dell
+
+[[ -f /opt/dell/.prereq_installed ]] && exit 0
+
+case $1 in
+    redhat*|centos-*)
+        reboot=false
+        if [[ ! -f /etc/modprobe.d/ipv6.conf ]] ; then
+            echo 'options ipv6 disable=1' >/etc/modprobe.d/ipv6.conf
+            echo "Need to disable IPv6."
+            reboot=true
+        fi
+        if ! (sestatus |grep -q disabled); then
+            echo 'SELINUX=disabled' >/etc/selinux/config
+            echo "Need to disable SELinux."
+            reboot=true
+        fi
+        if [[ $reboot = true ]]; then
+            echo "Please restart the system and then restart this install"
+            echo "The installation will fail otherwise"
+            exit 1
+        fi
+        mkdir -p /var/cache
+        for repo in "${REDHAT_REPOS[@]}"; do
+            r="${repo##* }"
+            t="${repo% *}"
+            case $t in
+                rpm) curl -o "/var/cache/${r##*/}" -L "$r"
+                    rpm -Uvh "/var/cache/${r##*/}";;
+                bare) cat >>/etc/yum.repos.d/30-install-crowbar.repo <<EOF
+[crowbar-install-${t#* }]
+name=Crowbar install ${t#* } packages
+baseurl=${r}
+gpgcheck=0
+EOF
+                    ;;
+            esac
+        done
+        yum -y install sudo ruby ruby-devel rubygems curl debootstrap;;
+    ubuntu-*)
+        for repo in "${UBUNTU_REPOS[@]}"; do
+            cat >>/etc/apt/sources.list.d/30-install-crowbar.list <<EOF
+
+deb $repo
+deb-src $repo
+EOF
+        done
+        apt-get -y install ruby ruby-dev rubygems curl debootstrap rpm
+;;
+esac
+gem install json
+
+touch /opt/dell/.prereq_installed
