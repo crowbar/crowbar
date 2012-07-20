@@ -1,0 +1,61 @@
+This file documents the current state of UEFI booting in Crowbar
+
+Right now, we have basic support for network booting systems running
+in UEFI mode. We are able to netboot Sledgehammer and the OS install
+kernel/initrd pairs, and get to the point where we have an installed
+operating system on the compute nodes.
+
+What Does Not Work:
+ * Booting Ubuntu 12.04 off the hard drive.
+
+   There is a bug in how the version of Grub 2 that comes with Ubuntu
+   handles memory mapping in the UEFI environment that causes the
+   system to crash the UEFI firmware when it tries to load the kernel
+   and initrd.  Upstream grub2 has been patched to resolve this issue,
+   but the updates have not been pulled into Ubuntu 12.04 yet.
+
+   Patch is at http://savannah.gnu.org/bugs/?36532.
+
+   Possible workarounds include:
+   * Look at using grub-legacy or elilo instead of grub2 when
+     installing in UEFI mode.
+   * Working on getting Canonical to pull in an updated version of
+     Grub2 that has the patch that fixes the issue.
+
+ * Determining what NIC we booted from in Sledgehammer and the OS
+   install codepaths.
+
+   In the PXE codepaths, we rely on pxelinux passing the BOOTIF
+   parameter to the booted kernels to figure out what NIC we need to
+   for DHCP in Sledgehammer and the OS install routines.  A similar
+   thing can be done using efibootmgr to find the last EFI device we
+   booted from.  The Ubuntu installer for 12.04 appears to do this
+   already, but Sledgehammer and the RedHat and CentOS installers do
+   not. 
+
+   Next steps:
+
+   * Modify Sledgehammer to include efibootmgr, and use it to
+     determine the boot device if we detect that we booted using UEFI.
+   * Investigate generating per-node kickstarts to pass that
+     information into the installer based on what we discover in
+     Sledgehammer.
+
+ * Chainloading
+   None of the main EFI capable bootloaders appear to have made any
+   attempt inheriting the ability to either hand control back to UEFI
+   to try the next device in the boot list or to try booting off the
+   first hard drive.  This means that we cannot just write a generic
+   config file for the execute DHCP state, we will have to be a bit
+   more granular in how we do things.
+
+   Things to explore:
+
+   * Have the post-install script in the OS installation use
+     efibootmgr to configure the system to boot off the EFI boot
+     partition for the freshly-installed os, and teach Crowbar how to
+     set the boot order back to NICs first if we transition a node
+     back to a state that should boot off the network.  This will
+     probably involve doing semi-evil things to the PXE state machine.
+   * Find out that there is an UEFI bootloader that can chainload and
+     switch to using it.
