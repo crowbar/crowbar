@@ -59,6 +59,8 @@ chmod a+x $bc_dir/bin/*
 find $bc_dir -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\|erb\)$' | xargs chmod a-x
 find $bc_dir -regex '.+/README.*\|.+/chef/cookbooks/.+/recipes/.+.rb' | xargs chmod a-x
 mv $bc_dir/{bin,chef,crowbar_framework} $dell_dir
+install -d -m 755 $dell_dir/crowbar_framework/config/locales
+%crowbar_barclamp_extract_locale $bc_dir $dell_dir/crowbar_framework/config/locales
 
 %files
 %defattr(-,root,root,-)
