@@ -185,20 +185,24 @@ end
 
 #merges localizations from config into the matching translation files
 def merge_i18n(yaml)
-  locales = yaml['locale_additions']
-  locales.each do |key, value|
-    #translation file (can be multiple)
-    f = File.join CROWBAR_PATH, 'config', 'locales', "#{key}.yml"
-    if File.exist? f
-      debug "merging translation for #{f}"
-      master = YAML.load_file f
-      master = merge_tree(key, value, master)
-      File.open( f, 'w' ) do |out|
-        YAML.dump( master, out )
+  unless suse?
+    locales = yaml['locale_additions']
+    locales.each do |key, value|
+      #translation file (can be multiple)
+      f = File.join CROWBAR_PATH, 'config', 'locales', "#{key}.yml"
+      if File.exist? f
+        debug "merging translation for #{f}"
+        master = YAML.load_file f
+        master = merge_tree(key, value, master)
+        File.open( f, 'w' ) do |out|
+          YAML.dump( master, out )
+        end
+      else
+        puts "WARNING: Did not attempt tranlation merge for #{f} because file was not found."
       end
-    else
-      puts "WARNING: Did not attempt tranlation merge for #{f} because file was not found."
     end
+  else
+    debug "on SUSE machine; locale_additions are packaged in separately in #{File.join CROWBAR_PATH, 'config', 'locales'}"
   end
 end
 
@@ -263,6 +267,10 @@ end
 
 # injects/cleans barclamp items from framework navigation
 def merge_nav(yaml, installing)
+  if suse?
+    debug "on SUSE machine; not touching navigation.rb"
+    return
+  end
   unless yaml['nav'].nil?
     bc_flag = "#FROM BARCLAMP: #{yaml['barclamp']['name']}."
     # get raw file
@@ -440,7 +448,7 @@ def bc_install_layout_1_chef(bc, bc_path, yaml)
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
 
-  if File.exists? '/etc/SuSE-release'
+  if suse?
     rpm = 'crowbar-barclamp-' + bc
     debug "on SUSE machine; obtaining chef components from #{rpm}"
     rpm_files = get_rpm_file_list(rpm)
@@ -624,4 +632,8 @@ def bc_install_layout_1_cache(bc, bc_path)
     debug "Done"
     true
   end
+end
+
+def suse?
+  File.exists? '/etc/SuSE-release'
 end
