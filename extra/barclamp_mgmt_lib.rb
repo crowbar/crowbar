@@ -357,7 +357,7 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
   bc_layout = yaml["crowbar"]["layout"].to_i rescue 2
   if bc_layout > 1
     FileUtils.cd(CROWBAR_PATH) do
-      db = system "rake db:migrate"
+      db = system "RAILS_ENV=production rake db:migrate"
       debug "Database migration invoked - #{db}"
     end
   end
