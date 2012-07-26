@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: RobHirschfeld
 #
 
 require 'rubygems'
@@ -56,8 +55,10 @@ end
 def bc_install(bc, bc_path, yaml)
   case yaml["crowbar"]["layout"].to_i
   when 1
+    throw "ERROR: Crowbar 1.x barclamp formats are not supported in Crowbar 2.x"
+  when 2
     debug "Installing app components"
-    bc_install_layout_1_app bc, bc_path, yaml
+    bc_install_layout_2_app bc, bc_path, yaml
     debug "Installing chef components"
     bc_install_layout_1_chef bc, bc_path, yaml
     debug "Installing cache components"
@@ -279,7 +280,7 @@ def framework_permissions(bc, bc_path)
 end
 
 # install the framework files for a barclamp
-def bc_install_layout_1_app(bc, bc_path, yaml)
+def bc_install_layout_2_app(bc, bc_path, yaml)
 
   #TODO - add a roll back so there are NOT partial results if a step fails
   files = []
@@ -352,7 +353,16 @@ def bc_install_layout_1_app(bc, bc_path, yaml)
   FileUtils.mkdir yml_path unless File.directory? yml_path
   FileUtils.cp yml_barclamp, File.join(yml_path, "#{bc}.yml")
 
-  debug "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created."
+  #database migration
+  bc_layout = yaml["crowbar"]["layout"].to_i rescue 2
+  if bc_layout > 1
+    FileUtils.cd(CROWBAR_PATH) do
+      db = system "RAILS_ENV=production rake db:migrate"
+      debug "Database migration invoked - #{db}"
+    end
+  end
+  
+  debug "Barclamp #{bc} (format v#{bc_layout}) added to Crowbar Framework.  Review #{filelist} for files created."
 end
 
 # upload the chef parts for a barclamp
