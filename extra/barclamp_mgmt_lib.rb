@@ -192,29 +192,10 @@ def bc_replacer(item, bc, entity)
   return item
 end
 
-#merges localizations from config into the matching translation files
-def merge_i18n(yaml)
-  locales = yaml['locale_additions']
-  locales.each do |key, value|
-    #translation file (can be multiple)
-    f = File.join CROWBAR_PATH, 'config', 'locales', "#{key}.yml"
-    if File.exist? f
-      debug "merging translation for #{f}"
-      master = YAML.load_file f
-      master = merge_tree(key, value, master)
-      File.open( f, 'w' ) do |out|
-        YAML.dump( master, out )
-      end
-    else
-      puts "WARNING: Did not attempt tranlation merge for #{f} because file was not found."
-    end
-  end
-end
-
 # makes sure that sass overrides are injected into the application.sass
 def merge_sass(yaml, bc, path, installing)
-  sass_path = File.join path, 'crowbar_framework', 'public', 'stylesheets', 'sass'
-  application_sass = File.join CROWBAR_PATH, 'public', 'stylesheets', 'sass', 'application.sass'
+  sass_path = File.join path, 'crowbar_framework', 'app', 'assets', 'stylesheets'
+  application_sass = File.join CROWBAR_PATH, 'app', 'assets', 'stylesheets', 'application.sass'
   if File.exist? application_sass and File.exists? sass_path
     sass_files = Dir.entries(sass_path).find_all { |r| r =~ /^_(.*).sass$/ }
     # get entries from the applicaiton.sass file
@@ -270,66 +251,6 @@ def merge_sass(yaml, bc, path, installing)
   end
 end
 
-# injects/cleans barclamp items from framework navigation
-def merge_nav(yaml, installing)
-  unless yaml['nav'].nil?
-    bc_flag = "#FROM BARCLAMP: #{yaml['barclamp']['name']}."
-    # get raw file
-    nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'
-    nav_raw = []
-    File.open(nav_file, 'r') do |f|
-      f.each_line { |line| nav_raw << line }
-    end
-    # remove stuff that will be replaced
-    nav = []
-    nav_raw.each do |line|
-      nav << line unless line =~ /#{bc_flag}$/
-    end
-    # now add new items
-    new_nav = []
-    nav.each do |line|
-      unless yaml['nav']['primary'].nil?
-        yaml['nav']['primary'].each do |key, value|
-          #insert new items before
-          new_nav << "primary.item :#{value} #{bc_flag}" if installing and line.lstrip.start_with? "primary.item :#{key}"
-        end
-      end
-      # add the line
-      new_nav << line
-      # add submenu items (REQUIRIES KEYS IN NAV FILE!!)
-      yaml['nav'].each do |key, value|
-        if installing and line.lstrip.start_with? "# insert here for :#{key}"
-          value.each do |k, v|
-            new_nav << "secondary.item :#{k}, t('nav.#{k}'), #{v} #{bc_flag}" unless v.nil?
-          end
-        end
-      end
-    end
-    File.open( nav_file, 'w') do |out|
-      new_nav.each { |l| out.puts l }
-    end
-  end
-end
-
-# helper for localization merge
-def merge_tree(key, value, target)
-  if target.key? key
-    if target[key].class == Hash
-      value.each do |k, v|
-        #puts "recursing into tree at #{key} for #{k}"
-        target[key] = merge_tree(k, v, target[key])
-      end
-    else
-      debug "replaced key #{key} value #{value}"
-      target[key] = value
-    end
-  else
-    debug "added key #{key} value #{value}"
-    target[key] = value
-  end
-  return target
-end
-
 # cleanup (anti-install) assumes the install generates a file list
 def bc_remove_layout_1(bc, bc_path, yaml)
   filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
@@ -350,7 +271,6 @@ def framework_permissions(bc, bc_path)
   chmod_dir 0644, File.join(CROWBAR_PATH, 'db')
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'tmp')
   chmod_dir 0644, File.join(CROWBAR_PATH, 'tmp')
-  FileUtils.chmod_R 0755, File.join(CROWBAR_PATH, 'public', 'stylesheets')
   debug "\tcopied crowbar_framework files"
 end
 
@@ -371,11 +291,6 @@ def bc_install_layout_1_app(bc, bc_path, yaml)
     framework_permissions bc, bc_path
   end
 
-  #merge i18n information (least invasive operations first)
-  debug "merge_i18n"
-  merge_i18n yaml
-  debug "merge_nav"
-  merge_nav yaml, true
   debug "merge_sass"
   merge_sass yaml, bc, bc_path, true
 
