@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: RobHirschfeld
 #
 
 require 'rubygems'
@@ -354,11 +353,16 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
   FileUtils.mkdir yml_path unless File.directory? yml_path
   FileUtils.cp yml_barclamp, File.join(yml_path, "#{bc}.yml")
 
-  if bc_schema_version > 1
-    %x["#{File.join(CROWBAR_PATH, "rake")} db:migrate"]
+  #database migration
+  bc_layout = yaml["crowbar"]["layout"].to_i rescue 2
+  if bc_layout > 1
+    FileUtils.cd(CROWBAR_PATH) do
+      db = system "rake db:migrate"
+      debug "Database migration invoked - #{db}"
+    end
   end
   
-  debug "Barclamp #{bc} (format v#{bc_schema_version}) added to Crowbar Framework.  Review #{filelist} for files created."
+  debug "Barclamp #{bc} (format v#{bc_layout}) added to Crowbar Framework.  Review #{filelist} for files created."
 end
 
 # upload the chef parts for a barclamp
