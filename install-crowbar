@@ -295,7 +295,7 @@ EOF
 	    die "Could not add $role to Chef. Crowbar bringup will fail."
     done
 
-    chef-client || die "Could not bring up Crowbar"
+    blocking_chef_client.sh || die "Could not bring up Crowbar"
 
 # Add configured crowbar proposal
     if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
@@ -309,7 +309,7 @@ EOF
 	for ((x=1; x<6; x++)); do
 	    crowbar crowbar "${proposal_opts[@]}" && { proposal_created=true; break; }
 	    echo "Proposal create failed, pass $x.  Will kick Chef and try again."
-	    chef-client "Kicking proposal bits"
+	    blocking_chef_client.sh "Kicking proposal bits"
 	    sleep 1
 	done
 	if [[ ! $proposal_created ]]; then
@@ -326,5 +326,5 @@ for state in discovering discovered hardware-installing hardware-installed \
     installing installed readying ready; do
     /opt/dell/bin/crowbar crowbar transition $FQDN $state || \
         die "Could not transition to $state"
-    chef-client || die "Chef-client run for $state failed."
+    blocking_chef_client.sh || die "Chef-client run for $state failed."
 done
