@@ -344,8 +344,6 @@ pre_crowbar_fixups
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
 # Run chef-client to bring-up crowbar server
 chef_or_die "Failed to bring up Crowbar"
-# Make sure looper_chef_client is a NOOP until we are finished deploying
-touch /tmp/deploying
 
 post_crowbar_fixups
 
@@ -417,7 +415,6 @@ do
 done
 
 # OK, let looper_chef_client run normally now.
-rm /tmp/deploying
 
 # Spit out a warning message if we managed to not get an IP address
 IPSTR=$(crowbar network show default | parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
