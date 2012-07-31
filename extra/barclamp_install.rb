@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
 # Copyright 2011, Dell
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
