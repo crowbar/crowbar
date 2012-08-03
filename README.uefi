@@ -5,6 +5,17 @@ in UEFI mode. We are able to netboot Sledgehammer and the OS install
 kernel/initrd pairs, and get to the point where we have an installed
 operating system on the compute nodes.
 
+How To Use UEFI:
+ * Switch your system to operate in UEFI mode.  How this is done
+   varies from system to system.
+ * Once the system is in UEFI mode, configure it to network boot off
+   the first nic.
+ * The crowbar framework will handle things from there.
+
+What UEFI Gives You:
+ * Native support for drive sizes > 2TB.
+ * All new low-level system firmware.
+
 What Does Not Work:
  * Booting Ubuntu 12.04 off the hard drive.
 
