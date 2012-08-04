@@ -347,11 +347,15 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
     files.each { |line| out.puts line }
   end
 
-  #copy over the crowbar.yml file
+  #copy over the crowbar.yml and template file
   yml_path = File.join CROWBAR_PATH, 'barclamps'
+  template_path = File.join yml_path, 'templates'
   yml_barclamp = File.join bc_path, "crowbar.yml"
+  template_file = File.join bc_path, "chef", "data_bags", "crowbar", "bc-template-#{bc}.json"
   FileUtils.mkdir yml_path unless File.directory? yml_path
+  FileUtils.mkdir template_path unless File.directory? template_path
   FileUtils.cp yml_barclamp, File.join(yml_path, "#{bc}.yml")
+  FileUtils.cp template_file, File.join(template_path, "", "bc-template-#{bc}.json") if File.exists? template_file
 
   #database migration
   bc_layout = yaml["crowbar"]["layout"].to_i rescue 2
