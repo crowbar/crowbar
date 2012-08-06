@@ -20,13 +20,7 @@ DEV_BRANCHES["master"]="master"
 DEV_BRANCHES["openstack-os-build"]="master"
 DEV_BRANCHES["hadoop-os-build"]="master"
 DEV_BRANCHES["cloudera-os-build"]="master"
-
-# DEV_REMOTE_SOURCES defines the source parts of the URLs that the
-# various remotes map to.  The "personal" remote is not listed in this
-# hash, and most of the script assumes that origin always points at
-# github and that the personal remote should be used as a backup target
-# for all branches that were pulled from origin.
-DEV_REMOTE_SOURCES["origin"]="https://github.com/dellcloudedge"
+DEV_ORIGIN_ACCOUNT="dellcloudedge"
 
 # DEV_REMOTE_BRANCHES defines what branches in the main Crowbar repository
 # should be pulled and synced with what remotes.
@@ -37,6 +31,7 @@ DEV_REMOTE_BRANCHES["origin"]="master openstack-os-build hadoop-os-build clouder
 # worked on when ordering matters.
 DEV_REMOTES=("origin")
 
+
 # Source our config file if we have one
 [[ -f $HOME/.build-crowbar.conf ]] && \
     . "$HOME/.build-crowbar.conf"
@@ -44,6 +39,17 @@ DEV_REMOTES=("origin")
 # Look for a local one.
 [[ -f build-crowbar.conf ]] && \
     . "build-crowbar.conf"
+
+# DEV_REMOTE_SOURCES defines the source parts of the URLs that the
+# various remotes map to.  The "personal" remote is not listed in this
+# hash, and most of the script assumes that origin always points at
+# github and that the personal remote should be used as a backup target
+# for all branches that were pulled from origin.
+# This is defined after we source our config file to let the config file
+# declare that a different Github account  will be used as the default origin
+# if need be.
+[[ ${DEV_REMOTE_SOURCES["origin"]} ]] || \
+    DEV_REMOTE_SOURCES["origin"]="https://github.com/${DEV_ORIGIN_ACCOUNT}"
 
 # Set up our proxies if we were asked to.
 if [[ $USE_PROXY = "1" && $PROXY_HOST ]]; then
@@ -596,9 +602,9 @@ github_url() {
     # $1 = repository name.
     # $@ = one of the following:
     #      -p = Use personal repository (based on DEV_GITHUB_ID) instead of
-    #           dellcloudedge
+    #           ${DEV_ORIGIN_ACCOUNT}
     #      -a = Put github authentication info in the generated URL.
-    local repo="$1" user="dellcloudedge"
+    local repo="$1" user="${DEV_ORIGIN_ACCOUNT}"
     shift
     while [[ $1 ]]; do
         case $1 in
@@ -733,13 +739,13 @@ setup() {
     }
     # We have a baked-in assumption that Github is our origin, and that
     # any repositories that are named the same thing as a repository from
-    # dellcloudedge is in fact a fork of a dellcloudedge repo.
+    # ${DEV_ORIGIN_ACCOUNT} is in fact a fork of a ${DEV_ORIGIN_ACCOUNT} repo.
     # We should not make that assumption at some point in the future.
     echo "Finding Github repos..."
     local repos=($(show_github_repos))
     if ! is_in crowbar "${repos[*]}"; then
         echo "Creating your fork of Crowbar on Github."
-        github_fork dellcloudedge crowbar || \
+        github_fork ${DEV_ORIGIN_ACCOUNT} crowbar || \
             die "Unable to create your fork of Crowbar."
     fi
     if ! in_repo git_config_has remote.origin.pushurl; then
@@ -813,7 +819,7 @@ setup() {
                         crowbar.backup.origin.method && continue
                     if [[ $remote = origin ]]; then
                         if ! is_in "$repo" "${repos[*]}"; then
-                            github_fork dellcloudedge "$repo" || \
+                            github_fork ${DEV_ORIGIN_ACCOUNT} "$repo" || \
                                 die "Could not create a personal fork of $repo"
                         fi
                         if ! in_barclamp "$bc" \
@@ -1338,7 +1344,7 @@ $0: Development helper for Crowbar
 setup:              Sets up a Crowbar checkout for use with dev.
 is_clean:           Test to see if all work is committed.
 fetch:              Fetch updates from configured upstream repositories.
-remote:             Manage remotes across all dellcloudedge repositories.
+remote:             Manage remotes across all ${DEV_ORIGIN_ACCOUNT} repositories.
 backup:             Back up changes without merging them into upstream.
 sync:               Synchronize fetched updates with the local repos.
 push:               Unconditionally push a branch to your personal repos.
@@ -1375,7 +1381,7 @@ Command line options:
            new Github regime.  This command will prompt for your Github
            login information, make sure you have local copies of all the
            barclamp repos that Crowbar references checked out, create personal
-           forks of all the crowbar repos from the dellcloudedge account on
+           forks of all the crowbar repos from the ${DEV_ORIGIN_ACCOUNT} account on
            github, and create the appropriate remotes needed for day-to-day
            operation.
 
@@ -1383,7 +1389,7 @@ Command line options:
               with no untracked files, and check to see if the main
               Crowbar repository is clean while ignoring submodule references.
 
-  fetch -- Fetch all changes from the dellcloudedge Crowbar repositories.
+  fetch -- Fetch all changes from the ${DEV_ORIGIN_ACCOUNT} Crowbar repositories.
            Does not try to merge any changes into your local repository.
            You can run a fetch at any time without disturbing your working
            code, provided you have network connectivity.
@@ -1391,7 +1397,7 @@ Command line options:
            from that remote in the main Crowbar repository and in each of the
            barclamps
 
-  remote -- Manage remotes across all dellcloudedge repositories.  It has the
+  remote -- Manage remotes across all ${DEV_ORIGIN_ACCOUNT} repositories.  It has the
             following subcommands:
             add <remote> <urlbase> : The add subcommand adds a new remote to
                 the Crowbar repositories.
@@ -1408,7 +1414,7 @@ Command line options:
            badly if this assumption is violated.
 
   backup -- Push any locally committed changes in any repositories that were
-            initially forked from dellcloudedge into your personal Github forks.
+            initially forked from ${DEV_ORIGIN_ACCOUNT} into your personal Github forks.
             You can run a backup at any time without disturbing your working
             code, provided you have network connectivity.
 
@@ -1745,7 +1751,7 @@ pull_requests_gen() {
         bc_name=${bc_name##*:}
         bc_name=${bc_name%.git}
         do_pull_request \
-            "https://api.github.com/repos/dellcloudedge/$bc_name/pulls" \
+            "https://api.github.com/repos/${DEV_ORIGIN_ACCOUNT}/$bc_name/pulls" \
             --title "$title [$n/$prc]" --base "$bc_base" --head "$bc_head" \
             --body "@$body" \
             --body "$(in_barclamp "$bc" diffstat_from_origin "$bc_base")"
@@ -1762,7 +1768,7 @@ pull_requests_gen() {
             br="$(best_parent_prefix)${br##*/}" || exit 1
         fi
         do_pull_request \
-            "https://api.github.com/repos/dellcloudedge/crowbar/pulls" \
+            "https://api.github.com/repos/${DEV_ORIGIN_ACCOUNT}/crowbar/pulls" \
             --title "$title [$n/$prc]" --base "$br" --head "$br_head" \
             --body "@$body" --body "$(in_repo diffstat_from_origin "$br")"
         n=$(($n + 1))
