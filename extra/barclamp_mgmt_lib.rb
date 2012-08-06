@@ -69,19 +69,16 @@ def bc_install(bc, bc_path, yaml)
   catalog bc_path
 end
 
-# regenerate the barclamp catalog (does a complete regen each install)
+# regenerate the barclamp catalog (LEGACY - no longer generated catalog)
 def catalog(bc_path)
-  debug "Creating catalog in #{bc_path}"
+  debug "Copying barclamp 1.x meta_data from #{bc_path}"
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
-  cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
   system("knife data bag create -k /etc/chef/webui.pem -u chef-webui barclamps")
   list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
   # scan the installed barclamps
   list.each do |bc_file|
-    unless File.directory?("#{barclamps}/bc_meta")
-      Dir.mkdir("#{barclamps}/bc_meta")
-    end
+    Dir.mkdir("#{barclamps}/bc_meta") unless File.directory?("#{barclamps}/bc_meta")
     debug "Loading #{bc_file}"
     bc = YAML.load_file File.join(barclamps, bc_file)
     File.open("#{barclamps}/bc_meta/#{bc_file}.json","w+") { |f|
@@ -90,43 +87,6 @@ def catalog(bc_path)
       f.puts(JSON.pretty_generate(bc))
     }
     Kernel.system("knife data bag from file -k /etc/chef/webui.pem -u chef-webui barclamps \"#{barclamps}/bc_meta/#{bc_file}.json\"")
-    name =  bc['barclamp']['name']
-    cat['barclamps'][name] = {} if cat['barclamps'][name].nil?
-    description = bc['barclamp']['description']
-    if description.nil?
-      debug "Trying to find description"
-      [ File.join(bc_path, '..', name, 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
-        File.join(bc_path, '..', "barclamp-#{name}", 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json")].each do |f|
-        next unless File.exist? f
-        s = JSON::load File.open(f, 'r')
-        description = s['description'] unless s.nil?
-	break if description
-      end
-    end
-    # template = File.join bc_path, name,
-    debug "Adding catalog info for #{bc['barclamp']['name']}"
-    cat['barclamps'][name]['description'] = description || "No description for #{bc['barclamp']['name']}"
-    cat['barclamps'][name]['user_managed'] = (bc['barclamp']['user_managed'].nil? ? true : bc['barclamp']['user_managed'])
-    puts "#{name} #{bc['barclamp']['user_managed']}" if name === 'dell-branding'
-    bc['barclamp']['member'].each do |meta|
-      cat['barclamps'][meta] = {} if cat['barclamps'][meta].nil?
-      cat['barclamps'][meta]['members'] = {} if cat['barclamps'][meta]['members'].nil?
-      cat['barclamps'][meta]['members'][name] = bc['crowbar']['order']
-    end if bc['barclamp']['member']
-
-    cat['barclamps'][name]['order'] = bc['crowbar']['order'] if bc['crowbar']['order']
-    cat['barclamps'][name]['run_order'] = bc['crowbar']['run_order'] if bc['crowbar']['run_order']
-    cat['barclamps'][name]['chef_order'] = bc['crowbar']['chef_order'] if bc['crowbar']['chef_order']
-    # git tagging
-    cat['barclamps'][name]['date'] = I18n.t('unknown')
-    cat['barclamps'][name]['commit'] = I18n.t('not_set')  
-    if bc['git']
-      cat['barclamps'][name]['date'] = bc['git']['date'] if bc['git']['date']
-      cat['barclamps'][name]['commit'] = bc['git']['commit'] if bc['git']['commit']
-    end
-  end
-  File.open( File.join(CROWBAR_PATH, 'config', 'catalog.yml'), 'w' ) do |out|
-    YAML.dump( cat, out )
   end
 end
 
