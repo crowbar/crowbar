@@ -34,4 +34,4 @@
 
 [submodule "barclamps/tempest"]
 	path = barclamps/tempest
-	url = https://github.com/MirantisDellCrowbar/barclamp-tempest.git
+	url = http://github.com/MirantisDellCrowbar/barclamp-tempest.git
