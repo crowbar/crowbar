@@ -31,3 +31,21 @@
 [submodule "barclamps/test"]
 	path = barclamps/test
 	url = http://github.com/dellcloudedge/barclamp-test.git
+[submodule "barclamps/hadoop"]
+    path = barclamps/hadoop
+    url = http://github.com/dellcloudedge/barclamp-hadoop.git
+[submodule "barclamps/hive"]
+    path = barclamps/hive
+    url = http://github.com/dellcloudedge/barclamp-hive.git
+[submodule "barclamps/pig"]
+    path = barclamps/pig
+    url = http://github.com/dellcloudedge/barclamp-pig.git
+[submodule "barclamps/zookeeper"]
+    path = barclamps/zookeeper
+    url = http://github.com/dellcloudedge/barclamp-zookeeper.git
+[submodule "barclamps/sqoop"]
+    path = barclamps/sqoop
+    url = http://github.com/dellcloudedge/barclamp-sqoop.git
+[submodule "barclamps/apachehadoop"]
+    path = barclamps/apachehadoop
+    url = https://github.com/dellcloudedge/barclamp-ApacheHadoop.git
