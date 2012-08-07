@@ -51,24 +51,6 @@ export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 # Always run in verbose mode for now.
 VERBOSE=true
 
-# Set up our proxies if we were asked to.
-if [[ $USE_PROXY = "1" && $PROXY_HOST ]]; then
-    proxy_str="http://"
-    if [[ $PROXY_PASSWORD && $PROXY_USER ]]; then
-        proxy_str+="$PROXY_USER:$PROXY_PASSWORD@"
-    elif [[ $PROXY_USER ]]; then
-        proxy_str+="$PROXY_USER@"
-    fi
-    proxy_str+="$PROXY_HOST"
-    [[ $PROXY_PORT ]] && proxy_str+=":$PROXY_PORT"
-    [[ $no_proxy ]] || no_proxy="localhost,localhost.localdomain,127.0.0.0/8,$PROXY_HOST"
-    [[ $http_proxy ]] || http_proxy="$proxy_str/"
-    [[ $https_proxy ]] || https_proxy="$http_proxy"
-    export no_proxy http_proxy https_proxy
-else
-    unset no_proxy http_proxy https_proxy
-fi
-
 # Barclamps to include.  By default, start with jsut crowbar and let
 # the dependency machinery and the command line pull in the rest.
 # Note that BARCLAMPS is an array, not a string!
