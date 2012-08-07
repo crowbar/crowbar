@@ -3,12 +3,13 @@ set -e
 
 [[ $DEBUG ]] && export DEBUG
 
+(( $UID == 0)) || {
+    echo "You must run this script as root!"
+    exit 1
+}
+
 # Figure out what OS we are running on.
 
-# Install prerequisites needed to run the dev tool
-# Also adds repos that let us fetch nginx and the Chef bits we need.
-
-export ISO_LIBRARY=/opt/dell/isos
 if [[ -f /etc/centos-release ]] && grep -q '6\.2' /etc/centos-release; then
     OUR_OS=centos-6.2
 elif [[ -f /etc/redhat-release ]] && grep -q '6\.2' /etc/redhat-release; then 
@@ -25,7 +26,10 @@ if [[ ! $OUR_OS ]]; then
     exit 1
 fi
 
-sudo ./install-prereqs $OUR_OS || exit 1
+# Install prerequisites needed to run the dev tool
+# Also adds repos that let us fetch nginx and the Chef bits we need.
+
+./install-prereqs $OUR_OS || exit 1
 
 if [[ ! -f /tftpboot/discovery/initrd0.img ]]; then
     sudo mkdir -p /tftpboot/discovery
@@ -38,4 +42,4 @@ fi
 # Initialize ourselves and pull down the barclamps we need.
 while ! ./dev switch; do sleep 5; done
 
-sudo ./install-crowbar $OUR_OS || exit 1
+./install-crowbar $OUR_OS || exit 1
