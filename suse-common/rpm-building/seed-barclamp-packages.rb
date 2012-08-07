@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
 #
 # Generate initial .spec and _service files for each barclamp.
 # This is most likely a one-off operation since we will probably
