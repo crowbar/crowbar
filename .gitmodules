@@ -32,6 +32,3 @@
 	path = barclamps/test
 	url = http://github.com/dellcloudedge/barclamp-test.git
 
-[submodule "barclamps/tempest"]
-	path = barclamps/tempest
-	url = https://github.com/MirantisDellCrowbar/barclamp-tempest.git
