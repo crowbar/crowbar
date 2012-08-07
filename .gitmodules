@@ -31,6 +31,27 @@
 [submodule "barclamps/test"]
 	path = barclamps/test
 	url = http://github.com/dellcloudedge/barclamp-test.git
+[submodule "barclamps/nova"]
+    path = barclamps/nova
+    url = http://github.com/dellcloudedge/barclamp-nova.git
+[submodule "barclamps/swift"]
+    path = barclamps/swift
+    url = http://github.com/dellcloudedge/barclamp-swift.git
+[submodule "barclamps/glance"]
+    path = barclamps/glance
+    url = http://github.com/dellcloudedge/barclamp-glance.git
+[submodule "barclamps/mysql"]
+    path = barclamps/mysql
+    url = http://github.com/dellcloudedge/barclamp-mysql.git
+[submodule "barclamps/nova_dashboard"]
+    path = barclamps/nova_dashboard
+    url = http://github.com/dellcloudedge/barclamp-nova_dashboard.git
+[submodule "barclamps/openstack"]
+    path = barclamps/openstack
+    url = http://github.com/dellcloudedge/barclamp-openstack.git
+[submodule "barclamps/keystone"]
+    path = barclamps/keystone
+    url = http://github.com/dellcloudedge/barclamp-keystone.git
 [submodule "barclamps/tempest"]
 	path = barclamps/tempest
 	url = http://github.com/dellcloudedge/barclamp-tempest.git
