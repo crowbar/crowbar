@@ -5,7 +5,7 @@
 EXTRA_REPOS=('http://mirror.centos.org/centos/6/os/x86_64' \
     'http://mirror.centos.org/centos/6/updates/x86_64' \
     'http://mirror.centos.org/centos/6/extras/x86_64' \
-    'http://mirror.pnl.gov/epel/6/x86_64' \
+    'http://mirror.us.leaseweb.net/epel/6/x86_64' \
     'http://www.nanotechnologies.qc.ca/propos/linux/centos-live/x86_64/live' \
     'http://rbel.frameos.org/stable/el6/x86_64')
 
