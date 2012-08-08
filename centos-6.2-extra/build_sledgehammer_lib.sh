@@ -5,8 +5,8 @@
 EXTRA_REPOS=('http://mirror.centos.org/centos/6/os/$basearch' \
     'http://mirror.centos.org/centos/6/updates/$basearch' \
     'http://mirror.centos.org/centos/6/extras/$basearch' \
-    'http://mirrors.xmission.com/epel/6/$basearch' \
-    'http://mirrors.xmission.com/epel/6/$basearch' \
+    'http://mirrors.xmission.com/fedora/epel/6/$basearch' \
+    'http://mirrors.xmission.com/fedora/epel/6/$basearch' \
     'http://www.nanotechnologies.qc.ca/propos/linux/centos-live/$basearch/live' \
     'http://rbel.frameos.org/stable/el6/$basearch')
 
