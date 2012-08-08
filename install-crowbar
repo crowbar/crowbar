@@ -267,6 +267,10 @@ if [[ ! -f /opt/dell/.barclamps_installed ]]; then
     /opt/dell/bin/validate_bags.rb /opt/dell/chef/data_bags || die "Could not validate data bags."
 fi
 
+# Always make sure we have a gem site to fall back on.
+mkdir -p /tftpboot/gemsite
+(cd /tftpboot/gemsite; gem generate_index)
+
 if [[ ! -f /opt/dell/.crowbar_installed ]]; then
     NODE_ROLE="crowbar-${FQDN//./_}"
     cat > /tmp/role.rb <<EOF
