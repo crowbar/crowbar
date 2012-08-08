@@ -20,8 +20,8 @@ Instructions:
  1: Install a basic install of Ubuntu Server or CentOS.
  2: Do whatever is needed to be able to install packages from the Internet.
  3: Install git, rubygems, the ruby development packages, rpm, sudo,
-    debootstrap, and the json gem. If you are not running as root,
-    give yourself passwordless sudo rights
+    debootstrap, and the json gem. This may involve setting up sane http_proxy
+    and https_proxy environment variables.
  4: Clone the Crowbar repository from
     http://github.com/dellcloudedge/crowbar.git, and cd into the
     newly-created crowbar directory.
