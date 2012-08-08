@@ -8,7 +8,7 @@ firewall --disabled
 repo --name=a-base    --baseurl=http://mirror.centos.org/centos/6/os/$basearch
 repo --name=a-updates --baseurl=http://mirror.centos.org/centos/6/updates/$basearch
 repo --name=a-extras  --baseurl=http://mirror.centos.org/centos/6/extras/$basearch
-repo --name=a-epel    --baseurl=http://mirror.pnl.gov/epel/6/$basearch
+repo --name=a-epel    --baseurl=http://mirrors.xmission.com/fedora/epel/6/$basearch
 repo --name=a-live    --baseurl=http://www.nanotechnologies.qc.ca/propos/linux/centos-live/$basearch/live
 repo --name=a-rbel    --baseurl=http://rbel.frameos.org/stable/el6/$basearch
 
