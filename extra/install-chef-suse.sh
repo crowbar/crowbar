@@ -397,6 +397,12 @@ if [ -n "$CROWBAR_RUN_TESTS" ]; then
         die "Crowbar validation has errors! Please check the logs and correct."
 fi
 
+for s in xinetd dhcpd apache2 ; do
+    if ! /etc/init.d/$s status >/dev/null ; then
+        die "service $s missing"
+    fi
+done
+
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 
 cat <<EOF
