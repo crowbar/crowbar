@@ -19,6 +19,8 @@
 #    and possibly other repos into locations under /srv/tftpboot -
 #    see https://github.com/SUSE/cloud/wiki/Crowbar for details.
 
+LOGFILE=/var/log/chef/install.log
+
 set -e
 
 run_succeeded=
@@ -27,16 +29,21 @@ exit_handler () {
     if [ -z "$run_succeeded" ]; then
         cat <<EOF
 
-Crowbar installation terminated prematurely.  Please examine the
-above output for clues as to what went wrong.  You should also
-check the SUSE Cloud Installation Manual, in particular the
-Troubleshooting section.  Note that this script can safely be
-re-run multiple times if required.
+Crowbar installation terminated prematurely.  Please examine the above
+output or $LOGFILE for clues as to what went wrong.
+You should also check the SUSE Cloud Installation Manual, in
+particular the Troubleshooting section.  Note that this script can
+safely be re-run multiple times if required.
 EOF
     fi
 }
 
 trap exit_handler EXIT
+
+exec >  >(tee -a $LOGFILE    )
+exec 2> >(tee -a $LOGFILE >&2)
+
+echo "`date` $0 started with args: $*"
 
 die() { echo "$(date '+%F %T %z'): $*" >&2; res=1; exit 1; }
 
