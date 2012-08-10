@@ -38,7 +38,6 @@ BC_QUERY_STRINGS["supercedes"]="barclamp supercedes"
 ALLOW_CACHE_UPDATE=false
 ALLOW_CACHE_METADATA_UPDATE=false
 
-
 get_barclamp_info() {
     local bc yml_file line query newdeps dep d i
     local new_barclamps=()
@@ -159,21 +158,7 @@ with_build_lock() {
     "$@"
 } 65>/tmp/.build_crowbar.lock
 
-# Get a list of all the barclamps that a specific branch refers to.
-barclamps_in_branch() {
-    local b bc mode dtype sha
-    local -A res
-    for b in "$@"; do
-        in_repo branch_exists "$b" || \
-            die "Branch $b does not exist in the Crowbar repo!"
-        while read mode dtype sha bc; do
-            [[ $mode = 160000 && $dtype = commit ]] || continue
-            res[${bc##*/}]=${bc##*/}
-        done < <(in_repo git ls-tree -r "$b" barclamps)
-    done
-    printf "%s\n" "${res[@]}" |sort
-}
-
+flat_checkout() [[ -d $CROWBAR_DIR/releases ]]
 
 # Our general cleanup function.  It is called as a trap whenever the
 # build script exits, and it's job is to make sure we leave the local
@@ -225,13 +210,18 @@ cleanup() {
     fi
     # If we saved unadded changes, resurrect them.
     [[ $THROWAWAY_STASH ]] && git stash apply "$THROWAWAY_STASH" &>/dev/null
-    # Do the same thing as above, but for the build cache instead.
-    mkdir -p "$CACHE_DIR"
-    cd "$CACHE_DIR"
-    if ! in_cache git diff-index --cached --quiet HEAD; then
-        in_cache git commit -m "Updated by build_crowbar.sh @ $(date) for ${OS_TOKEN}"
-        echo "The crowbar build cache has been updated, and the updates have"
-        echo "been comitted back to the cache.  Please push any changes."
+    # Nuke any wild caches.
+    for f in "${CACHE_DIR%/*}/.crowbar_temp_cache"*; do
+        [[ -d $f ]] || continue
+        sudo rm -rf "$f"
+    done
+    if [[ -d $CACHE_DIR && -d $CACHE_DIR/.git ]]; then
+        cd "$CACHE_DIR"
+        if ! in_cache git diff-index --cached --quiet HEAD; then
+            in_cache git commit -m "Updated by build_crowbar.sh @ $(date) for ${OS_TOKEN}"
+            echo "The crowbar build cache has been updated, and the updates have"
+            echo "been comitted back to the cache.  Please push any changes."
+        fi
     fi
     wait
     flock -u 70
@@ -250,7 +240,7 @@ is_in() {
 }
 
 # Run a command in our chroot environment.
-in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" "$@"; }
+in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" /bin/bash -l -c "$*"; }
 
 # A little helper function for doing bind mounts.
 bind_mount() {
@@ -373,6 +363,19 @@ make_chroot() {
     sudo mkdir -p "$CHROOT/$CHROOT_PKGDIR"
     sudo mkdir -p "$CHROOT/$CHROOT_GEMDIR"
     __make_chroot
+    if [[ $http_proxy || $https_proxy || $no_proxy ]]; then
+        local __f
+        __f=$(mktemp /tmp/proxy-XXXXX.sh) || \
+            die "Canot make utility chroot -- error adding proxies."
+        [[ $http_proxy ]] && echo "http_proxy=\"$http_proxy\"" >> "$__f"
+        [[ $https_proxy ]] && echo "https_proxy=\"$https_proxy\"" >> "$__f"
+        [[ $no_proxy ]] && echo "no_proxy=\"$no_proxy\"" >> "$__f"
+        sudo cp "$__f" "$CHROOT/etc/environment"
+        [[ $http_proxy ]] && echo "export http_proxy" >> "$__f"
+        [[ $https_proxy ]] && echo "export https_proxy" >> "$__f"
+        [[ $no_proxy ]] && echo "export no_proxy" >> "$__f"
+        sudo cp "$__f" "$CHROOT/etc/profile.d/proxy.sh"
+    fi
     in_chroot ln -s /proc/self/mounts /etc/mtab
 
     if [[ $ALLOW_CACHE_UPDATE = true ]]; then
@@ -446,7 +449,6 @@ cache_add() {
     if [[ $CURRENT_CACHE_BRANCH ]]; then
         CACHE_NEEDS_COMMIT=true
         in_cache git add "${2#${CACHE_DIR}/}"
-    	debug "in_cache git add result: $?"
     fi
 }
 
@@ -473,7 +475,8 @@ make_barclamp_pkg_metadata() {
         chroot_install $OS_METADATA_PKGS
         unset OS_METADATA_PKGS
     }
-    sudo mount --bind "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" "$CHROOT/mnt"
+    sudo mount --bind "$(readlink -f "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs")" \
+        "$CHROOT/mnt"
     __make_barclamp_pkg_metadata "$1"
     sudo umount "$CHROOT/mnt"
 }
@@ -536,6 +539,7 @@ update_barclamp_gem_cache() {
     local -A gems
     local gemname gemver gemopts bc gem
     local bc_cache="$CACHE_DIR/barclamps/$1/gems"
+    install_rubygems || die "Could not install gem, cannot update gem cache!"
     CHROOT_GEMDIR="$(in_chroot /usr/bin/gem environment gemdir | grep -v home)"
 
     debug "update_barclamp_gem_cache: starting to ${1} to $bc_cache"
@@ -570,8 +574,6 @@ update_barclamp_gem_cache() {
     done < <(sudo find "$CHROOT/$CHROOT_GEMDIR" -type f)
 
     # install any build dependencies we need.
-    debug "install build packages $1"
-    install_build_packages "$1"
 
     # Grab the gems needed for this barclamp.
     debug "installing gems needed in this barclamp $1"
@@ -585,7 +587,7 @@ update_barclamp_gem_cache() {
             gemver=''
         fi
         gemopts=(install --no-ri --no-rdoc)
-        [[ $gemver ]] && gemopts+=(--version "= ${gemver}")
+        [[ $gemver ]] && gemopts+=(--version "'= ${gemver}'")
         [[ $http_proxy ]] && gemopts+=(-p "$http_proxy")
         in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
     done
@@ -597,16 +599,15 @@ update_barclamp_gem_cache() {
 
 
     debug "adding gems to cache"
-    debug "$(sudo ls -la $CHROOT/$CHROOT_GEMDIR)"
+    debug "$(sudo find $CHROOT/$CHROOT_GEMDIR -name '*.gem')"
     while read gem; do
     	debug "gem ${gem} is from $CHROOT/$CHROOT_GEMDIR" 
         [[ $gem = *.gem ]] || continue
-	debug "gem ${gem} sure does end in .gem"
         [[ ${gems["$gem"]} = "true" ]] && continue
 	debug "gem hash ${gem} = ${gems[${gem}]} "
 	debug "update_barclamp_gem_cache: adding ${gem} to $bc_cache"
         cache_add "$gem" "$bc_cache"
-    done < <(sudo find "$CHROOT/$CHROOT_GEMDIR" -type f)
+    done < <(sudo find "$CHROOT/$CHROOT_GEMDIR" -type f -name '*.gem')
     debug "done adding gems to cache"
 }
 
@@ -644,7 +645,7 @@ update_barclamp_file_cache() {
 
 # Check to see if the barclamp package cache needs update.
 barclamp_pkg_cache_needs_update() {
-    local pkg pkgname arch bcs=() bc
+    local pkg pkgname arch bcs=() bc ret=1
     local -A pkgs
 
     [[ $need_update = true || ${FORCE_BARCLAMP_UPDATE["$1"]} = true ]] && return 0
@@ -672,15 +673,15 @@ barclamp_pkg_cache_needs_update() {
                 continue 2
             fi
         done
-        debug "$pkg is not cached, and $1 needs it."
-        return 0
+        debug "Package $pkg is not cached, and $1 needs it."
+        ret=0
     done
-    return 1
+    return $ret
 }
 
 # Check to see if the barclamp gem cache needs an update.
 barclamp_gem_cache_needs_update() {
-    local pkg pkgname bc
+    local pkg pkgname bc ret=1
     local -A pkgs
     # Second, check to see if we have all the gems we need.
     for pkg in ${BC_GEMS["$1"]}; do
@@ -690,40 +691,45 @@ barclamp_gem_cache_needs_update() {
             [[ $(find "$bc_cache" \
                 -name "$pkg*.gem" -type f) = *.gem ]] && continue 2
         done
-        return 0
+        debug "Gem $pkg is not cached, and $1 needs it."
+        ret=0
     done
-    return 1
+    return $ret
 }
 
 # CHeck to see if we are missing any raw packages.
 barclamp_raw_pkg_cache_needs_update() {
-    local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" ret=1
     mkdir -p "$bc_cache"
     # Third, check to see if we have all the raw_pkgs we need.
     for pkg in ${BC_RAW_PKGS["$1"]} ${BC_PKG_SOURCES["$1"]}; do
-        [[ -f $bc_cache/${pkg##*/} ]] || return 0
+        [[ -f $bc_cache/${pkg##*/} ]] && continue
+        debug "Raw package $pkg is not cached, and $1 needs it."
+        ret=0
     done
-    return 1
+    return $ret
 }
 
 # Check to see if we are missing any raw files.
 barclamp_file_cache_needs_update() {
-    local pkg dest bc_cache="$CACHE_DIR/barclamps/$1/files"
+    local pkg dest bc_cache="$CACHE_DIR/barclamps/$1/files" ret=1
     mkdir -p "$bc_cache"
     # Fourth, check to make sure we have all the extra_pkgs we need.
     while read pkg; do
         dest=${pkg#* }
         [[ $dest = $pkg ]] && dest=''
         pkg=${pkg%% *}
-        [[ -f $bc_cache/$dest/${pkg##*/} ]] || return 0
+        [[ -f $bc_cache/$dest/${pkg##*/} ]] && continue
+        debug "File $pkg is not cached, and $1 needs it."
+        ret=0
     done < <(write_lines "${BC_EXTRA_FILES[$1]}")
-    return 1
+    return $ret
 }
 
 # Some helper functions
 
 # Print a message to stderr and exit.  cleanup will be called.
-die() { echo "$(date '+%F %T %z'): $*" >&2; res=1; exit 1; }
+die() { printf "$(date '+%F %T %z'): %s\n" "$@" >&2; res=1; exit 1; }
 
 # Print a message to stderr and keep going.
 debug() { [[ $VERBOSE ]] && echo "$(date '+%F %T %z'): $*" >&2; }
@@ -734,7 +740,7 @@ clean_dirs() {
     for d in "$@"; do
         (   mkdir -p "$d"
             cd "$d"
-            sudo rm -rf * )
+            sudo rm -rf --one-file-system * )
     done
 }
 
@@ -779,16 +785,11 @@ in_cache() (
 )
 
 # Check to see if something is a barclamp.
-is_barclamp() { [[ -f "$CROWBAR_DIR/barclamps/$1/crowbar.yml" ]]; }
+is_barclamp() [[ -f "$CROWBAR_DIR/barclamps/$1/crowbar.yml" ]]
 in_barclamp() {
     (   cd "$CROWBAR_DIR/barclamps/$1"
         shift
         "$@")
-}
-
-in_ci_barclamp() {
-    [[ $CI_BARCLAMP ]] || die "No continuous integration barclamp!"
-    in_barclamp "$CI_BARCLAMP" "$@"
 }
 
 # Build our ISO image.
@@ -815,6 +816,101 @@ test_iso() {
     run_test "$@" || \
         die "$(date '+%F %T %z'): Smoketest of $ISO_DEST/$BUILT_ISO failed."
 }
+
+get_repo_cfg() { in_repo git config --get "$1"; }
+git_config_has() { git config --get "$1" &>/dev/null; }
+current_build() { get_repo_cfg 'crowbar.build'; }
+build_exists() [[ -f $CROWBAR_DIR/releases/$1/barclamp-crowbar ]]
+
+barclamp_exists_in_build() { 
+    local build=${1%/*} bc=${1##*/}
+    [[ -f $CROWBAR_DIR/releases/$build/barclamp-$bc ]]
+}
+
+build_cfg_dir() {
+    local d="${1:-$(current_build)}"
+    build_exists "$d" || return 1
+    echo "$CROWBAR_DIR/releases/$d"
+}
+
+release_exists() [[ -d $CROWBAR_DIR/releases/$1/master ]]
+
+# Get the current release we are working on, which is a function of
+# the currently checked-out branch.
+current_release() {
+    local rel
+    rel=$(current_build) || \
+	die "current_release: Cannot get current build information!"
+    echo "${rel%/*}"
+}
+
+release_cfg_dir() {
+    local d="${1:-$(current_release)}"
+    release_exists "$d" || return 1
+    echo "$CROWBAR_DIR/releases/$d"
+}
+
+# Find all barclamps for whatever.
+barclamp_finder() {
+    # $1 = directory under $CROWBAR_DIR/releases to look in.
+    # $2 = regex to use as a filter.
+    # $2 = Match in the RE to return.  Defaults to 1
+    local b
+    while read b; do
+	[[ $b =~ $2 ]] || continue
+	printf '%s\n' "${BASH_REMATCH[${3:-1}]}"
+    done < <(find "$CROWBAR_DIR/releases/$1" -name 'barclamp-*') |sort -u
+}
+
+barclamps_in_build() {
+    flat_checkout || die "Cannot get list of barclamps, must flatten build first!"
+    local build bc
+    build="${1:-$(current_build)}"
+    barclamp_finder "$build" '/barclamp-(.+)$'
+}
+
+barclamps_in_release() {
+    local release="${1:-$(current_release)}"
+    release_exists "$release" || return 1
+    barclamp_finder "$release" '/barclamp-(.+)$'
+}
+
+builds_in_release() {
+    local release="${1:-$(current_release)}"
+    release_exists "$release" || return 1
+    barclamp_finder "$release" "releases/.+/([^/]+)/barclamp-crowbar"
+}
+
+all_barclamps() {
+    local bc
+    local -A barclamps
+    barclamp_finder '' '/barclamp-(.+)$'
+}
+
+# Given a build, give us the branch the barclamps will use.
+build_branch() {
+    # $1 = build
+    case $1 in
+	development/*) echo "master" ;;
+	stable/*) echo "stable/${1%/*}/master";;
+	feature/*/*) echo "${1%/*}/master";;
+	*) echo "release/${1%/*}/master";;
+    esac
+}
+
+crowbar_version() {
+    local bc build br
+    build=${1:-$(current_build)}
+    commits=0
+    build_exists "$build" || die "$build is not a build!"
+    br="$(build_branch "$build")"
+    for bc in $(barclamps_in_build); do
+        commits=$((commits + $(in_barclamp "$bc" git rev-list --count --sparse --no-merges "$br")))
+    done
+    echo "${build//\//_}.$commits"
+}
+
+all_releases() { barclamp_finder '' 'releases/(.+)/master/barclamp-crowbar$'; }
 
 if [[ $http_proxy ]]; then
     export USE_PROXY=1

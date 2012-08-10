@@ -1,10 +1,14 @@
 *.lock
 *.lck
-*.iso
+/crowbar*.iso
+/crowbar*.tar.gz
 build-info
 sha1sums
-testing/
 .idea
 .rvmrc
+/testing/
 *~
 .#*
+/extra
+/change-image
+/barclamps/*/

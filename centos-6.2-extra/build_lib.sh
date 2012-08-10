@@ -73,7 +73,7 @@ shrink_iso() {
         cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/Packages"
     done
     sudo mount --bind "$BUILD_DIR" "$CHROOT/mnt"
-    in_chroot /bin/bash -c 'cd /mnt; createrepo -g /mnt/repodata/3a27232698a261aa4022fd270797a3006aa8b8a346cbd6a31fae1466c724d098-c6-x86_64-comps.xml .'
+    in_chroot 'cd /mnt; createrepo -g /mnt/repodata/3a27232698a261aa4022fd270797a3006aa8b8a346cbd6a31fae1466c724d098-c6-x86_64-comps.xml .'
     sudo umount -l "$CHROOT/mnt"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/Packages"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/repodata"

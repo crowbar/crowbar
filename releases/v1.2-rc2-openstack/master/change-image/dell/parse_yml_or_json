@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'yaml'
+require 'json'
+
+unless File.exists? ARGV[0]
+  STDERR.puts "First argument must be a file name!"
+  exit 1
+end
+tree = nil
+case ARGV[0].split('.')[-1]
+when "yml","yaml"
+  tree = YAML.load_file ARGV[0]
+when "json"
+  File.open(ARGV[0]) do |f|
+    tree = JSON.parse(f.read)
+  end
+end
+
+ARGV[1..-1].each do |key|
+  t = tree
+  keyout=key.gsub(/[^a-zA-Z0-9_]/,'_')
+  key.split('.').each do |k|
+    exit 1 unless t and t[k]
+    t = t[k]
+  end
+  case 
+  when t.kind_of?(Array)
+    puts "unset #{keyout}; declare -a #{keyout}"
+    t.each_index do |i|
+      puts "#{keyout}[#{i}]=\"#{t[i].to_s}\""
+    end
+  when t.kind_of?(NilClass) then next
+  when t.kind_of?(Hash)
+    STDERR.puts "Cannot print #{key} in a format that bash will understand!"
+    exit 1
+  else
+    puts "unset #{keyout}; #{keyout}=\"#{t.to_s}\""
+  end
+end

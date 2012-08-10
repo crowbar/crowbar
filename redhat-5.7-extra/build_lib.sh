@@ -58,7 +58,7 @@ shrink_iso() {
         cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/Server"
     done
     sudo mount --bind "$BUILD_DIR/Server" "$CHROOT/mnt"
-    in_chroot /bin/bash -c 'cd /mnt; createrepo -g repodata/comps-rhel5-server-core.xml .'
+    in_chroot 'cd /mnt; createrepo -g repodata/comps-rhel5-server-core.xml .'
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/Server"
 }
  . "$CROWBAR_DIR/redhat-common/build_lib.sh"

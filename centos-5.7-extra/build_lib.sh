@@ -58,7 +58,7 @@ shrink_iso() {
         cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/CentOS"
     done
     sudo mount --bind "$BUILD_DIR" "$CHROOT/mnt"
-    in_chroot /bin/bash -c 'cd /mnt; createrepo -g /mnt/repodata/comps.xml .'
+    in_chroot 'cd /mnt; createrepo -g /mnt/repodata/comps.xml .'
     sudo umount -l "$CHROOT/mnt"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/CentOS"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/repodata"
