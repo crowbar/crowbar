@@ -589,7 +589,7 @@ github_fork() {
     # $2 = repo to fork
     curl_and_res -f -X POST \
         "https://api.github.com/repos/$1/$2/forks" >&/dev/null || \
-        die "Could not fork $1/$2!"
+        die "Could not fork $1/$2! (your .netrc file may be missing)"
 }
 
 github_url() {
