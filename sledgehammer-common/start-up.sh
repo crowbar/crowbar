@@ -68,7 +68,7 @@ ADMIN_IP=$(grep dhcp-server $DHCPDIR/dhclient*.leases | \
     uniq | cut -d" " -f5 | cut -d";" -f1)
 DOMAIN=$(grep "domain-name " $DHCPDIR/dhclient*.leases | \
     uniq | cut -d" " -f5 | cut -d";" -f1 | awk -F\" '{ print $2 }')
-HOSTNAME_MAC="h${MAC//:/-}.${DOMAIN}"
+HOSTNAME_MAC="d${MAC//:/-}.${DOMAIN}"
 
 [[ $(cat /proc/cmdline) =~ $ik_re ]] && \
     export CROWBAR_KEY="${BASH_REMATCH[1]}"
