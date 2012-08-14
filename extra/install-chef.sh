@@ -443,6 +443,6 @@ fi
 echo "Admin node deployed."
 
 # Run tests -- currently the host will run this.
-/opt/dell/bin/barclamp_test.rb -t || \
-    die "Crowbar validation has errors! Please check the logs and correct."
+#/opt/dell/bin/barclamp_test.rb -t || \
+#    die "Crowbar validation has errors! Please check the logs and correct."
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
