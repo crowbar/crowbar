@@ -161,15 +161,17 @@ with_build_lock() {
 
 # Get a list of all the barclamps that a specific branch refers to.
 barclamps_in_branch() {
-    local b res=()
+    local b bc mode dtype sha
+    local -A res
     for b in "$@"; do
         in_repo branch_exists "$b" || \
             die "Branch $b does not exist in the Crowbar repo!"
+        while read mode dtype sha bc; do
+            [[ $mode = 160000 && $dtype = commit ]] || continue
+            res[${bc##*/}]=${bc##*/}
+        done < <(in_repo git ls-tree -r "$b" barclamps)
     done
-    local res=($(for b in "$@"; do in_repo git ls-tree -r \
-        "$b" barclamps; done | \
-        awk '/160000 commit/ {print $4}' |sort -u))
-    printf "%s\n" "${res[@]#barclamps/}"
+    printf "%s\n" "${res[@]}" |sort
 }
 
 
