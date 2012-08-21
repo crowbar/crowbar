@@ -2230,9 +2230,12 @@ reload_unit_tests() {
   done
 
   cd /tmp/crowbar
-  rake db:drop
-  rake db:migrate
-  rake db:fixtures:dump
+  RAKE="rake"
+  type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
+  type $RAKE || echo "MUST HAVE RAKE"
+  $RAKE db:drop
+  $RAKE db:migrate
+  $RAKE db:fixtures:dump
   cd -
  
   cd /tmp/crowbar/BDD
@@ -2244,7 +2247,10 @@ reload_unit_tests() {
 run_unit_tests() {
   # Run unit tests
   cd /tmp/crowbar
-  rake test:units
+  RAKE="rake"
+  type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
+  type $RAKE || echo "MUST HAVE RAKE"
+  $RAKE test:units
   cd -
 
   # Run BDD tests
