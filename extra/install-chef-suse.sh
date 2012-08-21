@@ -91,6 +91,9 @@ if [ -n "$IPv4_addr" ]; then
     if [[ "$IPv4_addr" =~ ^127 ]]; then
         die "$FQDN resolves to a loopback address. Aborting."
     fi
+    if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < /opt/dell/chef/data_bags/crowbar/bc-template-network.json; then
+        die "IPv4 address of admin node not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
+    fi
 fi
 if [ -n "$IPv6_addr" ]; then
     echo "$FQDN resolved to IPv6 address: $IPv6_addr"
