@@ -418,10 +418,12 @@ touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 cat <<EOF
 Admin node deployed.
 
-You can now visit the Crowbar web UI on http://$IP:3000/
-and the Chef web UI on http://$IP:4040/
+You can now visit the Crowbar web UI at:
 
-You should also now be able to PXE-boot a client.
+    http://$IP:3000/
+
+You should also now be able to PXE-boot a client.  Please refer
+to the documentation for the next steps.
 
 Note that to run the crowbar CLI tool, you will need to log out
 and log back in again for the correct environment variables to
