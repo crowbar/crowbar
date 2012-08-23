@@ -349,7 +349,10 @@ def framework_permissions(bc, bc_path)
   chmod_dir 0644, File.join(CROWBAR_PATH, 'db')
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'tmp')
   chmod_dir 0644, File.join(CROWBAR_PATH, 'tmp')
-  FileUtils.chmod_R 0755, File.join(CROWBAR_PATH, 'public', 'stylesheets')
+  FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'public', 'stylesheets')
+  chmod_dir 0644, File.join(CROWBAR_PATH, 'public', 'stylesheets')
+  FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'public', 'stylesheets', 'sass')
+  chmod_dir 0644, File.join(CROWBAR_PATH, 'public', 'stylesheets', 'sass')
   debug "\tcopied crowbar_framework files"
 end
 
