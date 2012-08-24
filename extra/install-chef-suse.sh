@@ -102,6 +102,12 @@ if [ -n "$IPv6_addr" ]; then
     fi
 fi
 
+# Note that the grep will fail if iptables' output changes; unlikely to happen,
+# but...
+if [ -z "`iptables -n -L | grep -vE '^$|^Chain [^ ]|^target     prot'`" ]; then
+    die "Firewall is not completely disabled. Aborting."
+fi
+
 if ! ping -c 1 $FQDN >/dev/null 2>&1; then
     die "Failed to ping $FQDN; please check your network configuration. Aborting."
 fi
