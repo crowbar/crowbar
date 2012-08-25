@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: RobHirschfeld
 #
 
 require 'rubygems'
@@ -22,6 +21,7 @@ require 'json'
 require 'fileutils'
 require 'active_support/all'
 require 'pp'
+require 'i18n'
 
 MODEL_SUBSTRING_BASE = '==BC-MODEL=='
 MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
@@ -55,8 +55,10 @@ end
 def bc_install(bc, bc_path, yaml)
   case yaml["crowbar"]["layout"].to_i
   when 1
+    throw "ERROR: Crowbar 1.x barclamp formats are not supported in Crowbar 2.x"
+  when 2
     debug "Installing app components"
-    bc_install_layout_1_app bc, bc_path, yaml
+    bc_install_layout_2_app bc, bc_path, yaml
     debug "Installing chef components"
     bc_install_layout_1_chef bc, bc_path, yaml
     debug "Installing cache components"
@@ -67,19 +69,16 @@ def bc_install(bc, bc_path, yaml)
   catalog bc_path
 end
 
-# regenerate the barclamp catalog (does a complete regen each install)
+# regenerate the barclamp catalog (LEGACY - no longer generated catalog)
 def catalog(bc_path)
-  debug "Creating catalog in #{bc_path}"
+  debug "Copying barclamp 1.x meta_data from #{bc_path}"
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
-  cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
   system("knife data bag create -k /etc/chef/webui.pem -u chef-webui barclamps")
   list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
   # scan the installed barclamps
   list.each do |bc_file|
-    unless File.directory?("#{barclamps}/bc_meta")
-      Dir.mkdir("#{barclamps}/bc_meta")
-    end
+    Dir.mkdir("#{barclamps}/bc_meta") unless File.directory?("#{barclamps}/bc_meta")
     debug "Loading #{bc_file}"
     bc = YAML.load_file File.join(barclamps, bc_file)
     File.open("#{barclamps}/bc_meta/#{bc_file}.json","w+") { |f|
@@ -88,40 +87,6 @@ def catalog(bc_path)
       f.puts(JSON.pretty_generate(bc))
     }
     Kernel.system("knife data bag from file -k /etc/chef/webui.pem -u chef-webui barclamps \"#{barclamps}/bc_meta/#{bc_file}.json\"")
-    name =  bc['barclamp']['name']
-    cat['barclamps'][name] = {} if cat['barclamps'][name].nil?
-    description = bc['barclamp']['description']
-    if description.nil?
-      debug "Trying to find description"
-      [ File.join(bc_path, '..', name, 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
-        File.join(bc_path, '..', "barclamp-#{name}", 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json")].each do |f|
-        next unless File.exist? f
-        s = JSON::load File.open(f, 'r')
-        description = s['description'] unless s.nil?
-	break if description
-      end
-    end
-    # template = File.join bc_path, name,
-    debug "Adding catalog info for #{bc['barclamp']['name']}"
-    cat['barclamps'][name]['description'] = description || "No description for #{bc['barclamp']['name']}"
-    cat['barclamps'][name]['user_managed'] = (bc['barclamp']['user_managed'].nil? ? true : bc['barclamp']['user_managed'])
-    puts "#{name} #{bc['barclamp']['user_managed']}" if name === 'dell-branding'
-    bc['barclamp']['member'].each do |meta|
-      cat['barclamps'][meta] = {} if cat['barclamps'][meta].nil?
-      cat['barclamps'][meta]['members'] = {} if cat['barclamps'][meta]['members'].nil?
-      cat['barclamps'][meta]['members'][name] = bc['crowbar']['order']
-    end if bc['barclamp']['member']
-
-    cat['barclamps'][name]['order'] = bc['crowbar']['order'] if bc['crowbar']['order']
-    cat['barclamps'][name]['run_order'] = bc['crowbar']['run_order'] if bc['crowbar']['run_order']
-    cat['barclamps'][name]['chef_order'] = bc['crowbar']['chef_order'] if bc['crowbar']['chef_order']
-    if bc['git']
-      cat['barclamps'][name]['date'] = bc['git']['date'] if bc['git']['date']
-      cat['barclamps'][name]['commit'] = bc['git']['commit'] if bc['git']['commit']
-    end
-  end
-  File.open( File.join(CROWBAR_PATH, 'config', 'catalog.yml'), 'w' ) do |out|
-    YAML.dump( cat, out )
   end
 end
 
@@ -192,29 +157,10 @@ def bc_replacer(item, bc, entity)
   return item
 end
 
-#merges localizations from config into the matching translation files
-def merge_i18n(yaml)
-  locales = yaml['locale_additions']
-  locales.each do |key, value|
-    #translation file (can be multiple)
-    f = File.join CROWBAR_PATH, 'config', 'locales', "#{key}.yml"
-    if File.exist? f
-      debug "merging translation for #{f}"
-      master = YAML.load_file f
-      master = merge_tree(key, value, master)
-      File.open( f, 'w' ) do |out|
-        YAML.dump( master, out )
-      end
-    else
-      puts "WARNING: Did not attempt tranlation merge for #{f} because file was not found."
-    end
-  end
-end
-
 # makes sure that sass overrides are injected into the application.sass
 def merge_sass(yaml, bc, path, installing)
-  sass_path = File.join path, 'crowbar_framework', 'public', 'stylesheets', 'sass'
-  application_sass = File.join CROWBAR_PATH, 'public', 'stylesheets', 'sass', 'application.sass'
+  sass_path = File.join path, 'crowbar_framework', 'app', 'assets', 'stylesheets'
+  application_sass = File.join CROWBAR_PATH, 'app', 'assets', 'stylesheets', 'application.sass'
   if File.exist? application_sass and File.exists? sass_path
     sass_files = Dir.entries(sass_path).find_all { |r| r =~ /^_(.*).sass$/ }
     # get entries from the applicaiton.sass file
@@ -270,66 +216,6 @@ def merge_sass(yaml, bc, path, installing)
   end
 end
 
-# injects/cleans barclamp items from framework navigation
-def merge_nav(yaml, installing)
-  unless yaml['nav'].nil?
-    bc_flag = "#FROM BARCLAMP: #{yaml['barclamp']['name']}."
-    # get raw file
-    nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'
-    nav_raw = []
-    File.open(nav_file, 'r') do |f|
-      f.each_line { |line| nav_raw << line }
-    end
-    # remove stuff that will be replaced
-    nav = []
-    nav_raw.each do |line|
-      nav << line unless line =~ /#{bc_flag}$/
-    end
-    # now add new items
-    new_nav = []
-    nav.each do |line|
-      unless yaml['nav']['primary'].nil?
-        yaml['nav']['primary'].each do |key, value|
-          #insert new items before
-          new_nav << "primary.item :#{value} #{bc_flag}" if installing and line.lstrip.start_with? "primary.item :#{key}"
-        end
-      end
-      # add the line
-      new_nav << line
-      # add submenu items (REQUIRIES KEYS IN NAV FILE!!)
-      yaml['nav'].each do |key, value|
-        if installing and line.lstrip.start_with? "# insert here for :#{key}"
-          value.each do |k, v|
-            new_nav << "secondary.item :#{k}, t('nav.#{k}'), #{v} #{bc_flag}" unless v.nil?
-          end
-        end
-      end
-    end
-    File.open( nav_file, 'w') do |out|
-      new_nav.each { |l| out.puts l }
-    end
-  end
-end
-
-# helper for localization merge
-def merge_tree(key, value, target)
-  if target.key? key
-    if target[key].class == Hash
-      value.each do |k, v|
-        #puts "recursing into tree at #{key} for #{k}"
-        target[key] = merge_tree(k, v, target[key])
-      end
-    else
-      debug "replaced key #{key} value #{value}"
-      target[key] = value
-    end
-  else
-    debug "added key #{key} value #{value}"
-    target[key] = value
-  end
-  return target
-end
-
 # cleanup (anti-install) assumes the install generates a file list
 def bc_remove_layout_1(bc, bc_path, yaml)
   filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
@@ -350,12 +236,11 @@ def framework_permissions(bc, bc_path)
   chmod_dir 0644, File.join(CROWBAR_PATH, 'db')
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'tmp')
   chmod_dir 0644, File.join(CROWBAR_PATH, 'tmp')
-  FileUtils.chmod_R 0755, File.join(CROWBAR_PATH, 'public', 'stylesheets')
   debug "\tcopied crowbar_framework files"
 end
 
 # install the framework files for a barclamp
-def bc_install_layout_1_app(bc, bc_path, yaml)
+def bc_install_layout_2_app(bc, bc_path, yaml)
 
   #TODO - add a roll back so there are NOT partial results if a step fails
   files = []
@@ -371,11 +256,6 @@ def bc_install_layout_1_app(bc, bc_path, yaml)
     framework_permissions bc, bc_path
   end
 
-  #merge i18n information (least invasive operations first)
-  debug "merge_i18n"
-  merge_i18n yaml
-  debug "merge_nav"
-  merge_nav yaml, true
   debug "merge_sass"
   merge_sass yaml, bc, bc_path, true
 
@@ -427,13 +307,26 @@ def bc_install_layout_1_app(bc, bc_path, yaml)
     files.each { |line| out.puts line }
   end
 
-  #copy over the crowbar.yml file
+  #copy over the crowbar.yml and template file
   yml_path = File.join CROWBAR_PATH, 'barclamps'
+  template_path = File.join yml_path, 'templates'
   yml_barclamp = File.join bc_path, "crowbar.yml"
+  template_file = File.join bc_path, "chef", "data_bags", "crowbar", "bc-template-#{bc}.json"
   FileUtils.mkdir yml_path unless File.directory? yml_path
+  FileUtils.mkdir template_path unless File.directory? template_path
   FileUtils.cp yml_barclamp, File.join(yml_path, "#{bc}.yml")
+  FileUtils.cp template_file, File.join(template_path, "", "bc-template-#{bc}.json") if File.exists? template_file
 
-  debug "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created."
+  #database migration
+  bc_layout = yaml["crowbar"]["layout"].to_i rescue 2
+  if bc_layout > 1
+    FileUtils.cd(CROWBAR_PATH) do
+      db = system "RAILS_ENV=production rake db:migrate"
+      debug "Database migration invoked - #{db}"
+    end
+  end
+  
+  debug "Barclamp #{bc} (format v#{bc_layout}) added to Crowbar Framework.  Review #{filelist} for files created."
 end
 
 # upload the chef parts for a barclamp
