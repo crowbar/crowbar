@@ -132,7 +132,7 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
               system "cd \"#{target}\"; sha1sum -c sha1sums |grep -v OK"
               puts "and rerun the install after recreating the checksum file with:"
               puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
-              puts"       xargs -0 sha1sum -b >sha1sums"
+              puts "       xargs -0 sha1sum -b >sha1sums"
               puts "(or use the --force switch)"
               debug "temporary directory #{tmpdir} will be removed if it exists"
               system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
@@ -144,7 +144,7 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
             puts "Please back up any local changes you may have made, and then"
             puts "create a checksums file with:"
             puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
-            puts"       xargs -0 sha1sum -b >sha1sums"
+            puts "       xargs -0 sha1sum -b >sha1sums"
             puts "(or use the --force switch)"
             debug "temporary directory #{tmpdir} will be removed if it exists"
             system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
