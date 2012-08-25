@@ -31,7 +31,7 @@ install_base_packages() {
     log_to apt apt-get -y remove apparmor
     log_to apt apt-get -y install rubygems gcc ruby tcpdump \
         libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev nginx \
-        ipmitool
+        ipmitool efibootmgr
 
     # stop nginx
     service nginx stop

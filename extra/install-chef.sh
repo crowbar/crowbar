@@ -292,6 +292,9 @@ if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
         (read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
 fi
 
+# Set the default OS for the provisioner
+sed -i "s/%default_os%/$OS_TOKEN/g" \
+    /opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
 if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
     sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" $CROWBAR_FILE
@@ -341,8 +344,6 @@ pre_crowbar_fixups
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
 # Run chef-client to bring-up crowbar server
 chef_or_die "Failed to bring up Crowbar"
-# Make sure looper_chef_client is a NOOP until we are finished deploying
-touch /tmp/deploying
 
 post_crowbar_fixups
 
@@ -412,7 +413,6 @@ do
 done
 
 # OK, let looper_chef_client run normally now.
-rm /tmp/deploying
 
 # Spit out a warning message if we managed to not get an IP address
 IPSTR=$(crowbar network show default | parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
