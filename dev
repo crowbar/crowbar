@@ -589,7 +589,7 @@ github_fork() {
     # $2 = repo to fork
     curl_and_res -f -X POST \
         "https://api.github.com/repos/$1/$2/forks" >&/dev/null || \
-        die "Could not fork $1/$2!"
+        die "Could not fork $1/$2! (your .netrc file may be missing)"
 }
 
 github_url() {
@@ -1356,6 +1356,10 @@ erase-feature:      Forget about branches for a feature you are not working on.
 find-parent:        Find the closest parent of a release or feature.
 reset-release:      Resets a release to upstream or your last backup.
 scrub-merged-pulls: Scrub merged pull request branches.
+setup-unit-tests:   Sets up unit test environment
+reload-unit-tests:  Reload the data for the unit test environment
+run-unit-tests:     Run unit and BDD tests
+clear-unit-tests:   Remove unit test environment
 
 For more detailed help, use the "help" command or read README.dev-and-workflow.
 EOF
@@ -1499,6 +1503,15 @@ Command line options:
                         scrubs tracking branches for pull requests that have
                         already been merged.  If --all is passed as an option,
                         then all pull request tracking branches will be deleted.
+
+  setup-unit-tests -- Sets up a unit test environment with all barclamps in /tmp/crowbar.
+                      Requires sudo access to install Ubuntu packages.
+
+  reload-unit-tests -- Reload the code and database for the units.  Does not re-bundle.
+
+  run-unit-tests -- Run BDD and unit tests from the /tmp/crowbar environment.
+
+  clear-unit-tests -- Removes a unit test environment in /tmp/crowbar.
 EOF
 }
 
@@ -2182,6 +2195,74 @@ reset_release() {
     done
 }
 
+setup_unit_tests() {
+  rm -rf /tmp/crowbar
+  mkdir /tmp/crowbar
+  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
+  mkdir -p /tmp/crowbar/barclamps/templates
+  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
+  cp -r barclamps/*/chef/data_bags/crowbar/*.json /tmp/crowbar/barclamps/templates
+  for i in barclamps/*/crowbar.yml; do
+    cp "$i" "/tmp/crowbar/barclamps/`basename $(dirname $i)`.yml"
+  done
+
+  cd /tmp/crowbar
+  BUNDLE="bundle"
+  type bundle 2>/dev/null >/dev/null || BUNDLE="/var/lib/gems/1.8/bin/bundle"
+  type $BUNDLE || echo "MUST HAVE BUNDLER"
+  sed -ie 's/^source .*/source "http:\/\/rubygems.org"/' "Gemfile"
+  $BUNDLE
+  cd ..
+
+  cd /tmp/crowbar/BDD
+  sudo /tmp/crowbar/BDD/linux_install.sh
+  ./linux_compile.sh
+  cd -
+}
+
+reload_unit_tests() {
+  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
+  mkdir -p /tmp/crowbar/barclamps/templates
+  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
+  cp -r barclamps/*/chef/data_bags/crowbar/*.json /tmp/crowbar/barclamps/templates
+  for i in barclamps/*/crowbar.yml; do
+    cp "$i" "/tmp/crowbar/barclamps/`basename $(dirname $i)`.yml"
+  done
+
+  cd /tmp/crowbar
+  RAKE="rake"
+  type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
+  type $RAKE || echo "MUST HAVE RAKE"
+  $RAKE db:drop
+  $RAKE db:migrate
+  $RAKE db:fixtures:dump
+  cd -
+ 
+  cd /tmp/crowbar/BDD
+  ./linux_compile.sh
+  sed -ie 's/192.168.124.10/127.0.0.1/' "crowbar.config"
+  cd -
+}
+
+run_unit_tests() {
+  # Run unit tests
+  cd /tmp/crowbar
+  RAKE="rake"
+  type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
+  type $RAKE || echo "MUST HAVE RAKE"
+  $RAKE test:units
+  cd -
+
+  # Run BDD tests
+  cd /tmp/crowbar/BDD
+  ./linux_run.sh
+  cd -
+}
+
+clear_unit_tests() {
+  rm -rf /tmp/crowbar
+}
+
 case $1 in
     is_clean) shift; crowbar_is_clean "$@";;
     fetch) shift; fetch_all "$@";;
@@ -2206,6 +2287,10 @@ case $1 in
     find-parent) shift; find_best_parent "$@";;
     reset-release) shift; reset_release "$@";;
     scrub-merged-pulls) shift; scrub_merged_pulls "$@";;
+    setup-unit-tests) setup_unit_tests;;
+    reload-unit-tests) reload_unit_tests;;
+    run-unit-tests) run_unit_tests;;
+    clear-unit-tests) clear_unit_tests;;
     create-barclamp) shift
         [[ -d $CROWBAR_DIR/barclamps/$1 ]] || \
             die "Barclamp $1 already exists"
