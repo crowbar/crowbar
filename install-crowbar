@@ -18,14 +18,6 @@ fqdn_re='^([a-z]+[0-9a-z]\.){2,}[a-z]+[0-9a-z]+$'
 [[ -d $EXTRA_DIR ]] || die "Unsupported OS $1. Cannot install crowbar."
 . "$EXTRA_DIR/build_lib.sh"
 
-(
-    [[ -f $ISO_LIBRARY/$ISO ]] || fetch_os_iso
-
-    mkdir -p /tftpboot/$1/install
-    grep -qF "/tftpboot/$OS_TOKEN/install" /proc/mounts || \
-	mount -o loop,ro "$ISO_LIBRARY/$ISO" "/tftpboot/$OS_TOKEN/install"
-) || die "Initial installation of $ISO into $ISO_LIBRARY failed."
-
 mkdir -p /opt/dell/bin
 cp change-image/dell/* /opt/dell/bin
 cp extra/barclamp* /opt/dell/bin
@@ -37,6 +29,11 @@ export PATH=$PATH:/opt/dell/bin:/usr/local/bin
 # Since we are running this script, we want an online mode install.
 sed -i '/"online":/ s/false/true/' \
     /opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
+
+# Set the default OS for the provisioner
+sed -i "s/%default_os%/$OS_TOKEN/g" \
+    /opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
+
 
 if [[ ! -f /etc/polipo/config ]]; then
     case $OS in
@@ -52,7 +49,7 @@ if [[ ! -f /etc/polipo/config ]]; then
     esac
         cp extra/polipo.config /etc/polipo/config
         if [[ $http_proxy && \
-            $http_proxy =~ http://([0-9a-z.]+:[0-9]+) ]] && \
+            $http_proxy =~ http://([^/]+) ]] && \
             ! grep -q parentProxy /etc/polipo/config; 
         then
             printf "\nparentProxy = \"${BASH_REMATCH[1]}\"\n">> \
@@ -117,8 +114,8 @@ if [[ ! -x /etc/init.d/bluepill ]]; then
     case $OS in
 	ubuntu)
 	    apt-get -y install chef kwalify
-	    service chef-client stop
-	    killall chef-client
+	    service chef-client stop || :
+	    killall chef-client || :
 	    apt-get -y install chef-server chef-server-webui
 	    (cd "extra/patches"; chmod +x ./patch.sh ; ./patch.sh) || exit 1
 	    # increase chef-solr index field size
@@ -131,8 +128,8 @@ if [[ ! -x /etc/init.d/bluepill ]]; then
 	    service chef-server restart;;
 	redhat|centos)
 	     yum -q -y install rubygem-chef rubygem-kwalify
-	     service chef-client stop
-	     killall chef-client
+	     service chef-client stop || :
+	     killall chef-client || :
 	     yum -q -y install rubygem-chef-server \
 		 curl-devel ruby-shadow patch
 	     (cd "extra/patches"; chmod +x ./patch.sh; ./patch.sh) || exit 1
@@ -228,7 +225,7 @@ if [[ ! -f /opt/dell/.crowbar_configured ]]; then
 # generate the machine install username and password
     CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
     if [[ -e crowbar.json ]]; then
-	sed -e '/"id": "default"/ s/default/bc-template/crowbar/' < \
+	sed -e '/"id": "default"/ s/default/bc-template-crowbar/' < \
             crowbar.json > \
             /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json
     fi
@@ -290,7 +287,7 @@ EOF
 	    die "Could not add $role to Chef. Crowbar bringup will fail."
     done
 
-    chef-client || die "Could not bring up Crowbar"
+    blocking_chef_client.sh || die "Could not bring up Crowbar"
 
 # Add configured crowbar proposal
     if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
@@ -304,7 +301,7 @@ EOF
 	for ((x=1; x<6; x++)); do
 	    crowbar crowbar "${proposal_opts[@]}" && { proposal_created=true; break; }
 	    echo "Proposal create failed, pass $x.  Will kick Chef and try again."
-	    chef-client "Kicking proposal bits"
+	    blocking_chef_client.sh "Kicking proposal bits"
 	    sleep 1
 	done
 	if [[ ! $proposal_created ]]; then
@@ -321,5 +318,5 @@ for state in discovering discovered hardware-installing hardware-installed \
     installing installed readying ready; do
     /opt/dell/bin/crowbar crowbar transition $FQDN $state || \
         die "Could not transition to $state"
-    chef-client || die "Chef-client run for $state failed."
+    blocking_chef_client.sh || die "Chef-client run for $state failed."
 done

@@ -31,4 +31,3 @@
 [submodule "barclamps/test"]
 	path = barclamps/test
 	url = http://github.com/dellcloudedge/barclamp-test.git
-
