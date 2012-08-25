@@ -347,6 +347,15 @@ chef_or_die "Failed to bring up Crowbar"
 
 post_crowbar_fixups
 
+# Wait for puma to start
+COUNT=0
+while (($COUNT < 60))
+do
+  sleep 1
+  pumactl -S /var/run/crowbar/puma.state stats 2>/dev/null >/devnull && COUNT=60
+  COUNT=$(($COUNT + 1))
+done
+
 # Add configured crowbar proposal
 if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
     proposal_opts=()
@@ -378,17 +387,6 @@ crowbar crowbar show default >/var/log/default.json
 crowbar_up=true
 chef_or_die "Chef run after default proposal commit failed!"
 
-# Need to make sure that we have the indexer/expander finished
-COUNT=0
-VALUE=10000
-while (($COUNT < 60 && $VALUE !=0))
-do
-    sleep 1
-    VALUE=$(chef-expanderctl queue-depth | grep total | awk -F: '{ print $2 }')
-    echo "Expander Queue Total = $VALUE"
-    COUNT=$(($COUNT + 1))
-done
-sleep 30 # This is lame - the queue can be empty, but still processing and mess up future operations.
 check_machine_role
 
 ##
@@ -445,6 +443,6 @@ fi
 echo "Admin node deployed."
 
 # Run tests -- currently the host will run this.
-/opt/dell/bin/barclamp_test.rb -t || \
-    die "Crowbar validation has errors! Please check the logs and correct."
+#/opt/dell/bin/barclamp_test.rb -t || \
+#    die "Crowbar validation has errors! Please check the logs and correct."
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
