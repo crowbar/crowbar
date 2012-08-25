@@ -104,7 +104,7 @@ fi
 
 # Note that the grep will fail if iptables' output changes; unlikely to happen,
 # but...
-if [ -z "`iptables -n -L | grep -vE '^$|^Chain [^ ]|^target     prot'`" ]; then
+if [ LANG=C iptables -n -L | grep -qvE '^$|^Chain [^ ]|^target     prot' ]; then
     die "Firewall is not completely disabled. Aborting."
 fi
 
