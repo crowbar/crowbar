@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+[[ $DEBUG ]] && export DEBUG
+
 # Figure out what OS we are running on.
 
 # Install prerequisites needed to run the dev tool
