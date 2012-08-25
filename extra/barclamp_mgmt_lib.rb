@@ -83,7 +83,7 @@ def catalog(bc_path)
     description = bc['barclamp']['description']
     if description.nil?
       debug "Trying to find description"
-      [ File.join(bc_path, '..', name, 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
+      [ File.join(bc_path, '..', '..', 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
         File.join(bc_path, '..', "barclamp-#{name}", 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json")].each do |f|
         next unless File.exist? f
         s = JSON::load File.open(f, 'r')
