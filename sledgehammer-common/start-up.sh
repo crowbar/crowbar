@@ -72,7 +72,7 @@ HOSTNAME_MAC="d${MAC//:/-}.${DOMAIN}"
 
 [[ $(cat /proc/cmdline) =~ $ik_re ]] && \
     export CROWBAR_KEY="${BASH_REMATCH[1]}"
-HOSTNAME=$(hostname)
+HOSTNAME=$(hostname -f)
 
 [[ $HOSTNAME = localhost.localdomain ]] &&  {
     hostname $HOSTNAME_MAC
