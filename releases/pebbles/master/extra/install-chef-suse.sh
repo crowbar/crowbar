@@ -191,7 +191,8 @@ else
     sed -i 's/amqp_pass ".*"/amqp_pass "'"$rabbit_chef_password"'"/' /etc/chef/{server,solr}.rb
 fi
 
-sed -i 's/web_ui_admin_default_password ".*"/web_ui_admin_default_password "password"/' /etc/chef/webui.rb
+chef_webui_password=$( dd if=/dev/urandom count=1 bs=16 2>/dev/null | base64 | tr -d / )
+sed -i "s/^\s*web_ui_admin_default_password\s*\".*\"/web_ui_admin_default_password \"$chef_webui_password\"/" /etc/chef/webui.rb
 chmod o-rwx /etc/chef /etc/chef/{server,solr,webui}.rb
 
 rabbitmqctl set_permissions -p /chef chef ".*" ".*" ".*"
