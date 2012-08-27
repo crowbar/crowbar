@@ -51,12 +51,19 @@ HOSTNAME_MAC="d${MAC//:/-}.${DOMAIN}"
 
 [[ $(cat /proc/cmdline) =~ $ik_re ]] && \
     export CROWBAR_KEY="${BASH_REMATCH[1]}"
-HOSTNAME=$(hostname -f)
+HOSTNAME=$(hostname)
 
-[[ $HOSTNAME = localhost.localdomain ]] &&  {
+if [[ $HOSTNAME = localhost.localdomain ]]; then
+    # set hostname, so that hostname -f works correctly
+    echo "127.0.0.1 $HOSTNAME_MAC d${MAC//:/-}" >> /etc/hosts
+    echo "$HOSTNAME_MAC" > /etc/HOSTNAME
     hostname $HOSTNAME_MAC
-    HOSTNAME=${HOSTNAME_MAC}
-}
+    export HOSTNAME=${HOSTNAME_MAC}
+else
+    # let's hope dhclient set things up correctly
+    HOSTNAME=$(hostname -f)
+fi
+
 
 # enable remote logging to our admin node.
 echo "# Sledgehammer added to log to the admin node" >> /etc/rsyslog.conf
