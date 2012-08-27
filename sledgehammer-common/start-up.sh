@@ -58,7 +58,7 @@ if [[ $HOSTNAME = localhost.localdomain ]]; then
     echo "127.0.0.1 $HOSTNAME_MAC d${MAC//:/-}" >> /etc/hosts
     echo "$HOSTNAME_MAC" > /etc/HOSTNAME
     hostname $HOSTNAME_MAC
-    export HOSTNAME=${HOSTNAME_MAC}
+    HOSTNAME=${HOSTNAME_MAC}
 else
     # let's hope dhclient set things up correctly
     HOSTNAME=$(hostname -f)
