@@ -440,9 +440,11 @@ cache_add() {
     # $2 = location to store it in the cache
     cp "$1" "$2" || \
         die "Cannot save $1 in $2!"
+    debug "cache_add: Saved $1 in $2"
     if [[ $CURRENT_CACHE_BRANCH ]]; then
         CACHE_NEEDS_COMMIT=true
         in_cache git add "${2#${CACHE_DIR}/}"
+    	debug "in_cache git add result: $?"
     fi
 }
 
@@ -532,27 +534,47 @@ update_barclamp_gem_cache() {
     local -A gems
     local gemname gemver gemopts bc gem
     local bc_cache="$CACHE_DIR/barclamps/$1/gems"
+    CHROOT_GEMDIR="$(in_chroot /usr/bin/gem environment gemdir | grep -v home)"
+
+    debug "update_barclamp_gem_cache: starting to ${1} to $bc_cache"
 
     # Wipe out the caches.
+    debug "destroy that cruft"
     ( cd "$CHROOT/$CHROOT_GEMDIR" && sudo rm -rf * )
+    debug "$(ls -al ${CHROOT}/${CHROOT_GEMDIR})"
+
     # if we have deb or gem caches, copy them back in.
     # Make sure we copy the caches for all our dependent barclamps.
+    
+    in_chroot mkdir -p "${CHROOT}/${CHROOT_GEMDIR}" || die "could not make ${CHROOT}/${CHROOT_GEMDIR}"
 
+    debug "copy from $CACHE_DIR/barclamps/$bc/gems/. to  $CHROOT/$CHROOT_GEMDIR"
     for bc in $(all_deps "$1"); do
+	debug "are there any gems? sudo ls $CACHE_DIR/barclamps/$bc/gems/."
+	debug "$(sudo ls ${CACHE_DIR}/barclamps/${bc}/gems/.)"
         [[ -d "$CACHE_DIR/barclamps/$bc/gems/." ]] && \
-            sudo cp -a "$CACHE_DIR/barclamps/$bc/gems/." \
-            "$CHROOT/$CHROOT_GEMDIR"
+            sudo cp -va "$CACHE_DIR/barclamps/$bc/gems/." \
+            "$CHROOT/$CHROOT_GEMDIR" 
+	debug "did it make it into chroot?"
+	debug "$(in_chroot ls -al /${CHROOT_GEMDIR})"
     done
 
+    debug "create a hash of gems"
     while read gem; do
+	debug "gem ${gem} is from ${CHROOT}/${CHROOT_GEMDIR}"
+	debug "gem ${gem} sure does end in .gem"
         [[ $gem = *.gem ]] || continue
         gems["$gem"]="true"
-    done < <(find "$CHROOT/$CHROOT_GEMDIR" -type f)
+    done < <(sudo find "$CHROOT/$CHROOT_GEMDIR" -type f)
 
     # install any build dependencies we need.
+    debug "install build packages $1"
     install_build_packages "$1"
+
     # Grab the gems needed for this barclamp.
+    debug "installing gems needed in this barclamp $1"
     for gem in ${BC_GEMS["$1"]}; do
+	debug "gem ${gem} is required by barclamp $1"
         if [[ $gem =~ $GEM_RE ]]; then
             gemname="${BASH_REMATCH[1]}"
             gemver="${BASH_REMATCH[2]}"
@@ -565,14 +587,25 @@ update_barclamp_gem_cache() {
         [[ $http_proxy ]] && gemopts+=(-p "$http_proxy")
         in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
     done
+    debug "finished installing the gems"
 
     # Save our updated gems and pkgs in the cache for later.
-    mkdir -p "$bc_cache"
+    mkdir -p "$bc_cache" || die "Failed to make gem cache ${bc_cache}"
+    debug "made the gem cache ${bc_cache}"
+
+
+    debug "adding gems to cache"
+    debug "$(sudo ls -la $CHROOT/$CHROOT_GEMDIR)"
     while read gem; do
+    	debug "gem ${gem} is from $CHROOT/$CHROOT_GEMDIR" 
         [[ $gem = *.gem ]] || continue
+	debug "gem ${gem} sure does end in .gem"
         [[ ${gems["$gem"]} = "true" ]] && continue
+	debug "gem hash ${gem} = ${gems[${gem}]} "
+	debug "update_barclamp_gem_cache: adding ${gem} to $bc_cache"
         cache_add "$gem" "$bc_cache"
-    done < <(find "$CHROOT/$CHROOT_GEMDIR" -type f)
+    done < <(sudo find "$CHROOT/$CHROOT_GEMDIR" -type f)
+    debug "done adding gems to cache"
 }
 
 # Fetch any raw packages we do not already have.
