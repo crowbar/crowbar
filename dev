@@ -1166,16 +1166,23 @@ unpin_release() {
 # and show them.
 find_unsynced_branches_for_release() {
     # $1 = release
-    local bc rel line changes_found=false sha ref
+    local bc rel line changes_found=false sha ref br
+    local barclamps=()
     rel="${1:-$(current_release)}"
-    release_exists "$rel" || \
+    if release_exists "$rel"; then
+        barclamps=($(barclamps_in_release "$rel"))
+        br=$(release_branch "$rel")
+    elif build_exists "$rel"; then
+        barclamps=($(barclamps_in_build "$rel"))
+        br=$(build_branch "$rel")
+    else
 	die "Release $rel does not exist, cannot find unsynced changes for it!"
-    for bc in $(barclamps_in_release "$rel"); do
+    fi
+    for bc in "${barclamps[@]}"; do
 	local branches=()
-        local release_br="$(release_branch "$1")"
         local from to
         while read sha ref; do
-	    [[ $ref = refs/heads/${release_br} ]] || continue
+	    [[ $ref = refs/heads/${br} ]] || continue
 	    ref=${ref#refs/heads/}
 	    upstream="$(in_barclamp "$bc" remote_for_branch "$ref")" || continue
             case $changes_from in
