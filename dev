@@ -413,6 +413,9 @@ clone_and_sync_barclamp() {
 	fi
     )
 
+    [[ $remote ]] || remote=$(in_barclamp "$1" origin_remote) || \
+        die "Cannot find origin remote for barclamp $1!"
+    urlbase="${DEV_REMOTE_URLBASE[$remote]}"
     if [[ $urlbase =~ $github_re ]] && remote_available personal && \
 	! in_barclamp "$1" git_remote_exists personal; then
 	    # test to see if we need to fork this barclamp at Github
