@@ -946,6 +946,7 @@ setup() {
 	die "Crowbar repo must be clean before trying to set things up!"
     # Make sure we have Github login credentials if our upstream remote
     # was cloned from Github.
+    migrate "$(get_repo_cfg crowbar.dev.version)" "$DEV_VERSION"
     if remote_is_github "$(origin_remote)" && [[ $1 != '--no-github' ]]; then
         if [[ $DEV_GITHUB_ID ]]; then
             debug "Validating your Github username ($DEV_GITHUB_ID):"
@@ -1007,7 +1008,6 @@ setup() {
 	in_repo git config crowbar.backup.$(origin_remote).method remote
 	in_repo git config crowbar.backup.$(origin_remote).remote personal
     fi
-    migrate "$(get_repo_cfg crowbar.dev.version)" "$DEV_VERSION"
     clone_barclamps all
     in_repo git config crowbar.dev.version "$DEV_VERSION"
     in_repo git_config_has 'crowbar.build' && return 0
