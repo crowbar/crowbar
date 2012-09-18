@@ -225,6 +225,12 @@ while [[ $1 ]]; do
 		unset need_update || : &>/dev/null
 		shift
 	    done;;
+        --barclamps)
+            shift
+            while [[ $1 && $1 != -* ]]; do
+                BARCLAMPS+=("$1")
+                shift
+            done;;
 	--test)
 	    # Run tests on the newly-created repository.
 	    # The test framework does the heavy lifting.
