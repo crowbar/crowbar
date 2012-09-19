@@ -2130,7 +2130,7 @@ clear_unit_tests() {
 
 # Create a new barclamp.
 create_barclamp() {
-    [[ -d $CROWBAR_DIR/barclamps/$1 ]] || \
+    [[ -d $CROWBAR_DIR/barclamps/$1 ]] && \
 	die "Barclamp $1 already exists"
     "$CROWBAR_DIR/extra/barclamp_create.rb" "$@" || exit 1
     (   cd "$CROWBAR_DIR/barclamps/$1"
