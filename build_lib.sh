@@ -732,7 +732,7 @@ barclamp_file_cache_needs_update() {
 die() { printf "$(date '+%F %T %z'): %s\n" "$@" >&2; res=1; exit 1; }
 
 # Print a message to stderr and keep going.
-debug() { [[ $VERBOSE ]] && echo "$(date '+%F %T %z'): $*" >&2; }
+debug() { [[ $VERBOSE ]] && printf "$(date '+%F %T %z'): %s\n" "$@" >&2; }
 
 # Clean up any cruft that we might have left behind from the last run.
 clean_dirs() {
