@@ -64,8 +64,7 @@ for i in "$BASEDIR/dell/barclamps/"*".tar.gz"; do
 done
 
 barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
-( cd "/opt/dell/barclamps/crowbar/bin"; \
-    cp "${barclamp_scripts[@]}" /opt/dell/bin; )
+  ( cp "${barclamp_scripts[@]}" /opt/dell/bin; )
 
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
@@ -104,6 +103,7 @@ for s in $(cat /proc/cmdline); do
 done
 
 if ! grep -q '192\.168\.124\.10' /etc/network/interfaces; then
+    grep -v eth0 /etc/network/interfaces >/etc/network/interfaces
     cat >> /etc/network/interfaces <<EOF
 auto eth0
 iface eth0 inet static
