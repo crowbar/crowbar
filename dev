@@ -581,32 +581,62 @@ scrub_merged_pull_requests() {
     git remote prune personal
 }
 
-# Fetch (but do not merge) updates from all our remotes, in both the
-# main Crowbar repository and the barclamps.
-fetch_all() {
-    local remote remotes=() barclamp bc bc_remote branches=()
-    local -A fetched_barclamps
+__fetch_all() {
+    local remote remotes=() res=true 
     if [[ $@ || $DEV_FROM_REMOTES ]]; then
 	[[ $1 ]] && remotes+=("$@")
 	[[ $DEV_FROM_REMOTES ]] && remotes+=("${DEV_FROM_REMOTES[@]}")
     else
 	remotes=("${DEV_SORTED_REMOTES[@]}")
     fi
+    local logfile="${PWD}"
+    logfile=${logfile##$(readlink -f "$CROWBAR_DIR")}
+    logfile=${logfile//\//-}
+    logfile=${logfile#-}
+    logfile=${logfile//barclamps/barclamp}
+    [[ $logfile ]] || logfile="Crowbar"
     for remote in "${remotes[@]}"; do
-	crowbar_remote_exists "$remote" && remote_available "$remote" || continue
-	debug "Fetching from remote $remote:"
-	debug "    Crowbar"
-	in_repo git fetch -q "$remote" || continue
-	for bc in "$CROWBAR_DIR/barclamps/"*; do
-	    [[ -d $bc/.git || -f $bc/.git ]] || continue
-	    bc=${bc##*/}
-	    in_barclamp "${bc}" git_remote_exists "$remote" || continue
-	    debug "    Barclamp $bc"
-	    in_barclamp "$bc" git fetch -q "$remote" || \
-		echo "Could not fetch updates for $barclamp from remote $remote" >&2
-	done
+	crowbar_remote_exists "$remote" && \
+            remote_available "$remote" && \
+            git_remote_exists "$remote" || \
+            continue
+	if git fetch -q "$remote" &>/dev/null; then
+            debug "  Fetched from $remote." 2>>"$results_dir/$logfile"
+            printf '.'
+        else
+            debug "  Failed to fetch from $remote" 2>>"$results_dir/$logfile"
+            printf '!'
+            res=false
+        fi
 	[[ $remote = personal ]] && scrub_merged_pulls || :
     done
+    [[ $res = true ]] && debug "  All fetches passed." 2>> "$results_dir/$logfile"
+}
+
+# Fetch (but do not merge) updates from all our remotes, in both the
+# main Crowbar repository and the barclamps.
+fetch_all() {
+    local results_dir d
+    results_dir="$(mktemp -d /tmp/crowbar_fetch_XXXXXX)" || \
+        die "Cannot create temporary storage for fetch results!"
+    debug "Fetching updates:"
+    for d in "$CROWBAR_DIR/barclamps/"* "$CROWBAR_DIR"; do
+        [[ -d $d/.git ]] || continue
+        ( cd "$d" && __fetch_all "$@") &
+    done
+    wait
+    echo
+    for d in "$results_dir"/*; do
+        local n="${d##*/}"
+        n="${n//-/ }"
+        if grep -q 'All fetches passed\.$' "$d"; then
+            debug "${n}: All updates fetched"
+        else
+            debug "${n}:"
+            cat "$d"
+        fi
+    done
+    rm -rf "$results_dir"
     update_all_tracking_branches
 }
 
