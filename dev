@@ -550,7 +550,7 @@ update_all_tracking_branches() {
 scrub_merged_pull_requests() {
     remote_available personal && remote_is_github personal || return 0
     # $@ = branches to test for mergedness
-    local br ref pull_req
+    local br ref pull_req remote
     local -A to_remove pull_reqs heads
     remote_available personal || return
     while read ref br; do
@@ -571,7 +571,8 @@ scrub_merged_pull_requests() {
 	ref="${pull_reqs[$pull_req]}"
 	[[ ${heads[$ref]} ]] || continue
 	for br in ${heads["$ref"]}; do
-	    branches_synced . "$br" "$pull_req" || \
+            remote=$(remote_for_branch "$br")
+	    branches_synced . "$remote/$br" "$pull_req" || \
 		[[ $1 = '--all' ]] || continue
 	    to_remove["${pull_req#refs/remotes/personal/}"]="true"
 	    continue 2
