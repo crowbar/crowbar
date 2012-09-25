@@ -820,7 +820,8 @@ test_iso() {
 get_repo_cfg() { in_repo git config --get "$1"; }
 git_config_has() { git config --get "$1" &>/dev/null; }
 current_build() { get_repo_cfg 'crowbar.build'; }
-build_exists() [[ -f $CROWBAR_DIR/releases/$1/barclamp-crowbar ]]
+build_exists() [[ -f $CROWBAR_DIR/releases/$1/barclamp-crowbar || \
+    -L $CROWBAR_DIR/releases/$1/parent ]]
 
 barclamp_exists_in_build() { 
     local build=${1%/*} bc=${1##*/}
@@ -862,11 +863,27 @@ barclamp_finder() {
     done < <(find "$CROWBAR_DIR/releases/$1" -name 'barclamp-*') |sort -u
 }
 
-barclamps_in_build() {
+barclamps_from_build() {
     flat_checkout || die "Cannot get list of barclamps, must flatten build first!"
     local build bc
     build="${1:-$(current_build)}"
     barclamp_finder "$build" '/barclamp-(.+)$'
+}
+
+parent_build() {
+    build_exists "$1" || die "Cannot find parent of nonexistent build $1"
+    [[ -L $CROWBAR_DIR/releases/$1/parent ]] || return 0
+    local p
+    p="$(readlink -f "$CROWBAR_DIR/releases/$1/parent")"
+    echo "${p##*releases/}"
+}
+
+barclamps_in_build() {
+    local build bc p
+    build="${1:-$(current_build)}"
+    p="$(parent_build "$build")"
+    [[ $p ]] && barclamps_in_build "$p"
+    barclamps_from_build "$build"
 }
 
 barclamps_in_release() {
@@ -876,9 +893,29 @@ barclamps_in_release() {
 }
 
 builds_in_release() {
-    local release="${1:-$(current_release)}"
+    local release="${1:-$(current_release)}" p build b
+    local -A builds
     release_exists "$release" || return 1
-    barclamp_finder "$release" "releases/.+/([^/]+)/barclamp-crowbar"
+    for build in $(barclamp_finder "$release" "releases/.+/([^/]+)/barclamp-crowbar"); do
+        p=$(parent_build "$release/$build")
+        if [[ $p && ${builds[$p]} != echoed  ]]; then
+            builds["$release/$build"]="$p"
+        else
+            echo "$build"
+            builds["$release/$build"]="echoed"
+        fi
+    done
+    while [[ true ]]; do
+        b=true
+        for build in "${!builds[@]}"; do
+            p="${builds[$build]}"
+            [[ $p = echoed || ${builds[$p]} != echoed ]] && continue
+            echo "${build##*/}"
+            builds[$build]=echoed
+            b=false
+        done
+        [[ $b = true ]] && break
+    done
 }
 
 all_barclamps() {
