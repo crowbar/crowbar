@@ -326,7 +326,7 @@ fork_barclamp() {
     fi
     test_remote "$to_remote/barclamp-$2.git" && return 0 # already forked
     test_remote "$from_remote/barclamp-$2.git" || die "Barclamp $2 does not exist at remote $1"
-    github_fork "$1" "barclamp-$2"
+    github_fork "${DEV_REMOTE_URLBASE[$1]##*/}" "barclamp-$2"
 }
 
 # Look for barclamps that a build references, but that we don't have locally
