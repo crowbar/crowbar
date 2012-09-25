@@ -326,7 +326,7 @@ fork_barclamp() {
     fi
     test_remote "$to_remote/barclamp-$2.git" && return 0 # already forked
     test_remote "$from_remote/barclamp-$2.git" || die "Barclamp $2 does not exist at remote $1"
-    github_fork "$1" "barclamp-$2"
+    github_fork "${DEV_REMOTE_URLBASE[$1]##*/}" "barclamp-$2"
 }
 
 # Look for barclamps that a build references, but that we don't have locally
@@ -1754,6 +1754,23 @@ barclamp_branch_for_build() {
     git add "$bcfile"
 }
 
+refs_for_build() {
+    local bc br ref build
+    build="${1:-$(current_build)}"
+    build_exists "$build" || die "$build is not a build!"
+    echo "build: $build"
+    echo "crowbar: $(in_repo git rev-parse -q HEAD)"
+    for bc in $(barclamps_in_build "$build"); do
+        br=$(barclamp_branch_for_build "$build" "$bc")
+        [[ $br = empty-branch ]] && continue
+        ref=$(in_barclamp "$bc" git rev-parse -q "$br") || continue
+        echo "barclamps/$bc: $ref"
+    done
+    if [[ -d $CACHE_DIR/.git ]] && br="$(build_branch "$build")" && in_cache branch_exists "$br"; then
+        echo "build-cache: $(in_cache git rev-parse -q "$br")"
+    fi
+}
+
 # Given a release, find the "best" parent release.  This will only
 # be called if we don't already have metadata recorded for the
 # parent relationship of this release.
@@ -2181,6 +2198,7 @@ DEV_COMMANDS["barclamps-in-build"]="barclamps_in_build"
 DEV_COMMANDS["branch"]="current_build"
 DEV_COMMANDS["build"]="build_crowbar"
 DEV_COMMANDS["builds"]="builds_in_release"
+DEV_COMMANDS["build-refs"]="refs_for_build"
 DEV_COMMANDS["branches"]="builds_in_release"
 DEV_COMMANDS["checkout"]="checkout"
 DEV_COMMANDS["clear-unit-tests"]="clear_unit_tests"
@@ -2228,6 +2246,7 @@ DEV_SHORT_HELP["branch"]="            Show the build you are working on. Synonym
 DEV_SHORT_HELP["branches"]="          Show the builds in the current release.  Synonym for builds."
 DEV_SHORT_HELP["build"]="             Show the current build or build Crowbar"
 DEV_SHORT_HELP["builds"]="            Show the builds in the current release."
+DEV_SHORT_HELP["build-refs"]="        Show the Git commits that would be used in a build."
 DEV_SHORT_HELP["checkout"]="          Check out a branch in the current release."
 DEV_SHORT_HELP["clear-unit-tests"]="  Remove unit test environment."
 DEV_SHORT_HELP["clone-barclamps"]="   Clone barclamps."
@@ -2517,7 +2536,7 @@ DEV_LONG_HELP["push-release"]="Push the named release to the
   release to all the specificed remotes.  If any of the tests fail,
   nothing will be pushed."
 DEV_LONG_HELP["crowbar-version"]="Print out a probably-unique mostly sequential version"
-
+DEV_LONG_HELP["build-refs"]="Show the Git commits that would be used in a build."
 # Verify that we have help for all commands, and exit if we don't.
 for cmd in "${!DEV_COMMANDS[@]}"; do
     [[ ${DEV_SHORT_HELP[$cmd]} && ${DEV_LONG_HELP[$cmd]} ]] && continue
