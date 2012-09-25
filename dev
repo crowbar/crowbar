@@ -1862,33 +1862,25 @@ cut_release() {
     release_exists "$1" && die "cut_release: Name already exists"
     local can_cut=true
     new_branch="$(release_branch $1)"
-    current_branch="$(release_branch)"
+    current_release=$(current_release)
     barclamps_are_clean || \
 	die "Crowbar repo must be clean before trying to cut a release!"
 
     mkdir -p "$CROWBAR_DIR/releases/$1"
-    cp -ap "$CROWBAR_DIR/releases/$(current_release)/." \
+    cp -ap "$CROWBAR_DIR/releases/$current_release/." \
 	"$CROWBAR_DIR/releases/$1/."
-    while read bc; do
-	if ! in_barclamp "${bc##*barclamp-}" branch_exists "$current_branch"; then
-	    debug "Branch $current_branch for release $(current_release) does not exist in ${bc##*barclamp-}"
-	    can_cut=false
-	fi
-	echo "$new_branch" > "$bc"
-    done < <(find "$CROWBAR_DIR/releases/$1" -name 'barclamp-*')
-    if [[ $can_cut = false ]]; then
-	debug "Will not be able to cut new release $1. Aborting."
-	rm -rf "$CROWBAR_DIR/releases/$1"
-	exit 1
-    fi
+    for build in $(builds_in_release "$current_release"); do
+        for bc in $(barclamps_from_build "$current_release/$build"); do
+            br="$(barclamp_branch_for_build "$release/$build" "$bc")"
+            [[ $br && $br != empty-branch ]] || continue
+            in_barclamp "$bc" git branch -f --no-track "$new_branch" "$br"
+            echo "$new_branch" > "$CROWBAR_DIR/releases/$1/$build/barclamp-$bc"
+        done
+    done
     [[ $1 = feature/* ]] && \
 	echo "$(current_release)" > "$CROWBAR_DIR/releases/$1/parent"
     in_repo git add "releases/$1"
     in_repo git commit -m "Added metadata for new release $1"
-
-    for bc in $(barclamps_in_release "$1"); do
-	in_barclamp "$bc" git branch -f --no-track "$new_branch" "$current_branch"
-    done
     if git_managed_cache && ! in_cache branch_exists "$new_branch"; then
 	if in_cache branch_exists "$(release_branch)"; then
 	    in_cache git branch "$new_branch" "$(release_branch)"
@@ -1908,24 +1900,44 @@ cut_feature() {
 # Erase a release.  Complains if it is not merged into its parent release.
 erase_release() {
     # $1 = release refix
-    local b  branch parent parent_branch
+    local bc build whine=false current_br parent_br
+    local -A branches
     [[ $1 = development ]] && die "Cannot erase the development release."
     release_exists "$1" || die "$1 is not a release we can erase!"
-    branch="$(release_branch "$1")"
     parent=$(find_best_parent "$1")
-    parent_branch=$(release_branch "$parent")
-    parent_barclamps="$(barclamps_in_release "$parent")"
-    for b in $(barclamps_in_release "$1"); do
-	is_in "$b" "${parent_barclamps}" && \
-	    in_barclamp "$b" branches_synced . "$parent_branch" "$branch" && \
-	    continue
+    for build in $(builds_in_release "$1"); do
+        if ! [[ -d $CROWBAR_DIR/releases/$parent/$build ]]; then
+            debug "$build does not exist in $parent release."
+            whine=true
+            continue
+        fi
+        for bc in $(barclamps_for_build "$1/$build"); do
+            if ! barclamp_exists_in_build "$parent/$build"; then
+                debug "$barclamp does not exist in $parent/$build"
+                whine=true
+                continue
+            fi
+            current_br=$(barclamp_branch_for_build "$1/$build" "$bc")
+            branches[$bc]=$current_branch
+            [[ $current_br && $current_br != empty-branch ]] || continue
+            parent_br=$(barclamp_branch_for_build "$parent/$build" "$bc")
+            if [[ ! $parent_br || $parent_br = empty-branch ]]; then
+                debug "$1/$build/$bc: branch ${release_refs[$bc]} is unique to $1."
+                whine=true
+            fi
+            if ! in_barclamp "$bc" branches_synced . "$parent_br" "$current_br"; then
+                debug "barclamp $bc: $current_br is not merged into $parent_br"
+                whine=true
+            fi
+        done
+    done
+    if [[ $whine = true ]]; then
 	printf "$1 is not merged into $parent.  Really erase? (y/n): " >&2
 	read -n 1
 	[[ $REPLY != 'y' ]] && exit
-	break
-    done
-     for b in $(barclamps_in_release "$1"); do
-	in_barclamp "$b" git branch -D "$branch"
+    fi
+    for b in $(barclamps_in_release "$1"); do
+	in_barclamp "$b" git branch -D "${branches[$bc]}"
     done
     in_repo git rm -rf "releases/$1"
     in_repo rm -rf "releases/$1"
