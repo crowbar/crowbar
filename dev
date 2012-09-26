@@ -1998,9 +1998,9 @@ build_crowbar() {
     # we are building a release, because it can be too time-consuming otherwise.
     if git_managed_cache; then
         update_cache_tracking_branches
-	if in_cache branch_exists "$(current_build)"; then
-	    debug "Checking out $(current_build) in the build cache, please be patient."
-	    in_cache quiet_checkout -f "$(current_build)"
+	if in_cache branch_exists "$(release_branch)"; then
+	    debug "Checking out $(release_branch) in the build cache, please be patient."
+	    in_cache quiet_checkout -f "$(release_branch)"
 	fi
     fi
     with_build_lock exec "$CROWBAR_DIR/build_crowbar.sh" \
