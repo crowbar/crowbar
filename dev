@@ -1892,7 +1892,7 @@ cut_release() {
 	"$CROWBAR_DIR/releases/$1/."
     for build in $(builds_in_release "$current_release"); do
         for bc in $(barclamps_from_build "$current_release/$build"); do
-            br="$(barclamp_branch_for_build "$release/$build" "$bc")"
+            br="$(barclamp_branch_for_build "$current_release/$build" "$bc")"
             [[ $br && $br != empty-branch ]] || continue
             in_barclamp "$bc" git branch -f --no-track "$new_branch" "$br"
             echo "$new_branch" > "$CROWBAR_DIR/releases/$1/$build/barclamp-$bc"
