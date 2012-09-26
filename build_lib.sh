@@ -860,7 +860,7 @@ barclamp_finder() {
     while read b; do
 	[[ $b =~ $2 ]] || continue
 	printf '%s\n' "${BASH_REMATCH[${3:-1}]}"
-    done < <(find "$CROWBAR_DIR/releases/$1" -name 'barclamp-*') |sort -u
+    done < <(find "$CROWBAR_DIR/releases/$1" -name 'barclamp-*' -or -name 'parent') |sort -u
 }
 
 builds_for_barclamp_in_release() {
@@ -903,7 +903,7 @@ builds_in_release() {
     local release="${1:-$(current_release)}" p build b
     local -A builds
     release_exists "$release" || return 1
-    for build in $(barclamp_finder "$release" "releases/.+/([^/]+)/barclamp-crowbar"); do
+    for build in $(barclamp_finder "$release" "releases/.+/([^/]+)/(barclamp-crowbar|parent)"); do
         p=$(parent_build "$release/$build")
         if [[ $p && ${builds[$p]} != echoed  ]]; then
             builds["$release/$build"]="$p"
