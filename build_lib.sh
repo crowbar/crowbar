@@ -863,6 +863,13 @@ barclamp_finder() {
     done < <(find "$CROWBAR_DIR/releases/$1" -name 'barclamp-*') |sort -u
 }
 
+builds_for_barclamp_in_release() {
+    # $1 = barclamp
+    # $2 = release
+    release_exists "$2" || die "No such release $2!"
+    barclamp_finder "$2" "releases/.+/([^/]+)/barclamp-$1"
+}
+
 barclamps_from_build() {
     flat_checkout || die "Cannot get list of barclamps, must flatten build first!"
     local build bc
