@@ -161,7 +161,7 @@ switch_release() {
     elif release_exists "$1"; then
 	new_build="$1/${new_build##*/}"
 	if ! build_exists "$new_build"; then
-	    echo "Release $1 does not have build $new_build, switching to $1/master instead."
+	    debug "Release $1 does not have build $new_build, switching to $1/master instead."
 	    new_build="$1/master"
 	fi
     elif [[ $1 ]]; then
@@ -175,6 +175,7 @@ switch_release() {
 	in_repo rm -f "$l"
 	in_repo ln -sf "releases/$new_build/$l" "$l"
     done
+    debug "Switched to $new_build"
 }
 
 # This function is kept around for legacy workflow reasons.
@@ -1859,7 +1860,7 @@ show_duplicate_barclamps() {
         for bc in $(barclamps_from_build "$build"); do
             if [[ ${barclamps[$bc]} ]] && diff -q \
                 "$CROWBAR_DIR/releases/$build/barclamp-$bc" \
-                "$CROWBAR_DIR/releases/$parent/barclamp-$bc"; then
+                "$CROWBAR_DIR/releases/$parent/barclamp-$bc" &>/dev/null; then
                 to_remove+=("releases/$build/barclamp-$bc")
             fi
         done
