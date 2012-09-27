@@ -1891,6 +1891,7 @@ cut_release() {
     cp -ap "$CROWBAR_DIR/releases/$current_release/." \
 	"$CROWBAR_DIR/releases/$1/."
     for build in $(builds_in_release "$current_release"); do
+        debug "Creating build $build in new release $1"
         for bc in $(barclamps_from_build "$current_release/$build"); do
             br="$(barclamp_branch_for_build "$current_release/$build" "$bc")"
             [[ $br && $br != empty-branch ]] || continue
@@ -1900,9 +1901,11 @@ cut_release() {
     done
     [[ $1 = feature/* ]] && \
 	echo "$(current_release)" > "$CROWBAR_DIR/releases/$1/parent"
-    in_repo git add "releases/$1"
-    in_repo git commit -m "Added metadata for new release $1"
+    {   in_repo git add "releases/$1"
+        in_repo git commit -m "Added metadata for new release $1"
+    } &>/dev/null
     if git_managed_cache && ! in_cache branch_exists "$new_branch"; then
+        debug "Creating $new_branch for $1 in the build cache"
 	if in_cache branch_exists "$(release_branch)"; then
 	    in_cache git branch "$new_branch" "$(release_branch)"
 	else
@@ -1921,30 +1924,34 @@ cut_feature() {
 # Erase a release.  Complains if it is not merged into its parent release.
 erase_release() {
     # $1 = release refix
-    local bc build whine=false current_br parent_br
+    local bc build whine=false current_br parent_br template_br
     local -A branches
     [[ $1 = development ]] && die "Cannot erase the development release."
     release_exists "$1" || die "$1 is not a release we can erase!"
     parent=$(find_best_parent "$1")
+    template_br=$(release_branch "$1")
     for build in $(builds_in_release "$1"); do
         if ! [[ -d $CROWBAR_DIR/releases/$parent/$build ]]; then
             debug "$build does not exist in $parent release."
             whine=true
             continue
         fi
-        for bc in $(barclamps_for_build "$1/$build"); do
-            if ! barclamp_exists_in_build "$parent/$build"; then
+        for bc in $(barclamps_from_build "$1/$build"); do
+            if ! barclamp_exists_in_build "$parent/$build/$bc"; then
                 debug "$barclamp does not exist in $parent/$build"
                 whine=true
                 continue
             fi
             current_br=$(barclamp_branch_for_build "$1/$build" "$bc")
-            branches[$bc]=$current_branch
             [[ $current_br && $current_br != empty-branch ]] || continue
             parent_br=$(barclamp_branch_for_build "$parent/$build" "$bc")
             if [[ ! $parent_br || $parent_br = empty-branch ]]; then
                 debug "$1/$build/$bc: branch ${release_refs[$bc]} is unique to $1."
                 whine=true
+            fi
+            if [[ $current_br != $template_br ]]; then
+                debug "Barclamp $bc is on $current_br, which is not the expected branch name." \
+                    "We expected it to be on $template_br"
             fi
             if ! in_barclamp "$bc" branches_synced . "$parent_br" "$current_br"; then
                 debug "barclamp $bc: $current_br is not merged into $parent_br"
@@ -1957,12 +1964,17 @@ erase_release() {
 	read -n 1
 	[[ $REPLY != 'y' ]] && exit
     fi
-    for b in $(barclamps_in_release "$1"); do
-	in_barclamp "$b" git branch -D "${branches[$bc]}"
+    debug "Erasing branches for release $1"
+    for bc in $(barclamps_in_release "$1"); do
+        for current_br in $(barclamp_branches_for_release "$1" "$bc"); do
+	    in_barclamp "$bc" git branch -D "${current_br}" &>/dev/null
+        done
     done
-    in_repo git rm -rf "releases/$1"
-    in_repo rm -rf "releases/$1"
-    in_repo git commit -m "Erasing release $1"
+    debug "Erasing metadata for release $1"
+    {   in_repo git rm -rf "releases/$1"
+        in_repo rm -rf "releases/$1"
+        in_repo git commit -m "Erasing release $1"
+    } &>/dev/null
 }
 
 # With no args, echo the current build being worked.

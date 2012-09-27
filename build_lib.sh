@@ -903,7 +903,8 @@ builds_in_release() {
     local release="${1:-$(current_release)}" p build b
     local -A builds
     release_exists "$release" || return 1
-    for build in $(barclamp_finder "$release" "releases/.+/([^/]+)/(barclamp-crowbar|parent)"); do
+    for build in $(barclamp_finder "$release" "releases/.+/([^/]+)/(barclamp-crowbar|parent)$"); do
+        build_exists "$release/$build" || continue
         p=$(parent_build "$release/$build")
         if [[ $p && ${builds[$p]} != echoed  ]]; then
             builds["$release/$build"]="$p"
