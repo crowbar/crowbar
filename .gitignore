@@ -12,4 +12,4 @@ sha1sums
 /extra
 /change-image
 /barclamps/*/
-.swp
+*.swp
