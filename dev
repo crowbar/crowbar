@@ -161,7 +161,7 @@ switch_release() {
     elif release_exists "$1"; then
 	new_build="$1/${new_build##*/}"
 	if ! build_exists "$new_build"; then
-	    echo "Release $1 does not have build $new_build, switching to $1/master instead."
+	    debug "Release $1 does not have build $new_build, switching to $1/master instead."
 	    new_build="$1/master"
 	fi
     elif [[ $1 ]]; then
@@ -169,22 +169,13 @@ switch_release() {
     fi
     barclamps_are_clean || \
 	die "Crowbar repo must be clean before trying to switch releases!"
-    new_branch=$(build_branch "$new_build")
-    # switch_include_cache is set by build_crowbar.
-    # This is here so that we only switch branches in the build cache if
-    # we are building a release, because it can be too time-consuming otherwise.
-    if git_managed_cache && [[ $switch_include_cache ]]; then
-	if in_cache branch_exists "$new_branch"; then
-	    debug "Checking out ${new_branch} in the build cache, please be patient."
-	    in_cache quiet_checkout -f "$new_branch"
-	fi
-    fi
     switch_barclamps_to_build "$new_build"
     for l in change-image extra; do
 	[[ $(in_repo readlink -f $l) = "releases/$new_build/$l" ]] && continue
 	in_repo rm -f "$l"
 	in_repo ln -sf "releases/$new_build/$l" "$l"
     done
+    debug "Switched to $new_build"
 }
 
 # This function is kept around for legacy workflow reasons.
@@ -326,7 +317,7 @@ fork_barclamp() {
     fi
     test_remote "$to_remote/barclamp-$2.git" && return 0 # already forked
     test_remote "$from_remote/barclamp-$2.git" || die "Barclamp $2 does not exist at remote $1"
-    github_fork "$1" "barclamp-$2"
+    github_fork "${DEV_REMOTE_URLBASE[$1]##*/}" "barclamp-$2"
 }
 
 # Look for barclamps that a build references, but that we don't have locally
@@ -468,16 +459,11 @@ quiet_checkout() {
 # Update tracking branches for all remotes in a specific repo.
 # Expects to be called within a specific repository
 # It is structured to minimize forking, please be careful modifying it.
-update_tracking_branches() {
+__update_tracking_branches() {
     # Create tracking branches for any branches from this remote
     # that do not already exist.
     local remote p br in_tracking_update=true
-    local -A branches remotes
-    p=0
-    for remote in "${DEV_SORTED_REMOTES[@]}"; do
-	remotes[$remote]="$p"
-	p=$((p + 1))
-    done
+    local -A branches
     while read p br; do
 	# We never care about HEAD branches at all.
 	[[ ${br##*/} = HEAD ]] && continue
@@ -531,6 +517,22 @@ update_tracking_branches() {
     done
 }
 
+update_tracking_branches() {
+    local p=0 remote
+    local -A remotes
+    for remote in "${DEV_SORTED_REMOTES[@]}"; do
+	remotes[$remote]="$p"
+	p=$((p + 1))
+    done
+    __update_tracking_branches
+}
+
+update_cache_tracking_branches() {
+    local -A remotes
+    remotes["origin"]=0
+    in_cache __update_tracking_branches
+}
+
 # Update tracking references for all branches in all the
 # repositories that dev is managing.
 update_all_tracking_branches() {
@@ -549,7 +551,7 @@ update_all_tracking_branches() {
 scrub_merged_pull_requests() {
     remote_available personal && remote_is_github personal || return 0
     # $@ = branches to test for mergedness
-    local br ref pull_req
+    local br ref pull_req remote
     local -A to_remove pull_reqs heads
     remote_available personal || return
     while read ref br; do
@@ -570,7 +572,8 @@ scrub_merged_pull_requests() {
 	ref="${pull_reqs[$pull_req]}"
 	[[ ${heads[$ref]} ]] || continue
 	for br in ${heads["$ref"]}; do
-	    branches_synced . "$br" "$pull_req" || \
+            remote=$(remote_for_branch "$br")
+	    branches_synced . "$remote/$br" "$pull_req" || \
 		[[ $1 = '--all' ]] || continue
 	    to_remove["${pull_req#refs/remotes/personal/}"]="true"
 	    continue 2
@@ -581,32 +584,62 @@ scrub_merged_pull_requests() {
     git remote prune personal
 }
 
-# Fetch (but do not merge) updates from all our remotes, in both the
-# main Crowbar repository and the barclamps.
-fetch_all() {
-    local remote remotes=() barclamp bc bc_remote branches=()
-    local -A fetched_barclamps
+__fetch_all() {
+    local remote remotes=() res=true 
     if [[ $@ || $DEV_FROM_REMOTES ]]; then
 	[[ $1 ]] && remotes+=("$@")
 	[[ $DEV_FROM_REMOTES ]] && remotes+=("${DEV_FROM_REMOTES[@]}")
     else
 	remotes=("${DEV_SORTED_REMOTES[@]}")
     fi
+    local logfile="${PWD}"
+    logfile=${logfile##$(readlink -f "$CROWBAR_DIR")}
+    logfile=${logfile//\//-}
+    logfile=${logfile#-}
+    logfile=${logfile//barclamps/barclamp}
+    [[ $logfile ]] || logfile="Crowbar"
     for remote in "${remotes[@]}"; do
-	crowbar_remote_exists "$remote" && remote_available "$remote" || continue
-	debug "Fetching from remote $remote:"
-	debug "    Crowbar"
-	in_repo git fetch -q "$remote" || continue
-	for bc in "$CROWBAR_DIR/barclamps/"*; do
-	    [[ -d $bc/.git || -f $bc/.git ]] || continue
-	    bc=${bc##*/}
-	    in_barclamp "${bc}" git_remote_exists "$remote" || continue
-	    debug "    Barclamp $bc"
-	    in_barclamp "$bc" git fetch -q "$remote" || \
-		echo "Could not fetch updates for $barclamp from remote $remote" >&2
-	done
+	crowbar_remote_exists "$remote" && \
+            remote_available "$remote" && \
+            git_remote_exists "$remote" || \
+            continue
+	if git fetch -q "$remote" &>/dev/null; then
+            debug "  Fetched from $remote." 2>>"$results_dir/$logfile"
+            printf '.'
+        else
+            debug "  Failed to fetch from $remote" 2>>"$results_dir/$logfile"
+            printf '!'
+            res=false
+        fi
 	[[ $remote = personal ]] && scrub_merged_pulls || :
     done
+    [[ $res = true ]] && debug "  All fetches passed." 2>> "$results_dir/$logfile"
+}
+
+# Fetch (but do not merge) updates from all our remotes, in both the
+# main Crowbar repository and the barclamps.
+fetch_all() {
+    local results_dir d
+    results_dir="$(mktemp -d /tmp/crowbar_fetch_XXXXXX)" || \
+        die "Cannot create temporary storage for fetch results!"
+    debug "Fetching updates:"
+    for d in "$CROWBAR_DIR/barclamps/"* "$CROWBAR_DIR"; do
+        [[ -d $d/.git ]] || continue
+        ( cd "$d" && __fetch_all "$@") &
+    done
+    wait
+    echo
+    for d in "$results_dir"/*; do
+        local n="${d##*/}"
+        n="${n//-/ }"
+        if grep -q 'All fetches passed\.$' "$d"; then
+            debug "${n}: All updates fetched"
+        else
+            debug "${n}:"
+            cat "$d"
+        fi
+    done
+    rm -rf "$results_dir"
     update_all_tracking_branches
 }
 
@@ -1128,7 +1161,7 @@ __pin_release() {
 	done
     elif release_exists "$1"; then
 	for build in $(builds_in_release "$1"); do
-	    __pin_release "$build" "$2" || return 1
+	    __pin_release "$1/$build" "$2" || return 1
 	done
     else
 	echo "Don't know what $1 is!" >&2
@@ -1171,36 +1204,39 @@ unpin_release() {
 # and show them.
 find_unsynced_branches_for_release() {
     # $1 = release
-    local bc rel line changes_found=false sha ref br
-    local barclamps=()
+    local bc rel line changes_found=false sha ref br build
+    local barclamps=() builds=()
     rel="${1:-$(current_release)}"
     if release_exists "$rel"; then
         barclamps=($(barclamps_in_release "$rel"))
-        br=$(release_branch "$rel")
+        builds=($(builds_in_release "$rel"))
     elif build_exists "$rel"; then
         barclamps=($(barclamps_in_build "$rel"))
-        br=$(build_branch "$rel")
+        builds=("$rel")
     else
 	die "Release $rel does not exist, cannot find unsynced changes for it!"
     fi
     for bc in "${barclamps[@]}"; do
 	local branches=()
-        local from to
-        while read sha ref; do
-	    [[ $ref = refs/heads/${br} ]] || continue
-	    ref=${ref#refs/heads/}
-	    upstream="$(in_barclamp "$bc" remote_for_branch "$ref")" || continue
-            case $changes_from in
-                remote) from="refs/heads/$ref" to="refs/remotes/$upstream/$ref";;
-                local)  from="refs/remotes/$upstream/$ref" to="refs/heads/$ref";;
-                *) die "Cannot happen in find_unsynced_branches_for_release"
-            esac
-            in_barclamp "$bc" branches_synced '.' "$from" "$to" && continue
-            changes_found=true
-            printf "%s: %s -> %s\n" "$bc" "${from#refs/*/}" "${to#refs/*/}"
-            in_barclamp "$bc" git --no-pager log --oneline "${from#refs/*/}..${to#refs/*/}"
-            echo
-        done < <(git show-ref --heads)
+        local from to br
+        for build in "${builds[@]}"; do
+            barclamp_exists_in_build "$rel/$build/$bc" || continue
+            ref=$(barclamp_branch_for_build "$rel/$build" "$bc")
+            [[ $ref = empty-branch ]] && \
+                die "Barclamp $bc should exist for $rel/$build, but it is set to empty-branch!"
+            break
+        done
+	upstream="$(in_barclamp "$bc" remote_for_branch "$ref")" || continue
+        case $changes_from in
+            remote) from="refs/heads/$ref" to="refs/remotes/$upstream/$ref";;
+            local)  from="refs/remotes/$upstream/$ref" to="refs/heads/$ref";;
+            *) die "Cannot happen in find_unsynced_branches_for_release"
+        esac
+        in_barclamp "$bc" branches_synced '.' "$from" "$to" && continue
+        changes_found=true
+        printf "%s: %s -> %s\n" "$bc" "${from#refs/*/}" "${to#refs/*/}"
+        in_barclamp "$bc" git --no-pager log --oneline "${from#refs/*/}..${to#refs/*/}"
+        echo
     done
     if [[ $changes_found = false ]]; then
 	debug "No unsynced changes for release $rel"
@@ -1218,7 +1254,6 @@ find_remote_changed_branches_for_release() {
     local changes_from="remote"
     find_unsynced_branches_for_release "$@"
 }
-
 
 # Merge (or rebase) changes into the specificed branch from the corresponding
 # branch on the specified remote.
@@ -1268,28 +1303,29 @@ merge_or_rebase_from_remote() {
 # Handle merges across releases.
 merge_releases() {
     # $@ = releases to merge.
-    local rel branch start_ref
+    local rel branch start_ref build bc
+    bc="${repo##*/}"
     start_ref=$(git rev-parse HEAD)
     for rel in "$@"; do
 	[[ $rel ]] || continue
 	[[ $rel = $(current_release) ]] &&  continue
 	release_exists "$rel" || continue
-	branch=$(release_branch "$rel")
-	branch_exists "$branch" || continue
-	git merge -q "$branch" && continue
-	git merge --abort
-	{
-            echo "Barclamp ${repo##*/}:"
-	    echo "  Merging releases $@ into $(current_release) failed."
-	    echo "  Dropping to a shell for you to fix up."
-	    echo "  If you want to abort this merge, exit the shell with 'exit 1'"
-	    /bin/bash
-	} || {
+        for branch in $(barclamp_branches_for_release "$rel" "$bc"); do
+	    git merge -q "$branch" && continue
 	    git merge --abort
-	    git branch "${head#refs/heads/}" "$start_ref"
-	    debug "Barclamp ${repo##*/}: Merge of $br from $rel into $cur_rel failed."
-            return 1
-	}
+	    {
+                echo "Barclamp ${repo##*/}:"
+	        echo "  Merging releases $@ into $(current_release) failed."
+	        echo "  Dropping to a shell for you to fix up."
+	        echo "  If you want to abort this merge, exit the shell with 'exit 1'"
+	        /bin/bash
+	    } || {
+	        git merge --abort
+	        git branch "${head#refs/heads/}" "$start_ref"
+	        debug "Barclamp ${repo##*/}: Merge of $br from $rel into $cur_rel failed."
+                return 1
+	    }
+        done
     done
 }
 
@@ -1444,8 +1480,9 @@ branch_needs_pull_req() {
 # This function tries to ensure that it will fail without doing anything
 # if there will be any problems (due to authetication or whatever).
 push_release() {
-    local release remotes remote bc res cmd
+    local rel_br release remotes remote bc res cmd build
     local pushcmds=()
+    local -A branches
     release="$(current_release)" remotes=("$(origin_remote)")
     [[ $DEV_TO_REMOTES ]] && remotes=("${DEV_TO_REMOTES[@]}")
     if [[ $1 ]]; then
@@ -1453,7 +1490,6 @@ push_release() {
             die "Cannot push non-existent local release $1"
         release="$1"
     fi
-    local rel_br="$(release_branch "$release")"
     local can_push=true
     for remote in "${remotes[@]}"; do
         remote_available "$remote" && continue
@@ -1461,24 +1497,28 @@ push_release() {
     done
     debug "Testing push of $release to ${remotes[*]}:"
     for bc in $(barclamps_in_release "$release"); do
-        in_barclamp "$bc" branch_exists "$rel_br" || \
-            die "Barclamp $bc is in release $br, bit to does not have release branch $rel_br!" \
-            "Aborting."
+        for rel_br in $(barclamp_branches_for_release "$release" "$bc"); do
+            branches["$bc:$rel_br"]="$bc"
+        done
         local found_one_remote=false
         for remote in "${remotes[@]}"; do
             in_barclamp "$bc" git_remote_exists "$remote" || continue
             found_one_remote=true
-            if res="$(in_barclamp "$bc" git_push -nq "$remote" -- "${rel_br}:${rel_br}")"; then
-                pushcmds+=("in_barclamp \"$bc\" git_push \"$remote\" -- \"${rel_br}:${rel_br}\"")
-                continue
-            fi
-            debug "Barclamp $bc: Push of $rel_br to $remote will fail:"
-            echo "$res" >&2
-            echo >&2
-            can_push=false
         done
         [[ $found_one_remote = true ]] && continue
         die "No remotes have $bc available.  Aborting."
+    done
+    for rel_br in "${!branches[@]}"; do
+        bc=${rel_br%%:*}
+        rel_br=${rel_br#*:}
+        if res="$(in_barclamp "$bc" git_push -nq "$remote" -- "${rel_br}:${rel_br}")"; then
+            pushcmds+=("in_barclamp \"$bc\" git_push \"$remote\" -- \"${rel_br}:${rel_br}\"")
+            continue
+        fi
+        debug "Barclamp $bc: Push of $rel_br to $remote will fail:"
+        echo "$res" >&2
+        echo >&2
+        can_push=false
     done
     [[ $can_push = false ]] && exit 1
     debug "Test passed, pushing branches."
@@ -1502,11 +1542,12 @@ pull_requests_prep() {
     [[ $DEV_TO_REMOTES ]] && to_remote="$DEV_TO_REMOTES"
     remote_is_github "$to_remote" || \
 	die "Cannot issue pull requests for $to_remote, it is not from github."
-    local branch bc
-    branch=$(release_branch "$(current_release)")
-    for bc in $(barclamps_in_release $(current_release)); do
-	in_barclamp "$bc" branch_needs_pull_req "$branch" || continue
-	barclamps_to_push+=("$bc/$branch")
+    local branch bc build release=$(current_release)
+    for bc in $(barclamps_in_release $release); do
+        for branch in $(barclamp_branches_for_release "$release" "$bc"); do
+	    in_barclamp "$bc" branch_needs_pull_req "$branch" || continue
+	    barclamps_to_push+=("$bc/$branch")
+        done
     done
     [[ ${push_master} || ${barclamps_to_push} ]] || {
 	echo "Everything up to date, no pull requests are possible."
@@ -1628,8 +1669,6 @@ pull_requests_gen() {
 		    shift
 		    in_barclamp "$bc" branch_exists "$br" || \
 			die "$br is not a branch in barclamp $bc!"
-		    [[ $br = *master ]] || \
-			die "Non-master branch for a barclamp passed.  Not valid for now."
 		    in_barclamp "$bc" git_remote_exists "$to_remote" || \
 			die "Cannot make pull request from barclamp $bc -- it is not present at remote $to_remote!"
 		    barclamps["$bc"]="true"
@@ -1713,15 +1752,57 @@ barclamp_branch_for_build() {
     # $1 = build
     # $2 = barclamp
     # $3 = (optional) ref to pin the barclamp at.
-    local bcfile="$CROWBAR_DIR/releases/$1/barclamp-$2"
+    local build=$1 bcfile
     if [[ ! $3 ]]; then
-	[[ -f $bcfile ]] && cat "$bcfile" || echo "empty-branch"
-	return 0
+        while [[ true ]]; do
+            barclamp_exists_in_build "$build/$2" && break
+            build=$(parent_build "$build")
+            [[ $build ]] && continue
+            echo "empty-branch"
+	    return 0
+        done
+	cat "$CROWBAR_DIR/releases/$build/barclamp-$2"
+        return 0
+    else
+        bcfile="$CROWBAR_DIR/releases/$build/barclamp-$2"
+        [[ -f $bcfile ]] && \
+	    in_barclamp "$2" git rev-parse --verify --quiet "$3" &>/dev/null || return 1
+        echo "$3" > "$bcfile"
+        git add "$bcfile"
     fi
-    [[ -f $bcfile ]] && \
-	in_barclamp "$2" git rev-parse --verify --quiet "$3" &>/dev/null || return 1
-    echo "$3" > "$bcfile"
-    git add "$bcfile"
+}
+
+barclamp_branches_for_release() {
+    # $1 = release
+    # $2 = barclamp
+    local -A branches
+    local build br
+    release_exists "$1" || die "$1 is not a release!"
+    for build in $(builds_for_barclamp_in_release "$2" "$1"); do
+        br=$(barclamp_branch_for_build "$1/$build" "$2")
+        [[ $br && $br != empty-branch ]] || continue
+        branches[$br]="$br"
+    done
+    for br in "${branches[@]}"; do
+        echo "$br"
+    done
+}
+
+refs_for_build() {
+    local bc br ref build
+    build="${1:-$(current_build)}"
+    build_exists "$build" || die "$build is not a build!"
+    echo "build: $build"
+    echo "crowbar: $(in_repo git rev-parse -q HEAD)"
+    for bc in $(barclamps_in_build "$build"); do
+        br=$(barclamp_branch_for_build "$build" "$bc")
+        [[ $br = empty-branch ]] && continue
+        ref=$(in_barclamp "$bc" git rev-parse -q "$br") || continue
+        echo "barclamps/$bc: $ref"
+    done
+    if [[ -d $CACHE_DIR/.git ]] && br="$(build_branch "$build")" && in_cache branch_exists "$br"; then
+        echo "build-cache: $(in_cache git rev-parse -q "$br")"
+    fi
 }
 
 # Given a release, find the "best" parent release.  This will only
@@ -1765,6 +1846,33 @@ find_best_parent() {
     in_repo git commit -m "Adding parent for $release" "releases/$release/parent"
 }
 
+show_duplicate_barclamps() {
+    local release=${1:-$(current_release)} build parent bc
+    local to_remove=()
+    for build in $(builds_in_release "$release"); do
+        build="$release/$build"
+        parent=$(parent_build "$build")
+        [[ $parent ]] || continue
+        local -A barclamps
+        for bc in $(barclamps_in_build "$parent"); do
+            barclamps["$bc"]=parent
+        done
+        for bc in $(barclamps_from_build "$build"); do
+            if [[ ${barclamps[$bc]} ]] && diff -q \
+                "$CROWBAR_DIR/releases/$build/barclamp-$bc" \
+                "$CROWBAR_DIR/releases/$parent/barclamp-$bc" &>/dev/null; then
+                to_remove+=("releases/$build/barclamp-$bc")
+            fi
+        done
+    done
+    if [[ $to_remove ]]; then
+        debug "Release $release has the following redundant barclamp metadata:"
+        echo "${to_remove[*]}"
+    else
+        debug "No redundant barclamps in release $release"
+    fi
+}
+
 # Create a new release branch structure based on the current state of the
 # Crowbar repositories.
 cut_release() {
@@ -1776,34 +1884,29 @@ cut_release() {
     release_exists "$1" && die "cut_release: Name already exists"
     local can_cut=true
     new_branch="$(release_branch $1)"
-    current_branch="$(release_branch)"
+    current_release=$(current_release)
     barclamps_are_clean || \
 	die "Crowbar repo must be clean before trying to cut a release!"
 
     mkdir -p "$CROWBAR_DIR/releases/$1"
-    cp -ap "$CROWBAR_DIR/releases/$(current_release)/." \
+    cp -ap "$CROWBAR_DIR/releases/$current_release/." \
 	"$CROWBAR_DIR/releases/$1/."
-    while read bc; do
-	if ! in_barclamp "${bc##*barclamp-}" branch_exists "$current_branch"; then
-	    debug "Branch $current_branch for release $(current_release) does not exist in ${bc##*barclamp-}"
-	    can_cut=false
-	fi
-	echo "$new_branch" > "$bc"
-    done < <(find "$CROWBAR_DIR/releases/$1" -name 'barclamp-*')
-    if [[ $can_cut = false ]]; then
-	debug "Will not be able to cut new release $1. Aborting."
-	rm -rf "$CROWBAR_DIR/releases/$1"
-	exit 1
-    fi
+    for build in $(builds_in_release "$current_release"); do
+        debug "Creating build $build in new release $1"
+        for bc in $(barclamps_from_build "$current_release/$build"); do
+            br="$(barclamp_branch_for_build "$current_release/$build" "$bc")"
+            [[ $br && $br != empty-branch ]] || continue
+            in_barclamp "$bc" git branch -f --no-track "$new_branch" "$br"
+            echo "$new_branch" > "$CROWBAR_DIR/releases/$1/$build/barclamp-$bc"
+        done
+    done
     [[ $1 = feature/* ]] && \
 	echo "$(current_release)" > "$CROWBAR_DIR/releases/$1/parent"
-    in_repo git add "releases/$1"
-    in_repo git commit -m "Added metadata for new release $1"
-
-    for bc in $(barclamps_in_release "$1"); do
-	in_barclamp "$bc" git branch -f --no-track "$new_branch" "$current_branch"
-    done
+    {   in_repo git add "releases/$1"
+        in_repo git commit -m "Added metadata for new release $1"
+    } &>/dev/null
     if git_managed_cache && ! in_cache branch_exists "$new_branch"; then
+        debug "Creating $new_branch for $1 in the build cache"
 	if in_cache branch_exists "$(release_branch)"; then
 	    in_cache git branch "$new_branch" "$(release_branch)"
 	else
@@ -1822,28 +1925,57 @@ cut_feature() {
 # Erase a release.  Complains if it is not merged into its parent release.
 erase_release() {
     # $1 = release refix
-    local b  branch parent parent_branch
+    local bc build whine=false current_br parent_br template_br
+    local -A branches
     [[ $1 = development ]] && die "Cannot erase the development release."
     release_exists "$1" || die "$1 is not a release we can erase!"
-    branch="$(release_branch "$1")"
     parent=$(find_best_parent "$1")
-    parent_branch=$(release_branch "$parent")
-    parent_barclamps="$(barclamps_in_release "$parent")"
-    for b in $(barclamps_in_release "$1"); do
-	is_in "$b" "${parent_barclamps}" && \
-	    in_barclamp "$b" branches_synced . "$parent_branch" "$branch" && \
-	    continue
+    template_br=$(release_branch "$1")
+    for build in $(builds_in_release "$1"); do
+        if ! [[ -d $CROWBAR_DIR/releases/$parent/$build ]]; then
+            debug "$build does not exist in $parent release."
+            whine=true
+            continue
+        fi
+        for bc in $(barclamps_from_build "$1/$build"); do
+            if ! barclamp_exists_in_build "$parent/$build/$bc"; then
+                debug "$barclamp does not exist in $parent/$build"
+                whine=true
+                continue
+            fi
+            current_br=$(barclamp_branch_for_build "$1/$build" "$bc")
+            [[ $current_br && $current_br != empty-branch ]] || continue
+            parent_br=$(barclamp_branch_for_build "$parent/$build" "$bc")
+            if [[ ! $parent_br || $parent_br = empty-branch ]]; then
+                debug "$1/$build/$bc: branch ${release_refs[$bc]} is unique to $1."
+                whine=true
+            fi
+            if [[ $current_br != $template_br ]]; then
+                debug "Barclamp $bc is on $current_br, which is not the expected branch name." \
+                    "We expected it to be on $template_br"
+            fi
+            if ! in_barclamp "$bc" branches_synced . "$parent_br" "$current_br"; then
+                debug "barclamp $bc: $current_br is not merged into $parent_br"
+                whine=true
+            fi
+        done
+    done
+    if [[ $whine = true ]]; then
 	printf "$1 is not merged into $parent.  Really erase? (y/n): " >&2
 	read -n 1
 	[[ $REPLY != 'y' ]] && exit
-	break
+    fi
+    debug "Erasing branches for release $1"
+    for bc in $(barclamps_in_release "$1"); do
+        for current_br in $(barclamp_branches_for_release "$1" "$bc"); do
+	    in_barclamp "$bc" git branch -D "${current_br}" &>/dev/null
+        done
     done
-     for b in $(barclamps_in_release "$1"); do
-	in_barclamp "$b" git branch -D "$branch"
-    done
-    in_repo git rm -rf "releases/$1"
-    in_repo rm -rf "releases/$1"
-    in_repo git commit -m "Erasing release $1"
+    debug "Erasing metadata for release $1"
+    {   in_repo git rm -rf "releases/$1"
+        in_repo rm -rf "releases/$1"
+        in_repo git commit -m "Erasing release $1"
+    } &>/dev/null
 }
 
 # With no args, echo the current build being worked.
@@ -1875,6 +2007,15 @@ build_crowbar() {
     if [[ $exact ]]; then
 	debug "Exact does not mean anything anymore."
     fi
+    # This is here so that we only switch branches in the build cache if
+    # we are building a release, because it can be too time-consuming otherwise.
+    if git_managed_cache; then
+        update_cache_tracking_branches
+	if in_cache branch_exists "$(release_branch)"; then
+	    debug "Checking out $(release_branch) in the build cache, please be patient."
+	    in_cache quiet_checkout -f "$(release_branch)"
+	fi
+    fi
     with_build_lock exec "$CROWBAR_DIR/build_crowbar.sh" \
 	"$target_os" "${build_args[@]}"
 }
@@ -1894,7 +2035,7 @@ reset_branch() {
 # or the current upstream version.
 reset_release() {
     barclamps_are_clean || exit 1
-    local target_release=$(current_release) target=backup
+    local target_release=$(current_release) target=backup build
     local -A barclamp_targets
     while [[ $1 ]]; do
 	case $1 in
@@ -1910,31 +2051,31 @@ reset_release() {
 	remote_available personal && remote_is_github personal || \
 	    die "No personal remote available at Github.  Cannot restore from backup."
     fi
-    target_branch=$(release_branch $target_release)
     for bc in $(barclamps_for_release "$target_release"); do
 	[[ -d $CROWBAR_DIR/barclamps/$bc/.git || \
 	    -f $CROWBAR_DIR/barclamps/$bc/.git ]] || continue
-	in_barclamp "$bc" branch_exists "$target_branch" || continue
-	case $target in
-	    upstream) barclamp_targets[$bc]="$(in_barclamp "$bc" remote_for_branch "$target_branch")/$target_branch" || \
-		die "No tracking branch for $br in $bc, cannot restore from backup.";;
-	    backup) barclamp_targets[$bc]+="personal/$target_branch";;
-	    *) die "Don't know how to reset barclamp $bc to $target_method";;
-	esac
-	if ! in_barclamp "$bc" git rev-parse --quiet --verify \
-	    "${barclamp_targets[$bc]}" &>/dev/null; then
-	    if [[ $target = backup ]]; then
-		debug "${barclamps[$bc]} in $bc has never been backed up, skipping."
-		unset barclamps_targets[$bc]
-	    elif [[ $target = upstream ]]; then
-		debug "Cannot reset barclamp $bc to ${barclamp_targets[$bc]}"
-		unset barclamps_targets[$bc]
+        for target_branch in $(barclamp_branches_for_release "$target_release" "$bc"); do
+	    case $target in
+	        upstream) barclamp_targets[$bc:$target_branch]="$(in_barclamp "$bc" remote_for_branch "$target_branch")/$target_branch" || \
+		    die "No tracking branch for $br in $bc, cannot restore from backup.";;
+	        backup) barclamp_targets[$bc:$target_branch]+="personal/$target_branch";;
+	        *) die "Don't know how to reset barclamp $bc to $target_method";;
+	    esac
+	    if ! in_barclamp "$bc" git rev-parse --quiet --verify \
+	        "${barclamp_targets[$bc:$target_branch]}" &>/dev/null; then
+	        if [[ $target = backup ]]; then
+		    debug "${barclamps[$bc:$target_branch]} in $bc has never been backed up, skipping."
+		    unset barclamp_targets[$bc:$target_branch]
+	        elif [[ $target = upstream ]]; then
+		    debug "Cannot reset barclamp $bc to ${barclamp_targets[$bc]}"
+		    unset barclamp_targets[$bc:$target_branch]
+	        fi
 	    fi
-	fi
-    done
-    for bc in "${!barclamp_targets[@]}"; do
-	in_barclamp "$bc" \
-	    reset_branch "$target_branch" "${barclamp_targets[$bc]}"
+        done
+        for bc in "${!barclamp_targets[@]}"; do
+	    in_barclamp "${bc%%:*}" \
+	        reset_branch "${bc#*:}" "${barclamp_targets[$bc]}"
+        done
     done
 }
 
@@ -2151,6 +2292,7 @@ DEV_COMMANDS["barclamps-in-build"]="barclamps_in_build"
 DEV_COMMANDS["branch"]="current_build"
 DEV_COMMANDS["build"]="build_crowbar"
 DEV_COMMANDS["builds"]="builds_in_release"
+DEV_COMMANDS["build-refs"]="refs_for_build"
 DEV_COMMANDS["branches"]="builds_in_release"
 DEV_COMMANDS["checkout"]="checkout"
 DEV_COMMANDS["clear-unit-tests"]="clear_unit_tests"
@@ -2186,56 +2328,59 @@ DEV_COMMANDS["run-unit-tests"]="run_unit_tests"
 DEV_COMMANDS["scrub-merged-pulls"]="scrub_merged_pulls"
 DEV_COMMANDS["setup"]="setup"
 DEV_COMMANDS["setup-unit-tests"]="setup_unit_tests"
+DEV_COMMANDS["redundant-barclamps"]="show_duplicate_barclamps"
 DEV_COMMANDS["switch"]="switch_release"
 DEV_COMMANDS["sync"]="sync_everything"
 DEV_COMMANDS["unpin"]="unpin_release"
 DEV_COMMANDS["upstream-changes"]="find_remote_changed_branches_for_release"
 
 # Hash for short help
-DEV_SHORT_HELP["backup"]="            Back up changes without merging them into upstream."
-DEV_SHORT_HELP["barclamps-in-build"]="Shows the barclamps that are members of a build."
-DEV_SHORT_HELP["branch"]="            Show the build you are working on. Synonym for build with no args."
-DEV_SHORT_HELP["branches"]="          Show the builds in the current release.  Synonym for builds."
-DEV_SHORT_HELP["build"]="             Show the current build or build Crowbar"
-DEV_SHORT_HELP["builds"]="            Show the builds in the current release."
-DEV_SHORT_HELP["checkout"]="          Check out a branch in the current release."
-DEV_SHORT_HELP["clear-unit-tests"]="  Remove unit test environment."
-DEV_SHORT_HELP["clone-barclamps"]="   Clone barclamps."
-DEV_SHORT_HELP["create-barclamp"]="   Create a new barclamp."
-DEV_SHORT_HELP["crowbar-version"]="   Print out a probably-unique ordered version string."
-DEV_SHORT_HELP["current-build"]="     Shows the current build you are working on."
-DEV_SHORT_HELP["cut_release"]="       Cut a new release from the current one."
-DEV_SHORT_HELP["erase-feature"]="     Forget about branches for a feature you are not working on."
-DEV_SHORT_HELP["fetch"]="             Fetch updates from configured upstream repositories."
-DEV_SHORT_HELP["find-parent"]="       Find the closest parent of a release or feature."
-DEV_SHORT_HELP["flatten"]="           Flatten the main Crowbar repo branching structure."
-DEV_SHORT_HELP["help"]="              Show detailed help."
-DEV_SHORT_HELP["is_clean"]="          Test to see if all work is committed."
-DEV_SHORT_HELP["local-changes"]="     Find local changes from upstream for a release"
-DEV_SHORT_HELP["missing-barclamps"]=" Show missing barclamps."
-DEV_SHORT_HELP["new-feature"]="       Create a new feature bundle from the current release."
-DEV_SHORT_HELP["orphaned-barclamps"]="Show barclamps that are not part of any build."
-DEV_SHORT_HELP["pin"]="               Pin a release, build, or barclamp in a build to a specific rev"
-DEV_SHORT_HELP["pull-requests-gen"]=" Issue pull requests."
-DEV_SHORT_HELP["pull-requests-prep"]="Prepare to issue pull requests."
-DEV_SHORT_HELP["purge-submodules"]="  Purge submodule information for the master branch in Crowbar."
-DEV_SHORT_HELP["push"]="              Unconditionally push a branch to your personal repos."
-DEV_SHORT_HELP["push-release"]="      Push a release out to a remote"
-DEV_SHORT_HELP["refresh-tracking"]="  Update git branch tracking metadata."
-DEV_SHORT_HELP["release"]="           Show the current release or feature you are on."
-DEV_SHORT_HELP["releases"]="          Show all releases and features in your local repos."
-DEV_SHORT_HELP["reload-unit-tests"]=" Reload the data for the unit test environment"
-DEV_SHORT_HELP["remote"]="            Manage remotes across all Crowbar repositories."
-DEV_SHORT_HELP["remotes"]="           Show all remotes."
-DEV_SHORT_HELP["reset-release"]="     Resets a release to upstream or your last backup."
-DEV_SHORT_HELP["run-unit-tests"]="    Run unit and BDD tests."
-DEV_SHORT_HELP["scrub-merged-pulls"]="Scrub merged pull request branches."
-DEV_SHORT_HELP["setup-unit-tests"]="  Sets up unit test environment."
-DEV_SHORT_HELP["setup"]="             Sets up a Crowbar checkout for use with dev."
-DEV_SHORT_HELP["switch"]="            Switch to a different release."
-DEV_SHORT_HELP["sync"]="              Synchronize fetched updates with the local repos."
-DEV_SHORT_HELP["unpin"]="             Unpin a release, build, or barclamp in a build."
-DEV_SHORT_HELP["upstream-changes"]="  Find unmerged changes from upstream for a release"
+DEV_SHORT_HELP["backup"]="             Back up changes without merging them into upstream."
+DEV_SHORT_HELP["barclamps-in-build"]=" Shows the barclamps that are members of a build."
+DEV_SHORT_HELP["branch"]="             Show the build you are working on. Synonym for build with no args."
+DEV_SHORT_HELP["branches"]="           Show the builds in the current release.  Synonym for builds."
+DEV_SHORT_HELP["build"]="              Show the current build or build Crowbar"
+DEV_SHORT_HELP["builds"]="             Show the builds in the current release."
+DEV_SHORT_HELP["build-refs"]="         Show the Git commits that would be used in a build."
+DEV_SHORT_HELP["checkout"]="           Check out a branch in the current release."
+DEV_SHORT_HELP["clear-unit-tests"]="   Remove unit test environment."
+DEV_SHORT_HELP["clone-barclamps"]="    Clone barclamps."
+DEV_SHORT_HELP["create-barclamp"]="    Create a new barclamp."
+DEV_SHORT_HELP["crowbar-version"]="    Print out a probably-unique ordered version string."
+DEV_SHORT_HELP["current-build"]="      Shows the current build you are working on."
+DEV_SHORT_HELP["cut_release"]="        Cut a new release from the current one."
+DEV_SHORT_HELP["erase-feature"]="      Forget about branches for a feature you are not working on."
+DEV_SHORT_HELP["fetch"]="              Fetch updates from configured upstream repositories."
+DEV_SHORT_HELP["find-parent"]="        Find the closest parent of a release or feature."
+DEV_SHORT_HELP["flatten"]="            Flatten the main Crowbar repo branching structure."
+DEV_SHORT_HELP["help"]="               Show detailed help."
+DEV_SHORT_HELP["is_clean"]="           Test to see if all work is committed."
+DEV_SHORT_HELP["local-changes"]="      Find local changes from upstream for a release"
+DEV_SHORT_HELP["missing-barclamps"]="  Show missing barclamps."
+DEV_SHORT_HELP["new-feature"]="        Create a new feature bundle from the current release."
+DEV_SHORT_HELP["orphaned-barclamps"]=" Show barclamps that are not part of any build."
+DEV_SHORT_HELP["pin"]="                Pin a release, build, or barclamp in a build to a specific rev"
+DEV_SHORT_HELP["pull-requests-gen"]="  Issue pull requests."
+DEV_SHORT_HELP["pull-requests-prep"]=" Prepare to issue pull requests."
+DEV_SHORT_HELP["purge-submodules"]="   Purge submodule information for the master branch in Crowbar."
+DEV_SHORT_HELP["push"]="               Unconditionally push a branch to your personal repos."
+DEV_SHORT_HELP["push-release"]="       Push a release out to a remote"
+DEV_SHORT_HELP["redundant-barclamps"]="Show redundant barclamp metadata in a release"
+DEV_SHORT_HELP["refresh-tracking"]="   Update git branch tracking metadata."
+DEV_SHORT_HELP["release"]="            Show the current release or feature you are on."
+DEV_SHORT_HELP["releases"]="           Show all releases and features in your local repos."
+DEV_SHORT_HELP["reload-unit-tests"]="  Reload the data for the unit test environment"
+DEV_SHORT_HELP["remote"]="             Manage remotes across all Crowbar repositories."
+DEV_SHORT_HELP["remotes"]="            Show all remotes."
+DEV_SHORT_HELP["reset-release"]="      Resets a release to upstream or your last backup."
+DEV_SHORT_HELP["run-unit-tests"]="     Run unit and BDD tests."
+DEV_SHORT_HELP["scrub-merged-pulls"]=" Scrub merged pull request branches."
+DEV_SHORT_HELP["setup-unit-tests"]="   Sets up unit test environment."
+DEV_SHORT_HELP["setup"]="              Sets up a Crowbar checkout for use with dev."
+DEV_SHORT_HELP["switch"]="             Switch to a different release."
+DEV_SHORT_HELP["sync"]="               Synchronize fetched updates with the local repos."
+DEV_SHORT_HELP["unpin"]="              Unpin a release, build, or barclamp in a build."
+DEV_SHORT_HELP["upstream-changes"]="   Find unmerged changes from upstream for a release"
 
 # Hash for long help
 DEV_LONG_HELP["setup"]="Perform initial setup of Crowbar.
@@ -2487,6 +2632,8 @@ DEV_LONG_HELP["push-release"]="Push the named release to the
   release to all the specificed remotes.  If any of the tests fail,
   nothing will be pushed."
 DEV_LONG_HELP["crowbar-version"]="Print out a probably-unique mostly sequential version"
+DEV_LONG_HELP["build-refs"]="Show the Git commits that would be used in a build."
+DEV_LONG_HELP["redundant-barclamps"]="Show redundant barclamp metadata for a build."
 
 # Verify that we have help for all commands, and exit if we don't.
 for cmd in "${!DEV_COMMANDS[@]}"; do
