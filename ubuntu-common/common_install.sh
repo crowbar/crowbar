@@ -103,7 +103,10 @@ for s in $(cat /proc/cmdline); do
 done
 
 if ! grep -q '192\.168\.124\.10' /etc/network/interfaces; then
-    grep -v eth0 /etc/network/interfaces >/etc/network/interfaces
+    # remove existing eth0 references 
+    grep -v eth0 /etc/network/interfaces >/tmp/interfaces
+    cp /tmp/interfaces /etc/network/interfaces
+    # add default eth0 definition
     cat >> /etc/network/interfaces <<EOF
 auto eth0
 iface eth0 inet static

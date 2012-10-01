@@ -297,7 +297,8 @@ sed -i "s/%default_os%/$OS_TOKEN/g" \
     /opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
 if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" $CROWBAR_FILE
+    sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json 
+    sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" "$DVD_PATH"/extra/config/crowbar.json
 fi
 
 # Crowbar will hack up the pxeboot files appropriatly.
