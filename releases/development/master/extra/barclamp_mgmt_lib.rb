@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# Copyright 2011, Dell
+# Copyright 2012, Dell
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -96,7 +96,7 @@ def bc_cloner(item, bc, entity, source, target, replace)
   debug "bc_cloner args: item=#{item}, bc=#{bc}, entity=#{entity}, source=#{source}, target=#{target}, replace=#{replace}"
 
   files = []
-  new_item = (replace ? bc_replacer(item, bc, entity) : item)
+  new_item = (replace ? bc_replacer("#{item}", bc, entity) : item)
   debug "new_item=#{new_item}"
   new_file = File.join target, new_item
   debug "new_file=#{new_file}"
@@ -152,7 +152,7 @@ def bc_replacer(item, bc, entity)
   item.gsub!(MODEL_SUBSTRING_CAMEL, bc.camelize)
   item.gsub!(MODEL_SUBSTRING_HUMAN, bc.humanize)
   item.gsub!(MODEL_SUBSTRING_CAPSS, bc.capitalize)
-  item.gsub!('Copyright 2011, Dell', "Copyright #{Time.now.year}, #{entity}")
+  item.gsub!('Copyright 2012, Dell', "Copyright #{Time.now.year}, #{entity}")
   debug "bc_replacer returns item=#{item}"
   return item
 end
