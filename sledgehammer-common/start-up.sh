@@ -68,16 +68,17 @@ ADMIN_IP=$(grep dhcp-server $DHCPDIR/dhclient*.leases | \
     uniq | cut -d" " -f5 | cut -d";" -f1)
 DOMAIN=$(grep "domain-name " $DHCPDIR/dhclient*.leases | \
     uniq | cut -d" " -f5 | cut -d";" -f1 | awk -F\" '{ print $2 }')
-HOSTNAME_MAC="d${MAC//:/-}.${DOMAIN}"
+HOSTNAME="d${MAC//:/-}.${DOMAIN}"
+sed -i -e "s/\(127\.0\.0\.1.*\)/127.0.0.1 $HOSTNAME ${HOSTNAME%%.*} localhost.localdomain localhost/" /etc/hosts
+if [ -f /etc/sysconfig/network ] ; then
+  sed -i -e "s/HOSTNAME=.*/HOSTNAME=${HOSTNAME}/" /etc/sysconfig/network
+fi
+echo "${HOSTNAME#*.}" >/etc/domainname
+hostname "$HOSTNAME"
+HOSTNAME_MAC="$HOSTNAME"
 
 [[ $(cat /proc/cmdline) =~ $ik_re ]] && \
     export CROWBAR_KEY="${BASH_REMATCH[1]}"
-HOSTNAME=$(hostname)
-
-[[ $HOSTNAME = localhost.localdomain ]] &&  {
-    hostname $HOSTNAME_MAC
-    HOSTNAME=${HOSTNAME_MAC}
-}
 
 # enable remote logging to our admin node.
 echo "# Sledgehammer added to log to the admin node" >> /etc/rsyslog.conf
@@ -90,7 +91,7 @@ for d in updates install-logs; do
     mount -t nfs $ADMIN_IP:/$d /$d
 done
 
-export MAC BOOTDEV ADMIN_IP DOMAIN HOSTNAME_MAC HOSTNAME MYIP
+export MAC BOOTDEV ADMIN_IP DOMAIN HOSTNAME HOSTNAME_MAC MYIP
 
 cd /updates
 cp /updates/control.sh /tmp
