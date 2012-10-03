@@ -2205,6 +2205,8 @@ purge_submodule_metadata() (
 )
 
 setup_unit_tests() {
+  [[ -f /usr/bin/markdown ]] || die "Please make sure markdown is installed. apt-get install markdown" 
+
   rm -rf /tmp/crowbar
   mkdir /tmp/crowbar
   cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
