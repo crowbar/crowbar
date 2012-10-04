@@ -18,19 +18,26 @@
 
 # the 1st choice is to use the code from the framework since it is most up to date
 # however, that code is not always available when installing
-require '/opt/dell/bin/barclamp_mgmt_lib.rb'
+if File.exists?('/opt/dell/bin/barclamp_mgmt_lib.rb')
+  require '/opt/dell/bin/barclamp_mgmt_lib.rb'
+else
+  require 'barclamp_mgmt_lib.rb'
+end
 require 'getoptlong'
 require 'pp'
 
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
+  [ '--no-files', '-x', GetoptLong::NO_ARGUMENT ],
+  [ '--no-chef', '-c', GetoptLong::NO_ARGUMENT ],
+  [ '--base-dir', '-b', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--force', '-f', GetoptLong::NO_ARGUMENT ]
 )
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--debug] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--base-dir <dir>] /path/to/new/barclamp"
   exit
 end
 
@@ -43,10 +50,21 @@ opts.each do |opt, arg|
     when "--debug"
     @@debug = true
     debug "debug mode is enabled"
+    when "--no-files"
+    @@no_files = true
+    debug "no-files is enabled"
+    when "--no-chef"
+    @@no_chef = true
+    debug "no-chef is enabled"
+    when "--base-dir"
+    @@base_dir = arg
+    debug "base-dir is #{@@base_dir}"
     when "--force"
     force_install = true
   end
 end
+
+update_paths
 
 usage if ARGV.length < 1
 
@@ -78,8 +96,8 @@ ARGV.each do |src|
   when File.exists?(File.join(src,"crowbar.yml"))
     # We were handed something that looks like a path to a barclamp
     candidates << File.expand_path(src)
-  when File.exists?(File.join("/opt","dell","barclamps",src,"crowbar.yml"))
-    candidates << File.join("/opt","dell","barclamps",src)
+  when File.exists?(File.join(@BASE_PATH,"barclamps",src,"crowbar.yml"))
+    candidates << File.join(@BASE_PATH,"barclamps",src)
   else
     puts "#{src} is not a barclamp, ignoring."
   end
@@ -117,8 +135,8 @@ debug "installing barclamps:"
 barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   debug "bc = #{bc.pretty_inspect}"
   begin
-    unless /^\/opt\/dell\/barclamps\// =~ bc[:src]
-      target="/opt/dell/barclamps/#{bc[:src].split("/")[-1]}"
+    unless /^#{@@base_dir}\/barclamps\// =~ bc[:src]
+      target="#{@@base_dir}/barclamps/#{bc[:src].split("/")[-1]}"
       if File.directory? target
         debug "target directory #{target} exists"
         if File.exists? "#{target}/crowbar.yml"
