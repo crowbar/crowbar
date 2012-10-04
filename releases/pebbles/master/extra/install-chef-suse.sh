@@ -58,6 +58,13 @@ ensure_service_running () {
     fi
 }
 
+rootpw=$( getent shadow root | cut -d: -f2 )
+case "$rootpw" in
+    \*|\!*)
+        die "root password is unset or locked.  Chef will rewrite /root/.ssh/authorized_keys; therefore to avoid being accidentally locked out of this admin node, you should first ensure you have a working root password."
+        ;;
+esac
+
 # It is exceedingly important that 'hostname -f' actually returns an FQDN!
 # if it doesn't, add an entry to /etc/hosts, e.g.:
 #    192.168.124.10 cb-admin.example.com cb-admin
