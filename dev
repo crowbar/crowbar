@@ -2207,13 +2207,22 @@ purge_submodule_metadata() (
 setup_unit_tests() {
   [[ -f /usr/bin/markdown ]] || die "Please make sure markdown is installed. apt-get install markdown" 
   local test_dir="/tmp/crowbar-dev-test"
-  local base_dir=`pwd`
+  local base_dir=$(pwd)
 
   rm -rf "$test_dir"
   mkdir "$test_dir"
 
+  if [[ $@ ]]; then
+    local barclamp_list=()
+    for bc in "$@"; do
+      barclamp_list+=("${base_dir}/barclamps/$bc")
+    done
+  else
+    local barclamp_list=("${base_dir}/barclamps/"*)
+  fi
+
   cd releases/$(current_build)/extra
-  ./barclamp_install.rb --no-files --no-chef -b "$test_dir" ${base_dir}/barclamps/*
+  ./barclamp_install.rb --no-files --no-chef -b "$test_dir" "${barclamp_list[@]}"
   cd -
   # Clean up the filelists.
   rm barclamps/*.txt
@@ -2562,8 +2571,9 @@ DEV_LONG_HELP["scrub-merged-pulls"]="Scrub merged pull request tracking branches
   as an option, then all pull request tracking branches will be
   deleted."
 DEV_LONG_HELP["setup-unit-tests"]="Sets up a unit test environment.
-  This will create the environment with all barclamps in /tmp/crowbar.
-  Requires sudo access to install Ubuntu packages."
+  This will create the environment with all barclamps in /tmp/crowbar-dev-test.
+  Requires sudo access to install Ubuntu packages.  By passing in names of barclamps, the 
+  setup command will only add those barclamps to the test environment."
 DEV_LONG_HELP["reload-unit-tests"]="Reload the code and database for the units.  Does not re-bundle."
 DEV_LONG_HELP["run-unit-tests"]="Run BDD and unit tests from the /tmp/crowbar environment."
 DEV_LONG_HELP["clear-unit-tests"]="Removes a unit test environment in /tmp/crowbar."
