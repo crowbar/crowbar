@@ -1483,48 +1483,40 @@ push_release() {
     local rel_br release remotes remote bc res cmd build
     local pushcmds=()
     local -A branches
-    release="$(current_release)" remotes=("$(origin_remote)")
-    [[ $DEV_TO_REMOTES ]] && remotes=("${DEV_TO_REMOTES[@]}")
+    release="$(current_release)"
     if [[ $1 ]]; then
         release_exists "$1" || \
             die "Cannot push non-existent local release $1"
         release="$1"
     fi
     local can_push=true
-    for remote in "${remotes[@]}"; do
-        remote_available "$remote" && continue
-        die "Remote $remote is not available. Aborting."
-    done
-    debug "Testing push of $release to ${remotes[*]}:"
     for bc in $(barclamps_in_release "$release"); do
         for rel_br in $(barclamp_branches_for_release "$release" "$bc"); do
-            branches["$bc:$rel_br"]="$bc"
+            remote="$(in_barclamp "$bc" remote_for_branch "$rel_br")"
+            [[ $remote ]] || remote="$(in_barclamp "$bc" origin_remote)"
+            if [[ $DEV_TO_REMOTES ]] && ! is_in "$remote" "${DEV_TO_REMOTES[@]}"; then
+                die "Remote $remote not in ${DEV_TO_REMOTES[*]}"
+            fi
+            remote_available "$remote" || \
+                die "Will not be able to push $rel_br to $remote, $remote is not available."
+            if ! res="$(in_barclamp "$bc" git_push -nq "$remote" -- "${rel_br}:${rel_br}")"; then
+                debug "$bc: $rel_br -> $remote will fail."
+                echo "$res" >&2
+                exit 1
+            fi
+            debug "$bc: $rel_br -> $remote is OK."
+            pushcmds+=("in_barclamp $bc git_push $remote -- ${rel_br}:${rel_br}")
         done
-        local found_one_remote=false
-        for remote in "${remotes[@]}"; do
-            in_barclamp "$bc" git_remote_exists "$remote" || continue
-            found_one_remote=true
-        done
-        [[ $found_one_remote = true ]] && continue
-        die "No remotes have $bc available.  Aborting."
     done
-    for rel_br in "${!branches[@]}"; do
-        bc=${rel_br%%:*}
-        rel_br=${rel_br#*:}
-        if res="$(in_barclamp "$bc" git_push -nq "$remote" -- "${rel_br}:${rel_br}")"; then
-            pushcmds+=("in_barclamp \"$bc\" git_push \"$remote\" -- \"${rel_br}:${rel_br}\"")
-            continue
-        fi
-        debug "Barclamp $bc: Push of $rel_br to $remote will fail:"
-        echo "$res" >&2
-        echo >&2
-        can_push=false
-    done
-    [[ $can_push = false ]] && exit 1
     debug "Test passed, pushing branches."
     for cmd in "${pushcmds[@]}"; do
-        $cmd || die "Could not push $rel_br to $remote after test push passed."
+        if [[ $DRY_RUN = true ]]; then
+            echo "Would have run: $cmd"
+        else
+            $cmd || die "Could not push $rel_br to $remote after test push passed."
+        fi
     done
+    debug "If you just pushed a new release, be sure and push the metadata as well."
 }
 
 # Make sure everything is up to date, and then figure out what
@@ -2696,6 +2688,7 @@ parse_opts_and_go() {
             --verbose) VERBOSE=true;;
             --quiet) VERBOSE=false;;
             --debug) DEBUG=true;;
+            --dry-run) DRY_RUN=true;;
             --show-git-operations) SHOW_GIT_OPERATIONS=true;;
 	    *) genargs+=("$1");;
 	esac
