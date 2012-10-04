@@ -2218,6 +2218,9 @@ setup_unit_tests() {
   # Clean up the filelists.
   rm barclamps/*.txt
 
+  "$test_dir/bin/validate_bags.rb" "$test_dir/chef/data_bags" || \
+  die "Crowbar configuration has errors.  Please fix and rerun install."
+
   local cmd="chown -R $USER.$USER ${test_dir}"
   sudo $cmd
 
