@@ -49,9 +49,9 @@ require "#{require_dir}/barclamp_mgmt_lib.rb"
       puts "Creating barclamp '#{bc}' into '#{path}' as entity '#{org}'."
       files = []
       FileUtils.mkdir target
-      clone = Dir.entries(MODEL_SOURCE).find_all { |e| !e.start_with? '.'}
+      clone = Dir.entries(@MODEL_SOURCE).find_all { |e| !e.start_with? '.'}
       clone.each do |item|
-        files += bc_cloner(item, bc, org, MODEL_SOURCE, target, true)
+        files += bc_cloner(item, bc, org, @MODEL_SOURCE, target, true)
       end
       filelist = "#{bc}-filelist.txt"
       File.open( filelist, 'w' ) do |out|

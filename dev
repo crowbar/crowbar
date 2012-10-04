@@ -2051,7 +2051,7 @@ reset_release() {
 	remote_available personal && remote_is_github personal || \
 	    die "No personal remote available at Github.  Cannot restore from backup."
     fi
-    for bc in $(barclamps_for_release "$target_release"); do
+    for bc in $(barclamps_in_release "$target_release"); do
 	[[ -d $CROWBAR_DIR/barclamps/$bc/.git || \
 	    -f $CROWBAR_DIR/barclamps/$bc/.git ]] || continue
         for target_branch in $(barclamp_branches_for_release "$target_release" "$bc"); do
@@ -2205,71 +2205,75 @@ purge_submodule_metadata() (
 )
 
 setup_unit_tests() {
-  rm -rf /tmp/crowbar
-  mkdir /tmp/crowbar
-  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
-  mkdir -p /tmp/crowbar/barclamps/templates
-  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
-  cp -r barclamps/*/chef/data_bags/crowbar/*.json /tmp/crowbar/barclamps/templates
-  for i in barclamps/*/crowbar.yml; do
-    cp "$i" "/tmp/crowbar/barclamps/`basename $(dirname $i)`.yml"
-  done
+  [[ -f /usr/bin/markdown ]] || die "Please make sure markdown is installed. apt-get install markdown" 
+  local test_dir="/tmp/crowbar-dev-test"
+  local base_dir=`pwd`
 
-  cd /tmp/crowbar
+  rm -rf "$test_dir"
+  mkdir "$test_dir"
+
+  cd releases/$(current_build)/extra
+  ./barclamp_install.rb --no-files --no-chef -b "$test_dir" ${base_dir}/barclamps/*
+  cd -
+  # Clean up the filelists.
+  rm barclamps/*.txt
+
+  "$test_dir/bin/validate_bags.rb" "$test_dir/chef/data_bags" || \
+  die "Crowbar configuration has errors.  Please fix and rerun install."
+
+  local cmd="chown -R $USER.$USER ${test_dir}"
+  sudo $cmd
+
+  cd "$test_dir/crowbar_framework"
   BUNDLE="bundle"
   type bundle 2>/dev/null >/dev/null || BUNDLE="/var/lib/gems/1.8/bin/bundle"
-  type $BUNDLE || echo "MUST HAVE BUNDLER"
+  type $BUNDLE || die "MUST HAVE BUNDLER"
   sed -ie 's/^source .*/source "http:\/\/rubygems.org"/' "Gemfile"
   $BUNDLE
   cd ..
 
-  cd /tmp/crowbar/BDD
-  sudo /tmp/crowbar/BDD/linux_install.sh
+  cd "$test_dir/crowbar_framework/BDD"
+  sudo "$test_dir/crowbar_framework/BDD/linux_install.sh"
   ./linux_compile.sh
   cd -
 }
 
 reload_unit_tests() {
-  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
-  mkdir -p /tmp/crowbar/barclamps/templates
-  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
-  cp -r barclamps/*/chef/data_bags/crowbar/*.json /tmp/crowbar/barclamps/templates
-  for i in barclamps/*/crowbar.yml; do
-    cp "$i" "/tmp/crowbar/barclamps/`basename $(dirname $i)`.yml"
-  done
-
-  cd /tmp/crowbar
+  local test_dir="/tmp/crowbar-dev-test"
+  cd "$test_dir/crowbar_framework"
   RAKE="rake"
   type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
-  type $RAKE || echo "MUST HAVE RAKE"
+  type $RAKE || die "MUST HAVE RAKE"
   $RAKE db:drop
   $RAKE db:migrate
   $RAKE db:fixtures:dump
   cd -
 
-  cd /tmp/crowbar/BDD
+  cd "$test_dir/crowbar_framework/BDD"
   ./linux_compile.sh
   sed -ie 's/192.168.124.10/127.0.0.1/' "crowbar.config"
   cd -
 }
 
 run_unit_tests() {
+  local test_dir="/tmp/crowbar-dev-test"
   # Run unit tests
-  cd /tmp/crowbar
+  cd "$test_dir/crowbar_framework"
   RAKE="rake"
   type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
-  type $RAKE || echo "MUST HAVE RAKE"
+  type $RAKE || die "MUST HAVE RAKE"
   $RAKE test:units
   cd -
 
   # Run BDD tests
-  cd /tmp/crowbar/BDD
+  cd "$test_dir/crowbar_framework/BDD"
   ./linux_run.sh
   cd -
 }
 
 clear_unit_tests() {
-  rm -rf /tmp/crowbar
+  local test_dir="/tmp/crowbar-dev-test"
+  rm -rf "$test_dir"
 }
 
 # Create a new barclamp.

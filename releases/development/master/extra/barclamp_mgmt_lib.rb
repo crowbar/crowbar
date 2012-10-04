@@ -27,20 +27,26 @@ MODEL_SUBSTRING_BASE = '==BC-MODEL=='
 MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
 MODEL_SUBSTRING_HUMAN = '==*BC-MODEL=='
 MODEL_SUBSTRING_CAPSS = '==%BC-MODEL=='
-if ENV["CROWBAR_DIR"]
-  MODEL_SOURCE = File.join ENV["CROWBAR_DIR"], "barclamps","crowbar","crowbar_framework",'barclamp_model'
-  BARCLAMP_PATH = File.join ENV["CROWBAR_DIR"], "barclamps"
-else
-  BASE_PATH = File.join '/opt', 'dell'
-  BARCLAMP_PATH = File.join BASE_PATH, 'barclamps'
-  CROWBAR_PATH = File.join BASE_PATH, 'crowbar_framework'
-  MODEL_SOURCE = File.join CROWBAR_PATH, 'barclamp_model'
-  BIN_PATH = File.join BASE_PATH, 'bin'
-  UPDATE_PATH = '/updates'
-  ROOT_PATH = '/'
+
+def update_paths
+  @BASE_PATH = @@base_dir
+  @CROWBAR_PATH = File.join @BASE_PATH, 'crowbar_framework'
+  if ENV["CROWBAR_DIR"]
+    @MODEL_SOURCE = File.join ENV["CROWBAR_DIR"], "barclamps","crowbar","crowbar_framework",'barclamp_model'
+    @BARCLAMP_PATH = File.join ENV["CROWBAR_DIR"], "barclamps"
+  else
+    @BARCLAMP_PATH = File.join @BASE_PATH, 'barclamps'
+    @MODEL_SOURCE = File.join @CROWBAR_PATH, 'barclamp_model'
+  end
+  @BIN_PATH = File.join @BASE_PATH, 'bin'
+  @UPDATE_PATH = '/updates'
+  @ROOT_PATH = '/'
 end
 
 @@debug = ENV['DEBUG'] === "true"
+@@base_dir = "/opt/dell"
+@@no_chef = false
+@@no_files = false
 
 def debug(msg)
   puts "DEBUG: " + msg if @@debug
@@ -59,10 +65,10 @@ def bc_install(bc, bc_path, yaml)
   when 2
     debug "Installing app components"
     bc_install_layout_2_app bc, bc_path, yaml
-    debug "Installing chef components"
-    bc_install_layout_1_chef bc, bc_path, yaml
-    debug "Installing cache components"
-    bc_install_layout_1_cache bc, bc_path
+    debug "Installing chef components" unless @@no_chef
+    bc_install_layout_1_chef bc, bc_path, yaml unless @@no_chef
+    debug "Installing cache components" unless @@no_files
+    bc_install_layout_1_cache bc, bc_path unless @@no_files
   else
     throw "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
   end
@@ -73,8 +79,8 @@ end
 def catalog(bc_path)
   debug "Copying barclamp 1.x meta_data from #{bc_path}"
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
-  barclamps = File.join CROWBAR_PATH, 'barclamps'
-  system("knife data bag create -k /etc/chef/webui.pem -u chef-webui barclamps")
+  barclamps = File.join @CROWBAR_PATH, 'barclamps'
+  system("knife data bag create -k /etc/chef/webui.pem -u chef-webui barclamps") unless @@no_chef
   list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
   # scan the installed barclamps
   list.each do |bc_file|
@@ -86,7 +92,7 @@ def catalog(bc_path)
       bc["id"] = bc_file.split('.')[0]
       f.puts(JSON.pretty_generate(bc))
     }
-    Kernel.system("knife data bag from file -k /etc/chef/webui.pem -u chef-webui barclamps \"#{barclamps}/bc_meta/#{bc_file}.json\"")
+    Kernel.system("knife data bag from file -k /etc/chef/webui.pem -u chef-webui barclamps \"#{barclamps}/bc_meta/#{bc_file}.json\"") unless @@no_chef
   end
 end
 
@@ -160,7 +166,7 @@ end
 # makes sure that sass overrides are injected into the application.sass
 def merge_sass(yaml, bc, path, installing)
   sass_path = File.join path, 'crowbar_framework', 'app', 'assets', 'stylesheets'
-  application_sass = File.join CROWBAR_PATH, 'app', 'assets', 'stylesheets', 'application.sass'
+  application_sass = File.join @CROWBAR_PATH, 'app', 'assets', 'stylesheets', 'application.sass'
   if File.exist? application_sass and File.exists? sass_path
     sass_files = Dir.entries(sass_path).find_all { |r| r =~ /^_(.*).sass$/ }
     # get entries from the applicaiton.sass file
@@ -218,7 +224,7 @@ end
 
 # cleanup (anti-install) assumes the install generates a file list
 def bc_remove_layout_1(bc, bc_path, yaml)
-  filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
+  filelist = File.join @BARCLAMP_PATH, "#{bc}-filelist.txt"
   if File.exist? filelist
     files = [ filelist ]
     File.open(filelist, 'r') do |f|
@@ -232,10 +238,11 @@ def bc_remove_layout_1(bc, bc_path, yaml)
 end
 
 def framework_permissions(bc, bc_path)
-  FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'db')
-  chmod_dir 0644, File.join(CROWBAR_PATH, 'db')
-  FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'tmp')
-  chmod_dir 0644, File.join(CROWBAR_PATH, 'tmp')
+  FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'db')
+  chmod_dir 0644, File.join(@CROWBAR_PATH, 'db')
+  FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'db', 'migrate')
+  FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'tmp')
+  chmod_dir 0644, File.join(@CROWBAR_PATH, 'tmp')
   debug "\tcopied crowbar_framework files"
 end
 
@@ -252,7 +259,7 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
   debug "path entries #{dirs.pretty_inspect}"
   if dirs.include? 'crowbar_framework'
     debug "path entries include \"crowbar_framework\""
-    files += bc_cloner('crowbar_framework', bc, nil, bc_path, BASE_PATH, false)
+    files += bc_cloner('crowbar_framework', bc, nil, bc_path, @BASE_PATH, false)
     framework_permissions bc, bc_path
   end
 
@@ -261,29 +268,29 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
 
   if dirs.include? 'bin'
     debug "path entries include \"bin\""
-    files += bc_cloner('bin', bc, nil, bc_path, BASE_PATH, false)
-    FileUtils.chmod_R 0755, BIN_PATH
+    files += bc_cloner('bin', bc, nil, bc_path, @BASE_PATH, false)
+    FileUtils.chmod_R 0755, @BIN_PATH
     debug "\tcopied command line files"
   end
-  if dirs.include? 'updates'
+  if dirs.include? 'updates' and !@@no_files
     debug "path entries include \"updates\""
-    files += bc_cloner('updates', bc, nil, bc_path, ROOT_PATH, false)
-    FileUtils.chmod_R 0755, UPDATE_PATH
+    files += bc_cloner('updates', bc, nil, bc_path, @ROOT_PATH, false)
+    FileUtils.chmod_R 0755, @UPDATE_PATH
     debug "\tcopied updates files"
   end
 
   # copy all the files to the target
   if dirs.include? 'chef'
     debug "path entries include \"chef\""
-    files += bc_cloner('chef', bc, nil, bc_path, BASE_PATH, false)
-    debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
+    files += bc_cloner('chef', bc, nil, bc_path, @BASE_PATH, false)
+    debug "\tcopied over chef parts from #{bc_path} to #{@BASE_PATH}"
   end
 
   # Migrate base crowbar schema if needed
   bc_schema_version = yaml["crowbar"]["proposal_schema_version"].to_i rescue 1
   if bc_schema_version < 2
     name = yaml['barclamp']['name']
-    schema_file = File.join BASE_PATH, 'chef','data_bags','crowbar', "bc-template-#{name}.schema"
+    schema_file = File.join @BASE_PATH, 'chef','data_bags','crowbar', "bc-template-#{name}.schema"
     if File.exists? schema_file
       a = []
       File.open(schema_file, 'r') { |f|
@@ -302,25 +309,27 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
     end
   end
 
-  filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
+  filelist = File.join @BARCLAMP_PATH, "#{bc}-filelist.txt"
   File.open( filelist, 'w' ) do |out|
     files.each { |line| out.puts line }
   end
 
   #copy over the crowbar.yml and template file
-  yml_path = File.join CROWBAR_PATH, 'barclamps'
+  yml_path = File.join @CROWBAR_PATH, 'barclamps'
   template_path = File.join yml_path, 'templates'
   yml_barclamp = File.join bc_path, "crowbar.yml"
   template_file = File.join bc_path, "chef", "data_bags", "crowbar", "bc-template-#{bc}.json"
+  new_template_file = File.join bc_path, "chef", "data_bags", "crowbar", "bc-template-#{bc}-new.json"
   FileUtils.mkdir yml_path unless File.directory? yml_path
   FileUtils.mkdir template_path unless File.directory? template_path
   FileUtils.cp yml_barclamp, File.join(yml_path, "#{bc}.yml")
   FileUtils.cp template_file, File.join(template_path, "", "bc-template-#{bc}.json") if File.exists? template_file
+  FileUtils.cp new_template_file, File.join(template_path, "", "bc-template-#{bc}-new.json") if File.exists? new_template_file
 
   #database migration
   bc_layout = yaml["crowbar"]["layout"].to_i rescue 2
   if bc_layout > 1
-    FileUtils.cd(CROWBAR_PATH) do
+    FileUtils.cd(@CROWBAR_PATH) do
       db = system "RAILS_ENV=production rake db:migrate"
       debug "Database migration invoked - #{db}"
     end
@@ -368,7 +377,7 @@ def get_rpm_file_list(rpm)
 end
 
 def upload_cookbooks_from_rpm(rpm, rpm_files, bc_path, log)
-  cookbooks_dir = "#{BASE_PATH}/chef/cookbooks"
+  cookbooks_dir = "#{@BASE_PATH}/chef/cookbooks"
   cookbooks = rpm_files.inject([]) do |acc, file|
     if File.directory?(file) and file =~ %r!^#{cookbooks_dir}/([^/]+)$!
       cookbook = File.basename(file)
@@ -385,7 +394,7 @@ def upload_cookbooks_from_rpm(rpm, rpm_files, bc_path, log)
 end
 
 def upload_data_bags_from_rpm(rpm, rpm_files, bc_path, log)
-  data_bags_dir = "#{BASE_PATH}/chef/data_bags"
+  data_bags_dir = "#{@BASE_PATH}/chef/data_bags"
   data_bag_files = rpm_files.grep(%r!^#{data_bags_dir}/([^/]+)/[^/]+\.json$!) do |path|
     [ $1, path ]
   end
@@ -400,7 +409,7 @@ def upload_data_bags_from_rpm(rpm, rpm_files, bc_path, log)
 end
 
 def upload_roles_from_rpm(rpm, rpm_files, bc_path, log)
-  roles_dir = "#{BASE_PATH}/chef/roles"
+  roles_dir = "#{@BASE_PATH}/chef/roles"
   roles = rpm_files.grep(%r!^#{roles_dir}/([^/]+)$!)
   if roles.empty?
     puts "WARNING: didn't find any roles from #{rpm} rpm in #{roles_dir}"
