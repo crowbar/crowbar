@@ -2051,7 +2051,7 @@ reset_release() {
 	remote_available personal && remote_is_github personal || \
 	    die "No personal remote available at Github.  Cannot restore from backup."
     fi
-    for bc in $(barclamps_for_release "$target_release"); do
+    for bc in $(barclamps_in_release "$target_release"); do
 	[[ -d $CROWBAR_DIR/barclamps/$bc/.git || \
 	    -f $CROWBAR_DIR/barclamps/$bc/.git ]] || continue
         for target_branch in $(barclamp_branches_for_release "$target_release" "$bc"); do
