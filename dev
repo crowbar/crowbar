@@ -2258,16 +2258,20 @@ reload_unit_tests() {
 
 run_unit_tests() {
   local test_dir="/tmp/crowbar-dev-test"
-  # Run unit tests
-  cd "$test_dir/crowbar_framework"
-  rm -rf coverage
-  mkdir coverage
   RAKE="rake"
   type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
   type $RAKE || die "MUST HAVE RAKE"
   RCOV="rcov"
   type rcov 2>/dev/null >/dev/null || RCOV="/var/lib/gems/1.8/bin/rcov"
   type $RCOV || die "MUST HAVE RCOV"
+  RSPEC="rspec"
+  type rspec 2>/dev/null >/dev/null || RSPEC="/var/lib/gems/1.8/bin/rspec"
+  type $RSPEC || die "MUST HAVE RSPEC"
+
+  # Run unit tests
+  cd "$test_dir/crowbar_framework"
+  rm -rf coverage
+  mkdir coverage
   $RAKE spec:rcov
   $RCOV -Itest:lib --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec test/unit/*.rb
   cd -
@@ -2275,6 +2279,12 @@ run_unit_tests() {
   # Run BDD tests
   cd "$test_dir/crowbar_framework/BDD"
   ./linux_run.sh
+  cd -
+
+  # Run chef unit tests
+  cd "$test_dir/chef/cookbooks"
+  rm README
+  $RSPEC *
   cd -
 }
 
