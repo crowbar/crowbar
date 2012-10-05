@@ -2260,10 +2260,16 @@ run_unit_tests() {
   local test_dir="/tmp/crowbar-dev-test"
   # Run unit tests
   cd "$test_dir/crowbar_framework"
+  rm -rf coverage
+  mkdir coverage
   RAKE="rake"
   type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
   type $RAKE || die "MUST HAVE RAKE"
-  $RAKE test:units
+  RCOV="rcov"
+  type rcov 2>/dev/null >/dev/null || RCOV="/var/lib/gems/1.8/bin/rcov"
+  type $RCOV || die "MUST HAVE RCOV"
+  $RAKE spec:rcov
+  $RCOV -Itest:lib --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec test/unit/*.rb
   cd -
 
   # Run BDD tests
