@@ -15,7 +15,7 @@ Next copy your `/etc/chef/webui.pem` file from the admin machine to `.chef/webui
 
 Copy the template knife.rb file and set the server url to the correct value
 
-    cp .chef/knife.rb.example .chef/knife.rb and add the repos like in the following gist:
+    cp .chef/knife.rb.example .chef/knife.rb 
 
 copy the template `.rvmrc` in place and trust it (or install the corresponding ruby)
 
