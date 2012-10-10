@@ -13,3 +13,5 @@ sha1sums
 /change-image
 /barclamps/*/
 *.swp
+.chef/webui.pem
+.chef/knife.rb
