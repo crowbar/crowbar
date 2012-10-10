@@ -762,6 +762,28 @@ sync_barclamp_remotes() {
     fi
 }
 
+sync_crowbar_remotes() {
+    local remote urlbase remote_repo barclamp_repo
+    for remote in "${DEV_SORTED_REMOTES[@]}"; do
+        urlbase="${DEV_REMOTE_URLBASE[$remote]}"
+        # Do nothing if this remote is correct, otherwise set/add as appropriate.
+	remote_repo=$(in_repo git_url_for_remote "$remote") && \
+	    [[ ${remote_repo%.git} = $urlbase/crowbar ]] && continue
+        test_remote "$urlbase/crowbar" || continue
+	debug "Synchronizing remote $remote for Crowbar"
+	if in_repo git_remote_exists "$remote"; then
+	    in_repo set_url_remote "$remote" "$urlbase" "$remote_repo" || continue
+	else
+	    in_repo add_remote "$remote" "$urlbase" "$remote_repo" || \
+		die "Could not add new remote $remote for Crowbar in sync_barclamp_remotes"
+	fi
+	local update_tracking=true
+    done
+    if [[ $update_tracking ]]; then
+	in_repo update_tracking_branches
+    fi
+}
+
 # Show saved parameters for either a specific remote or all of them.
 show_remote() {
     if [[ $1 ]]; then
@@ -871,6 +893,7 @@ remote_wrapper() {
 		[[ -d $bc/.git || -f $bc/.git ]] || continue
 		 sync_barclamp_remotes "${bc##*/}"
 	    done
+            sync_crowbar_remotes
 	    return
 	    ;;
 	priority)
