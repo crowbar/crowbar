@@ -1504,7 +1504,7 @@ branch_needs_pull_req() {
 # if there will be any problems (due to authetication or whatever).
 push_release() {
     local rel_br release remotes remote bc res cmd build
-    local pushcmds=()
+    local pushcmds=() to_remotes=()
     local -A branches
     release="$(current_release)"
     if [[ $1 ]]; then
@@ -1515,20 +1515,19 @@ push_release() {
     local can_push=true
     for bc in $(barclamps_in_release "$release"); do
         for rel_br in $(barclamp_branches_for_release "$release" "$bc"); do
-            remote="$(in_barclamp "$bc" remote_for_branch "$rel_br")"
-            [[ $remote ]] || remote="$(in_barclamp "$bc" origin_remote)"
-            if [[ $DEV_TO_REMOTES ]] && ! is_in "$remote" "${DEV_TO_REMOTES[@]}"; then
-                die "Remote $remote not in ${DEV_TO_REMOTES[*]}"
-            fi
-            remote_available "$remote" || \
-                die "Will not be able to push $rel_br to $remote, $remote is not available."
-            if ! res="$(in_barclamp "$bc" git_push -nq "$remote" -- "${rel_br}:${rel_br}")"; then
-                debug "$bc: $rel_br -> $remote will fail."
-                echo "$res" >&2
-                exit 1
-            fi
-            debug "$bc: $rel_br -> $remote is OK."
-            pushcmds+=("in_barclamp $bc git_push $remote -- ${rel_br}:${rel_br}")
+            [[ $DEV_TO_REMOTES ]] && to_remotes=("${DEV_TO_REMOTES[@]}") || \
+                to_remotes=("$(in_barclamp "$bc" remote_for_branch "$rel_br")")
+            [[ $to_remotes ]] || to_remotes=("$(in_barclamp "$bc" origin_remote)")
+            for remote in "${to_remotes[@]}"; do
+                remote_available "$remote" || continue
+                if ! res="$(in_barclamp "$bc" git_push -nq "$remote" -- "${rel_br}:${rel_br}")"; then
+                    debug "$bc: $rel_br -> $remote will fail."
+                    echo "$res" >&2
+                    exit 1
+                fi
+                debug "$bc: $rel_br -> $remote is OK."
+                pushcmds+=("in_barclamp $bc git_push $remote -- ${rel_br}:${rel_br}")
+            done
         done
     done
     debug "Test passed, pushing branches."
