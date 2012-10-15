@@ -762,6 +762,28 @@ sync_barclamp_remotes() {
     fi
 }
 
+sync_crowbar_remotes() {
+    local remote urlbase remote_repo barclamp_repo
+    for remote in "${DEV_SORTED_REMOTES[@]}"; do
+        urlbase="${DEV_REMOTE_URLBASE[$remote]}"
+        # Do nothing if this remote is correct, otherwise set/add as appropriate.
+	remote_repo=$(in_repo git_url_for_remote "$remote") && \
+	    [[ ${remote_repo%.git} = $urlbase/crowbar ]] && continue
+        test_remote "$urlbase/crowbar" || continue
+	debug "Synchronizing remote $remote for Crowbar"
+	if in_repo git_remote_exists "$remote"; then
+	    in_repo set_url_remote "$remote" "$urlbase" "$remote_repo" || continue
+	else
+	    in_repo add_remote "$remote" "$urlbase" "$remote_repo" || \
+		die "Could not add new remote $remote for Crowbar in sync_barclamp_remotes"
+	fi
+	local update_tracking=true
+    done
+    if [[ $update_tracking ]]; then
+	in_repo update_tracking_branches
+    fi
+}
+
 # Show saved parameters for either a specific remote or all of them.
 show_remote() {
     if [[ $1 ]]; then
@@ -871,6 +893,7 @@ remote_wrapper() {
 		[[ -d $bc/.git || -f $bc/.git ]] || continue
 		 sync_barclamp_remotes "${bc##*/}"
 	    done
+            sync_crowbar_remotes
 	    return
 	    ;;
 	priority)
@@ -1481,50 +1504,41 @@ branch_needs_pull_req() {
 # if there will be any problems (due to authetication or whatever).
 push_release() {
     local rel_br release remotes remote bc res cmd build
-    local pushcmds=()
+    local pushcmds=() to_remotes=()
     local -A branches
-    release="$(current_release)" remotes=("$(origin_remote)")
-    [[ $DEV_TO_REMOTES ]] && remotes=("${DEV_TO_REMOTES[@]}")
+    release="$(current_release)"
     if [[ $1 ]]; then
         release_exists "$1" || \
             die "Cannot push non-existent local release $1"
         release="$1"
     fi
     local can_push=true
-    for remote in "${remotes[@]}"; do
-        remote_available "$remote" && continue
-        die "Remote $remote is not available. Aborting."
-    done
-    debug "Testing push of $release to ${remotes[*]}:"
     for bc in $(barclamps_in_release "$release"); do
         for rel_br in $(barclamp_branches_for_release "$release" "$bc"); do
-            branches["$bc:$rel_br"]="$bc"
+            [[ $DEV_TO_REMOTES ]] && to_remotes=("${DEV_TO_REMOTES[@]}") || \
+                to_remotes=("$(in_barclamp "$bc" remote_for_branch "$rel_br")")
+            [[ $to_remotes ]] || to_remotes=("$(in_barclamp "$bc" origin_remote)")
+            for remote in "${to_remotes[@]}"; do
+                remote_available "$remote" || continue
+                if ! res="$(in_barclamp "$bc" git_push -nq "$remote" -- "${rel_br}:${rel_br}")"; then
+                    debug "$bc: $rel_br -> $remote will fail."
+                    echo "$res" >&2
+                    exit 1
+                fi
+                debug "$bc: $rel_br -> $remote is OK."
+                pushcmds+=("in_barclamp $bc git_push $remote -- ${rel_br}:${rel_br}")
+            done
         done
-        local found_one_remote=false
-        for remote in "${remotes[@]}"; do
-            in_barclamp "$bc" git_remote_exists "$remote" || continue
-            found_one_remote=true
-        done
-        [[ $found_one_remote = true ]] && continue
-        die "No remotes have $bc available.  Aborting."
     done
-    for rel_br in "${!branches[@]}"; do
-        bc=${rel_br%%:*}
-        rel_br=${rel_br#*:}
-        if res="$(in_barclamp "$bc" git_push -nq "$remote" -- "${rel_br}:${rel_br}")"; then
-            pushcmds+=("in_barclamp \"$bc\" git_push \"$remote\" -- \"${rel_br}:${rel_br}\"")
-            continue
-        fi
-        debug "Barclamp $bc: Push of $rel_br to $remote will fail:"
-        echo "$res" >&2
-        echo >&2
-        can_push=false
-    done
-    [[ $can_push = false ]] && exit 1
     debug "Test passed, pushing branches."
     for cmd in "${pushcmds[@]}"; do
-        $cmd || die "Could not push $rel_br to $remote after test push passed."
+        if [[ $DRY_RUN = true ]]; then
+            echo "Would have run: $cmd"
+        else
+            $cmd || die "Could not push $rel_br to $remote after test push passed."
+        fi
     done
+    debug "If you just pushed a new release, be sure and push the metadata as well."
 }
 
 # Make sure everything is up to date, and then figure out what
@@ -1746,31 +1760,6 @@ show_releases() { all_releases; }
 
 # Print the proper name of a branch in a barclamp for a release.
 release_branch() { build_branch "${1:-$(current_release)}/master"; }
-
-# Get or set the proper branch for a barclamp for a build.
-barclamp_branch_for_build() {
-    # $1 = build
-    # $2 = barclamp
-    # $3 = (optional) ref to pin the barclamp at.
-    local build=$1 bcfile
-    if [[ ! $3 ]]; then
-        while [[ true ]]; do
-            barclamp_exists_in_build "$build/$2" && break
-            build=$(parent_build "$build")
-            [[ $build ]] && continue
-            echo "empty-branch"
-	    return 0
-        done
-	cat "$CROWBAR_DIR/releases/$build/barclamp-$2"
-        return 0
-    else
-        bcfile="$CROWBAR_DIR/releases/$build/barclamp-$2"
-        [[ -f $bcfile ]] && \
-	    in_barclamp "$2" git rev-parse --verify --quiet "$3" &>/dev/null || return 1
-        echo "$3" > "$bcfile"
-        git add "$bcfile"
-    fi
-}
 
 barclamp_branches_for_release() {
     # $1 = release
@@ -2051,7 +2040,7 @@ reset_release() {
 	remote_available personal && remote_is_github personal || \
 	    die "No personal remote available at Github.  Cannot restore from backup."
     fi
-    for bc in $(barclamps_for_release "$target_release"); do
+    for bc in $(barclamps_in_release "$target_release"); do
 	[[ -d $CROWBAR_DIR/barclamps/$bc/.git || \
 	    -f $CROWBAR_DIR/barclamps/$bc/.git ]] || continue
         for target_branch in $(barclamp_branches_for_release "$target_release" "$bc"); do
@@ -2205,71 +2194,100 @@ purge_submodule_metadata() (
 )
 
 setup_unit_tests() {
-  rm -rf /tmp/crowbar
-  mkdir /tmp/crowbar
-  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
-  mkdir -p /tmp/crowbar/barclamps/templates
-  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
-  cp -r barclamps/*/chef/data_bags/crowbar/*.json /tmp/crowbar/barclamps/templates
-  for i in barclamps/*/crowbar.yml; do
-    cp "$i" "/tmp/crowbar/barclamps/`basename $(dirname $i)`.yml"
-  done
+  [[ -f /usr/bin/markdown ]] || die "Please make sure markdown is installed. apt-get install markdown" 
+  local test_dir="/tmp/crowbar-dev-test"
+  local base_dir=$(pwd)
 
-  cd /tmp/crowbar
+  rm -rf "$test_dir"
+  mkdir "$test_dir"
+
+  if [[ $@ ]]; then
+    local barclamp_list=()
+    for bc in "$@"; do
+      barclamp_list+=("${base_dir}/barclamps/$bc")
+    done
+  else
+    local barclamp_list=("${base_dir}/barclamps/"*)
+  fi
+
+  cd releases/$(current_build)/extra
+  ./barclamp_install.rb --no-files --no-chef -b "$test_dir" "${barclamp_list[@]}"
+  cd -
+  # Clean up the filelists.
+  rm barclamps/*.txt
+
+  "$test_dir/bin/validate_bags.rb" "$test_dir/chef/data_bags" || \
+  die "Crowbar configuration has errors.  Please fix and rerun install."
+
+  local cmd="chown -R $USER.$USER ${test_dir}"
+  sudo $cmd
+
+  cd "$test_dir/crowbar_framework"
   BUNDLE="bundle"
   type bundle 2>/dev/null >/dev/null || BUNDLE="/var/lib/gems/1.8/bin/bundle"
-  type $BUNDLE || echo "MUST HAVE BUNDLER"
+  type $BUNDLE || die "MUST HAVE BUNDLER"
   sed -ie 's/^source .*/source "http:\/\/rubygems.org"/' "Gemfile"
   $BUNDLE
   cd ..
 
-  cd /tmp/crowbar/BDD
-  sudo /tmp/crowbar/BDD/linux_install.sh
+  cd "$test_dir/crowbar_framework/BDD"
+  sudo "$test_dir/crowbar_framework/BDD/linux_install.sh"
   ./linux_compile.sh
   cd -
 }
 
 reload_unit_tests() {
-  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
-  mkdir -p /tmp/crowbar/barclamps/templates
-  cp -r barclamps/*/crowbar_framework/* /tmp/crowbar
-  cp -r barclamps/*/chef/data_bags/crowbar/*.json /tmp/crowbar/barclamps/templates
-  for i in barclamps/*/crowbar.yml; do
-    cp "$i" "/tmp/crowbar/barclamps/`basename $(dirname $i)`.yml"
-  done
-
-  cd /tmp/crowbar
+  local test_dir="/tmp/crowbar-dev-test"
+  cd "$test_dir/crowbar_framework"
   RAKE="rake"
   type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
-  type $RAKE || echo "MUST HAVE RAKE"
+  type $RAKE || die "MUST HAVE RAKE"
   $RAKE db:drop
   $RAKE db:migrate
   $RAKE db:fixtures:dump
   cd -
 
-  cd /tmp/crowbar/BDD
+  cd "$test_dir/crowbar_framework/BDD"
   ./linux_compile.sh
   sed -ie 's/192.168.124.10/127.0.0.1/' "crowbar.config"
   cd -
 }
 
 run_unit_tests() {
-  # Run unit tests
-  cd /tmp/crowbar
+  local test_dir="/tmp/crowbar-dev-test"
   RAKE="rake"
   type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
-  type $RAKE || echo "MUST HAVE RAKE"
-  $RAKE test:units
+  type $RAKE || die "MUST HAVE RAKE"
+  RCOV="rcov"
+  type rcov 2>/dev/null >/dev/null || RCOV="/var/lib/gems/1.8/bin/rcov"
+  type $RCOV || die "MUST HAVE RCOV"
+  RSPEC="rspec"
+  type rspec 2>/dev/null >/dev/null || RSPEC="/var/lib/gems/1.8/bin/rspec"
+  type $RSPEC || die "MUST HAVE RSPEC"
+
+  # Run unit tests
+  cd "$test_dir/crowbar_framework"
+  rm -rf coverage
+  mkdir coverage
+  $RAKE spec:rcov
+  $RCOV -Itest:lib --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec test/unit/*.rb
   cd -
 
   # Run BDD tests
-  cd /tmp/crowbar/BDD
+  cd "$test_dir/crowbar_framework/BDD"
   ./linux_run.sh
+  cd -
+
+  # Run chef unit tests
+  cd "$test_dir/chef/cookbooks"
+  rm README
+  $RSPEC *
   cd -
 }
 
 clear_unit_tests() {
-  rm -rf /tmp/crowbar
+  local test_dir="/tmp/crowbar-dev-test"
+  rm -rf "$test_dir"
 }
 
 # Create a new barclamp.
@@ -2558,8 +2576,9 @@ DEV_LONG_HELP["scrub-merged-pulls"]="Scrub merged pull request tracking branches
   as an option, then all pull request tracking branches will be
   deleted."
 DEV_LONG_HELP["setup-unit-tests"]="Sets up a unit test environment.
-  This will create the environment with all barclamps in /tmp/crowbar.
-  Requires sudo access to install Ubuntu packages."
+  This will create the environment with all barclamps in /tmp/crowbar-dev-test.
+  Requires sudo access to install Ubuntu packages.  By passing in names of barclamps, the 
+  setup command will only add those barclamps to the test environment."
 DEV_LONG_HELP["reload-unit-tests"]="Reload the code and database for the units.  Does not re-bundle."
 DEV_LONG_HELP["run-unit-tests"]="Run BDD and unit tests from the /tmp/crowbar environment."
 DEV_LONG_HELP["clear-unit-tests"]="Removes a unit test environment in /tmp/crowbar."
@@ -2682,6 +2701,7 @@ parse_opts_and_go() {
             --verbose) VERBOSE=true;;
             --quiet) VERBOSE=false;;
             --debug) DEBUG=true;;
+            --dry-run) DRY_RUN=true;;
             --show-git-operations) SHOW_GIT_OPERATIONS=true;;
 	    *) genargs+=("$1");;
 	esac

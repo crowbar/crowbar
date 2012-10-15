@@ -885,6 +885,31 @@ parent_build() {
     echo "${p##*releases/}"
 }
 
+# Get or set the proper branch for a barclamp for a build.
+barclamp_branch_for_build() {
+    # $1 = build
+    # $2 = barclamp
+    # $3 = (optional) ref to pin the barclamp at.
+    local build=$1 bcfile
+    if [[ ! $3 ]]; then
+        while [[ true ]]; do
+            barclamp_exists_in_build "$build/$2" && break
+            build=$(parent_build "$build")
+            [[ $build ]] && continue
+            echo "empty-branch"
+	    return 0
+        done
+	cat "$CROWBAR_DIR/releases/$build/barclamp-$2"
+        return 0
+    else
+        bcfile="$CROWBAR_DIR/releases/$build/barclamp-$2"
+        [[ -f $bcfile ]] && \
+	    in_barclamp "$2" git rev-parse --verify --quiet "$3" &>/dev/null || return 1
+        echo "$3" > "$bcfile"
+        git add "$bcfile"
+    fi
+}
+
 barclamps_in_build() {
     local build bc p
     build="${1:-$(current_build)}"
@@ -948,8 +973,8 @@ crowbar_version() {
     build=${1:-$(current_build)}
     commits=0
     build_exists "$build" || die "$build is not a build!"
-    br="$(build_branch "$build")"
     for bc in $(barclamps_in_build); do
+        br="$(barclamp_branch_for_build "$build" "$bc")"
         commits=$((commits + $(in_barclamp "$bc" git rev-list --count --sparse --no-merges "$br")))
     done
     echo "${build//\//_}.$commits"
