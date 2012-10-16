@@ -725,7 +725,7 @@ set_url_remote() {
     # $3 = Name of the remote repository.
     git_remote_exists "$1" || return 0
     local repo
-    repo="${3:=$(get_repo_name)}" || exit 1
+    repo="${3:-$(get_repo_name)}" || exit 1
     repo="$2/$repo"
     git ls-remote "$repo" refs/heads/master &>/dev/null || {
 	debug "No git repo at $repo, skipping."
