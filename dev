@@ -396,7 +396,7 @@ clone_and_sync_barclamp() {
 	if [[ $gpath = 'gitdir: '* ]]; then
 	    rm -f ".git"
 	    mv "${gpath#gitdir: }" ".git"
-	    git config --unset core.worktree
+	    GIT_WORKTREE=. git config --unset core.worktree
 	    git reset --hard HEAD
 	    git clean -f -x -d
 	else
