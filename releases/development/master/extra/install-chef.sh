@@ -140,7 +140,14 @@ update_hostname || die "Could not update our hostname"
 # When it does not, things get hard to debug pretty quick.
 (ip link set eth0 up; ip addr add 192.168.124.10/24 dev eth0 ) &>/dev/null || :
 
-# once our hostname is correct, bounce rsyslog to let it know.
+# Set up rsyslog to not rate limit to avoid discarding exceptions
+cat > /etc/rsyslog.d/10-noratelimit.conf <<EOF
+# Turn off rate limiting to prevent error discarding
+\$ModLoad imuxsock
+\$SystemLogRateLimitInterval 0
+EOF
+
+# Bounce rsyslog to let it know our hostname is correct and not to rate limit
 log_to svc service rsyslog restart || :
 
 # Link the discovery image to an off-DVD location.
