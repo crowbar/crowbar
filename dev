@@ -2193,13 +2193,9 @@ purge_submodule_metadata() (
     rm .gitmodules
 )
 
-setup_unit_tests() {
-  [[ -f /usr/bin/markdown ]] || die "Please make sure markdown is installed. apt-get install markdown" 
+reinstall_barclamps() {
   local test_dir="/tmp/crowbar-dev-test"
   local base_dir=$(pwd)
-
-  rm -rf "$test_dir"
-  mkdir "$test_dir"
 
   if [[ $@ ]]; then
     local barclamp_list=()
@@ -2211,10 +2207,24 @@ setup_unit_tests() {
   fi
 
   cd releases/$(current_build)/extra
-  ./barclamp_install.rb --no-files --no-chef -b "$test_dir" "${barclamp_list[@]}"
+  ./barclamp_install.rb --force --no-files --no-chef -b "$test_dir" "${barclamp_list[@]}"
   cd -
   # Clean up the filelists.
   rm barclamps/*.txt
+
+  "$test_dir/bin/validate_bags.rb" "$test_dir/chef/data_bags" || \
+  die "Crowbar configuration has errors.  Please fix and rerun install."
+}
+
+setup_unit_tests() {
+  [[ -f /usr/bin/markdown ]] || die "Please make sure markdown is installed. apt-get install markdown" 
+  local test_dir="/tmp/crowbar-dev-test"
+  local base_dir=$(pwd)
+
+  rm -rf "$test_dir"
+  mkdir "$test_dir"
+
+  reinstall_barclamps $@
 
   "$test_dir/bin/validate_bags.rb" "$test_dir/chef/data_bags" || \
   die "Crowbar configuration has errors.  Please fix and rerun install."
@@ -2238,6 +2248,9 @@ setup_unit_tests() {
 
 reload_unit_tests() {
   local test_dir="/tmp/crowbar-dev-test"
+
+  reinstall_barclamps $@
+
   cd "$test_dir/crowbar_framework"
   RAKE="rake"
   type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
