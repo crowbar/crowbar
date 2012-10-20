@@ -1685,6 +1685,7 @@ pull_requests_gen() {
 
     [[ $release ]] || release=$(current_release)
 
+    switch_release "$release"
     # OK, sanity-check any barclamp branches we were passed.
     for bc in "${!barclamps[@]}"; do
         bcb=''
