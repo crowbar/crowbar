@@ -317,13 +317,17 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
   #copy over the crowbar.yml and template file
   yml_path = File.join @CROWBAR_PATH, 'barclamps'
   template_path = File.join yml_path, 'templates'
+  schema_path = File.join yml_path, 'schemas'
   yml_barclamp = File.join bc_path, "crowbar.yml"
   template_file = File.join bc_path, "chef", "data_bags", "crowbar", "bc-template-#{bc}.json"
+  schema_file = File.join bc_path, "chef", "data_bags", "crowbar", "bc-template-#{bc}.schema"
   new_template_file = File.join bc_path, "chef", "data_bags", "crowbar", "bc-template-#{bc}-new.json"
   FileUtils.mkdir yml_path unless File.directory? yml_path
   FileUtils.mkdir template_path unless File.directory? template_path
+  FileUtils.mkdir schema_path unless File.directory? schema_path
   FileUtils.cp yml_barclamp, File.join(yml_path, "#{bc}.yml")
   FileUtils.cp template_file, File.join(template_path, "", "bc-template-#{bc}.json") if File.exists? template_file
+  FileUtils.cp schema_file, File.join(schema_path, "", "bc-template-#{bc}.schema") if File.exists? schema_file
   FileUtils.cp new_template_file, File.join(template_path, "", "bc-template-#{bc}-new.json") if File.exists? new_template_file
 
   #database migration
