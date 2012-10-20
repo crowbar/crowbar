@@ -264,7 +264,7 @@ git_is_clean() {
 
 # Stupid wrapper around git push for debugging.
 git_push() {
-    if [[ $DEBUG = true ]]; then
+    if [[ $DEBUG = true || $DRY_RUN ]]; then
 	echo "would have done git push $@"
 	return
     fi
@@ -1584,31 +1584,33 @@ pull_requests_prep() {
 do_pull_request() {
     # $1 = url to POST to
     # rest of args passed verbatim to make_pull_request helper.
-    local posturl="$1"
+    local posturl="$1" lines
     local -A res
     shift
-    if [[ $DEBUG ]]; then
+    if [[ $DEBUG || $DRY_RUN ]]; then
 	make_pull_request "$@"
 	return
     fi
-    # Be afraid. Be very afraid.
-    . <(make_pull_request "$@" | \
+    lines="$( make_pull_request "$@" | \
 	curl_and_res -X POST --data @- \
 	-H "Content-Type: application/vnd.github.beta.raw+json" \
-	"$posturl" |parse_yml_or_json - res 2>/dev/null) || {
-	echo "Pull request to $posturl with following params failed:"
-	echo "$@"
-	echo "Please delete the ones that succeeded and try again."
-	exit 1
+	"$posturl")" || die "Error communicating with Github." \
+        "Please delete any pull requests that succeeded and try again."
+    . <(printf '%s' "$lines" | parse_yml_or_json - res) || {
+	die "Error parsing response from Github." \
+            "Response was:" \
+            "$lines"
+	    "Please delete the pull requests that succeeded and try again."
     }
     if [[ ${res['number']} && ${res['html_url']} ]]; then
 	printf "Pull request %s created (%s)\n" \
 	    "${res['number']}" "${res['html_url']}"
     else
-	echo "Pull request to $posturl with following params failed:"
-	echo "$@"
-	echo "Please delete the ones that succeeded and try again."
-	exit 1
+	die "Pull request to $posturl with following params failed:" \
+	    "$@" \
+            "Response was:" \
+            "$lines" \
+            "Please delete the pull requests that succeeded and try again."
     fi
 }
 
@@ -1627,7 +1629,7 @@ diffstat_from_upstream() {
 # Simple helper for printing a short probably unique name for a branch.
 git_ref() {
     # $1 = branch
-    printf "%s-%s" "${1//\//-}" "$(git show-ref --hash=10 "refs/heads/$1")"
+    printf "%s-%s" "${1//\//-}" "${2::14}"
 }
 
 # Make pull requests based on the command line args passed.
@@ -1646,7 +1648,7 @@ pull_requests_gen() {
     local to_account="$(remote_github_account "$to_remote")" || \
 	die "Cannot issue pull requests for $to_remote, it is not from github."
     body="$(mktemp /tmp/crowbar-pull-req-XXXXXXXX)"
-    if [[ $DEBUG ]]; then
+    if [[ $DEBUG || $DRY_RUN ]]; then
 	title="Test"
 	echo "test" >> "$body"
     else
@@ -1660,6 +1662,9 @@ pull_requests_gen() {
 	    nano "$body"
 	fi
     fi
+    # This is needed to make sure we can see parse_yml_or_json.
+    # It should go away at some point.
+    switch_release
     # Parse our options and validate them.
     while [[ "$1" ]]; do
 	case $1 in
@@ -1672,7 +1677,7 @@ pull_requests_gen() {
 			die "$br is not a branch in Crowbar!"
 		    in_repo git_remote_exists "$to_remote" || \
 			die "Cannot make pull request to $to_remote, we don't know about it."
-		    br_pulls["$br"]="pull-req-$(in_repo git_ref "$br")"
+		    br_pulls["$br"]="true"
 		done;;
 	    --barclamps)
 		shift
@@ -1693,9 +1698,21 @@ pull_requests_gen() {
 	esac
     done
 
+    # Generate a very probably unique name for the pull request.
+    local pull_id="$(
+        (
+            for bc in "${!barclamps[@]}"; do
+                for bcb in ${barclamp_branches["$bc"]}; do
+                    in_barclamp "$bc" git show-ref --hash "refs/heads/$bcb"
+                done
+            done
+            for br in "${!br_pulls[@]}"; do
+                in_repo git show-ref --hash "refs/heads/$br"
+            done
+        )|sha1sum |cut -d ' ' -f 1)"
     for bc in "${!barclamps[@]}"; do
 	for bcb in ${barclamp_branches["$bc"]}; do
-	    bc_pulls["$bc/$bcb"]="pull-req-$(in_barclamp "$bc" git_ref "$bcb")"
+	    bc_pulls["$bc/$bcb"]="pull-req-$(in_barclamp "$bc" git_ref "$bcb" "$pull_id")"
 	done
     done
     # OK, now we know how many pull requests we have to issue.
@@ -1715,19 +1732,22 @@ pull_requests_gen() {
 	    "https://api.github.com/repos/$to_account/$bc_name/pulls" \
 	    --title "$title [$n/$prc]" --base "$bc_base" --head "$bc_head" \
 	    --body "@$body" \
-	    --body "$(in_barclamp "$bc" diffstat_from_upstream "$bc_base")"
+	    --body "$(in_barclamp "$bc" diffstat_from_upstream "$bc_base")" \
+            --body "Crowbar-Pull-ID: $pull_id"
 	n=$(($n + 1))
     done
 
     # Now, issue the requests for branches.
     # Make sure they are ordered correctly.
     for br in "${!br_pulls[@]}"; do
-	in_repo git_push personal "${br}:${br_pulls[$br]}"
-	local br_head="$DEV_GITHUB_ID:${br_pulls[$br]}"
+        local br_pull_name="$(in_repo git_ref "$br" "$pull_id")"
+	in_repo git_push personal "${br}:${br_pull_name}"
+	local br_head="$DEV_GITHUB_ID:${br_pull_name}"
 	do_pull_request \
 	    "https://api.github.com/repos/$to_account/crowbar/pulls" \
 	    --title "$title [$n/$prc]" --base "$br" --head "$br_head" \
-	    --body "@$body" --body "$(in_repo diffstat_from_upstream "$br")"
+	    --body "@$body" --body "$(in_repo diffstat_from_upstream "$br")" \
+            --body "Crowbar-Pull-ID: $pull_id"
 	n=$(($n + 1))
     done
     rm -f "$body"
