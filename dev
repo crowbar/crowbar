@@ -1560,7 +1560,8 @@ pull_requests_prep() {
     for bc in $(barclamps_in_release $release); do
         for branch in $(barclamp_branches_for_release "$release" "$bc"); do
 	    in_barclamp "$bc" branch_needs_pull_req "$branch" || continue
-	    barclamps_to_push+=("$bc/$branch")
+	    barclamps_to_push+=("$bc")
+            break
         done
     done
     [[ ${push_master} || ${barclamps_to_push} ]] || {
@@ -1570,7 +1571,7 @@ pull_requests_prep() {
     echo "Barclamps that might need pull requests: ${barclamps_to_push[*]-(none)}"
     [[ ${push_master} ]] && echo "Crowbar needs push"
     echo "Command to generate pull requests:"
-    echo -n "$0 pull-requests-gen --to $to_remote"
+    echo -n "$0 pull-requests-gen --to $to_remote --release $release"
     [[ ${push_master} ]] && \
 	echo -n " --branches master"
     [[ ${barclamps_to_push[*]} ]] && \
@@ -1629,7 +1630,7 @@ diffstat_from_upstream() {
 # Simple helper for printing a short probably unique name for a branch.
 git_ref() {
     # $1 = branch
-    printf "%s-%s" "${1//\//-}" "${2::14}"
+    printf "%s-%s" "${1//\//-}" "$2"
 }
 
 # Make pull requests based on the command line args passed.
@@ -1641,30 +1642,14 @@ pull_requests_gen() {
     remote_available personal && remote_is_github personal || \
 	die "No personal remote available at Github.  Cannot do pull requests."
     local -A barclamps branches barclamp_branches bc_pulls br_pulls refs
-    local bc br bcr title body option bc_name head
+    local bc br bcr bcb title body option bc_name head release
     local prc=0 n=1
     local to_remote="$(origin_remote)"
     [[ $DEV_TO_REMOTES ]] && to_remote="$DEV_TO_REMOTES"
     local to_account="$(remote_github_account "$to_remote")" || \
 	die "Cannot issue pull requests for $to_remote, it is not from github."
-    body="$(mktemp /tmp/crowbar-pull-req-XXXXXXXX)"
-    if [[ $DEBUG || $DRY_RUN ]]; then
-	title="Test"
-	echo "test" >> "$body"
-    else
-	echo "Enter a title for this pull request series."
-	echo "After you have entered a title, an editor will open, and you can"
-	echo "enter anything you want for the body of the pull requests."
-	read -p "Title: " title
-	if [[ $EDITOR ]]; then
-	    $EDITOR "$body"
-	else
-	    nano "$body"
-	fi
-    fi
     # This is needed to make sure we can see parse_yml_or_json.
     # It should go away at some point.
-    switch_release
     # Parse our options and validate them.
     while [[ "$1" ]]; do
 	case $1 in
@@ -1684,18 +1669,34 @@ pull_requests_gen() {
 		while [[ $1 && $1 != '--'* ]]; do
 		    bc="${1%%/*}"
 		    br="${1#*/}"
-		    [[ $bc = $br ]] && br="$(release_branch)"
+		    [[ $bc = $br ]] && br="calculate"
+                    barclamps["$bc"]="true"
+                    barclamp_branches["$bc"]+=" $br"
 		    shift
-		    in_barclamp "$bc" branch_exists "$br" || \
-			die "$br is not a branch in barclamp $bc!"
-		    in_barclamp "$bc" git_remote_exists "$to_remote" || \
-			die "Cannot make pull request from barclamp $bc -- it is not present at remote $to_remote!"
-		    barclamps["$bc"]="true"
-		    is_in "$br" "${barclamp_branches["$bc"]}" || \
-			barclamp_branches["$bc"]+=" $br"
-		done;;
+                done;;
+            --release)
+                shift
+                release_exists "$1" || die "$1 is not a release"
+                release="$1"
+                shift;;
 	    *) die "Unknown option $1 to $0 pull-requests-gen!";;
 	esac
+    done
+
+    [[ $release ]] || release=$(current_release)
+
+    # OK, sanity-check any barclamp branches we were passed.
+    for bc in "${!barclamps[@]}"; do
+        bcb=''
+        for br in ${barclamp_branches[$bc]}; do
+            [[ $br = calculate ]] && br=$(barclamp_branches_for_release "$release" "$bc")
+            in_barclamp "$bc" branch_exists "$br" || \
+		die "$br is not a branch in barclamp $bc!"
+	    in_barclamp "$bc" git_remote_exists "$to_remote" || \
+		die "Cannot make pull request from barclamp $bc -- it is not present at remote $to_remote!"
+            is_in "$br" "$bcb" || bcb+=" $br"
+        done
+        barclamp_branches[$bc]="$bcb"
     done
 
     # Generate a very probably unique name for the pull request.
@@ -1718,6 +1719,23 @@ pull_requests_gen() {
     # OK, now we know how many pull requests we have to issue.
     prc=$((${#bc_pulls[@]} + ${#br_pulls[@]}))
 
+    # Get the common title and body for the pull request.
+    body="$(mktemp /tmp/crowbar-pull-req-XXXXXXXX)"
+    if [[ $DEBUG || $DRY_RUN ]]; then
+	title="Test"
+	echo "test" >> "$body"
+    else
+	echo "Enter a title for this pull request series."
+	echo "After you have entered a title, an editor will open, and you can"
+	echo "enter anything you want for the body of the pull requests."
+	read -p "Title: " title
+	if [[ $EDITOR ]]; then
+	    $EDITOR "$body"
+	else
+	    nano "$body"
+	fi
+    fi
+
     # issue the pull requests for our barclamps.
     for barclamp in "${!bc_pulls[@]}"; do
 	local bc=${barclamp%%/*}
@@ -1733,7 +1751,8 @@ pull_requests_gen() {
 	    --title "$title [$n/$prc]" --base "$bc_base" --head "$bc_head" \
 	    --body "@$body" \
 	    --body "$(in_barclamp "$bc" diffstat_from_upstream "$bc_base")" \
-            --body "Crowbar-Pull-ID: $pull_id"
+            --body "Crowbar-Pull-ID: $pull_id" \
+            --body "Crowbar-Release: $release"
 	n=$(($n + 1))
     done
 
@@ -1747,7 +1766,8 @@ pull_requests_gen() {
 	    "https://api.github.com/repos/$to_account/crowbar/pulls" \
 	    --title "$title [$n/$prc]" --base "$br" --head "$br_head" \
 	    --body "@$body" --body "$(in_repo diffstat_from_upstream "$br")" \
-            --body "Crowbar-Pull-ID: $pull_id"
+            --body "Crowbar-Pull-ID: $pull_id" \
+            --body "Crowbar-Release: $release"
 	n=$(($n + 1))
     done
     rm -f "$body"
