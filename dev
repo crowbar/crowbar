@@ -1243,7 +1243,7 @@ find_unsynced_branches_for_release() {
 	local branches=()
         local from to br
         for build in "${builds[@]}"; do
-            barclamp_exists_in_build "$rel/$build/$bc" || continue
+            __barclamp_exists_in_build "$rel/$build/$bc" || continue
             ref=$(barclamp_branch_for_build "$rel/$build" "$bc")
             [[ $ref = empty-branch ]] && \
                 die "Barclamp $bc should exist for $rel/$build, but it is set to empty-branch!"
@@ -1952,6 +1952,36 @@ cut_feature() {
     cut_release "feature/$1"
 }
 
+cut_tagged_release() {
+    # $1 = name of the tag.
+    # $2 = build to cut from.
+    # The build we are cutting from whould have already been pinned to the tag.
+    release_exists "$1" && die "Cannot cut tagged release $1, it already exists!"
+    build_exists "$2" || die "Cannot cut tagged release, basis build $2 does not exist!"
+    local bc ref f
+    mkdir -p "$CROWBAR_DIR/releases/$1/master"
+    for bc in $(barclamps_in_build "$2"); do
+        ref=$(barclamp_branch_for_build "$2" "$bc")
+        [[ $ref && $ref != empty-branch ]] || continue
+        echo "$ref" > "$CROWBAR_DIR/releases/$1/master/barclamp-$bc"
+    done
+    for f in "$CROWBAR_DIR/releases/$2/"*; do
+        f=${f##*/$2/}
+        [[ $f = barclamp-* ]] && continue
+        [[ $f = . || $f = .. || $f = parent ]] && continue
+        cp -ap "$CROWBAR_DIR/releases/$2/$f" \
+	    "$CROWBAR_DIR/releases/$1/master"
+    done
+    if git_managed_cache; then
+        local old_rel_br=$(release_branch "${2%/*}")
+        local rel_br="$(release_branch "$1")"
+        in_cache branch_exists "$old_rel_br" && \
+            in_cache git branch "$rel_br" "$old_rel_br"
+    fi
+    in_repo git add "releases/$1"
+    in_repo git commit -m "Cut tagged release $1"
+}
+
 # Erase a release.  Complains if it is not merged into its parent release.
 erase_release() {
     # $1 = release refix
@@ -1968,7 +1998,7 @@ erase_release() {
             continue
         fi
         for bc in $(barclamps_from_build "$1/$build"); do
-            if ! barclamp_exists_in_build "$parent/$build/$bc"; then
+            if ! __barclamp_exists_in_build "$parent/$build/$bc"; then
                 debug "$barclamp does not exist in $parent/$build"
                 whine=true
                 continue
@@ -2008,6 +2038,21 @@ erase_release() {
     } &>/dev/null
 }
 
+maybe_checkout_build_cache_branch() {
+    # $1 = release
+    # This is here so that we only switch branches in the build cache if
+    # we are building a release, because it can be too time-consuming otherwise.
+    git_managed_cache || return 0
+    local rel_br
+    rel_br="$(release_branch "${1:-$(current_release)}")" || \
+        die "Cannot find release branch for $1"
+    update_cache_tracking_branches
+    if in_cache branch_exists "$rel_br"; then
+	debug "Checking out $rel_br in the build cache, please be patient."
+	in_cache quiet_checkout -f "$rel_br"
+    fi
+}
+
 # With no args, echo the current build being worked.
 # Otherwise, build a Crowbar ISO after sanity-checking the current env.
 build_crowbar() {
@@ -2037,15 +2082,7 @@ build_crowbar() {
     if [[ $exact ]]; then
 	debug "Exact does not mean anything anymore."
     fi
-    # This is here so that we only switch branches in the build cache if
-    # we are building a release, because it can be too time-consuming otherwise.
-    if git_managed_cache; then
-        update_cache_tracking_branches
-	if in_cache branch_exists "$(release_branch)"; then
-	    debug "Checking out $(release_branch) in the build cache, please be patient."
-	    in_cache quiet_checkout -f "$(release_branch)"
-	fi
-    fi
+    maybe_checkout_build_cache_branch
     with_build_lock exec "$CROWBAR_DIR/build_crowbar.sh" \
 	"$target_os" "${build_args[@]}"
 }
@@ -2354,18 +2391,133 @@ create_barclamp() {
 	git add .
 	git commit -m "Initial commit"
     )
+
 }
 
 erase_feature() { erase_release "feature/$1"; }
+
+# Tags a build.  The exact steps are:
+# 1: Pin the indicated build.
+# 2: Tag the freshly-pinned branches with the passed tag
+# 3: Unpin the build.
+# 4: Push the freshly-created tags to the default upstreams.
+tag_build() {
+    # $1 = build to tag.
+    crowbar_is_clean || die "Crowbar must be clean before tagging a release!"
+    [[ $(in_repo git symbolic-ref HEAD) = refs/heads/master ]] || \
+        die "Main Crowbar repo must be on the master branch before tagging a release!"
+    local build="${1:-$(current_build)}"
+    build_exists "$build" || die "Build $build does not exist!"
+    local release="${build%/*}" release_br=$(release_branch "$release")
+    local tag tag_msg_file bc
+    read -erp "Enter tag name: " tag
+    [[ $tag =~ ^[a-zA-Z0-9_.-]+$ ]] || die "Invalid tag name." \
+        "Tags must only contain [a-zA-Z0-9._-]"
+    in_repo git show-ref "refs/tags/$tag" &>/dev/null && \
+        die "Tag $tag has already been created!"
+    release_exists "$tag" && \
+        die "Release for $tag has already been cut!"
+    tag_msg_file="$(mktemp /tmp/tag-message-XXXXXXXX)" || \
+        die "Cannot create temporary file for tag message!"
+    trap "rm -f '$tag_msg_file' || :" RETURN EXIT
+    cat >"$tag_msg_file" <<EOF
+
+# Enter a tag annotation message.
+EOF
+    ${EDITOR:-nano} "$tag_msg_file"
+    for bc in $(barclamps_in_build "$build"); do
+        in_barclamp "$bc" git tag -a -F "$tag_msg_file" "$tag" \
+            "$(barclamp_branch_for_build "$build" "$bc")"
+    done
+    # Evil, pure evil.
+    tag_br="tag-master-$tag"
+    in_repo git branch "$tag_br" "master"
+    if in_repo git reset --hard "$(in_repo origin_remote)/master" && \
+        pin_release "$build" "$tag" && \
+        cut_tagged_release "$tag" "$build"
+        in_repo git tag -a -F "$tag_msg_file" "$tag" && \
+        unpin_release "$build" && \
+        in_repo git checkout "$tag_br" && \
+        in_repo git rebase master; then
+        in_repo git checkout master
+        in_repo git reset --hard "$tag_br"
+    else
+        in_repo git rebase --abort
+        in_repo git checkout -f master
+        git reset --hard "$tag_br"
+        git branch -D "$tag_br"
+        die "Could not stage tag of the build system." \
+            "Please fix things up and try again."
+    fi
+    if git_managed_cache && in_cache branch_exists "$release_br"; then
+        in_cache git tag -a -F "$tag_msg_file" "$tag" "$release_br"
+    fi
+    debug "Build $build tagged." \
+        "You can push the tags with ./dev push-tag $tag"
+}
+
+
+# Push specified tag to its "best" upstream, or
+# whatever DEV_TO_REMOTES says to push to.
+# This function tries to ensure that it will fail without doing anything
+# if there will be any problems (due to authetication or whatever).
+push_tag() {
+    local rel_br release remotes remote bc res cmd build
+    local pushcmds=()
+    in_repo branch_exists "tag-master-$1" || \
+        die "Tag $1 does not have a local staging branch." \
+        "push-tag only knows how to push tags created with tag-build."
+    [[ $DEV_TO_REMOTES ]] || \
+        die "You must pass the remotes to push the tag to using --to."
+    for remote in "${DEV_TO_REMOTES[@]}"; do
+        remote_available "$remote" || continue
+        for bc in "$CROWBAR_DIR/barclamps/"*; do
+            [[ -f $bc/.git || -d $bc/.git ]] || continue
+            bc=${bc##*/}
+            # Skip any barclamps that do not have the tag in question.
+            in_barclamp "$bc" git show-ref refs/tags/"$1" &>/dev/null || continue
+            # If the tag exists but is not an annotated tag, die horribly
+            in_barclamp "$bc" git cat-file tag "$1" &>/dev/null || \
+                die "Tag $1 exists in barclamp $bc, but it is not an annotated tag!" \
+                "Please fix this up and try again."
+            if ! res="$(in_barclamp "$bc" git_push -nq "$remote" -- tag "${1}")"; then
+                debug "$bc: tag $1 -> $remote will fail."
+                echo "$res" >&2
+                exit 1
+            fi
+            debug "$bc: $rel_br -> $remote is OK."
+            pushcmds+=("in_barclamp $bc git_push $remote -- tag $1")
+        done
+        if ! res="$(in_repo git push -nq "$remote" -- tag "$1")"; then
+            debug "Crowbar: tag $1 -> $remote will fail."
+            echo "$res" >&2
+            exit 1
+        elif ! res="$(in_repo git push -nq "$remote" -- "tag-master-$1:master")"; then
+            debug "Crowbar: adding proper release information to master on $remote will fail."
+            echo "$res" >&2
+            exit 1
+        fi
+        pushcmds+=("in_repo git push $remote -- tag $1" "in_repo git push -- tag-master-$1:master")
+    done
+    debug "Test passed, pushing tags."
+    for cmd in "${pushcmds[@]}"; do
+        if [[ $DRY_RUN = true ]]; then
+            echo "Would have run: $cmd"
+        else
+            $cmd || die ""
+        fi
+    done
+    in_repo git branch -D "tag-master-$1"
+}
 
 # Hash for handling command -> function mapping.
 DEV_COMMANDS["backup"]="backup_everything"
 DEV_COMMANDS["barclamps-in-build"]="barclamps_in_build"
 DEV_COMMANDS["branch"]="current_build"
-DEV_COMMANDS["build"]="build_crowbar"
-DEV_COMMANDS["builds"]="builds_in_release"
-DEV_COMMANDS["build-refs"]="refs_for_build"
 DEV_COMMANDS["branches"]="builds_in_release"
+DEV_COMMANDS["build"]="build_crowbar"
+DEV_COMMANDS["build-refs"]="refs_for_build"
+DEV_COMMANDS["builds"]="builds_in_release"
 DEV_COMMANDS["checkout"]="checkout"
 DEV_COMMANDS["clear-unit-tests"]="clear_unit_tests"
 DEV_COMMANDS["clone-barclamps"]="clone_barclamps"
@@ -2389,6 +2541,8 @@ DEV_COMMANDS["pull-requests-prep"]="pull_requests_prep"
 DEV_COMMANDS["purge-submodules"]="purge_submodule_metadata"
 DEV_COMMANDS["push"]="push_branches"
 DEV_COMMANDS["push-release"]="push_release"
+DEV_COMMANDS["push-tag"]="push_tag"
+DEV_COMMANDS["redundant-barclamps"]="show_duplicate_barclamps"
 DEV_COMMANDS["refresh-tracking"]="update_all_tracking_branches"
 DEV_COMMANDS["release"]="current_release"
 DEV_COMMANDS["releases"]="show_releases"
@@ -2400,9 +2554,9 @@ DEV_COMMANDS["run-unit-tests"]="run_unit_tests"
 DEV_COMMANDS["scrub-merged-pulls"]="scrub_merged_pulls"
 DEV_COMMANDS["setup"]="setup"
 DEV_COMMANDS["setup-unit-tests"]="setup_unit_tests"
-DEV_COMMANDS["redundant-barclamps"]="show_duplicate_barclamps"
 DEV_COMMANDS["switch"]="switch_release"
 DEV_COMMANDS["sync"]="sync_everything"
+DEV_COMMANDS["tag-build"]="tag_build"
 DEV_COMMANDS["unpin"]="unpin_release"
 DEV_COMMANDS["upstream-changes"]="find_remote_changed_branches_for_release"
 
@@ -2437,6 +2591,7 @@ DEV_SHORT_HELP["pull-requests-prep"]=" Prepare to issue pull requests."
 DEV_SHORT_HELP["purge-submodules"]="   Purge submodule information for the master branch in Crowbar."
 DEV_SHORT_HELP["push"]="               Unconditionally push a branch to your personal repos."
 DEV_SHORT_HELP["push-release"]="       Push a release out to a remote"
+DEV_SHORT_HELP["push-tag"]="           Push tags for a tagged release to specified remotes."
 DEV_SHORT_HELP["redundant-barclamps"]="Show redundant barclamp metadata in a release"
 DEV_SHORT_HELP["refresh-tracking"]="   Update git branch tracking metadata."
 DEV_SHORT_HELP["release"]="            Show the current release or feature you are on."
@@ -2451,6 +2606,7 @@ DEV_SHORT_HELP["setup-unit-tests"]="   Sets up unit test environment."
 DEV_SHORT_HELP["setup"]="              Sets up a Crowbar checkout for use with dev."
 DEV_SHORT_HELP["switch"]="             Switch to a different release."
 DEV_SHORT_HELP["sync"]="               Synchronize fetched updates with the local repos."
+DEV_SHORT_HELP["tag-build"]="          Add annotated tags to all components of a particular build."
 DEV_SHORT_HELP["unpin"]="              Unpin a release, build, or barclamp in a build."
 DEV_SHORT_HELP["upstream-changes"]="   Find unmerged changes from upstream for a release"
 
@@ -2707,6 +2863,15 @@ DEV_LONG_HELP["push-release"]="Push the named release to the
 DEV_LONG_HELP["crowbar-version"]="Print out a probably-unique mostly sequential version"
 DEV_LONG_HELP["build-refs"]="Show the Git commits that would be used in a build."
 DEV_LONG_HELP["redundant-barclamps"]="Show redundant barclamp metadata for a build."
+DEV_LONG_HELP["tag-build"]="Add an annotated tag to all components of a build.
+  This command adds annotated tags objects for the passed build,
+  or the current build if no build was passed.  It will prompt for the
+  tag name and drop you into an editor for the tag message."
+DEV_LONG_HELP["push-tag"]="Pushes a tagged release to specified remotes.
+  The tagged release must have been created with tag-build.
+  First argument must be the tag created with tag-build, and the remotes to push to
+  must be passed explicitly with --to."
+
 
 # Verify that we have help for all commands, and exit if we don't.
 for cmd in "${!DEV_COMMANDS[@]}"; do

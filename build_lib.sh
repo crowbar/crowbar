@@ -823,9 +823,18 @@ current_build() { get_repo_cfg 'crowbar.build'; }
 build_exists() [[ -f $CROWBAR_DIR/releases/$1/barclamp-crowbar || \
     -L $CROWBAR_DIR/releases/$1/parent ]]
 
-barclamp_exists_in_build() { 
+__barclamp_exists_in_build() {
     local build=${1%/*} bc=${1##*/}
     [[ -f $CROWBAR_DIR/releases/$build/barclamp-$bc ]]
+}
+
+barclamp_exists_in_build() {
+    __barclamp_exists_in_build "$1" && return 0
+    local build=${1%/*} bc=${1##*/}
+    [[ -L $CROWBAR_DIR/releases/$build/parent ]] || return 1
+    local r=$(readlink "$CROWBAR_DIR/releases/$build/parent")
+    r=${r##*/}
+    barclamp_exists_in_build "${build%/*}/$r/$bc"
 }
 
 build_cfg_dir() {
@@ -891,22 +900,34 @@ barclamp_branch_for_build() {
     # $2 = barclamp
     # $3 = (optional) ref to pin the barclamp at.
     local build=$1 bcfile
+    while [[ true ]]; do
+        __barclamp_exists_in_build "$build/$2" && break
+<<<<<<< HEAD
+        build=$(parent_build "$build")
+        [[ $build ]] && continue
+=======
+        build=$(parent_build "$build") || break
+>>>>>>> 9e7fd67... Flatten
+    done
     if [[ ! $3 ]]; then
-        while [[ true ]]; do
-            barclamp_exists_in_build "$build/$2" && break
-            build=$(parent_build "$build")
-            [[ $build ]] && continue
+        if [[ $build ]]; then
+            cat "$CROWBAR_DIR/releases/$build/barclamp-$2"
+        else
             echo "empty-branch"
-	    return 0
-        done
-	cat "$CROWBAR_DIR/releases/$build/barclamp-$2"
-        return 0
+        fi
+	return 0
+<<<<<<< HEAD
     else
+=======
+    elif [[ $build ]]; then
+>>>>>>> 9e7fd67... Flatten
         bcfile="$CROWBAR_DIR/releases/$build/barclamp-$2"
         [[ -f $bcfile ]] && \
 	    in_barclamp "$2" git rev-parse --verify --quiet "$3" &>/dev/null || return 1
         echo "$3" > "$bcfile"
         git add "$bcfile"
+    else
+        return 1
     fi
 }
 
