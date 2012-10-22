@@ -887,8 +887,8 @@ barclamps_from_build() {
 }
 
 parent_build() {
-    build_exists "$1" || die "Cannot find parent of nonexistent build $1"
-    [[ -L $CROWBAR_DIR/releases/$1/parent ]] || return 0
+    build_exists "$1" || return 1
+    [[ -L $CROWBAR_DIR/releases/$1/parent ]] || return 1
     local p
     p="$(readlink -f "$CROWBAR_DIR/releases/$1/parent")"
     echo "${p##*releases/}"

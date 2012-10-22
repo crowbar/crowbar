@@ -1963,7 +1963,8 @@ cut_tagged_release() {
     for bc in $(barclamps_in_build "$2"); do
         ref=$(barclamp_branch_for_build "$2" "$bc")
         [[ $ref && $ref != empty-branch ]] || continue
-        echo "$ref" > "$CROWBAR_DIR/releases/$1/master/barclamp-$bc"
+        # We assume that the barclamp tags have already been created.
+        echo "$1" > "$CROWBAR_DIR/releases/$1/master/barclamp-$bc"
     done
     for f in "$CROWBAR_DIR/releases/$2/"*; do
         f=${f##*/$2/}
@@ -2430,22 +2431,21 @@ EOF
             "$(barclamp_branch_for_build "$build" "$bc")"
     done
     # Evil, pure evil.
+    old_master="master-$$"
     tag_br="tag-master-$tag"
-    in_repo git branch "$tag_br" "master"
+    in_repo git branch "$old_master" "master"
     if in_repo git reset --hard "$(in_repo origin_remote)/master" && \
-        pin_release "$build" "$tag" && \
-        cut_tagged_release "$tag" "$build"
+        cut_tagged_release "$tag" "$build" && \
         in_repo git tag -a -F "$tag_msg_file" "$tag" && \
-        unpin_release "$build" && \
-        in_repo git checkout "$tag_br" && \
-        in_repo git rebase master; then
-        in_repo git checkout master
-        in_repo git reset --hard "$tag_br"
+        in_repo git branch "$tag_br" && \
+        in_repo git reset --hard "$old_master" && \
+        in_repo git rebase "$tag_br"; then
+        in_repo git branch -D "$old_master"
     else
         in_repo git rebase --abort
         in_repo git checkout -f master
-        git reset --hard "$tag_br"
-        git branch -D "$tag_br"
+        git reset --hard "$old_master"
+        git branch -D -- "$tag_br" "$old_master"
         die "Could not stage tag of the build system." \
             "Please fix things up and try again."
     fi
@@ -2485,7 +2485,7 @@ push_tag() {
                 echo "$res" >&2
                 exit 1
             fi
-            debug "$bc: $rel_br -> $remote is OK."
+            debug "$bc: tag $1 -> $remote is OK."
             pushcmds+=("in_barclamp $bc git_push $remote -- tag $1")
         done
         if ! res="$(in_repo git push -nq "$remote" -- tag "$1")"; then
@@ -2497,6 +2497,7 @@ push_tag() {
             echo "$res" >&2
             exit 1
         fi
+        debug "Crowbar: tag $1 and master updates -> $remote OK."
         pushcmds+=("in_repo git push $remote -- tag $1" "in_repo git push -- tag-master-$1:master")
     done
     debug "Test passed, pushing tags."
@@ -2507,7 +2508,7 @@ push_tag() {
             $cmd || die ""
         fi
     done
-    in_repo git branch -D "tag-master-$1"
+    [[ $DRY_RUN = true ]] || in_repo git branch -D "tag-master-$1"
 }
 
 # Hash for handling command -> function mapping.
