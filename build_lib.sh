@@ -902,12 +902,7 @@ barclamp_branch_for_build() {
     local build=$1 bcfile
     while [[ true ]]; do
         __barclamp_exists_in_build "$build/$2" && break
-<<<<<<< HEAD
-        build=$(parent_build "$build")
-        [[ $build ]] && continue
-=======
         build=$(parent_build "$build") || break
->>>>>>> 9e7fd67... Flatten
     done
     if [[ ! $3 ]]; then
         if [[ $build ]]; then
@@ -916,11 +911,7 @@ barclamp_branch_for_build() {
             echo "empty-branch"
         fi
 	return 0
-<<<<<<< HEAD
-    else
-=======
     elif [[ $build ]]; then
->>>>>>> 9e7fd67... Flatten
         bcfile="$CROWBAR_DIR/releases/$build/barclamp-$2"
         [[ -f $bcfile ]] && \
 	    in_barclamp "$2" git rev-parse --verify --quiet "$3" &>/dev/null || return 1
