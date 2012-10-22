@@ -2498,7 +2498,7 @@ push_tag() {
             exit 1
         fi
         debug "Crowbar: tag $1 and master updates -> $remote OK."
-        pushcmds+=("in_repo git push $remote -- tag $1" "in_repo git push -- tag-master-$1:master")
+        pushcmds+=("in_repo git push $remote -- tag $1" "in_repo git push $remote -- tag-master-$1:master")
     done
     debug "Test passed, pushing tags."
     for cmd in "${pushcmds[@]}"; do
