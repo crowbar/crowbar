@@ -1520,7 +1520,11 @@ push_release() {
             [[ $to_remotes ]] || to_remotes=("$(in_barclamp "$bc" origin_remote)")
             for remote in "${to_remotes[@]}"; do
                 remote_available "$remote" || continue
-                if ! res="$(in_barclamp "$bc" git_push -nq "$remote" -- "${rel_br}:${rel_br}")"; then
+                if ! probe_barclamp_remote "$bc" "${DEV_REMOTE_URLBASE[$remote]}" &>/dev/null; then
+                    debug "Barclamp $bc does not exist at $remote, skipping."
+                    continue
+                fi
+                if ! res="$(in_barclamp "$bc" git push -nq "$remote" -- "${rel_br}:${rel_br}")"; then
                     debug "$bc: $rel_br -> $remote will fail."
                     echo "$res" >&2
                     exit 1
@@ -2480,7 +2484,11 @@ push_tag() {
             in_barclamp "$bc" git cat-file tag "$1" &>/dev/null || \
                 die "Tag $1 exists in barclamp $bc, but it is not an annotated tag!" \
                 "Please fix this up and try again."
-            if ! res="$(in_barclamp "$bc" git_push -nq "$remote" -- tag "${1}")"; then
+            if ! probe_barclamp_remote "$bc" "${DEV_REMOTE_URLBASE[$remote]}" &>/dev/null; then
+                debug "Barclamp $bc does not exist at $remote, skipping."
+                continue
+            fi
+            if ! res="$(in_barclamp "$bc" git push -nq "$remote" -- tag "${1}")"; then
                 debug "$bc: tag $1 -> $remote will fail."
                 echo "$res" >&2
                 exit 1
