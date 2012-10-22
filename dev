@@ -2365,8 +2365,8 @@ run_unit_tests() {
   cd "$test_dir/crowbar_framework"
   rm -rf coverage
   mkdir coverage
-  $RAKE spec:rcov
-  $RCOV -Itest:lib --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec test/unit/*.rb
+  $RCOV --aggregate coverage/testing.data -Ispec:lib --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec spec/*/*.rb
+  $RCOV --aggregate coverage/testing.data -Itest:lib --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec test/unit/*.rb
   cd -
 
   # Run BDD tests
