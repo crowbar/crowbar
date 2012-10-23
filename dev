@@ -2338,9 +2338,12 @@ reload_unit_tests() {
   RAKE="rake"
   type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
   type $RAKE || die "MUST HAVE RAKE"
-  $RAKE db:drop
-  $RAKE db:migrate
-  $RAKE db:fixtures:dump
+  RAILS_ENV="test" $RAKE db:drop
+  RAILS_ENV="development" $RAKE db:drop
+  RAILS_ENV="test" $RAKE db:migrate
+  RAILS_ENV="development" $RAKE db:migrate
+  RAILS_ENV="test" $RAKE db:fixtures:dump
+  RAILS_ENV="development" $RAKE db:fixtures:dump
   cd -
 
   cd "$test_dir/crowbar_framework/BDD"
