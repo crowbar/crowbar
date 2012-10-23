@@ -2352,9 +2352,8 @@ reload_unit_tests() (
 )
 
 run_unit_tests() (
-    if unit_tests_need_reset; then
-        setup_unit_tests || exit 1
-    elif [[ ! -f $CROWBAR_TEST_DIR/crowbar_framework/db/test.sqlite3 ]]; then
+    unit_tests_need_reset && clear_unit_tests
+    if [[ ! -f $CROWBAR_TEST_DIR/crowbar_framework/db/test.sqlite3 ]]; then
         reload_unit_tests || exit 1
     fi
     # Run unit tests
