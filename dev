@@ -7,6 +7,8 @@ GEM_RE='([^0-9].*)-([0-9].*)'
 
 readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
+# Ubuntu hack to make sure gem executables are in our path.
+[[ -d /var/lib/gems/1.8/bin ]] && export PATH=$PATH:/var/lib/gems/1.8/bin
 declare -A DEV_BRANCHES DEV_REMOTE_SOURCES DEV_REMOTE_BRANCHES DEV_ORIGIN_TYPES
 declare -A DEV_REMOTE_PRIORITY DEV_REMOTE_URLBASE __AVAILABLE_REMOTES
 declare -a DEV_SORTED_REMOTES
@@ -42,6 +44,8 @@ VERBOSE=true
 [[ -f $CROWBAR_DIR/build_crowbar.sh && -d $CROWBAR_DIR/.git ]] || \
     die "$CROWBAR_DIR is not a git checkout of Crowbar!"
 export CROWBAR_DIR
+[[ $CROWBAR_TEST_DIR ]] || export CROWBAR_TEST_DIR="/tmp/crowbar-dev-test"
+
 
 . "$CROWBAR_DIR/build_lib.sh" || exit 1
 trap - 0 INT QUIT TERM
@@ -112,6 +116,7 @@ origin_remote() {
 # swizzling that occurs.
 switch_barclamps_to_build() {
     # $1 = new build
+    local bc new_head current_head
     build_exists "$1" || die "Build $1 does not exist"
     for bc in $(barclamps_in_build "$1"); do
 	[[ -d $CROWBAR_DIR/barclamps/$bc/.git ]] || \
@@ -121,13 +126,12 @@ switch_barclamps_to_build() {
     for bc in "$CROWBAR_DIR/barclamps/"*; do
 	bc=${bc##*/}
 	new_branch=$(barclamp_branch_for_build "$1" "$bc")
-	if [[ $new_branch =~ [0-9a-f]{40} ]] && \
-	    { ! in_barclamp "$bc" git symbolic-ref HEAD &>/dev/null; } && \
-	    [[ $(in_barclamp "$bc" git rev-parse HEAD) = $new_branch ]]; then
+        current_head=$(in_barclamp "$bc" git symbolic-ref HEAD 2>/dev/null || \
+            in_barclamp "$bc" git rev-parse HEAD)
+	if [[ $new_branch =~ [0-9a-f]{40} && $new_branch = $current_head ]]; then
 	    # We want HEAD to be on a raw commit, and it is on the one we want.
 	    continue
-	elif [[ $(in_barclamp "$bc" git symbolic-ref HEAD 2>/dev/null) = \
-	    refs/heads/$new_branch ]]; then
+	elif [[ $current_head = refs/heads/$new_branch ]]; then
 	    # We want HEAD to be on a branch, and it is on the one we want.
 	    continue
 	elif [[ $new_branch = empty-branch ]]; then
@@ -2277,117 +2281,103 @@ purge_submodule_metadata() (
 )
 
 reinstall_barclamps() {
-  local test_dir="/tmp/crowbar-dev-test"
-  local base_dir=$(pwd)
-
-  if [[ $@ ]]; then
-    local barclamp_list=()
-    for bc in "$@"; do
-      barclamp_list+=("${base_dir}/barclamps/$bc")
+    local barclamp_list=() bc barclamps=() build=$(current_build)
+    [[ $@ ]] && barclamps=("$@") || barclamps=($(barclamps_in_build))
+    for bc in "${barclamps[@]}"; do
+        barclamp_list+=("$CROWBAR_DIR/barclamps/$bc")
     done
+    (   cd releases/$build/extra
+        ./barclamp_install.rb --force --no-files --no-chef -b \
+            "$CROWBAR_TEST_DIR" "${barclamp_list[@]}") || \
+            die "Failed to install some barclamps."
+    # Clean up the filelists.
+    rm barclamps/*.txt
+
+    "$CROWBAR_TEST_DIR/bin/validate_bags.rb" "$CROWBAR_TEST_DIR/chef/data_bags" || \
+        die "Crowbar configuration has errors.  Please fix and rerun install."
+}
+
+unit_tests_need_reset() {
+    ! [[ -f $CROWBAR_TEST_DIR/.build && \
+        $(cat "$CROWBAR_TEST_DIR/.build") = $(current_build) ]]
+}
+
+setup_unit_tests() (
+    local gem f
+    f=true
+    if ! [[ -f /usr/bin/markdown ]]; then
+        debug "Please make sure markdown is installed."
+        f=false
+    fi
+    if [[ ! $(find /usr/include -name 'sqlite3.h') ]]; then
+        debug "sqlite development headers not installed."
+        f=false
+    fi
+    for gem in kwalify bundler rake rcov rspec; do
+        gem list |grep -q "$gem" && continue
+        debug "Please install the $gem gem."
+        f=false
+    done
+    [[ $f = false ]] && exit 1
+    rm -rf "$CROWBAR_TEST_DIR"
+    mkdir "$CROWBAR_TEST_DIR"
+    reinstall_barclamps "$@" || exit 1
+    sudo chown -R "$USER.$USER" "${CROWBAR_TEST_DIR}"
+    find "$CROWBAR_TEST_DIR" -type d -exec chmod a+x '{}' ';'
+    cd "$CROWBAR_TEST_DIR/crowbar_framework"
+    sed -ie 's/^source .*/source "http:\/\/rubygems.org"/' "Gemfile"
+    bundle
+    cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
+    sudo "$CROWBAR_TEST_DIR/crowbar_framework/BDD/linux_install.sh"
+    ./linux_compile.sh
+    current_build >"$CROWBAR_TEST_DIR/.build"
+)
+
+reload_unit_tests() (
+  local rake_task
+  if unit_tests_need_reset; then
+      setup_unit_tests || exit 1
   else
-    local barclamp_list=("${base_dir}/barclamps/"*)
+      reinstall_barclamps "$@" || exit 1
   fi
-
-  cd releases/$(current_build)/extra
-  ./barclamp_install.rb --force --no-files --no-chef -b "$test_dir" "${barclamp_list[@]}"
-  cd -
-  # Clean up the filelists.
-  rm barclamps/*.txt
-
-  "$test_dir/bin/validate_bags.rb" "$test_dir/chef/data_bags" || \
-  die "Crowbar configuration has errors.  Please fix and rerun install."
-}
-
-setup_unit_tests() {
-  [[ -f /usr/bin/markdown ]] || die "Please make sure markdown is installed. apt-get install markdown" 
-  local test_dir="/tmp/crowbar-dev-test"
-  local base_dir=$(pwd)
-
-  rm -rf "$test_dir"
-  mkdir "$test_dir"
-
-  reinstall_barclamps $@
-
-  "$test_dir/bin/validate_bags.rb" "$test_dir/chef/data_bags" || \
-  die "Crowbar configuration has errors.  Please fix and rerun install."
-
-  local cmd="chown -R $USER.$USER ${test_dir}"
-  sudo $cmd
-
-  cd "$test_dir/crowbar_framework"
-  BUNDLE="bundle"
-  type bundle 2>/dev/null >/dev/null || BUNDLE="/var/lib/gems/1.8/bin/bundle"
-  type $BUNDLE || die "MUST HAVE BUNDLER"
-  sed -ie 's/^source .*/source "http:\/\/rubygems.org"/' "Gemfile"
-  $BUNDLE
-  cd ..
-
-  cd "$test_dir/crowbar_framework/BDD"
-  sudo "$test_dir/crowbar_framework/BDD/linux_install.sh"
-  ./linux_compile.sh
-  cd -
-}
-
-reload_unit_tests() {
-  local test_dir="/tmp/crowbar-dev-test"
-
-  reinstall_barclamps $@
-
-  cd "$test_dir/crowbar_framework"
-  RAKE="rake"
-  type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
-  type $RAKE || die "MUST HAVE RAKE"
-  RAILS_ENV="test" $RAKE db:drop
-  RAILS_ENV="development" $RAKE db:drop
-  RAILS_ENV="test" $RAKE db:migrate
-  RAILS_ENV="development" $RAKE db:migrate
-  RAILS_ENV="test" $RAKE db:fixtures:dump
-  RAILS_ENV="development" $RAKE db:fixtures:dump
-  cd -
-
-  cd "$test_dir/crowbar_framework/BDD"
+  cd "$CROWBAR_TEST_DIR/crowbar_framework"
+  for rake_task in db:drop db:migrate db:fixtures:dump; do
+      for RAILS_ENV in test development; do
+          (export RAILS_ENV; rake "$rake_task")
+      done
+  done
+  cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
   ./linux_compile.sh
   sed -ie 's/192.168.124.10/127.0.0.1/' "crowbar.config"
-  cd -
-}
+)
 
-run_unit_tests() {
-  local test_dir="/tmp/crowbar-dev-test"
-  RAKE="rake"
-  type rake 2>/dev/null >/dev/null || RAKE="/var/lib/gems/1.8/bin/rake"
-  type $RAKE || die "MUST HAVE RAKE"
-  RCOV="rcov"
-  type rcov 2>/dev/null >/dev/null || RCOV="/var/lib/gems/1.8/bin/rcov"
-  type $RCOV || die "MUST HAVE RCOV"
-  RSPEC="rspec"
-  type rspec 2>/dev/null >/dev/null || RSPEC="/var/lib/gems/1.8/bin/rspec"
-  type $RSPEC || die "MUST HAVE RSPEC"
+run_unit_tests() (
+    unit_tests_need_reset && clear_unit_tests
+    if [[ ! -f $CROWBAR_TEST_DIR/crowbar_framework/db/test.sqlite3 ]]; then
+        reload_unit_tests || exit 1
+    fi
+    # Run unit tests
+    cd "$CROWBAR_TEST_DIR/crowbar_framework"
+    rm -rf coverage
+    mkdir coverage
+    rcov --aggregate coverage/testing.data -Ispec:lib \
+        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
+        spec/*/*.rb
+    rcov --aggregate coverage/testing.data -Itest:lib \
+        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
+        test/unit/*.rb
 
-  # Run unit tests
-  cd "$test_dir/crowbar_framework"
-  rm -rf coverage
-  mkdir coverage
-  $RCOV --aggregate coverage/testing.data -Ispec:lib --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec spec/*/*.rb
-  $RCOV --aggregate coverage/testing.data -Itest:lib --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec test/unit/*.rb
-  cd -
+    # Run BDD tests
+    cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
+    ./linux_run.sh
 
-  # Run BDD tests
-  cd "$test_dir/crowbar_framework/BDD"
-  ./linux_run.sh
-  cd -
+    # Run chef unit tests
+    cd "$CROWBAR_TEST_DIR/chef/cookbooks"
+    rm README
+    rspec *
+)
 
-  # Run chef unit tests
-  cd "$test_dir/chef/cookbooks"
-  rm README
-  $RSPEC *
-  cd -
-}
-
-clear_unit_tests() {
-  local test_dir="/tmp/crowbar-dev-test"
-  rm -rf "$test_dir"
-}
+clear_unit_tests() { rm -rf "$CROWBAR_TEST_DIR"; }
 
 # Create a new barclamp.
 create_barclamp() {
