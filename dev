@@ -2303,7 +2303,7 @@ unit_tests_need_reset() {
 }
 
 setup_unit_tests() (
-    local gem f
+    local gem f barclamps=()
     f=true
     if ! [[ -f /usr/bin/markdown ]]; then
         debug "Please make sure markdown is installed."
@@ -2319,14 +2319,44 @@ setup_unit_tests() (
         f=false
     done
     [[ $f = false ]] && exit 1
+    for f in "$@"; do
+        case $f in
+            --offline) local gem_offline=true;;
+            --update-gem-cache) local update_gem_cache=true;;
+            *) barclamps+=("$f");;
+        esac
+    done
     rm -rf "$CROWBAR_TEST_DIR"
     mkdir "$CROWBAR_TEST_DIR"
-    reinstall_barclamps "$@" || exit 1
+    reinstall_barclamps "${barclamps[@]}" || exit 1
     sudo chown -R "$USER.$USER" "${CROWBAR_TEST_DIR}"
     find "$CROWBAR_TEST_DIR" -type d -exec chmod a+x '{}' ';'
     cd "$CROWBAR_TEST_DIR/crowbar_framework"
-    sed -ie 's/^source .*/source "http:\/\/rubygems.org"/' "Gemfile"
-    bundle
+    if [[ $gem_offline = true ]]; then
+        unset update_gem_cache
+        maybe_checkout_build_cache_branch
+        [[ -d $CACHE_DIR/unit_tests/gems ]] || \
+            die "Asked to run in offline mode, but no gem cache available!"
+        sed -ie 's/^source .*/source "http:\/\/127.0.0.1:8125"/' "Gemfile"
+        gem serve --dir "$CACHE_DIR/unit_tests/gems" -p 8125 -b 127.0.0.1 --daemon
+    else
+        sed -ie 's/^source .*/source "http:\/\/rubygems.org"/' "Gemfile"
+    fi
+    bundle || die "Could not fetch all required gems!"
+    if [[ $gem_offline = true ]]; then
+        ps x |awk '/[g]em serve/ {print $1}' |xargs kill -9
+    elif [[ $update_gem_cache = true ]]; then
+        maybe_checkout_build_cache_branch
+        git_managed_cache && git rm -rf "$CACHE_DIR/unit_tests/"
+        rm -rf "$CACHE_DIR/unit_tests"
+        mkdir -p "$CACHE_DIR/unit_tests/gems"
+        cp -a "$(gem env gemdir)" "$CACHE_DIR/unit_tests/gems"
+        rm -rf "$CACHE_DIR/unit_tests/gems/gems"
+        git_managed_cache && {
+            in_cache git add unit_tests
+            in_cache git commit -m "Added updated gems for unit tests"
+        }
+    fi
     cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
     sudo "$CROWBAR_TEST_DIR/crowbar_framework/BDD/linux_install.sh"
     ./linux_compile.sh
@@ -2789,8 +2819,15 @@ DEV_LONG_HELP["scrub-merged-pulls"]="Scrub merged pull request tracking branches
   deleted."
 DEV_LONG_HELP["setup-unit-tests"]="Sets up a unit test environment.
   This will create the environment with all barclamps in /tmp/crowbar-dev-test.
-  Requires sudo access to install Ubuntu packages.  By passing in names of barclamps, the 
-  setup command will only add those barclamps to the test environment."
+  Requires sudo access to install Ubuntu packages.  By passing in names of barclamps, the
+  setup command will only add those barclamps to the test environment.
+
+  setup-unit-tests also takes two optional arguments:
+    --update-gem-cache will copy the contents of /var/lib/gems/1.8 into
+        $CACHE_DIR/unit_tests/gems.  If you are managing your build cache
+        with git, these files will be automatically committed.
+    --offline will force bundler to use the files saved bu --update-gem-cache
+        instead of trying to use gems from the Internet."
 DEV_LONG_HELP["reload-unit-tests"]="Reload the code and database for the units.  Does not re-bundle."
 DEV_LONG_HELP["run-unit-tests"]="Run BDD and unit tests from the /tmp/crowbar environment."
 DEV_LONG_HELP["clear-unit-tests"]="Removes a unit test environment in /tmp/crowbar."
