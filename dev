@@ -1974,7 +1974,7 @@ cut_tagged_release() {
         f=${f##*/$2/}
         [[ $f = barclamp-* ]] && continue
         [[ $f = . || $f = .. || $f = parent ]] && continue
-        cp -ap "$CROWBAR_DIR/releases/$2/$f" \
+        cp -a "$CROWBAR_DIR/releases/$2/$f" \
 	    "$CROWBAR_DIR/releases/$1/master"
     done
     if git_managed_cache; then
