@@ -95,7 +95,6 @@ For more information, please see $CROWBAR_DIR/test_framwwork/README.testing.
 EOF
 }
 
-[[ -f $HOME/.ssh/known_hosts ]] && rm -f "$HOME/.ssh/known_hosts" || :
 [[ -f $HOME/.ssh/id_rsa.pub ]] || { mkdir -p "$HOME/.ssh"; ssh-keygen -q -f "$HOME/.ssh/id_rsa" -t rsa -N '' ; }
 
 case $1 in
