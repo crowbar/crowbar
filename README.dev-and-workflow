@@ -179,8 +179,11 @@ Regular Development:
     to 1.
 
 Ready for pull request:
+	In getting ready for pull request you will need to be familiar with how to use "git" to add and commit a change, then use the dev to make your pull request.  Please read Pro Git online to help understand "git".
 
- 1: Run dev pull-requests-prep
+ 1: Run git  add <filename>
+ 2: Run git commit
+ 3: Run dev pull-requests-prep
     a: dev will verify that all the local Crowbar repositories are "clean".
     b: dev will perform a fetch and a sync, and abort if there were any
        merge conflicts.
@@ -188,7 +191,7 @@ Ready for pull request:
        branches are candidates for a pull request in the current release.
     d: dev will print a command line with all the branches and
        barclamps that are candidates for pull requests in the current release.
- 2: Run dev pull-requests-gen
+ 4: Run dev pull-requests-gen
     a: dev will ask for a title to be used for all the pull requests.
     b: dev will open an editor for you to type in a body that will be
        used for all the pull requests that will be generated.
