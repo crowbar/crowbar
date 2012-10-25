@@ -2280,14 +2280,40 @@ purge_submodule_metadata() (
     rm .gitmodules
 )
 
+# Unit testing functions:
+
+unit_prereqs_installed() {
+    local f gem
+    f=true
+    if ! [[ -f /usr/bin/markdown ]]; then
+        debug "Please make sure markdown is installed."
+        f=false
+    fi
+    if [[ ! $(find /usr/include -name 'sqlite3.h') ]]; then
+        debug "sqlite development headers not installed."
+        f=false
+    fi
+    for gem in kwalify bundler rake rcov rspec; do
+        gem list |grep -q "$gem" && continue
+        debug "Please install the $gem gem."
+        f=false
+    done
+    [[ $f = true ]]
+}
+
+paths_same() {
+    [[ $1 && $2 && -d $1 && -d $2 ]] || die "'$1' and '$2' are not directories."
+    (   exec >/dev/null 2>/dev/null
+        diff -q \
+            <(cd "$1"; find -type f -not -path './.git*' |sort |xargs sha1sum -b) \
+            <(cd "$2"; find -type f -not -path './.git*' |sort |xargs sha1sum -b)
+    )
+}
+
 barclamp_needs_reinstall() {
     # $1 = name of the barclamp
     [[ -f $CROWBAR_TEST_DIR/barclamps/$1/crowbar.yml ]] || return 0
-    diff -q \
-        <(cd "$CROWBAR_TEST_DIR/barclamps/$1"; find -type f -not -path './.git*' |sort |xargs sha1sum -b) \
-        <(cd "$CROWBAR_DIR/barclamps/$1";  find -type f -not -path './.git*' |sort |xargs sha1sum -b) &>/dev/null \
-        || return 0
-    return 1
+    ! paths_same "$CROWBAR_TEST_DIR/barclamps/$1" "$CROWBAR_DIR/barclamps/$1"
 }
 
 barclamps_needing_reinstall() {
@@ -2297,6 +2323,25 @@ barclamps_needing_reinstall() {
         barclamp_needs_reinstall "$bc" || continue
         echo $bc
     done
+}
+
+databases_need_reload() {
+    # $@ = list of barclamps to check for new migrations
+    local bc barclamps=() p
+    [[ -f $CROWBAR_TEST_DIR/crowbar_framework/db/test.sqlite3 && \
+        $CROWBAR_TEST_DIR/crowbar_framework/db/development.sqlite3 ]] || \
+        return 0
+    [[ $@ ]] && barclamps=("$@") || barclamps=($(barclamps_needing_reinstall))
+    for bc in "${barclamps[@]}"; do
+        for p in "crowbar_framework/db" "crowbar_framework/test/fixtures" \
+            "chef/data_bags"; do
+            paths_same "$CROWBAR_TEST_DIR/barclamps/$1/$p" \
+                "$CROWBAR_DIR/barclamps/$1/$p" && continue
+            debug "Database files changed in $bc, need reload."
+            return 0
+        done
+    done
+    return 1
 }
 
 reinstall_barclamps() {
@@ -2315,6 +2360,8 @@ reinstall_barclamps() {
         ./barclamp_install.rb --force --no-files --no-chef -b \
             "$CROWBAR_TEST_DIR" "${barclamp_list[@]}") || \
             die "Failed to install some barclamps."
+    sudo chown -R "$USER.$USER" "${CROWBAR_TEST_DIR}"
+    find "$CROWBAR_TEST_DIR" -type d -exec chmod a+x '{}' ';'
     # Clean up the filelists.
     rm barclamps/*.txt
     "$CROWBAR_TEST_DIR/bin/validate_bags.rb" \
@@ -2329,21 +2376,7 @@ unit_tests_need_reset() {
 
 setup_unit_tests() (
     local gem f barclamps=()
-    f=true
-    if ! [[ -f /usr/bin/markdown ]]; then
-        debug "Please make sure markdown is installed."
-        f=false
-    fi
-    if [[ ! $(find /usr/include -name 'sqlite3.h') ]]; then
-        debug "sqlite development headers not installed."
-        f=false
-    fi
-    for gem in kwalify bundler rake rcov rspec; do
-        gem list |grep -q "$gem" && continue
-        debug "Please install the $gem gem."
-        f=false
-    done
-    [[ $f = false ]] && exit 1
+    unit_prereqs_installed || exit 1
     for f in "$@"; do
         case $f in
             --offline) local gem_offline=true;;
@@ -2354,8 +2387,6 @@ setup_unit_tests() (
     rm -rf "$CROWBAR_TEST_DIR"
     mkdir "$CROWBAR_TEST_DIR"
     reinstall_barclamps "${barclamps[@]}" || exit 1
-    sudo chown -R "$USER.$USER" "${CROWBAR_TEST_DIR}"
-    find "$CROWBAR_TEST_DIR" -type d -exec chmod a+x '{}' ';'
     cd "$CROWBAR_TEST_DIR/crowbar_framework"
     if [[ $gem_offline = true ]]; then
         unset update_gem_cache
@@ -2389,17 +2420,24 @@ setup_unit_tests() (
 )
 
 reload_unit_tests() (
-  local rake_task barclamps
+  local rake_task barclamps dbs_need_reload
   if unit_tests_need_reset; then
       setup_unit_tests || exit 1
   fi
-  reinstall_barclamps "$@" || exit 1
-  cd "$CROWBAR_TEST_DIR/crowbar_framework"
-  for rake_task in db:drop db:migrate db:fixtures:dump; do
-      for RAILS_ENV in test development; do
-          (export RAILS_ENV; rake "$rake_task")
+  barclamps=($(barclamps_needing_reinstall "$@"))
+  [[ $barclamps ]] || return 0
+  if databases_need_reload "${barclamps[@]}"; then
+      dbs_need_reload=true
+  fi
+  reinstall_barclamps "${barclamps[@]}" || exit 1
+  if [[ $dbs_need_reload ]]; then
+      cd "$CROWBAR_TEST_DIR/crowbar_framework"
+      for rake_task in db:drop db:migrate db:fixtures:dump; do
+          for RAILS_ENV in test development; do
+              (export RAILS_ENV; rake "$rake_task")
+          done
       done
-  done
+  fi
   cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
   ./linux_compile.sh
   sed -ie 's/192.168.124.10/127.0.0.1/' "crowbar.config"
@@ -2408,10 +2446,7 @@ reload_unit_tests() (
 run_unit_tests() (
     local barclamps=($(barclamps_needing_reinstall "$@"))
     unit_tests_need_reset && clear_unit_tests
-    if [[ ! -f $CROWBAR_TEST_DIR/crowbar_framework/db/test.sqlite3 || \
-        $barclamps ]]; then
-        reload_unit_tests "$@" || exit 1
-    fi
+    reload_unit_tests "$@" || exit 1
     # Run unit tests
     cd "$CROWBAR_TEST_DIR/crowbar_framework"
     rm -rf coverage
