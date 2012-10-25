@@ -2280,21 +2280,38 @@ purge_submodule_metadata() (
     rm .gitmodules
 )
 
+barclamp_needs_reinstall() {
+    # $1 = name of the barclamp
+    [[ -f $CROWBAR_TEST_DIR/barclamps/$1/crowbar.yml ]] || return 0
+    diff -q \
+        <(cd "$CROWBAR_TEST_DIR/barclamps/$1"; find -type f -not -path './.git*' |sort |xargs sha1sum -b) \
+        <(cd "$CROWBAR_DIR/barclamps/$1";  find -type f -not -path './.git*' |sort |xargs sha1sum -b) &>/dev/null \
+        || return 0
+    return 1
+}
+
 reinstall_barclamps() {
     local barclamp_list=() bc barclamps=() build=$(current_build)
     [[ $@ ]] && barclamps=("$@") || barclamps=($(barclamps_in_build))
     for bc in "${barclamps[@]}"; do
+        barclamp_needs_reinstall "$bc" || continue
+        rm -rf "$CROWBAR_TEST_DIR/barclamps/$bc"
         barclamp_list+=("$CROWBAR_DIR/barclamps/$bc")
     done
-    (   cd releases/$build/extra
-        ./barclamp_install.rb --force --no-files --no-chef -b \
-            "$CROWBAR_TEST_DIR" "${barclamp_list[@]}") || \
-            die "Failed to install some barclamps."
-    # Clean up the filelists.
-    rm barclamps/*.txt
-
-    "$CROWBAR_TEST_DIR/bin/validate_bags.rb" "$CROWBAR_TEST_DIR/chef/data_bags" || \
-        die "Crowbar configuration has errors.  Please fix and rerun install."
+    if [[ $barclamp_list ]]; then
+        debug "${barclamp_list[*]} barclamps have changed, reloading."
+        (   cd releases/$build/extra
+            ./barclamp_install.rb --force --no-files --no-chef -b \
+                "$CROWBAR_TEST_DIR" "${barclamp_list[@]}") || \
+                die "Failed to install some barclamps."
+        # Clean up the filelists.
+        rm barclamps/*.txt
+        "$CROWBAR_TEST_DIR/bin/validate_bags.rb" \
+            "$CROWBAR_TEST_DIR/chef/data_bags" || \
+            die "Crowbar configuration has errors.  Please fix and rerun install."
+    else
+        debug "No barclamps changed."
+    fi
 }
 
 unit_tests_need_reset() {
@@ -2367,9 +2384,8 @@ reload_unit_tests() (
   local rake_task
   if unit_tests_need_reset; then
       setup_unit_tests || exit 1
-  else
-      reinstall_barclamps "$@" || exit 1
   fi
+  reinstall_barclamps "$@" || exit 1
   cd "$CROWBAR_TEST_DIR/crowbar_framework"
   for rake_task in db:drop db:migrate db:fixtures:dump; do
       for RAILS_ENV in test development; do
@@ -2384,7 +2400,7 @@ reload_unit_tests() (
 run_unit_tests() (
     unit_tests_need_reset && clear_unit_tests
     if [[ ! -f $CROWBAR_TEST_DIR/crowbar_framework/db/test.sqlite3 ]]; then
-        reload_unit_tests || exit 1
+        reload_unit_tests "$@" || exit 1
     fi
     # Run unit tests
     cd "$CROWBAR_TEST_DIR/crowbar_framework"
