@@ -2290,28 +2290,36 @@ barclamp_needs_reinstall() {
     return 1
 }
 
-reinstall_barclamps() {
-    local barclamp_list=() bc barclamps=() build=$(current_build)
+barclamps_needing_reinstall() {
+    local bc barclamps=()
     [[ $@ ]] && barclamps=("$@") || barclamps=($(barclamps_in_build))
     for bc in "${barclamps[@]}"; do
         barclamp_needs_reinstall "$bc" || continue
+        echo $bc
+    done
+}
+
+reinstall_barclamps() {
+    local barclamps=() barclamp_list=() bc build=$(current_build)
+    [[ $@ ]] && barclamps=("$@") || barclamps=($(barclamps_needing_reinstall))
+    if [[ ! $barclamps ]]; then
+        debug "No barclamps changed."
+        return 0
+    fi
+    for bc in "${barclamps[@]}"; do
         rm -rf "$CROWBAR_TEST_DIR/barclamps/$bc"
         barclamp_list+=("$CROWBAR_DIR/barclamps/$bc")
     done
-    if [[ $barclamp_list ]]; then
-        debug "${barclamp_list[*]} barclamps have changed, reloading."
-        (   cd releases/$build/extra
-            ./barclamp_install.rb --force --no-files --no-chef -b \
-                "$CROWBAR_TEST_DIR" "${barclamp_list[@]}") || \
-                die "Failed to install some barclamps."
-        # Clean up the filelists.
-        rm barclamps/*.txt
-        "$CROWBAR_TEST_DIR/bin/validate_bags.rb" \
-            "$CROWBAR_TEST_DIR/chef/data_bags" || \
-            die "Crowbar configuration has errors.  Please fix and rerun install."
-    else
-        debug "No barclamps changed."
-    fi
+    debug "${barclamps[*]} barclamps have changed, reloading."
+    (   cd releases/$build/extra
+        ./barclamp_install.rb --force --no-files --no-chef -b \
+            "$CROWBAR_TEST_DIR" "${barclamp_list[@]}") || \
+            die "Failed to install some barclamps."
+    # Clean up the filelists.
+    rm barclamps/*.txt
+    "$CROWBAR_TEST_DIR/bin/validate_bags.rb" \
+        "$CROWBAR_TEST_DIR/chef/data_bags" || \
+        die "Crowbar configuration has errors.  Please fix and rerun install."
 }
 
 unit_tests_need_reset() {
@@ -2381,7 +2389,7 @@ setup_unit_tests() (
 )
 
 reload_unit_tests() (
-  local rake_task
+  local rake_task barclamps
   if unit_tests_need_reset; then
       setup_unit_tests || exit 1
   fi
@@ -2398,8 +2406,10 @@ reload_unit_tests() (
 )
 
 run_unit_tests() (
+    local barclamps=($(barclamps_needing_reinstall "$@"))
     unit_tests_need_reset && clear_unit_tests
-    if [[ ! -f $CROWBAR_TEST_DIR/crowbar_framework/db/test.sqlite3 ]]; then
+    if [[ ! -f $CROWBAR_TEST_DIR/crowbar_framework/db/test.sqlite3 || \
+        $barclamps ]]; then
         reload_unit_tests "$@" || exit 1
     fi
     # Run unit tests
