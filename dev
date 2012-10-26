@@ -2425,9 +2425,11 @@ reload_unit_tests() (
       setup_unit_tests || exit 1
   fi
   barclamps=($(barclamps_needing_reinstall "$@"))
-  [[ $barclamps ]] || return 0
+  
   if databases_need_reload "${barclamps[@]}"; then
       dbs_need_reload=true
+  elif [[ ! $barclamps ]]; then
+      return 0
   fi
   reinstall_barclamps "${barclamps[@]}" || exit 1
   if [[ $dbs_need_reload ]]; then
