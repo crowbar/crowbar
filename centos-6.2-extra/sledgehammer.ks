@@ -11,7 +11,7 @@ repo --name=a-extras  --baseurl=http://mirror.centos.org/centos/6/extras/$basear
 repo --name=a-epel    --baseurl=http://mirrors.xmission.com/fedora/epel/6/$basearch
 repo --name=a-live    --baseurl=http://www.nanotechnologies.qc.ca/propos/linux/centos-live/$basearch/live
 repo --name=a-rbel    --baseurl=http://rbel.frameos.org/stable/el6/$basearch
-
+repo --name=a-wsman   --baseurl=http://download.opensuse.org/repositories/Openwsman/CentOS_CentOS-6
 %packages
 @core
 bash
@@ -71,6 +71,9 @@ compat-libstdc++-33.i686
 libstdc++.i686
 lvm2
 efibootmgr
+unzip
+openwsman-ruby
+wsmancli
 
 %post
 
