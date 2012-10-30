@@ -6,8 +6,8 @@
       "instances": {
         "deployer": [ "default" ],
         "ipmi": [ "default" ],
-        "bios": [ "default" ],
-        "raid": [ "default" ],
+        "dell_bios": [ "default" ],
+        "dell_raid": [ "default" ],
         "provisioner": [ "default" ],
         "network": [ "default" ],
         "ntp": [ "default" ],
