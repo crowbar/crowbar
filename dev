@@ -1370,8 +1370,13 @@ sync_repo() (
     # Merge upstream branches from our remotes
     head=$(git symbolic-ref HEAD)
     if [[ $head != refs/heads/* ]]; then
-        debug "Barclamp ${repo##*/}: Cannot find head commit."
-        return 1
+        head=$(git rev-parse HEAD)
+        if [[ ! $head ]]; then
+            debug "Barclamp ${repo##*/}: Cannot find head commit."
+            return 1
+        fi
+    else
+        head=${head#refs/heads/}
     fi
     while read ref branch; do
 	branch=${branch#refs/heads/}
