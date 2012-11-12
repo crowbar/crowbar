@@ -132,16 +132,73 @@ fi
 
 CROWBAR=/opt/dell/bin/crowbar
 
-for repo in suse-11.2/install repos/Cloud; do
-    repo=/srv/tftpboot/$repo
-    if ! [ -e $repo/content.asc ] && ! [ -e $repo/repodata/repomd.xml.asc ]; then
+skip_check_for_repo () {
+    repo="$1"
+    for skipped_repo in $REPOS_SKIP_CHECKS; do
+        if [ "$repo" = "$skipped_repo" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+check_repo_content () {
+    repo_name="$1" repo_path="$2" md5="$3"
+
+    if skip_check_for_repo "$repo_name"; then
+        echo "Skipping check for $repo_name due to \$REPOS_SKIP_CHECKS"
+        return 0
+    fi
+
+    if ! [ -e "$repo_path/content.asc" ]; then
         if [ -n "$CROWBAR_TESTING" ]; then
             die "$repo has not been set up yet; please see https://github.com/SUSE/cloud/wiki/Crowbar"
         else
-            die "$repo has not been set up yet; please check you didn't miss a step in the installation guide."
+            die "$repo_name has not been set up yet; please check you didn't miss a step in the installation guide."
         fi
     fi
-done
+
+    if [ "`md5sum $repo_path/content | awk '{print $1}'`" != "$md5" ]; then
+        die "$repo_name does not contain the expected repository ($repo_path/content failed MD5 checksum)"
+    fi
+}
+
+check_repo_product () {
+    repo="$1" expected_summary="$2"
+    products_xml=/srv/tftpboot/repos/$repo/repodata/products.xml
+    if ! grep -q "<summary>$2</summary>" $products_xml; then
+        if skip_check_for_repo "$repo"; then
+            echo "Ignoring failed repo check for $repo due to \$REPOS_SKIP_CHECKS ($products_xml is missing summary '$expected_summary')"
+            return 0
+        fi
+        die "$repo does not contain the right repository ($products_xml is missing summary '$expected_summary')"
+    fi
+}
+
+check_repo_content \
+    SLES11_SP2 \
+    /srv/tftpboot/suse-11.2/install \
+    f775f5e2d11b75bf1f3fef97700bcfd3
+
+check_repo_content \
+    Cloud \
+    /srv/tftpboot/repos/Cloud \
+    1558be86e7354d31e71e7c8c2574031a
+
+if skip_check_for_repo "Cloud-PTF"; then
+    echo "Skipping check for Cloud-PTF due to \$REPOS_SKIP_CHECKS"
+else
+    if ! [ -e "/srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml" ]; then
+        die "Cloud-PTF has not been set up correctly; did the crowbar rpm fail to install correctly?"
+    fi
+fi
+
+check_repo_product SLES11-SP1-Pool     'SUSE Linux Enterprise Server 11 SP1'
+check_repo_product SLES11-SP1-Updates  'SUSE Linux Enterprise Server 11 SP1'
+check_repo_product SLES11-SP1-Updates  'SUSE_SLES Service Pack 2 Migration Product'
+check_repo_product SLES11-SP2-Core     'SUSE Linux Enterprise Server 11 SP2'
+check_repo_product SLES11-SP2-Updates  'SUSE Linux Enterprise Server 11 SP2'
+check_repo_product SUSE-Cloud-1.0-Pool 'SUSE Cloud 1.0'
 
 if [ -n "$CROWBAR_TESTING" ]; then
     # This is supposed to go away once the Chef dependencies are included in the
