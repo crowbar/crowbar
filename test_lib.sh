@@ -982,6 +982,10 @@ deploy_nodes() {
                     smoketest_update_status "$node" "$res"
                     smoketest_update_status "$node" "Node deployed."
                     exit 0
+                elif res=$(check_ready "${hname/d/h}"); then
+                    smoketest_update_status "$node" "$res"
+                    smoketest_update_status "$node" "Node deployed."
+                    exit 0
                 elif [[ $lastres != $res ]]; then
                     smoketest_update_status "$node" "$res"
                     lastres="$res"
