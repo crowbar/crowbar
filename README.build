@@ -103,6 +103,13 @@ Command Line Parameters:
     a caching web proxy such as polipo or squid, otherwise repeated
     builds will be very slow.
 
+  --do-not-clean
+    Skip using git clean to clean up the trees before starting the build.
+    Only use this flag if you can tolerate build breaks due to having
+    files present that should not be there, and you are confortable with
+    debugging that state yourself.  If you are not comfortable using
+    this flag, you should be using dev build.
+
 Usage:
   * Run build_crowbar.sh from the Crowbar git repository.  
     The first time it is run, it will download and cache all the files it 

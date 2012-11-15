@@ -267,6 +267,7 @@ while [[ $1 ]]; do
 	# tarballs.
 	--no-iso) shift; NO_GENERATE_ISO=true;;
 	--skip-lock) shift; __skip_lock=true;;
+        --do-not-clean) shift; NO_CLEAN_DIRS=true;;
 	*)          die "Unknown command line parameter $1";;
     esac
 done
@@ -357,11 +358,15 @@ do_crowbar_build() {
     # Start with a clean slate.
     clean_dirs "$IMAGE_DIR" "$BUILD_DIR" "$CHROOT"
 
-    debug "Cleaning up any VCS cruft."
-    # Clean up any cruft that the editor may have left behind.
-    (for d in "$CROWBAR_DIR" "$CROWBAR_DIR/barclamps/"*; do
-	cd "$d"; $VCS_CLEAN_CMD
-	done)
+    if [[ $NO_CLEAN_DIRS = true ]]; then
+        debug "Skipping clean by user request."
+    else
+        debug "Cleaning up any VCS cruft."
+        # Clean up any cruft that the editor may have left behind.
+        (for d in "$CROWBAR_DIR" "$CROWBAR_DIR/barclamps/"*; do
+	    cd "$d"; $VCS_CLEAN_CMD
+	    done)
+    fi
 
     # Make additional directories we will need.
     for d in discovery extra/pkgs extra/files; do
