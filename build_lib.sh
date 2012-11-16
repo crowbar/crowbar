@@ -980,6 +980,17 @@ build_branch() {
     esac
 }
 
+# Given a branch, figure out what release it is for
+release_for_branch() {
+    # $1 = branch name
+    local r
+    case $1 in
+        master) echo "development";;
+        feature/*) echo "${1%/*}";;
+        release/*) r="${1#release/}"; echo "${r%/*}";;
+    esac
+}
+
 crowbar_version() {
     local bc build br
     build=${1:-$(current_build)}
