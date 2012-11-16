@@ -2437,11 +2437,12 @@ reload_unit_tests() (
       return 0
   fi
   reinstall_barclamps "${barclamps[@]}" || exit 1
+  BUNDLE=/var/lib/gems/1.8/bin/bundle
   if [[ $dbs_need_reload ]]; then
       cd "$CROWBAR_TEST_DIR/crowbar_framework"
       for rake_task in db:drop db:migrate db:fixtures:dump; do
           for RAILS_ENV in test development; do
-              (export RAILS_ENV; rake "$rake_task")
+              (export RAILS_ENV; $BUNDLE exec rake "$rake_task")
           done
       done
   fi
