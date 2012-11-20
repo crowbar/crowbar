@@ -701,7 +701,7 @@ fetch_pull_requests_for_remote() {
     debug "Fetching open pull requests for Crowbar"
     fetch_pull_request_metadata "$remote" "crowbar"
     sort_pull_requests
-    debug "Done"
+    show_open_pull_requests
 }
 
 pull_request_bundle_sane() {
@@ -3128,20 +3128,8 @@ DEV_LONG_HELP["push"]="Push a branch or branches to your personal remote.
   there are no arguments it pushes the branch you are currently on.
   Any branches pushed using this command will automatically be backed
   up when dev backup is run as well."
-DEV_LONG_HELP["pull-requests-prep"]="Prepare to issue pull requests.
-  Fetches, Syncs, and backs up all changes, figures out the set of
-  barclamps and crowbar branches in the current release that have
-  local changes, and generates a commandline based on the assumption
-  that you want to issue pull requests for all the changes it found.
-
-  pull-requests-prep honors the --to flag to control what remote you
-  want to send your pull requests to.
-
-  The output is a command line that can be edited to reflect what you
-  actually want to issue pull requests for."
-DEV_LONG_HELP["pull-requests-gen"]="Generate pull requests to Github.
-  Creates a set of pull requests based on differences inthe current
-  release between your origin remote and your local trees."
+DEV_LONG_HELP["pull-requests-prep"]="Alias for pull-requests prep"
+DEV_LONG_HELP["pull-requests-gen"]="Alias for pull-requests gen"
 DEV_LONG_HELP["release"]="Shows the current release that dev is operating on."
 DEV_LONG_HELP["releases"]="Lists the releases to choose from."
 DEV_LONG_HELP["builds"]="Show builds in the current or specified release.
@@ -3313,7 +3301,31 @@ DEV_LONG_HELP["push-tag"]="Pushes a tagged release to specified remotes.
   First argument must be the tag created with tag-build, and the remotes to push to
   must be passed explicitly with --to."
 DEV_LONG_HELP["fetch-pull-requests"]="Fetch pull request metadata from a remote"
-DEV_LONG_HELP["pull-requests"]="Manage pull requests"
+DEV_LONG_HELP["pull-requests"]="Manage pull requests.
+  By default, dev fetch will also grab pull request information, and display
+  the number of open pull requests and pull request bundles after all other fetch
+  operations have finished. 
+  Subcommands:
+    fetch: Fetch open pull requests from all repositories at a specific remote.
+    prep: Prepare to issue pull requests.
+      Fetches, Syncs, and backs up all changes, figures out the set of
+      barclamps and crowbar branches in the current release that have
+      local changes, and generates a commandline based on the assumption
+      that you want to issue pull requests for all the changes it found.
+
+      pull-requests-prep honors the --to flag to control what remote you
+      want to send your pull requests to.
+
+      The output is a command line that can be edited to reflect what you
+      actually want to issue pull requests for.
+    gen: Generate pull requests to Github.
+      Creates a set of pull requests based on differences inthe current
+      release between your origin remote and your local trees.
+    list: List the open pull requests an pull request bundles.
+      List displays the pull requests in oldest-first format, and the
+      numbers next to each pull request will be stable until the next
+      dev fetch or dev pull-requests fetch operation happens.
+    show: Show details about a pull request or pull request bundle."
 
 
 # Verify that we have help for all commands, and exit if we don't.
