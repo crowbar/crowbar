@@ -2517,7 +2517,7 @@ maybe_checkout_build_cache_branch() {
 # Otherwise, build a Crowbar ISO after sanity-checking the current env.
 build_crowbar() {
     local build_args=() b c target_os target_build target_release target_branch exact
-    local switch_include_cache=true
+    local switch_include_cache=true no_switch=false
     target_release=$(current_release)
     target_branch=$(current_build)
     target_branch=${target_branch##*/}
@@ -2529,6 +2529,7 @@ build_crowbar() {
 	    --release) shift; target_release="$1";;
 	    --branch) shift; target_branch="$1";;
 	    --exact) exact=true;;
+            --no-switch) no_switch=true;;
 	    *) build_args+=($1);;
 	esac
 	shift
@@ -2536,9 +2537,11 @@ build_crowbar() {
     [[ $target_os ]] || \
 	die "Cannot build Crowbar, need to know what OS to stage it on!"
     build_args+=("--skip-lock")
-    switch_release "${target_release}" || \
-	die "Could not switch to $target_release for build!"
-    checkout "$target_branch"
+    if [[ $no_switch = false ]]; then
+        switch_release "${target_release}" || \
+	    die "Could not switch to $target_release for build!"
+        checkout "$target_branch"
+    fi
     if [[ $exact ]]; then
 	debug "Exact does not mean anything anymore."
     fi
@@ -3279,7 +3282,7 @@ DEV_LONG_HELP["switch"]="Switch to a new release or release/build.
   release. dev switch will also set any barclamps that are not used in
   the new branch to an empty branch."
 DEV_LONG_HELP["checkout"]="Check out a new build in the current release.
-   Change to a new build in the current release.  Checkout will ensure
+  Change to a new build in the current release.  Checkout will ensure
   that any barclamps that are ont being used by the new branch are set
   to an empty branch."
 DEV_LONG_HELP["build"]="Build Crowbar or display the current working build.
@@ -3289,6 +3292,8 @@ DEV_LONG_HELP["build"]="Build Crowbar or display the current working build.
   Parameters:
     --os = operating system to stage Crowbar on to.
     --release = Release or release/build of Crowbar to build.
+    --no-switch = Do not try and sanity-check the branches.
+      This is usefil when testing builds based on a pull request.
   Any other parameters will be passed unchanged to build_crowbar.sh.
   See README.build for more information on building Crowbar."
 DEV_LONG_HELP["cut_release"]="Cut a new release of Crowbar.
@@ -3467,7 +3472,7 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
       the pull request.
 
       Please note that this will put any trees that have changes to be pulled
-      into a detached HEAD state."
+      into a detached HEAD state.  You can use dev switch to get back to normal."
 
 # Verify that we have help for all commands, and exit if we don't.
 for cmd in "${!DEV_COMMANDS[@]}"; do
