@@ -178,6 +178,7 @@ switch_release() {
     barclamps_are_clean || \
 	die "Crowbar repo must be clean before trying to switch releases!"
     switch_barclamps_to_build "$new_build"
+    in_repo quiet_checkout master
     for l in change-image extra; do
 	[[ $(in_repo readlink -f $l) = "releases/$new_build/$l" ]] && continue
 	in_repo rm -f "$l"
@@ -635,6 +636,7 @@ save_pull_request_metadata() (
     fi
 )
 
+# Clear out local pull request metadata, including local pull request branches.
 clear_pull_request_metadata() (
     for bc in "$CROWBAR_DIR/barclamps/"* "$CROWBAR_DIR"; do
         [[ -d $bc/.git || -f $bc/.git ]] || continue
@@ -705,6 +707,7 @@ fetch_pull_request_metadata() {
     save_pull_request_metadata
 }
 
+# Fetch pull request metadata for all repostories at a given remote.
 fetch_pull_requests_for_remote() {
     # $1 = remote to check for updates from
     local remote
@@ -725,6 +728,9 @@ fetch_pull_requests_for_remote() {
     show_open_pull_requests
 }
 
+# Check to see of a pull request bundle is sane.
+# Sanity consists of having all the pull requests we need and
+# ensuring that the branch -> release mapping is consistent.
 pull_request_bundle_sane() {
     # $1 = bundle ID.
     # Returns true if all components of the bundle are present, and if
@@ -781,6 +787,7 @@ pull_request_bundle_sane() {
     fi
 }
 
+# Show a count of all open pull request bundles and singleton pull requests.
 show_open_pull_requests() {
    local -a open_bundles open_singletons
    local d r
@@ -805,6 +812,7 @@ show_open_pull_requests() {
    debug "$r"
 }
 
+# Helper to determine when a pull request bundle was last touched.
 pull_request_last_touched() (
     # $1 = bundle
     # Returns the most recent date that any of the bundle components were touched.
@@ -829,6 +837,7 @@ pull_request_last_touched() (
     fi
 )
 
+# Helper for finding out all the pull request metadata we have.
 pull_request_directories() (
     cd "$LOCAL_PULL_TRACKING"
     for d in bundles/* singletons/*/*; do
@@ -840,7 +849,7 @@ pull_request_directories() (
     done |sort |cut -d \| -f 2
 )
 
-
+# Sort pull requests according to their last modification time.
 sort_pull_requests() {
     local count=1 p
     rm "$LOCAL_PULL_TRACKING/pull_request_index" &>/dev/null
@@ -850,6 +859,8 @@ sort_pull_requests() {
     done
 }
 
+# translate a pull request number (as displayed by dev pull-requests list)
+# into an internal ID.
 pull_request_number_to_id() {
     [[ $1 && $1 =~ [0-9]+ ]] || die "Please pass a pull request # from dev pull-request list!"
     read idx id < <(grep "^$1 " "$LOCAL_PULL_TRACKING/pull_request_index")
@@ -857,7 +868,6 @@ pull_request_number_to_id() {
         "dev pull-requests list shows the open ones we know about."
     echo $id
 }
-
 
 # Return a list of builds that a pull request should trigger.
 # This is based on barclamp membership.
@@ -891,6 +901,7 @@ builds_for_pull_request() {
     done
 }
 
+# Show information for a pull request in human-readable format.
 show_pull_request() {
     local idx id prq repo release
     local -a builds
@@ -946,6 +957,7 @@ show_pull_request() {
     fi
 }
 
+# List pull requests.  Uses the quasi-stable numbering provided by sorting.
 list_pull_requests() {
     local idx id
     while read idx id; do
@@ -954,6 +966,63 @@ list_pull_requests() {
         cr="$LOCAL_PULL_TRACKING/$id/release"
         echo "$idx: ($(cat "$cr")) $(cat "$cf")"
     done <"$LOCAL_PULL_TRACKING/pull_request_index"
+}
+
+# Switch to a specific build in a pull request.
+# The release is inferred by the preferred release of the build request.
+pull_request_switch() {
+    # $1 = the local number of the pull request.
+    # $2 = the build within the pull request. If only one
+    #      build is applicable for a pull request, it defaults to that one.
+    #      If more than one is applicable, you must set this arg.
+    crowbar_is_clean || die "Trees must be clean before switching to a pull request"
+    local id idx prq release bc barclamps build builds repo_dirs repo_dir repo
+    idx=$1
+    id=$(pull_request_number_to_id "$idx") ||  \
+        die "$id is not a valid pull request. dev pull-requests list will help."
+    builds=($(builds_for_pull_request "$idx"))
+    [[ $builds ]] || \
+        die "Pull request $idx has no associated builds!"
+    if (( ${#builds[@]} == 1 )) && [[ ! $2 || $2 = $builds ]]; then
+        build=${builds}
+    elif [[ $2 ]] && ! is_in "$2" "${builds[*]}"; then
+        die "Build $2 is not applicable to pull request $idx." \
+            "Run ./dev pull-requests builds $idx to see what is."
+    elif [[ ! $2 ]]; then
+        die "You must pass a build to pull-requests switch, because there is no obvious default." \
+            "Run ./dev pull-requests builds $idx to see what is available."
+    else
+        build=$2
+    fi
+    prq="$LOCAL_PULL_TRACKING/$id"
+    switch_release "$(cat "$prq/release")/$build"
+    case $id in
+        singletons/*) repo_dirs=("$prq");;
+        bundles/*) repo_dirs=("$prq/"*);;
+    esac
+    for repo_dir in "${repo_dirs[@]}"; do
+        case $repo_dir in
+            */singletons/*) repo="${repo_dir#*/singletons/}"; repo="${repo%/*}";;
+            */bundles/*) repo="${repo_dir##*/}";;
+        esac
+        local local_branch="$(cat "$repo_dir/local_branch")"
+        local target_branch="$(cat "$repo_dir/target_branch")"
+        (
+            case $repo in
+                barclamp-*) cd "$CROWBAR_DIR/barclamps/${repo#barclamp-}";;
+                crowbar) cd "$CROWBAR_DIR";;
+            esac
+            git checkout "$(git rev-parse "$target_branch")" || \
+                die "Could not checkout raw commit for $target_branch"
+            git merge "$(git rev-parse "$local_branch")" && continue
+            git merge --abort
+            die "Could not merge $local_branch into $target_branch in $repo"
+        ) || {
+            switch_release
+            exit 1
+        }
+    done
+    debug "You are now on build $build in pull request $idx."
 }
 
 __fetch_all() {
@@ -2999,6 +3068,7 @@ pull_request_handler() {
         list) list_pull_requests "$@";;
         show) show_pull_request "$@";;
         builds) builds_for_pull_request "$@";;
+        switch) pull_request_switch "$@";;
         '') show_open_pull_requests "$@";;
     esac
 }
@@ -3389,7 +3459,15 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
       numbers next to each pull request will be stable until the next
       dev fetch or dev pull-requests fetch operation happens.
     show: Show details about a pull request or pull request bundle.
-    builds: Show a list of builds this pull request should trigger."
+    builds: Show a list of builds this pull request should trigger.
+    switch: Switch to a new tree that has the contents of a pull request
+      merged into your current trees.  Your trees must be clean before 
+      doing this. The first argument to this command must be a pull request
+      number, and the second argument must be a build that is applicable to
+      the pull request.
+
+      Please note that this will put any trees that have changes to be pulled
+      into a detached HEAD state."
 
 # Verify that we have help for all commands, and exit if we don't.
 for cmd in "${!DEV_COMMANDS[@]}"; do
