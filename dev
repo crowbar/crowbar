@@ -1001,6 +1001,8 @@ pull_request_switch() {
         bundles/*) repo_dirs=("$prq/"*);;
     esac
     for repo_dir in "${repo_dirs[@]}"; do
+        [[ -d $repo_dir ]] || continue
+        debug "Repo dir: $repo_dir"
         case $repo_dir in
             */singletons/*) repo="${repo_dir#*/singletons/}"; repo="${repo%/*}";;
             */bundles/*) repo="${repo_dir##*/}";;
