@@ -1019,7 +1019,7 @@ pull_request_switch() {
             die "Could not merge $local_branch into $target_branch in $repo"
         ) || {
             switch_release
-            exit 1
+            die "Pull request $idx does not merge cleanly.  It should be updated or closed."
         }
     done
     debug "You are now on build $build in pull request $idx."
