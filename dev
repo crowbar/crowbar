@@ -477,7 +477,7 @@ __update_tracking_branches() {
 	[[ ${br##*/} = HEAD ]] && continue
 	if [[ $br = refs/heads/* ]]; then
 	    br="${br#refs/heads/}"
-	    if [[ $br = personal/* || $br = pull-req* ]]; then
+	    if [[ $br = personal/* ]]; then
 		# This should not be here.  Kill it.
 		git branch -D "$br"
 		# Nuke any config that might have come from a remote we don't care about.
@@ -594,6 +594,7 @@ scrub_merged_pull_requests() {
 
 # Helper function only for use by fetch_pull_request_metadata
 save_pull_request_metadata() (
+    local fetchcmd
     [[ $base_branch && \
         $pull_req_branch && \
         $pull_req_repo && \
@@ -608,6 +609,13 @@ save_pull_request_metadata() (
         local dest="$LOCAL_PULL_TRACKING/singletons/$repo/$github_id"
         [[ $order ]] || order='1:1'
     fi
+    case $repo in
+        crowbar) fetchcmd="in_repo git fetch";;
+        barclamp-*) fetchcmd="in_barclamp "${repo#barclamp-}" git fetch";; 
+        *) die "Unknown repo $repo!";;
+    esac
+    local local_branch="pull-req-$github_id"
+    $fetchcmd "$pull_req_repo" "+$pull_req_branch:$local_branch" &>/dev/null || return
     mkdir -p "$dest" && cd "$dest"
     echo "$order" > order
     echo "$pull_req_repo" > repo
@@ -618,12 +626,25 @@ save_pull_request_metadata() (
     echo "$created_at" > created_at
     echo "$title" > title
     echo "$github_url" > github_url
+    echo "$local_branch" > local_branch
     [[ $updated_at ]] && echo "$updated_at" > updated_at
     if [[ $rel ]]; then
         echo "$rel" > release
     else
         echo "$(release_for_branch "$base_branch")" >release
     fi
+)
+
+clear_pull_request_metadata() (
+    for bc in "$CROWBAR_DIR/barclamps/"* "$CROWBAR_DIR"; do
+        [[ -d $bc/.git || -f $bc/.git ]] || continue
+        cd "$bc"
+        while read sha ref; do
+            [[ $ref = refs/heads/pull-req-* ]] || continue
+            git branch -D ${ref#refs/heads/} &>/dev/null
+        done < <(git show-ref --heads)
+    done
+    [[ -d $LOCAL_PULL_TRACKING ]] && rm -rf "$LOCAL_PULL_TRACKING"
 )
 
 # Fetch pull request metadata from Github.
@@ -691,7 +712,7 @@ fetch_pull_requests_for_remote() {
     crowbar_remote_exists "$remote" && remote_available "$remote" && \
         [[ ${DEV_REMOTE_URLBASE[$remote]} =~ $github_re ]] || \
         die "Cannot check for pull requests from $remote"
-    rm -rf "$LOCAL_PULL_TRACKING"
+    clear_pull_request_metadata
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         [[ -d $bc/.git || -f $bc/.git ]] || continue
         in_barclamp "${bc##*/}" git_remote_exists "$remote" || continue
@@ -829,13 +850,52 @@ sort_pull_requests() {
     done
 }
 
-show_pull_request() {
-    local idx id prq repo release
-    local -a builds
+pull_request_number_to_id() {
     [[ $1 && $1 =~ [0-9]+ ]] || die "Please pass a pull request # from dev pull-request list!"
     read idx id < <(grep "^$1 " "$LOCAL_PULL_TRACKING/pull_request_index")
     [[ $1 = $idx ]] || die "$1 is not a valid pull request." \
         "dev pull-requests list shows the open ones we know about."
+    echo $id
+}
+
+
+# Return a list of builds that a pull request should trigger.
+# This is based on barclamp membership.
+# Returns a list of builds in the order in which they should be built.
+builds_for_pull_request() {
+    local idx id repo prq repo_dir release builds=() repo_dirs=()
+    idx=$1
+    id=$(pull_request_number_to_id "$idx") || exit 1
+    prq="$LOCAL_PULL_TRACKING/$id"
+    read release <"$prq/release"
+    case $id in
+        singletons/*) repo_dirs=("$prq");;
+        bundles/*) repo_dirs=("$prq/"*);;
+        *) die "Cannot happen.";;
+    esac
+    for repo_dir in "${repo_dirs[@]}"; do
+        case $repo_dir in
+            */singletons/*) repo="${repo_dir#*/singletons/}"; repo="${repo%/*}";;
+            */bundles/*) repo="${repo_dir##*/}";;
+        esac
+        case $repo in
+            barclamp-*) builds+=($(builds_for_barclamp_in_release "${repo#barclamp-}" "$release"));;
+            crowbar) builds=($(builds_in_release "$release"));;
+        esac
+    done
+    local -A build_hash
+    for id in "${builds[@]}"; do build_hash[$id]=$id; done
+    for id in $(builds_in_release "$release"); do
+        [[ ${build_hash[$id]} ]] || continue
+        echo $id
+    done
+}
+
+show_pull_request() {
+    local idx id prq repo release
+    local -a builds
+    idx=$1
+    id=$(pull_request_number_to_id $idx) || exit 1
     prq="$LOCAL_PULL_TRACKING/$id"
     [[ -f $prq/title ]] || die "Something Wicked happened trying to show $idx." \
         "Please re-run dev pull-request fetch"
@@ -855,6 +915,7 @@ show_pull_request() {
         echo "Repo:                $repo"
         echo "Repo with Changes:   $(cat "$prq/repo")"
         echo "Branch with Changes: $(cat "$prq/source_branch")"
+        echo "Local Branch:        $(cat "$prq/local_branch")"
         echo "Target Branch:       $(cat "$prq/target_branch")"
         echo "Pull Request URL:    $(cat "$prq/github_url")"
         echo "Builds:              ${builds[*]}"
@@ -875,6 +936,7 @@ show_pull_request() {
             echo "Repo: ${repo##*/}"
             echo "    Repo with Changes:   $(cat "$repo/repo")"
             echo "    Branch with Changes: $(cat "$repo/source_branch")"
+            echo "    Local Branch:        $(cat "$repo/local_branch")"
             echo "    Target Branch:       $(cat "$repo/target_branch")"
             echo "    Pull Request URL:    $(cat "$repo/github_url")"
             echo "    Builds:              ${builds[*]}"
@@ -936,7 +998,7 @@ __fetch_all() {
 # main Crowbar repository and the barclamps.
 fetch_all() {
     local results_dir d
-    [[ -d "$LOCAL_PULL_TRACKING" ]] && rm -rf "$LOCAL_PULL_TRACKING"
+    clear_pull_request_metadata
     results_dir="$(mktemp -d /tmp/crowbar_fetch_XXXXXX)" || \
         die "Cannot create temporary storage for fetch results!"
     debug "Fetching updates:"
@@ -2936,6 +2998,7 @@ pull_request_handler() {
         dirs) pull_request_directories "$@";;
         list) list_pull_requests "$@";;
         show) show_pull_request "$@";;
+        builds) builds_for_pull_request "$@";;
         '') show_open_pull_requests "$@";;
     esac
 }
@@ -3304,7 +3367,7 @@ DEV_LONG_HELP["fetch-pull-requests"]="Fetch pull request metadata from a remote"
 DEV_LONG_HELP["pull-requests"]="Manage pull requests.
   By default, dev fetch will also grab pull request information, and display
   the number of open pull requests and pull request bundles after all other fetch
-  operations have finished. 
+  operations have finished.
   Subcommands:
     fetch: Fetch open pull requests from all repositories at a specific remote.
     prep: Prepare to issue pull requests.
@@ -3325,8 +3388,8 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
       List displays the pull requests in oldest-first format, and the
       numbers next to each pull request will be stable until the next
       dev fetch or dev pull-requests fetch operation happens.
-    show: Show details about a pull request or pull request bundle."
-
+    show: Show details about a pull request or pull request bundle.
+    builds: Show a list of builds this pull request should trigger."
 
 # Verify that we have help for all commands, and exit if we don't.
 for cmd in "${!DEV_COMMANDS[@]}"; do
