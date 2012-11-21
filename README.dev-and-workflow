@@ -203,10 +203,7 @@ Ready for pull request:
 
 Review pull request:
 
- 1: Dell reviewer is notified of the pull request by Github.
- 2: Reviewer reviews and tests pull requests as a group.
- 3: If the changes are OK to be pulled, reviewer merges them in order.
-
+  See README.dev-and-code-review
 
 Release Workflows:
 
