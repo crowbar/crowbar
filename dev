@@ -1002,7 +1002,6 @@ pull_request_switch() {
     esac
     for repo_dir in "${repo_dirs[@]}"; do
         [[ -d $repo_dir ]] || continue
-        debug "Repo dir: $repo_dir"
         case $repo_dir in
             */singletons/*) repo="${repo_dir#*/singletons/}"; repo="${repo%/*}";;
             */bundles/*) repo="${repo_dir##*/}";;
@@ -1014,7 +1013,7 @@ pull_request_switch() {
                 barclamp-*) cd "$CROWBAR_DIR/barclamps/${repo#barclamp-}";;
                 crowbar) cd "$CROWBAR_DIR";;
             esac
-            git checkout "$(git rev-parse "$target_branch")" || \
+            quiet_checkout "$(git rev-parse "$target_branch")" || \
                 die "Could not checkout raw commit for $target_branch"
             git merge "$(git rev-parse "$local_branch")" && continue
             git merge --abort
