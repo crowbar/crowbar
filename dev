@@ -2842,7 +2842,8 @@ setup_unit_tests() (
     rm -rf "$CROWBAR_TEST_DIR"
     mkdir "$CROWBAR_TEST_DIR"
     reinstall_barclamps "${barclamps[@]}" || exit 1
-    cd "$CROWBAR_TEST_DIR/crowbar_framework"
+    cd "$CROWBAR_TEST_DIR"
+    cp crowbar_framework/Gemfile .
     if [[ $gem_offline = true ]]; then
         unset update_gem_cache
         maybe_checkout_build_cache_branch
@@ -2891,7 +2892,7 @@ reload_unit_tests() (
       cd "$CROWBAR_TEST_DIR/crowbar_framework"
       for rake_task in db:drop db:migrate db:fixtures:dump; do
           for RAILS_ENV in test development; do
-              (export RAILS_ENV; rake "$rake_task")
+              (export RAILS_ENV; bundle exec rake "$rake_task")
           done
       done
   fi
@@ -2902,6 +2903,7 @@ reload_unit_tests() (
 
 run_unit_tests() (
     local barclamps=($(barclamps_needing_reinstall "$@"))
+    local final_result=pass
     unit_tests_need_reset && clear_unit_tests
     reload_unit_tests "$@" || exit 1
     # Run unit tests
@@ -2910,19 +2912,20 @@ run_unit_tests() (
     mkdir coverage
     rcov --aggregate coverage/testing.data -Ispec:lib \
         --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
-        spec/*/*.rb
+        spec/*/*.rb || final_result=fail
     rcov --aggregate coverage/testing.data -Itest:lib \
         --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
-        test/unit/*.rb
+        test/unit/*.rb || final_result=fail
 
     # Run BDD tests
     cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
-    ./linux_run.sh
+    ./linux_run.sh || final_result=fail
 
     # Run chef unit tests
     cd "$CROWBAR_TEST_DIR/chef/cookbooks"
     rm README
-    rspec *
+    bundle exec rspec * || final_result=fail
+    [[ $final_result = pass ]]
 )
 
 clear_unit_tests() { rm -rf "$CROWBAR_TEST_DIR"; }
