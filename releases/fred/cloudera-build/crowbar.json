@@ -26,6 +26,7 @@
          "Hadoop": "Hadoop"
       },
       "raid-settings": {
+         "RAID1 + JBOD" : "HadoopRaid1",
          "JBOD Only" : "JBODOnly",
          "Single RAID 10": "SingleRaid10" 
       },
