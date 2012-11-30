@@ -154,6 +154,7 @@ switch_barclamps_to_build() {
 	fi
     done
     # Record that we are on the new build.
+    in_repo git config 'crowbar.release' "${1%/*}"
     in_repo git config 'crowbar.build' "$1"
 }
 
@@ -615,7 +616,7 @@ save_pull_request_metadata() (
         barclamp-*) fetchcmd="in_barclamp "${repo#barclamp-}" git fetch";; 
         *) die "Unknown repo $repo!";;
     esac
-    local local_branch="pull-req-$github_id"
+    local local_branch="pull-req/$github_user/$github_id"
     $fetchcmd "$pull_req_repo" "+$pull_req_branch:$local_branch" &>/dev/null || return
     mkdir -p "$dest" && cd "$dest"
     echo "$order" > order
@@ -642,7 +643,7 @@ clear_pull_request_metadata() (
         [[ -d $bc/.git || -f $bc/.git ]] || continue
         cd "$bc"
         while read sha ref; do
-            [[ $ref = refs/heads/pull-req-* ]] || continue
+            [[ $ref = refs/heads/pull-req/* ]] || continue
             git branch -D ${ref#refs/heads/} &>/dev/null
         done < <(git show-ref --heads)
     done
@@ -665,16 +666,16 @@ fetch_pull_request_metadata() {
     . <(parse_yml_or_json - pulls < <(
             curl_and_res "https://api.github.com/repos/$acct/$2/pulls"))
     local pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
-    local base_branch key ord repo title rel github_id updated_at github_url
+    local base_branch key ord repo title rel github_id updated_at github_url github_user
     for key in $(printf '%s\n' "${!pulls[@]}" |sort); do
         if [[ $ord && $ord != ${key%%.*} ]]; then
             # The first part of the key has changed, so we should have a complete set of data.
             save_pull_request_metadata
             unset pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
-            unset base_branch key ord repo title rel github_id updated_at github_url
+            unset base_branch key ord repo title rel github_id updated_at github_url github_user
 
             local pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
-            local base_branch key ord repo title rel github_id updated_at github_url
+            local base_branch key ord repo title rel github_id updated_at github_url github_user
 
         fi
         ord=${key%%.*}
@@ -687,6 +688,7 @@ fetch_pull_request_metadata() {
                 [[ ${pulls[$key]} =~ $PULL_RELEASE_RE ]] && rel="${BASH_REMATCH[1]}";;
             # The repo and branch that contains changes to be tested.
             head.ref) pull_req_branch="${pulls[$key]}";;
+            head.repo.owner.login) github_user="${pulls[$key]}";;
             head.sha) pull_req_sha="${pulls[$key]}";;
             head.repo.clone_url) pull_req_repo="${pulls[$key]}";;
             title)
@@ -839,6 +841,7 @@ pull_request_last_touched() (
 
 # Helper for finding out all the pull request metadata we have.
 pull_request_directories() (
+    [[ -d $LOCAL_PULL_TRACKING ]] || return 0
     cd "$LOCAL_PULL_TRACKING"
     for d in bundles/* singletons/*/*; do
         if [[ $d = bundles/* ]]; then
