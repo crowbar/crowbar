@@ -604,11 +604,12 @@ save_pull_request_metadata() (
         $repo && \
         $title && \
         $github_id && \
-        $created_at ]] || return
+        $created_at  && \
+        $github_target_user ]] || return
     if [[ $pull_req_id ]]; then
-        local dest="$LOCAL_PULL_TRACKING/bundles/$pull_req_id/$repo"
+        local dest="$LOCAL_PULL_TRACKING/$github_target_user/bundles/$pull_req_id/$repo"
     else
-        local dest="$LOCAL_PULL_TRACKING/singletons/$repo/$github_id"
+        local dest="$LOCAL_PULL_TRACKING/$github_target_user/singletons/$repo/$github_id"
         [[ $order ]] || order='1:1'
     fi
     case $repo in
@@ -629,6 +630,7 @@ save_pull_request_metadata() (
     echo "$title" > title
     echo "$github_url" > github_url
     echo "$local_branch" > local_branch
+    echo "$github_user" > source_account
     [[ $updated_at ]] && echo "$updated_at" > updated_at
     if [[ $rel ]]; then
         echo "$rel" > release
@@ -667,15 +669,18 @@ fetch_pull_request_metadata() {
             curl_and_res "https://api.github.com/repos/$acct/$2/pulls"))
     local pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
     local base_branch key ord repo title rel github_id updated_at github_url github_user
+    local github_target_user
     for key in $(printf '%s\n' "${!pulls[@]}" |sort); do
         if [[ $ord && $ord != ${key%%.*} ]]; then
             # The first part of the key has changed, so we should have a complete set of data.
             save_pull_request_metadata
             unset pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
             unset base_branch key ord repo title rel github_id updated_at github_url github_user
+            unset github_target_user
 
             local pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
             local base_branch key ord repo title rel github_id updated_at github_url github_user
+            local github_target_user
 
         fi
         ord=${key%%.*}
@@ -689,6 +694,7 @@ fetch_pull_request_metadata() {
             # The repo and branch that contains changes to be tested.
             head.ref) pull_req_branch="${pulls[$key]}";;
             head.repo.owner.login) github_user="${pulls[$key]}";;
+            base.repo.owner.login) github_target_user="${pulls[$key]}";;
             head.sha) pull_req_sha="${pulls[$key]}";;
             head.repo.clone_url) pull_req_repo="${pulls[$key]}";;
             title)
@@ -741,16 +747,19 @@ pull_request_bundle_sane() {
     local -A orders releases branches
     local -a order
     local total_count=0 indicated_count=0 d f r repo o c release branch
-    local branch_for_release build bc
-    for d in "$LOCAL_PULL_TRACKING/bundles/$1/"*; do
+    local branch_for_release build bc source_account su tu
+    for d in "$LOCAL_PULL_TRACKING/"*"/bundles/$1/"*; do
         [[ -d "$d" ]] || continue
         repo="${d##*/}"
-        for f in order repo source_branch source_sha \
+        for f in order repo source_branch source_sha source_account \
             target_branch number created_at title release; do
-            [[ -f $d/$f ]] || return 1
+            [[ -f $d/$f ]] && continue
+            debug "Missing metadata info $d/$f"
+            return 1
         done
         read o < "$d/order"
         read r < "$d/release"
+        read su < "$d/source_account"
         read branch < "$d/target_branch"
         if ((indicated_count == 0)); then
             indicated_count="${o##*:}"
@@ -768,6 +777,15 @@ pull_request_bundle_sane() {
             debug "Release changed in pull request bundle $1"
             return 1
         fi
+
+        if [[ ! $source_account ]]; then
+            source_account=$su
+        elif
+            [[ $su != $source_account ]]; then
+            debug "Source Github account for pull request changed"
+            return 1
+        fi
+
         if [[ $d = *barclamp-* ]]; then
             bc="${d##barclamp-}"
             for build in $(builds_for_barclamp_in_release "$bc" "$release"); do
@@ -777,8 +795,9 @@ pull_request_bundle_sane() {
             done
         fi
         (   cd "$d"
-            [[ -f ../title ]] || cp title ..
-            [[ -f ../release ]] || cp release ..)
+            for f in title release source_account; do
+                [[ -f ../$f ]] || cp "$f" ..
+            done )
         orders[$repo]=$o
         releases[$repo]=$release
         branches[$repo]=$branch
@@ -793,12 +812,12 @@ pull_request_bundle_sane() {
 show_open_pull_requests() {
    local -a open_bundles open_singletons
    local d r
-   for d in "$LOCAL_PULL_TRACKING/bundles/"*; do
+   for d in "$LOCAL_PULL_TRACKING/"*"/bundles/"*; do
        [[ -d $d ]] || continue
        pull_request_bundle_sane "${d##*/}" || continue
        open_bundles+=("$d")
    done
-   for d in "$LOCAL_PULL_TRACKING/singletons/"*/*; do
+   for d in "$LOCAL_PULL_TRACKING/"*"/singletons/"*/*; do
        [[ -d $d ]] || continue
        open_singletons+=("$d")
    done
@@ -819,7 +838,7 @@ pull_request_last_touched() (
     # $1 = bundle
     # Returns the most recent date that any of the bundle components were touched.
     local mtime
-    if [[ $1 = bundles/* ]]; then
+    if [[ $1 = */bundles/* ]]; then
         cd "$LOCAL_PULL_TRACKING/$1" || die "Bundle $1 does not exist!"
         for d in *; do
             [[ -d $d ]] || continue
@@ -828,7 +847,7 @@ pull_request_last_touched() (
             [[ $ltime > $mtime ]] && mtime=$ltime
         done
         echo $mtime
-    elif [[ $1 = singletons/* ]]; then
+    elif [[ $1 = */singletons/* ]]; then
         if [[ -f $LOCAL_PULL_TRACKING/$1/updated_at ]]; then
             cat "$LOCAL_PULL_TRACKING/$1/updated_at"
         else
@@ -843,8 +862,8 @@ pull_request_last_touched() (
 pull_request_directories() (
     [[ -d $LOCAL_PULL_TRACKING ]] || return 0
     cd "$LOCAL_PULL_TRACKING"
-    for d in bundles/* singletons/*/*; do
-        if [[ $d = bundles/* ]]; then
+    for d in */bundles/* */singletons/*/*; do
+        if [[ $d = */bundles/* ]]; then
             pull_request_bundle_sane "${d##*/}" || continue
         fi
         [[ -f $d/title ]] || continue
@@ -882,8 +901,8 @@ builds_for_pull_request() {
     prq="$LOCAL_PULL_TRACKING/$id"
     read release <"$prq/release"
     case $id in
-        singletons/*) repo_dirs=("$prq");;
-        bundles/*) repo_dirs=("$prq/"*);;
+        */singletons/*) repo_dirs=("$prq");;
+        */bundles/*) repo_dirs=("$prq/"*);;
         *) die "Cannot happen.";;
     esac
     for repo_dir in "${repo_dirs[@]}"; do
@@ -906,16 +925,17 @@ builds_for_pull_request() {
 
 # Show information for a pull request in human-readable format.
 show_pull_request() {
-    local idx id prq repo release
+    local idx id prq repo release target_account
     local -a builds
     idx=$1
     id=$(pull_request_number_to_id $idx) || exit 1
+    target_account="${id%%/*}"
     prq="$LOCAL_PULL_TRACKING/$id"
     [[ -f $prq/title ]] || die "Something Wicked happened trying to show $idx." \
         "Please re-run dev pull-request fetch"
     read release <"$prq/release"
-    if [[ $id = singletons/* ]]; then
-        repo="${id#singletons/}"
+    if [[ $id = */singletons/* ]]; then
+        repo="${id#*/singletons/}"
         repo="${repo%/*}"
         if [[ $repo = barclamp-* ]]; then
             builds=($(builds_for_barclamp_in_release "${repo#barclamp-}" "$release"))
@@ -923,6 +943,7 @@ show_pull_request() {
             builds=($(builds_in_release "$release"))
         fi
         echo "Title:               $(cat "$prq/title")"
+        echo "Target Account:      $target_account"
         echo "Release:             $release"
         echo "Last Updated:        $(pull_request_last_touched "$id")"
         echo "Type:                singleton"
@@ -933,12 +954,13 @@ show_pull_request() {
         echo "Target Branch:       $(cat "$prq/target_branch")"
         echo "Pull Request URL:    $(cat "$prq/github_url")"
         echo "Builds:              ${builds[*]}"
-    elif [[ $id = bundles/* ]]; then
-        echo "Title:        $(cat "$prq/title")"
-        echo "Release:      $release"
-        echo "Last Updated: $(pull_request_last_touched "$id")"
-        echo "Type:         bundle"
-        echo "Bundle ID:    ${id##*/}"
+    elif [[ $id = */bundles/* ]]; then
+        echo "Title:          $(cat "$prq/title")"
+        echo "Target Account: $target_account"
+        echo "Release:        $release"
+        echo "Last Updated:   $(pull_request_last_touched "$id")"
+        echo "Type:           bundle"
+        echo "Bundle ID:      ${id##*/}"
         local repo
         for repo in "$prq/"*; do
             [[ -d $repo ]] || continue
@@ -967,7 +989,8 @@ list_pull_requests() {
         [[ -d $LOCAL_PULL_TRACKING/$id ]] || continue
         cf="$LOCAL_PULL_TRACKING/$id/title"
         cr="$LOCAL_PULL_TRACKING/$id/release"
-        echo "$idx: ($(cat "$cr")) $(cat "$cf")"
+        ct="${id%%/*}"
+        echo "$idx: ($ct: $(cat "$cr")) $(cat "$cf")"
     done <"$LOCAL_PULL_TRACKING/pull_request_index"
 }
 
@@ -1000,8 +1023,8 @@ pull_request_switch() {
     prq="$LOCAL_PULL_TRACKING/$id"
     switch_release "$(cat "$prq/release")/$build"
     case $id in
-        singletons/*) repo_dirs=("$prq");;
-        bundles/*) repo_dirs=("$prq/"*);;
+        */singletons/*) repo_dirs=("$prq");;
+        */bundles/*) repo_dirs=("$prq/"*);;
     esac
     for repo_dir in "${repo_dirs[@]}"; do
         [[ -d $repo_dir ]] || continue
@@ -3080,6 +3103,8 @@ pull_request_handler() {
         builds) builds_for_pull_request "$@";;
         switch) pull_request_switch "$@";;
         '') show_open_pull_requests "$@";;
+        *) die "$req is not a valid pull-request subcommand!" \
+            "Try $0 help pull-requests.";;
     esac
 }
 
