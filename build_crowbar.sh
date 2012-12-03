@@ -418,6 +418,7 @@ do_crowbar_build() {
 		} >&2
 		debug "Updating $cache cache for $bc"
 		[[ $cache =~ ^(pkg|gem)$ ]] && make_chroot
+                MAYBE_UPDATE_GIT_CACHE=true
 		$updater "$bc"
 	    fi
 	done

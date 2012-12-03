@@ -53,7 +53,7 @@ export CROWBAR_DIR
 
 . "$CROWBAR_DIR/build_lib.sh" || exit 1
 trap - 0 INT QUIT TERM
-
+trap 'sudo rm -rf "$CROWBAR_TMP"' 0 INT QUIT TERM
 which gem &>/dev/null || \
     die "Rubygems not installed, and some of our helpers need a JSON gem."
 
@@ -600,6 +600,7 @@ save_pull_request_metadata() (
     [[ $base_branch && \
         $pull_req_branch && \
         $pull_req_repo && \
+        $pull_req_target_repo && \
         $pull_req_sha && \
         $repo && \
         $title && \
@@ -622,6 +623,7 @@ save_pull_request_metadata() (
     mkdir -p "$dest" && cd "$dest"
     echo "$order" > order
     echo "$pull_req_repo" > repo
+    echo "$pull_req_target_repo" > target_repo
     echo "$pull_req_branch" > source_branch
     echo "$pull_req_sha" > source_sha
     echo "$base_branch" > target_branch
@@ -669,18 +671,18 @@ fetch_pull_request_metadata() {
             curl_and_res "https://api.github.com/repos/$acct/$2/pulls"))
     local pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
     local base_branch key ord repo title rel github_id updated_at github_url github_user
-    local github_target_user
+    local github_target_user pull_req_target_repo
     for key in $(printf '%s\n' "${!pulls[@]}" |sort); do
         if [[ $ord && $ord != ${key%%.*} ]]; then
             # The first part of the key has changed, so we should have a complete set of data.
             save_pull_request_metadata
             unset pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
             unset base_branch key ord repo title rel github_id updated_at github_url github_user
-            unset github_target_user
+            unset github_target_user pull_req_target_repo
 
             local pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
             local base_branch key ord repo title rel github_id updated_at github_url github_user
-            local github_target_user
+            local github_target_user pull_req_target_repo
 
         fi
         ord=${key%%.*}
@@ -697,6 +699,7 @@ fetch_pull_request_metadata() {
             base.repo.owner.login) github_target_user="${pulls[$key]}";;
             head.sha) pull_req_sha="${pulls[$key]}";;
             head.repo.clone_url) pull_req_repo="${pulls[$key]}";;
+            base.repo.clone_url) pull_req_target_repo="${pulls[$key]}";;
             title)
                 if [[ ${pulls[$key]} =~ $PULL_TITLE_RE ]]; then
                     order="${BASH_REMATCH[2]}:${BASH_REMATCH[3]}"
@@ -717,21 +720,28 @@ fetch_pull_request_metadata() {
 
 # Fetch pull request metadata for all repostories at a given remote.
 fetch_pull_requests_for_remote() {
-    # $1 = remote to check for updates from
+    # $@ = remote to check for updates from
+    local -a remotes
     local remote
-    [[ $1 ]] && remote=$1 || remote=$(origin_remote)
-    crowbar_remote_exists "$remote" && remote_available "$remote" && \
-        [[ ${DEV_REMOTE_URLBASE[$remote]} =~ $github_re ]] || \
-        die "Cannot check for pull requests from $remote"
+    [[ $1 ]] && remotes=("$@") || remotes=($(origin_remote))
     clear_pull_request_metadata
-    for bc in "$CROWBAR_DIR/barclamps/"*; do
-        [[ -d $bc/.git || -f $bc/.git ]] || continue
-        in_barclamp "${bc##*/}" git_remote_exists "$remote" || continue
-        debug "Fetching open pull requests for barclamp ${bc##*/}"
-        fetch_pull_request_metadata "$remote" "barclamp-${bc##*/}"
+    for remote in "${remotes[@]}"; do
+        if ! (crowbar_remote_exists "$remote" && remote_available "$remote" && \
+            [[ ${DEV_REMOTE_URLBASE[$remote]} =~ $github_re ]]); then
+            debug "Cannot fetch pull requests from $remote, skipping."
+            continue
+        fi
+        debug "Fetching pull requests from $remote:"
+        for bc in "$CROWBAR_DIR/barclamps/"*; do
+            [[ -d $bc/.git || -f $bc/.git ]] || continue
+            in_barclamp "${bc##*/}" git_remote_exists "$remote" || continue
+            debug "Fetching open pull requests for barclamp ${bc##*/}"
+            fetch_pull_request_metadata "$remote" "barclamp-${bc##*/}"
+        done
+        debug "Fetching open pull requests for Crowbar"
+        fetch_pull_request_metadata "$remote" "crowbar"
+        echo
     done
-    debug "Fetching open pull requests for Crowbar"
-    fetch_pull_request_metadata "$remote" "crowbar"
     sort_pull_requests
     show_open_pull_requests
 }
@@ -891,35 +901,105 @@ pull_request_number_to_id() {
     echo $id
 }
 
+builds_for_one_pull_request() {
+    # $1 =path to pull request
+    local f val
+    local -a builds
+    for f in target_repo release; do
+        read val < "$1/$f"
+        eval 'local $f=$val'
+    done
+    local repo=${target_repo##*/}
+    repo=${repo%.git}
+    case $repo in
+        barclamp-*)
+            builds=($(builds_for_barclamp_in_release "${repo#barclamp-}" "$release" ));;
+        crowbar)
+            builds=($(builds_in_release "$release"));;
+        *) die "Unknown repo $repo in builds_for_one_pull_request!";;
+    esac
+    echo "${builds[*]}"
+}
+
 # Return a list of builds that a pull request should trigger.
 # This is based on barclamp membership.
 # Returns a list of builds in the order in which they should be built.
 builds_for_pull_request() {
-    local idx id repo prq repo_dir release builds=() repo_dirs=()
+    local idx id b p release build os repo prq res=() all_oses=()
+    local -A oses build_tmp PULL_REQUEST_BARCLAMPS barclamp_oses build_oses _t _r
     idx=$1
     id=$(pull_request_number_to_id "$idx") || exit 1
     prq="$LOCAL_PULL_TRACKING/$id"
     read release <"$prq/release"
     case $id in
-        */singletons/*) repo_dirs=("$prq");;
-        */bundles/*) repo_dirs=("$prq/"*);;
-        *) die "Cannot happen.";;
+        */singletons/*)
+            if [[ $prq = */barclamp-* ]]; then
+                repo=$(cat "$prq/repo")
+                PULL_REQUEST_BARCLAMPS[${repo##barclamp-}]=$(cat "$prq/local_branch")
+            fi
+            for b in $(builds_for_one_pull_request "$prq"); do
+                build_tmp[$b]="build"
+            done;;
+        */bundles/*)
+            for repo in "$prq"/*; do
+                [[ -d $repo ]] || continue
+                [[ $repo = */barclamp-* ]] && \
+                    PULL_REQUEST_BARCLAMPS[${repo##*/barclamp-}]=$(cat "$repo/local_branch")
+                for b in $(builds_for_one_pull_request "$repo"); do
+                    build_tmp[$b]="build"
+                done
+            done;;
     esac
-    for repo_dir in "${repo_dirs[@]}"; do
-        case $repo_dir in
-            */singletons/*) repo="${repo_dir#*/singletons/}"; repo="${repo%/*}";;
-            */bundles/*) repo="${repo_dir##*/}";;
-        esac
-        case $repo in
-            barclamp-*) builds+=($(builds_for_barclamp_in_release "${repo#barclamp-}" "$release"));;
-            crowbar) builds=($(builds_in_release "$release"));;
-        esac
+    # Now, we have all the possibly-applicable builds.
+    # Get all the possible OSes for all possible barclamps in those builds, and use
+    # it to derive all the OSes applicable to a build.
+    all_oses=($(all_supported_oses))
+    for build in "${!build_tmp[@]}"; do
+        # Start off assuming that all builds can use all OSes
+        unset _t
+        local -A _t
+        for os in "${all_oses[@]}"; do _t[$os]=build; done
+        for b in $(barclamps_in_build "$release/$build"); do
+            if ! [[ ${barclamp_oses[$b]} ]]; then
+                local br
+                if [[ ${PULL_REQUEST_BARCLAMPS[$b]} ]]; then
+                    br="${PULL_REQUEST_BARCLAMPS[$b]}"
+                else
+                    br="$(barclamp_branch_for_build "$release/$build" "$b")"
+                fi
+                p=$(extract_barclamp_metadata "$b" "$br")
+                barclamp_oses[$b]=$(read_barclamp_metadata "$p" "barclamp" "os_support")
+                [[ ${barclamp_oses[$b]} ]] || barclamp_oses[$b]=none
+            fi
+            if [[ ${barclamp_oses[$b]} && ${barclamp_oses[$b]} != none ]]; then
+                unset _r
+                local -A _r
+                for os in ${barclamp_oses[$b]}; do _r[$os]=$b; done
+                for os in "${!_t[@]}"; do
+                    [[ ${_r[$os]} ]] && continue
+                    unset _t[$os]
+                done
+            fi
+        done
+        build_oses[$build]="${!_t[*]}"
     done
-    local -A build_hash
-    for id in "${builds[@]}"; do build_hash[$id]=$id; done
-    for id in $(builds_in_release "$release"); do
-        [[ ${build_hash[$id]} ]] || continue
-        echo $id
+    # Now, filter the per-OS lists down to leaf nodes.
+    res=($(builds_in_release "$release"))
+    # Filter out the builds that will be masked.
+    for id in "${res[@]}"; do
+        [[ ${build_tmp[$id]} ]] || continue
+        # Find the parent for this build.
+        p="${DEV_BRANCHES[$id]}"
+        # Special case for the master build.
+        [[ $p = $id ]] && continue
+        # If we wanted to build the parent for the current build, don't.
+        # It will be implicitly tested when we build this build.
+        [[ ${build_tmp[$p]} ]] && build_tmp[$p]=skip
+    done
+    # Display the ones that did not get masked
+    for id in "${res[@]}"; do
+        [[ ${build_tmp[$id]} && ${build_tmp[$id]} = build ]] || continue
+        echo "$id: ${build_oses[$id]}"
     done
 }
 

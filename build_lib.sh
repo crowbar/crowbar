@@ -11,16 +11,16 @@
     export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 }
 
+[[ $CROWBAR_TMP ]] || CROWBAR_TMP=$(mktemp -d /tmp/.crowbar-tmp-XXXXXXX)
+export CROWBAR_TMP
+
 # We might use lots and lots of open files.  Bump our open FD limits.
 ulimit -Sn unlimited
 
 # Hashes to hold our "interesting" information.
 # Key = barclamp name
 # Value = whatever interesting thing we are looking for.
-declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
-declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
-declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
-declare -A BC_SUPERCEDES BC_SRC_PKGS
+[[ ${BC_QUERY_STRINGS[*]} ]] || declare -A BC_QUERY_STRINGS
 
 # Build OS independent query strings.
 BC_QUERY_STRINGS["deps"]="barclamp requires"
@@ -38,6 +38,85 @@ BC_QUERY_STRINGS["supercedes"]="barclamp supercedes"
 ALLOW_CACHE_UPDATE=false
 ALLOW_CACHE_METADATA_UPDATE=false
 
+clear_barclamp_metadata() {
+    unset BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_SUPPORT BC_GEMS
+    unset BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
+    unset BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
+    unset BC_SUPERCEDES BC_SRC_PKGS
+
+    declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_SUPPORT BC_GEMS
+    declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
+    declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
+    declare -A BC_SUPERCEDES BC_SRC_PKGS
+}
+
+extract_barclamp_metadata() {
+    # $1 = path to barclamp
+    # $2 = git commit-ish to extract metadata from
+    # Returns path to extracted crowbar.yml.
+    local mode type sha name
+    [[ -d $CROWBAR_DIR/barclamps/$1/.git || \
+        -f $CROWBAR_DIR/barclamps/$1/.git ]] || \
+        die "$1 is not a barclamp/."
+    read mode type sha name < <(cd "$CROWBAR_DIR/barclamps/$1"; git ls-tree "$2" crowbar.yml)
+    [[ $name ]] || return
+    [[ -f $CROWBAR_TMP/$sha.yml ]] || \
+        (cd "$CROWBAR_DIR/barclamps/$1"; git cat-file "$type" "$sha") > "$CROWBAR_TMP/$sha.yml"
+    echo "$CROWBAR_TMP/$sha.yml"
+}
+
+read_barclamp_metadata() {
+    # $1 = path to the .yml with the metadata.
+    # $@ = args to pass to parse_yml.rb.
+    local yml_file
+    [[ -f $1 && $1 = *.yml ]] || die "$1 is not a YML file."
+    yml_file="$1"
+    shift
+    "$CROWBAR_DIR/parse_yml.rb" "$yml_file" "$@" 2>/dev/null
+}
+
+get_one_barclamp_info() {
+    # $1 = barclamp name
+    # $2 = git commit-ish
+    # Gets all the info that BC_QUERY_STRINGS wants.
+    [[ -d $CROWBAR_DIR/barclamps/$1 ]] || die "$1 is not a barclamp!"
+    local mdfile=$(extract_barclamp_metadata "$1" "${2:-HEAD}")
+    [[ $mdfile ]] || return
+    [[ $1 = crowbar ]] || BC_DEPS["$bc"]+="crowbar "
+    for query in "${!BC_QUERY_STRINGS[@]}"; do
+        while read line; do
+            [[ $line = nil ]] && continue
+            case $query in
+                deps) is_in "$line "${BC_DEPS["$bc"]} || \
+                    BC_DEPS["$bc"]+="$line ";;
+                groups) is_in "$line" ${BC_GROUPS["$bc"]} ||
+                    BC_GROUPS["$line"]+="$bc ";;
+                pkgs|os_pkgs) is_in "$line" ${BC_PKGS["$bc"]} || \
+                    BC_PKGS["$bc"]+="$line ";;
+                src_pkgs) is_in "$line" ${BC_SRC_PKGS["$bc"]} || \
+                    BC_SRC_PKGS["$bc"]+="$line ";;
+                extra_files) BC_EXTRA_FILES["$bc"]+="$line\n";;
+                os_support) BC_OS_SUPPORT["$bc"]+="$line ";;
+                gems) BC_GEMS["$bc"]+="$line ";;
+                repos|os_repos) BC_REPOS["$bc"]+="$line\n";;
+                ppas|os_ppas) [[ $PKG_TYPE = debs ]] || \
+                    die "Cannot declare a PPA for $PKG_TYPE!"
+                    BC_REPOS["$bc"]+="ppa $line\n";;
+                build_pkgs|os_build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
+                raw_pkgs|os_raw_pkgs|pkg_sources|os_pkg_sources) BC_RAW_PKGS["$bc"]+="$line ";;
+                test_deps) BC_SMOKETEST_DEPS["$bc"]+="$line ";;
+                os_build_cmd|build_cmd) [[ ${BC_BUILD_CMDS["$bc"]} ]] || \
+                    BC_BUILD_CMDS["$bc"]="$line";;
+                test_timeouts) BC_SMOKETEST_TIMEOUTS["$bc"]+="$line ";;
+                supercedes) 
+                    [[ ${BC_SUPERCEDES[$line]} ]] || \
+                    BC_SUPERCEDES["$line"]="$bc";;
+                *) die "Cannot handle query for $query."
+            esac
+        done < <(read_barclamp_metadata "$mdfile" ${BC_QUERY_STRINGS["$query"]})
+    done
+}
+
 get_barclamp_info() {
     local bc yml_file line query newdeps dep d i
     local new_barclamps=()
@@ -51,44 +130,7 @@ get_barclamp_info() {
             echo "$bc is not a barclamp, skipping."
             continue
         }
-        yml_file="$CROWBAR_DIR/barclamps/$bc/crowbar.yml"
-        [[ $bc = crowbar ]] || BC_DEPS["$bc"]+="crowbar "
-        for query in "${!BC_QUERY_STRINGS[@]}"; do
-            while read line; do
-                [[ $line = nil ]] && continue
-                case $query in
-                    deps) is_in "$line "${BC_DEPS["$bc"]} || \
-                        BC_DEPS["$bc"]+="$line ";;
-                    groups) is_in "$line" ${BC_GROUPS["$bc"]} ||
-                        BC_GROUPS["$line"]+="$bc ";;
-                    pkgs|os_pkgs) is_in "$line" ${BC_PKGS["$bc"]} || \
-                        BC_PKGS["$bc"]+="$line ";;
-                    src_pkgs) is_in "$line" ${BC_SRC_PKGS["$bc"]} || \
-                        BC_SRC_PKGS["$bc"]+="$line ";;
-                    extra_files) BC_EXTRA_FILES["$bc"]+="$line\n";;
-                    os_support) BC_OS_SUPPORT["$bc"]+="$line ";;
-                    gems) BC_GEMS["$bc"]+="$line ";;
-                    repos|os_repos) BC_REPOS["$bc"]+="$line\n";;
-                    ppas|os_ppas) [[ $PKG_TYPE = debs ]] || \
-                        die "Cannot declare a PPA for $PKG_TYPE!"
-                        BC_REPOS["$bc"]+="ppa $line\n";;
-                    build_pkgs|os_build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
-                    raw_pkgs|os_raw_pkgs|pkg_sources|os_pkg_sources) BC_RAW_PKGS["$bc"]+="$line ";;
-                    test_deps) BC_SMOKETEST_DEPS["$bc"]+="$line ";;
-                    os_build_cmd|build_cmd) [[ ${BC_BUILD_CMDS["$bc"]} ]] && \
-                        die "Only one os_build_cmd stanza per OS per barclamp allowed!"
-                        BC_BUILD_CMDS["$bc"]="$line";;
-                    test_timeouts) BC_SMOKETEST_TIMEOUTS["$bc"]+="$line ";;
-                    supercedes) 
-                        [[ ${BC_SUPERCEDES[$line]} ]] && \
-                            die "$line is already superceded by ${BC_SUPERCEDES[$line]}!"
-                        BC_SUPERCEDES["$line"]="$bc";;
-                    *) die "Cannot handle query for $query."
-                esac
-            done < <("$CROWBAR_DIR/parse_yml.rb" \
-                "$yml_file" \
-                ${BC_QUERY_STRINGS["$query"]} 2>/dev/null)
-        done
+        get_one_barclamp_info "$bc"
     done
     cd -
 
@@ -215,7 +257,7 @@ cleanup() {
         [[ -d $f ]] || continue
         sudo rm -rf "$f"
     done
-    if [[ -d $CACHE_DIR && -d $CACHE_DIR/.git ]]; then
+    if [[ -d $CACHE_DIR && -d $CACHE_DIR/.git && $MAYBE_UPDATE_GIT_CACHE ]]; then
         cd "$CACHE_DIR"
         if ! in_cache git diff-index --cached --quiet HEAD; then
             in_cache git commit -m "Updated by build_crowbar.sh @ $(date) for ${OS_TOKEN}"
@@ -226,11 +268,13 @@ cleanup() {
     wait
     flock -u 70
     rm "$CROWBAR_DIR/".*.lock
+    [[ -d $CROWBAR_TMP ]] && sudo rm -rf "$CROWBAR_TMP"
     exit $res
 } 70> "$CLEANUP_LOCK"
 
 # Arrange for cleanup to be called at the most common exit points.
-trap cleanup 0 INT QUIT TERM
+trap cleanup EXIT INT QUIT TERM
+[[ $DEBUG ]] && trap -p
 
 # Test to see if $1 is in the rest of the args.
 is_in() {
@@ -1004,6 +1048,15 @@ crowbar_version() {
 }
 
 all_releases() { barclamp_finder '' 'releases/(.+)/master/barclamp-crowbar$'; }
+
+all_supported_oses() {
+    local os
+    for os in "$CROWBAR_DIR/"*-extra; do
+        [[ -f $os/build_lib.sh ]] || continue
+        os=${os##*/}
+        echo "${os%-extra}"
+    done
+}
 
 if [[ $http_proxy ]]; then
     export USE_PROXY=1
