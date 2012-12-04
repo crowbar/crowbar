@@ -13,11 +13,11 @@ tarballs with the following layout:
              the tarball was not corrupted and that it will not overwrite local
              changes when installing a different barclamp revision.
     bin/ contains binaries for /opt/dell/bin.
-         These are installed bu barclamp_install.rb.
+         These are installed by barclamp_install.rb.
     chef/ contains chef cookbooks, roles, and data bags.
           See the barclamp model for more information on these directories. 
     smoketest/ contains scripts for the smoketest framework.
-               See crowbar/test_framework/README.testing for mor info.
+               See crowbar/test_framework/README.testing for more info.
     cache/ contains the files and packages required by this barclamp
       files/ contains raw files that the barclamp needs.
              Examples are things like .ami files, raw source packages, etc.
