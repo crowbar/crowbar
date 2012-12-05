@@ -1223,7 +1223,25 @@ pull_request_close_one() {
     # $1 = path to local pull request info
     # $2 = reason for closing the pull request
     pull_request_comment_one "$1" "$2" || return 1
-    
+    . <(source_prq_vars "$1" local)
+    curl_and_res -f -X PATCH \
+        -d "{ \"state\": \"closed\"}" \
+        "https://api.github.com/repos/$prq_target_account/$prq_local_repo/pulls/$prq_number"
+}
+
+pull_request_close() {
+    # $1 = pull request number
+    # $2 = closing comment
+    local id repo
+    id=$(pull_request_number_to_id "$1") || exit 1
+    case $id in
+        singletons/*) pull_request_close_one "$LOCAL_PULL_TRACKING/$id" "$2";;
+        bundles/*)
+            for repo in "$LOCAL_PULL_TRACKING/$id/"*; do
+                [[ -d $repo ]] || continue
+                pull_request_close_one "$repo" "$2"
+            done;;
+    esac
 }
 
 __fetch_all() {
@@ -3268,17 +3286,18 @@ pull_request_handler() {
     local req=$1
     shift
     case $req in
-        fetch) fetch_pull_requests_for_remote "$@";;
-        prep) pull_requests_prep "$@";;
-        gen) pull_requests_gen "$@";;
-        dirs) pull_request_directories "$@";;
-        list) list_pull_requests "$@";;
-        show) show_pull_request "$@";;
-        builds) builds_for_pull_request "$@";;
-        switch) pull_request_switch "$@";;
-        merge) pull_request_merge "$@";;
+        fetch)   fetch_pull_requests_for_remote "$@";;
+        prep)    pull_requests_prep "$@";;
+        gen)     pull_requests_gen "$@";;
+        dirs)    pull_request_directories "$@";;
+        list)    list_pull_requests "$@";;
+        show)    show_pull_request "$@";;
+        builds)  builds_for_pull_request "$@";;
+        switch)  pull_request_switch "$@";;
+        merge)   pull_request_merge "$@";;
         comment) pull_request_comment "$@";;
-        '') show_open_pull_requests "$@";;
+        close)   pull_request_close "$@";;
+        '')      show_open_pull_requests "$@";;
         *) die "$req is not a valid pull-request subcommand!" \
             "Try $0 help pull-requests.";;
     esac
@@ -3675,6 +3694,8 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
     comment: Add a comment to a pull request or to each pull request in a
       bundle. First arg is the ID, second arg is a one-line comment.
     merge: Have Github merge the pull request or bundle.
+    close: Close a pull request or pull request bundle
+      Second arg must be a closing comment.
     builds: Show a list of builds this pull request should trigger.
     switch: Switch to a new tree that has the contents of a pull request
       merged into your current trees.  Your trees must be clean before 
