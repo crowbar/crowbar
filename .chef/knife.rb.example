@@ -1,0 +1,13 @@
+current_dir = File.dirname(__FILE__)
+log_level                :info
+log_location             STDOUT
+node_name "chef-webui"
+client_key "#{current_dir}/webui.pem"
+validation_client_name   'chef-validator'
+validation_key           ''
+chef_server_url          'http://10.124.0.10:4000'
+cache_type               'BasicFile'
+cache_options( :path => "#{ENV['HOME']}/.chef/checksums" )
+cookbook_path            Dir.glob("barclamps/**").map{|dir| "#{current_dir}/../#{dir}/chef/cookbooks/"}
+
+
