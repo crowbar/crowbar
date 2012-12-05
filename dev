@@ -1188,6 +1188,37 @@ pull_request_merge() {
     fi
 }
 
+pull_request_comment_one() {
+    # $1 = path to pull request
+    # $2 = body of comment
+    local number repo account target_repo
+    read number < "$1/number"
+    read target_repo < "$1/target_repo"
+    repo="${target_repo##*/}"
+    repo=${repo%.git}
+    account=${target_repo%/*}
+    account=${account##*/}
+    curl_and_res -f -X POST \
+        -d "{ \"body\": \"$2\"}" \
+        "https://api.github.com/repos/$account/$repo/issues/$number/comments"
+}
+
+pull_request_comment() {
+    # $1 = pull request number
+    # $2 = body of comment
+    local id repo
+    id=$(pull_request_number_to_id "$1") || exit 1
+    case $id in
+        */singletons/*)
+            pull_request_comment_one "$LOCAL_PULL_TRACKING/$id" "$2";;
+        */bundles/*)
+            for repo in "$LOCAL_PULL_TRACKING/$id/"*; do
+                [[ -d $repo ]] || continue
+                pull_request_comment_one "$repo" "$2"
+            done;;
+    esac
+}
+
 __fetch_all() {
     local remote remotes=() res=true
     if [[ $@ || $DEV_FROM_REMOTES ]]; then
@@ -3239,6 +3270,7 @@ pull_request_handler() {
         builds) builds_for_pull_request "$@";;
         switch) pull_request_switch "$@";;
         merge) pull_request_merge "$@";;
+        comment) pull_request_comment "$@";;
         '') show_open_pull_requests "$@";;
         *) die "$req is not a valid pull-request subcommand!" \
             "Try $0 help pull-requests.";;
@@ -3633,6 +3665,8 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
       numbers next to each pull request will be stable until the next
       dev fetch or dev pull-requests fetch operation happens.
     show: Show details about a pull request or pull request bundle.
+    comment: Add a comment to a pull request or to each pull request in a
+      bundle. First arg is the ID, second arg is a one-line comment.
     merge: Have Github merge the pull request or bundle.
     builds: Show a list of builds this pull request should trigger.
     switch: Switch to a new tree that has the contents of a pull request
