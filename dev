@@ -1169,10 +1169,10 @@ pull_request_merge() {
     id=$(pull_request_number_to_id "$1") || \
         die "$1 is not a pull request number!"
     case $id in
-        */singletons/*)
+        singletons/*)
             pull_request_merge_one "$LOCAL_PULL_TRACKING/$id"
             res=$?;;
-        */bundles/*)
+        bundles/*)
             for repo in "$LOCAL_PULL_TRACKING/$id/"*; do
                 [[ -d $repo ]] || continue
                 if ((res == 0)); then
@@ -1209,9 +1209,9 @@ pull_request_comment() {
     local id repo
     id=$(pull_request_number_to_id "$1") || exit 1
     case $id in
-        */singletons/*)
+        singletons/*)
             pull_request_comment_one "$LOCAL_PULL_TRACKING/$id" "$2";;
-        */bundles/*)
+        bundles/*)
             for repo in "$LOCAL_PULL_TRACKING/$id/"*; do
                 [[ -d $repo ]] || continue
                 pull_request_comment_one "$repo" "$2"
