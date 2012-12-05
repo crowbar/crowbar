@@ -556,6 +556,24 @@ update_all_tracking_branches() {
     done
 }
 
+
+source_prq_vars() (
+    # $1 = path to pull request metadata
+    # $2 = whether to scope the variables as local
+    local f  val
+    cd "$1" || return 1
+    [[ -f repo && -f created_at && -f title ]] || return 1
+    for f in *; do
+        [[ -f $f ]] || continue
+        read val < "$f"
+        local s=''
+        [[ $3 && $3 = "unset" ]] && s+="unset prq_$f; "
+        [[ $2 && $2 = "local" ]] && s+="local "
+        s+="prq_$f=\"$val\""
+        echo "$s"
+    done
+)
+
 # Check remote references at the personal remote to see if there
 # are any merged pull requests.  If there are, delete them.
 scrub_merged_pull_requests() {
@@ -608,14 +626,14 @@ save_pull_request_metadata() (
         $created_at  && \
         $github_target_user ]] || return
     if [[ $pull_req_id ]]; then
-        local dest="$LOCAL_PULL_TRACKING/$github_target_user/bundles/$pull_req_id/$repo"
+        local dest="$LOCAL_PULL_TRACKING/bundles/$pull_req_id/$repo"
     else
-        local dest="$LOCAL_PULL_TRACKING/$github_target_user/singletons/$repo/$github_id"
+        local dest="$LOCAL_PULL_TRACKING/singletons/$github_target_user/$repo/$github_id"
         [[ $order ]] || order='1:1'
     fi
     case $repo in
         crowbar) fetchcmd="in_repo git fetch";;
-        barclamp-*) fetchcmd="in_barclamp "${repo#barclamp-}" git fetch";; 
+        barclamp-*) fetchcmd="in_barclamp "${repo#barclamp-}" git fetch";;
         *) die "Unknown repo $repo!";;
     esac
     local local_branch="pull-req/$github_user/$github_id"
@@ -623,6 +641,7 @@ save_pull_request_metadata() (
     mkdir -p "$dest" && cd "$dest"
     echo "$order" > order
     echo "$pull_req_repo" > repo
+    echo "$repo" > local_repo
     echo "$pull_req_target_repo" > target_repo
     echo "$pull_req_branch" > source_branch
     echo "$pull_req_sha" > source_sha
@@ -633,6 +652,7 @@ save_pull_request_metadata() (
     echo "$github_url" > github_url
     echo "$local_branch" > local_branch
     echo "$github_user" > source_account
+    echo "$github_target_user" > target_account
     [[ $updated_at ]] && echo "$updated_at" > updated_at
     if [[ $rel ]]; then
         echo "$rel" > release
@@ -758,7 +778,7 @@ pull_request_bundle_sane() {
     local -a order
     local total_count=0 indicated_count=0 d f r repo o c release branch
     local branch_for_release build bc source_account su tu
-    for d in "$LOCAL_PULL_TRACKING/"*"/bundles/$1/"*; do
+    for d in "$LOCAL_PULL_TRACKING/bundles/$1/"*; do
         [[ -d "$d" ]] || continue
         repo="${d##*/}"
         for f in order repo source_branch source_sha source_account \
@@ -822,12 +842,12 @@ pull_request_bundle_sane() {
 show_open_pull_requests() {
    local -a open_bundles open_singletons
    local d r
-   for d in "$LOCAL_PULL_TRACKING/"*"/bundles/"*; do
+   for d in "$LOCAL_PULL_TRACKING/bundles/"*; do
        [[ -d $d ]] || continue
        pull_request_bundle_sane "${d##*/}" || continue
        open_bundles+=("$d")
    done
-   for d in "$LOCAL_PULL_TRACKING/"*"/singletons/"*/*; do
+   for d in "$LOCAL_PULL_TRACKING/singletons/"*/*/*; do
        [[ -d $d ]] || continue
        open_singletons+=("$d")
    done
@@ -848,7 +868,7 @@ pull_request_last_touched() (
     # $1 = bundle
     # Returns the most recent date that any of the bundle components were touched.
     local mtime
-    if [[ $1 = */bundles/* ]]; then
+    if [[ $1 = bundles/* ]]; then
         cd "$LOCAL_PULL_TRACKING/$1" || die "Bundle $1 does not exist!"
         for d in *; do
             [[ -d $d ]] || continue
@@ -857,7 +877,7 @@ pull_request_last_touched() (
             [[ $ltime > $mtime ]] && mtime=$ltime
         done
         echo $mtime
-    elif [[ $1 = */singletons/* ]]; then
+    elif [[ $1 = singletons/* ]]; then
         if [[ -f $LOCAL_PULL_TRACKING/$1/updated_at ]]; then
             cat "$LOCAL_PULL_TRACKING/$1/updated_at"
         else
@@ -872,8 +892,8 @@ pull_request_last_touched() (
 pull_request_directories() (
     [[ -d $LOCAL_PULL_TRACKING ]] || return 0
     cd "$LOCAL_PULL_TRACKING"
-    for d in */bundles/* */singletons/*/*; do
-        if [[ $d = */bundles/* ]]; then
+    for d in bundles/* singletons/*/*/*; do
+        if [[ $d = bundles/* ]]; then
             pull_request_bundle_sane "${d##*/}" || continue
         fi
         [[ -f $d/title ]] || continue
@@ -904,19 +924,14 @@ pull_request_number_to_id() {
 builds_for_one_pull_request() {
     # $1 =path to pull request
     local f val
+    . <(source_prq_vars "$1" local)
     local -a builds
-    for f in target_repo release; do
-        read val < "$1/$f"
-        eval 'local $f=$val'
-    done
-    local repo=${target_repo##*/}
-    repo=${repo%.git}
-    case $repo in
+    case $prq_local_repo in
         barclamp-*)
-            builds=($(builds_for_barclamp_in_release "${repo#barclamp-}" "$release" ));;
+            builds=($(builds_for_barclamp_in_release "${prq_local_repo#barclamp-}" "$prq_release" ));;
         crowbar)
-            builds=($(builds_in_release "$release"));;
-        *) die "Unknown repo $repo in builds_for_one_pull_request!";;
+            builds=($(builds_in_release "$prq_release"));;
+        *) die "Unknown repo $prq_local_repo in builds_for_one_pull_request!";;
     esac
     echo "${builds[*]}"
 }
@@ -932,19 +947,20 @@ builds_for_pull_request() {
     prq="$LOCAL_PULL_TRACKING/$id"
     read release <"$prq/release"
     case $id in
-        */singletons/*)
-            if [[ $prq = */barclamp-* ]]; then
-                repo=$(cat "$prq/repo")
-                PULL_REQUEST_BARCLAMPS[${repo##barclamp-}]=$(cat "$prq/local_branch")
+        singletons/*)
+            . <(source_prq_vars "$prq" "local")
+            if [[ $prq_local_repo = barclamp-* ]]; then
+                PULL_REQUEST_BARCLAMPS[${prq_local_repo##barclamp-}]="$prq_local_branch"
             fi
             for b in $(builds_for_one_pull_request "$prq"); do
                 build_tmp[$b]="build"
             done;;
-        */bundles/*)
+        bundles/*)
             for repo in "$prq"/*; do
                 [[ -d $repo ]] || continue
-                [[ $repo = */barclamp-* ]] && \
-                    PULL_REQUEST_BARCLAMPS[${repo##*/barclamp-}]=$(cat "$repo/local_branch")
+                . <(source_prq_vars "$prq" "local")
+                [[ $prq_local_repo = barclamp-* ]] && \
+                    PULL_REQUEST_BARCLAMPS[${prq_local_repo##*/barclamp-}]="$prq_local_branch"
                 for b in $(builds_for_one_pull_request "$repo"); do
                     build_tmp[$b]="build"
                 done
@@ -1009,35 +1025,34 @@ show_pull_request() {
     local -a builds
     idx=$1
     id=$(pull_request_number_to_id $idx) || exit 1
-    target_account="${id%%/*}"
     prq="$LOCAL_PULL_TRACKING/$id"
     [[ -f $prq/title ]] || die "Something Wicked happened trying to show $idx." \
         "Please re-run dev pull-request fetch"
-    read release <"$prq/release"
-    if [[ $id = */singletons/* ]]; then
+    if [[ $id = singletons/* ]]; then
+        . <(source_prq_vars "$prq" "local")
         repo="${id#*/singletons/}"
         repo="${repo%/*}"
         if [[ $repo = barclamp-* ]]; then
-            builds=($(builds_for_barclamp_in_release "${repo#barclamp-}" "$release"))
+            builds=($(builds_for_barclamp_in_release "${repo#barclamp-}" "$prq_release"))
         else
-            builds=($(builds_in_release "$release"))
+            builds=($(builds_in_release "$prq_release"))
         fi
-        echo "Title:               $(cat "$prq/title")"
-        echo "Target Account:      $target_account"
-        echo "Release:             $release"
+        echo "Title:               $prq_title"
+        echo "Target Account:      $prq_target_account"
+        echo "Source Account:      $prq_source_account"
+        echo "Release:             $prq_release"
         echo "Last Updated:        $(pull_request_last_touched "$id")"
         echo "Type:                singleton"
         echo "Repo:                $repo"
-        echo "Repo with Changes:   $(cat "$prq/repo")"
-        echo "Branch with Changes: $(cat "$prq/source_branch")"
-        echo "Local Branch:        $(cat "$prq/local_branch")"
-        echo "Target Branch:       $(cat "$prq/target_branch")"
-        echo "Pull Request URL:    $(cat "$prq/github_url")"
+        echo "Repo with Changes:   $prq_repo"
+        echo "Branch with Changes: $prq_source_branch"
+        echo "Local Branch:        $prq_local_branch"
+        echo "Target Branch:       $prq_target_branch"
+        echo "Pull Request URL:    $prq_github_url"
         echo "Builds:              ${builds[*]}"
-    elif [[ $id = */bundles/* ]]; then
+    elif [[ $id = bundles/* ]]; then
         echo "Title:          $(cat "$prq/title")"
-        echo "Target Account: $target_account"
-        echo "Release:        $release"
+        echo "Release:        $(cat "$prq/release")"
         echo "Last Updated:   $(pull_request_last_touched "$id")"
         echo "Type:           bundle"
         echo "Bundle ID:      ${id##*/}"
@@ -1049,12 +1064,15 @@ show_pull_request() {
             else
                 builds=("all")
             fi
+            . <(source_prq_vars "$repo" "local")
             echo "Repo: ${repo##*/}"
-            echo "    Repo with Changes:   $(cat "$repo/repo")"
-            echo "    Branch with Changes: $(cat "$repo/source_branch")"
-            echo "    Local Branch:        $(cat "$repo/local_branch")"
-            echo "    Target Branch:       $(cat "$repo/target_branch")"
-            echo "    Pull Request URL:    $(cat "$repo/github_url")"
+            echo "    Repo with Changes:   $prq_repo"
+            echo "    Target Account:      $prq_target_account"
+            echo "    Source Account:      $prq_source_account"
+            echo "    Branch with Changes: $prq_source_branch"
+            echo "    Local Branch:        $prq_local_branch"
+            echo "    Target Branch:       $prq_target_branch"
+            echo "    Pull Request URL:    $prq_github_url"
             echo "    Builds:              ${builds[*]}"
         done
     else
@@ -1086,7 +1104,9 @@ pull_request_switch() {
     idx=$1
     id=$(pull_request_number_to_id "$idx") ||  \
         die "$id is not a valid pull request. dev pull-requests list will help."
-    builds=($(builds_for_pull_request "$idx"))
+    while read build; do
+        builds+=("${build%%:*}")
+    done < <(builds_for_pull_request "$idx")
     [[ $builds ]] || \
         die "Pull request $idx has no associated builds!"
     if (( ${#builds[@]} == 1 )) && [[ ! $2 || $2 = $builds ]]; then
@@ -1103,27 +1123,22 @@ pull_request_switch() {
     prq="$LOCAL_PULL_TRACKING/$id"
     switch_release "$(cat "$prq/release")/$build"
     case $id in
-        */singletons/*) repo_dirs=("$prq");;
-        */bundles/*) repo_dirs=("$prq/"*);;
+        singletons/*) repo_dirs=("$prq");;
+        bundles/*) repo_dirs=("$prq/"*);;
     esac
     for repo_dir in "${repo_dirs[@]}"; do
         [[ -d $repo_dir ]] || continue
-        case $repo_dir in
-            */singletons/*) repo="${repo_dir#*/singletons/}"; repo="${repo%/*}";;
-            */bundles/*) repo="${repo_dir##*/}";;
-        esac
-        local local_branch="$(cat "$repo_dir/local_branch")"
-        local target_branch="$(cat "$repo_dir/target_branch")"
         (
-            case $repo in
-                barclamp-*) cd "$CROWBAR_DIR/barclamps/${repo#barclamp-}";;
+            . <(source_prq_vars "$repo_dir" "local")
+            case $prq_local_repo in
+                barclamp-*) cd "$CROWBAR_DIR/barclamps/${prq_local_repo#barclamp-}";;
                 crowbar) cd "$CROWBAR_DIR";;
             esac
-            quiet_checkout "$(git rev-parse "$target_branch")" || \
+            quiet_checkout "$(git rev-parse "$prq_target_branch")" || \
                 die "Could not checkout raw commit for $target_branch"
-            git merge "$(git rev-parse "$local_branch")" && continue
+            git merge "$(git rev-parse "$prq_local_branch")" && continue
             git merge --abort
-            die "Could not merge $local_branch into $target_branch in $repo"
+            die "Could not merge $prq_local_branch into $prq_target_branch in $prq_local_repo"
         ) || {
             switch_release
             die "Pull request $idx does not merge cleanly.  It should be updated or closed."
@@ -1134,21 +1149,15 @@ pull_request_switch() {
 
 pull_request_merge_one () {
     # $1 = path to saved metadata
-    local target_repo number repo account
-    read target_repo < "$1/target_repo"
-    read number < "$1/number"
-    repo="${target_repo##*/}"
-    repo="${repo%.git}"
-    account="${target_repo%/*}"
-    account="${account##*/}"
+    . <(source_prq_vars "$1" local)
     # Skip if we have already been merged.
     if curl_and_res -f -X GET \
-        "https://api.github.com/repos/$account/$repo/pulls/$number/merge" &>/dev/null; then
+        "https://api.github.com/repos/$prq_target_account/$prq_local_repo/pulls/$prq_number/merge" &>/dev/null; then
         return 0
     fi
     if curl_and_res -f -X PUT \
 	-d "{\"commit_message\": \"Merged by devtool for $DEV_GITHUB_ID\"}" \
-        "https://api.github.com/repos/$account/$repo/pulls/$number/merge" &>/dev/null; then
+        "https://api.github.com/repos/$prq_target_account/$prq_local_repo/pulls/$prq_number/merge" &>/dev/null; then
         debug "$(cat "$1/github_url") merged."
         return 0
     else
@@ -1191,16 +1200,10 @@ pull_request_merge() {
 pull_request_comment_one() {
     # $1 = path to pull request
     # $2 = body of comment
-    local number repo account target_repo
-    read number < "$1/number"
-    read target_repo < "$1/target_repo"
-    repo="${target_repo##*/}"
-    repo=${repo%.git}
-    account=${target_repo%/*}
-    account=${account##*/}
+    . <(source_prq_vars "$1" local)
     curl_and_res -f -X POST \
         -d "{ \"body\": \"$2\"}" \
-        "https://api.github.com/repos/$account/$repo/issues/$number/comments"
+        "https://api.github.com/repos/$prq_target_account/$prq_local_repo/issues/$prq_number/comments"
 }
 
 pull_request_comment() {
@@ -1217,6 +1220,13 @@ pull_request_comment() {
                 pull_request_comment_one "$repo" "$2"
             done;;
     esac
+}
+
+pull_request_close_one() {
+    # $1 = path to local pull request info
+    # $2 = reason for closing the pull request
+    pull_request_comment_one "$1" "$2" || return 1
+    
 }
 
 __fetch_all() {
