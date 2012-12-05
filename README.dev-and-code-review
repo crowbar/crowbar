@@ -291,8 +291,28 @@ victor@system76:~/crowbar$ ./dev switch
 2012-11-21 11:17:00 -0600: Switched to development/openstack-os-build
 victor@system76:~/crowbar$
 
+Assuming you liked what you saw and the code passed the test, you can
+merge the changes in dev:
+
+victor@system76:~/crowbar$ ./dev pull-requests merge 9
+2012-12-05 09:47:25 -0600: https://github.com/dellcloudedge/barclamp-crowbar/pull/287 merged.
+2012-12-05 09:47:26 -0600: https://github.com/dellcloudedge/barclamp-glance/pull/58 merged.
+2012-12-05 09:47:29 -0600: https://github.com/dellcloudedge/barclamp-hive/pull/19 merged.
+2012-12-05 09:47:32 -0600: https://github.com/dellcloudedge/barclamp-keystone/pull/48 merged.
+2012-12-05 09:47:34 -0600: https://github.com/dellcloudedge/barclamp-nova/pull/100 merged.
+2012-12-05 09:47:38 -0600: https://github.com/dellcloudedge/barclamp-nova_dashboard/pull/43 merged.
+2012-12-05 09:47:40 -0600: https://github.com/dellcloudedge/barclamp-openstack/pull/19 merged.
+2012-12-05 09:47:41 -0600: https://github.com/dellcloudedge/barclamp-pig/pull/19 merged.
+2012-12-05 09:47:46 -0600: https://github.com/dellcloudedge/barclamp-sqoop/pull/20 merged.
+2012-12-05 09:47:48 -0600: https://github.com/dellcloudedge/barclamp-swift/pull/40 merged.
+2012-12-05 09:47:50 -0600: https://github.com/dellcloudedge/barclamp-tempest/pull/14 merged.
+2012-12-05 09:47:52 -0600: https://github.com/dellcloudedge/barclamp-zookeeper/pull/11 merged.
+2012-12-05 09:47:52 -0600: Pull requests merged.
+2012-12-05 09:47:52 -0600: You can use ./dev fetch to pull in updatedpull request information.
+victor@system76:~/crowbar$
+
 More stuff on the way, including integrating this with Jenkins and
-adding pull request commenting and merging functionality to Dev.
+adding pull request commenting functionality to Dev.
 
 Sample workflow for pull request review:
 
@@ -319,7 +339,7 @@ Sample workflow for pull request review:
  7: Reviewer runs unit tests against the merged code.
  8: Reviewer spins up a build and smoketests it.
  9: If the unit tests and functional tests pass, the code passes code
-    review, and the submitter has signed a CLA, the reviewer merges
-    the pull requests on Github, otherwise the reviewer leaves notes
-    in the pull requests that reflect what the submitter needs to do
-    to make the pull request acceptable.
+    review, and the submitter has signed a CLA, otherwise the reviewer
+    leaves notes in the pull requests that reflect what the submitter
+    needs to do to make the pull request acceptable.
+10: Reviewer runs ./dev pull-requests merge <id> to merge the pull requests.
