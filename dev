@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 export LANG="C"
 export LC_ALL="C"
@@ -1130,6 +1130,62 @@ pull_request_switch() {
         }
     done
     debug "You are now on build $build in pull request $idx."
+}
+
+pull_request_merge_one () {
+    # $1 = path to saved metadata
+    local target_repo number repo account
+    read target_repo < "$1/target_repo"
+    read number < "$1/number"
+    repo="${target_repo##*/}"
+    repo="${repo%.git}"
+    account="${target_repo%/*}"
+    account="${account##*/}"
+    # Skip if we have already been merged.
+    if curl_and_res -f -X GET \
+        "https://api.github.com/repos/$account/$repo/pulls/$number/merge" &>/dev/null; then
+        return 0
+    fi
+    if curl_and_res -f -X PUT \
+	-d "{\"commit_message\": \"Merged by devtool for $DEV_GITHUB_ID\"}" \
+        "https://api.github.com/repos/$account/$repo/pulls/$number/merge" &>/dev/null; then
+        debug "$(cat "$1/github_url") merged."
+        return 0
+    else
+        debug "Merge of $(cat "$1/github_url") failed."
+        return 1
+    fi
+}
+
+pull_request_merge() {
+    # $1 = index
+    local id res=0 repo
+    id=$(pull_request_number_to_id "$1") || \
+        die "$1 is not a pull request number!"
+    case $id in
+        */singletons/*)
+            pull_request_merge_one "$LOCAL_PULL_TRACKING/$id"
+            res=$?;;
+        */bundles/*)
+            for repo in "$LOCAL_PULL_TRACKING/$id/"*; do
+                [[ -d $repo ]] || continue
+                if ((res == 0)); then
+                    pull_request_merge_one "$repo" && continue
+                    debug "Aborting remaining pull requests."
+                    res=1
+                else
+                    debug "Skipping $(cat "$repo/github_url")"
+                fi
+            done;;
+    esac
+    if ((res == 0)); then
+        debug "Pull requests merged." \
+            "You can use $0 fetch to pull in updated pull request information."
+        return 0
+    else
+        debug "Please fix up the broken pull requests and retry the merge."
+        return 1
+    fi
 }
 
 __fetch_all() {
@@ -3182,6 +3238,7 @@ pull_request_handler() {
         show) show_pull_request "$@";;
         builds) builds_for_pull_request "$@";;
         switch) pull_request_switch "$@";;
+        merge) pull_request_merge "$@";;
         '') show_open_pull_requests "$@";;
         *) die "$req is not a valid pull-request subcommand!" \
             "Try $0 help pull-requests.";;
@@ -3576,6 +3633,7 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
       numbers next to each pull request will be stable until the next
       dev fetch or dev pull-requests fetch operation happens.
     show: Show details about a pull request or pull request bundle.
+    merge: Have Github merge the pull request or bundle.
     builds: Show a list of builds this pull request should trigger.
     switch: Switch to a new tree that has the contents of a pull request
       merged into your current trees.  Your trees must be clean before 
