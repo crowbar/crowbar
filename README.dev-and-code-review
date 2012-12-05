@@ -308,7 +308,7 @@ victor@system76:~/crowbar$ ./dev pull-requests merge 9
 2012-12-05 09:47:50 -0600: https://github.com/dellcloudedge/barclamp-tempest/pull/14 merged.
 2012-12-05 09:47:52 -0600: https://github.com/dellcloudedge/barclamp-zookeeper/pull/11 merged.
 2012-12-05 09:47:52 -0600: Pull requests merged.
-2012-12-05 09:47:52 -0600: You can use ./dev fetch to pull in updatedpull request information.
+2012-12-05 09:47:52 -0600: You can use ./dev fetch to pull in updated pull request information.
 victor@system76:~/crowbar$
 
 More stuff on the way, including integrating this with Jenkins and
