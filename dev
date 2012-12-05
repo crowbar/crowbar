@@ -1030,10 +1030,8 @@ show_pull_request() {
         "Please re-run dev pull-request fetch"
     if [[ $id = singletons/* ]]; then
         . <(source_prq_vars "$prq" "local")
-        repo="${id#*/singletons/}"
-        repo="${repo%/*}"
-        if [[ $repo = barclamp-* ]]; then
-            builds=($(builds_for_barclamp_in_release "${repo#barclamp-}" "$prq_release"))
+        if [[ $prq_local_repo = barclamp-* ]]; then
+            builds=($(builds_for_barclamp_in_release "${prq_local_repo#barclamp-}" "$prq_release"))
         else
             builds=($(builds_in_release "$prq_release"))
         fi
@@ -1043,7 +1041,7 @@ show_pull_request() {
         echo "Release:             $prq_release"
         echo "Last Updated:        $(pull_request_last_touched "$id")"
         echo "Type:                singleton"
-        echo "Repo:                $repo"
+        echo "Repo:                $prq_local_repo"
         echo "Repo with Changes:   $prq_repo"
         echo "Branch with Changes: $prq_source_branch"
         echo "Local Branch:        $prq_local_branch"
@@ -1134,6 +1132,7 @@ pull_request_switch() {
                 barclamp-*) cd "$CROWBAR_DIR/barclamps/${prq_local_repo#barclamp-}";;
                 crowbar) cd "$CROWBAR_DIR";;
             esac
+            debug "Switching to merge results for $prq_local_repo"
             quiet_checkout "$(git rev-parse "$prq_target_branch")" || \
                 die "Could not checkout raw commit for $target_branch"
             git merge "$(git rev-parse "$prq_local_branch")" && continue
