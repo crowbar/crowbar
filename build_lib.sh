@@ -22,6 +22,11 @@ ulimit -Sn unlimited
 # Value = whatever interesting thing we are looking for.
 [[ ${BC_QUERY_STRINGS[*]} ]] || declare -A BC_QUERY_STRINGS
 
+declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_SUPPORT BC_GEMS
+declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
+declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
+declare -A BC_SUPERCEDES BC_SRC_PKGS
+
 # Build OS independent query strings.
 BC_QUERY_STRINGS["deps"]="barclamp requires"
 BC_QUERY_STRINGS["groups"]="barclamp member"
@@ -37,18 +42,10 @@ BC_QUERY_STRINGS["supercedes"]="barclamp supercedes"
 # These will be unset if --update-cache is passed to the build.
 ALLOW_CACHE_UPDATE=false
 ALLOW_CACHE_METADATA_UPDATE=false
-
-clear_barclamp_metadata() {
-    unset BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_SUPPORT BC_GEMS
-    unset BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
-    unset BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
-    unset BC_SUPERCEDES BC_SRC_PKGS
-
-    declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_SUPPORT BC_GEMS
-    declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
-    declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
-    declare -A BC_SUPERCEDES BC_SRC_PKGS
-}
+declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_SUPPORT BC_GEMS
+declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
+declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
+declare -A BC_SUPERCEDES BC_SRC_PKGS
 
 extract_barclamp_metadata() {
     # $1 = path to barclamp
@@ -81,36 +78,38 @@ get_one_barclamp_info() {
     # Gets all the info that BC_QUERY_STRINGS wants.
     [[ -d $CROWBAR_DIR/barclamps/$1 ]] || die "$1 is not a barclamp!"
     local mdfile=$(extract_barclamp_metadata "$1" "${2:-HEAD}")
+    local query line
     [[ $mdfile ]] || return
-    [[ $1 = crowbar ]] || BC_DEPS["$bc"]+="crowbar "
+    [[ $1 = crowbar ]] || BC_DEPS["$1"]+="crowbar "
     for query in "${!BC_QUERY_STRINGS[@]}"; do
         while read line; do
             [[ $line = nil ]] && continue
             case $query in
-                deps) is_in "$line "${BC_DEPS["$bc"]} || \
-                    BC_DEPS["$bc"]+="$line ";;
-                groups) is_in "$line" ${BC_GROUPS["$bc"]} ||
-                    BC_GROUPS["$line"]+="$bc ";;
-                pkgs|os_pkgs) is_in "$line" ${BC_PKGS["$bc"]} || \
-                    BC_PKGS["$bc"]+="$line ";;
-                src_pkgs) is_in "$line" ${BC_SRC_PKGS["$bc"]} || \
-                    BC_SRC_PKGS["$bc"]+="$line ";;
-                extra_files) BC_EXTRA_FILES["$bc"]+="$line\n";;
-                os_support) BC_OS_SUPPORT["$bc"]+="$line ";;
-                gems) BC_GEMS["$bc"]+="$line ";;
-                repos|os_repos) BC_REPOS["$bc"]+="$line\n";;
+                deps) is_in "$line "${BC_DEPS["$1"]} || \
+                    BC_DEPS["$1"]+="$line ";;
+                groups) is_in "$line" ${BC_GROUPS["$1"]} ||
+                    BC_GROUPS["$line"]+="$1 ";;
+                pkgs|os_pkgs) is_in "$line" ${BC_PKGS["$1"]} || \
+                    BC_PKGS["$1"]+="$line ";;
+                src_pkgs) is_in "$line" ${BC_SRC_PKGS["$1"]} || \
+                    BC_SRC_PKGS["$1"]+="$line ";;
+                extra_files) BC_EXTRA_FILES["$1"]+="$line\n";;
+                os_support) BC_OS_SUPPORT["$1"]+="$line ";;
+                gems) BC_GEMS["$1"]+="$line ";;
+                repos|os_repos) BC_REPOS["$1"]+="$line\n";;
                 ppas|os_ppas) [[ $PKG_TYPE = debs ]] || \
                     die "Cannot declare a PPA for $PKG_TYPE!"
-                    BC_REPOS["$bc"]+="ppa $line\n";;
-                build_pkgs|os_build_pkgs) BC_BUILD_PKGS["$bc"]+="$line ";;
-                raw_pkgs|os_raw_pkgs|pkg_sources|os_pkg_sources) BC_RAW_PKGS["$bc"]+="$line ";;
-                test_deps) BC_SMOKETEST_DEPS["$bc"]+="$line ";;
-                os_build_cmd|build_cmd) [[ ${BC_BUILD_CMDS["$bc"]} ]] || \
-                    BC_BUILD_CMDS["$bc"]="$line";;
-                test_timeouts) BC_SMOKETEST_TIMEOUTS["$bc"]+="$line ";;
-                supercedes) 
+                    BC_REPOS["$1"]+="ppa $line\n";;
+                build_pkgs|os_build_pkgs) BC_BUILD_PKGS["$1"]+="$line ";;
+                raw_pkgs|os_raw_pkgs|pkg_sources|os_pkg_sources) BC_RAW_PKGS["$1"]+="$line ";;
+                test_deps) BC_SMOKETEST_DEPS["$1"]+="$line ";;
+                os_build_cmd|build_cmd) [[ ${BC_BUILD_CMDS["$1"]} ]] || \
+                    BC_BUILD_CMDS["$1"]="$line";;
+                test_timeouts) BC_SMOKETEST_TIMEOUTS["$1"]+="$line ";;
+                supercedes)
                     [[ ${BC_SUPERCEDES[$line]} ]] || \
-                    BC_SUPERCEDES["$line"]="$bc";;
+                    BC_SUPERCEDES["$line"]="$1"
+                    debug "${BC_SUPERCEDES[$line]} supercedes $line";;
                 *) die "Cannot handle query for $query."
             esac
         done < <(read_barclamp_metadata "$mdfile" ${BC_QUERY_STRINGS["$query"]})
