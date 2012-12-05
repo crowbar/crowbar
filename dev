@@ -923,8 +923,6 @@ pull_request_number_to_id() {
 
 builds_for_one_pull_request() {
     # $1 =path to pull request
-    local f val
-    . <(source_prq_vars "$1" local)
     local -a builds
     case $prq_local_repo in
         barclamp-*)
@@ -950,7 +948,7 @@ builds_for_pull_request() {
         singletons/*)
             . <(source_prq_vars "$prq" "local")
             if [[ $prq_local_repo = barclamp-* ]]; then
-                PULL_REQUEST_BARCLAMPS[${prq_local_repo##barclamp-}]="$prq_local_branch"
+                PULL_REQUEST_BARCLAMPS[${prq_local_repo#barclamp-}]="$prq_local_branch"
             fi
             for b in $(builds_for_one_pull_request "$prq"); do
                 build_tmp[$b]="build"
@@ -960,7 +958,7 @@ builds_for_pull_request() {
                 [[ -d $repo ]] || continue
                 . <(source_prq_vars "$prq" "local")
                 [[ $prq_local_repo = barclamp-* ]] && \
-                    PULL_REQUEST_BARCLAMPS[${prq_local_repo##*/barclamp-}]="$prq_local_branch"
+                    PULL_REQUEST_BARCLAMPS[${prq_local_repo#barclamp-}]="$prq_local_branch"
                 for b in $(builds_for_one_pull_request "$repo"); do
                     build_tmp[$b]="build"
                 done
@@ -1086,7 +1084,7 @@ list_pull_requests() {
         cf="$LOCAL_PULL_TRACKING/$id/title"
         cr="$LOCAL_PULL_TRACKING/$id/release"
         ct="${id%%/*}"
-        echo "$idx: ($ct: $(cat "$cr")) $(cat "$cf")"
+        echo "$idx: ($(cat "$cr")) $(cat "$cf")"
     done <"$LOCAL_PULL_TRACKING/pull_request_index"
 }
 
