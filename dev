@@ -2391,6 +2391,8 @@ pull_requests_gen() {
             for br in "${!br_pulls[@]}"; do
                 in_repo git show-ref --hash "refs/heads/$br"
             done
+            hostname -f
+            date -u '+%s.%N'
         )|sha1sum |cut -d ' ' -f 1)"
     for bc in "${!barclamps[@]}"; do
 	for bcb in ${barclamp_branches["$bc"]}; do
