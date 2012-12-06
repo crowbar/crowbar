@@ -564,7 +564,7 @@ source_prq_vars() (
     # $2 = whether to scope the variables as local
     local f  val
     cd "$1" || return 1
-    [[ -f repo && -f created_at && -f title ]] || return 1
+    [[ -f source_repo && -f created_at && -f title ]] || return 1
     for f in *; do
         [[ -f $f ]] || continue
         read val < "$f"
@@ -642,11 +642,12 @@ save_pull_request_metadata() (
     $fetchcmd "$pull_req_repo" "+$pull_req_branch:$local_branch" &>/dev/null || return
     mkdir -p "$dest" && cd "$dest"
     echo "$order" > order
-    echo "$pull_req_repo" > repo
+    echo "$pull_req_repo" > source_repo
     echo "$repo" > local_repo
     echo "$pull_req_target_repo" > target_repo
     echo "$pull_req_branch" > source_branch
     echo "$pull_req_sha" > source_sha
+    echo "$pull_req_target_sha" > target_sha
     echo "$base_branch" > target_branch
     echo "$github_id" > number
     echo "$created_at" > created_at
@@ -693,18 +694,18 @@ fetch_pull_request_metadata() {
             curl_and_res "https://api.github.com/repos/$acct/$2/pulls"))
     local pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
     local base_branch key ord repo title rel github_id updated_at github_url github_user
-    local github_target_user pull_req_target_repo
+    local github_target_user pull_req_target_repo pull_req_target_sha
     for key in $(printf '%s\n' "${!pulls[@]}" |sort); do
         if [[ $ord && $ord != ${key%%.*} ]]; then
             # The first part of the key has changed, so we should have a complete set of data.
             save_pull_request_metadata
             unset pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
             unset base_branch key ord repo title rel github_id updated_at github_url github_user
-            unset github_target_user pull_req_target_repo
+            unset github_target_user pull_req_target_repo pull_req_target_sha
 
             local pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
             local base_branch key ord repo title rel github_id updated_at github_url github_user
-            local github_target_user pull_req_target_repo
+            local github_target_user pull_req_target_repo pull_req_target_sha
 
         fi
         ord=${key%%.*}
@@ -722,6 +723,7 @@ fetch_pull_request_metadata() {
             head.sha) pull_req_sha="${pulls[$key]}";;
             head.repo.clone_url) pull_req_repo="${pulls[$key]}";;
             base.repo.clone_url) pull_req_target_repo="${pulls[$key]}";;
+            base.sha) pull_req_target_sha="${pulls[$key]}";;
             title)
                 if [[ ${pulls[$key]} =~ $PULL_TITLE_RE ]]; then
                     order="${BASH_REMATCH[2]}:${BASH_REMATCH[3]}"
@@ -783,7 +785,7 @@ pull_request_bundle_sane() {
     for d in "$OPEN_PULL_REQUESTS/bundles/$1/"*; do
         [[ -d "$d" ]] || continue
         repo="${d##*/}"
-        for f in order repo source_branch source_sha source_account \
+        for f in order source_repo source_branch source_sha source_account \
             target_branch number created_at title release; do
             [[ -f $d/$f ]] && continue
             debug "Missing metadata info $d/$f"
@@ -1042,7 +1044,7 @@ show_pull_request() {
         echo "Last Updated:        $(pull_request_last_touched "$id")"
         echo "Type:                singleton"
         echo "Repo:                $prq_local_repo"
-        echo "Repo with Changes:   $prq_repo"
+        echo "Repo with Changes:   $prq_source_repo"
         echo "Branch with Changes: $prq_source_branch"
         echo "Local Branch:        $prq_local_branch"
         echo "Target Branch:       $prq_target_branch"
@@ -1057,14 +1059,14 @@ show_pull_request() {
         local repo
         for repo in "$prq/"*; do
             [[ -d $repo ]] || continue
-            if [[ $repo = */barclamp-* ]]; then
-                builds=($(builds_for_barclamp_in_release "${repo#*/barclamp-}" "$release"))
-            else
-                builds=("all")
-            fi
             . <(source_prq_vars "$repo" "local")
+            if [[ $repo = */barclamp-* ]]; then
+                builds=($(builds_for_barclamp_in_release "${repo#*/barclamp-}" "$prq_release"))
+            else
+                builds=($(builds_in_release "$prq_release"))
+            fi
             echo "Repo: ${repo##*/}"
-            echo "    Repo with Changes:   $prq_repo"
+            echo "    Repo with Changes:   $prq_source_repo"
             echo "    Target Account:      $prq_target_account"
             echo "    Source Account:      $prq_source_account"
             echo "    Branch with Changes: $prq_source_branch"
