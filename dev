@@ -28,6 +28,24 @@ DEV_BRANCHES["hadoop-os-build"]="master"
 DEV_BRANCHES["cloudera-os-build"]="master"
 github_re='^(https?|ssh|git)://.*github\.com/([^/]+)'
 
+# Associative array to handle skeleton of the state transition machine.
+declare -A CI_STATES
+CI_STATES["new"]="merge-testing"
+CI_STATES["merge-testing"]="merge-tested"
+CI_STATES["merge-tested"]="unit-testing"
+CI_STATES["unit-testing"]="unit-tested"
+CI_STATES["unit-tested"]="build-testing"
+CI_STATES["build-testing"]="build-tested"
+CI_STATES["build-tested"]="smoke-testing"
+CI_STATES["smoke-testing"]="smoke-tested"
+CI_STATES["smoke-tested"]="code-reviewing"
+CI_STATES["code-reviewing"]="code-reviewed"
+CI_STATES["code-reviewed"]="mergeable"
+CI_STATES["mergeable"]="merged"
+CI_STATES["merged"]="closed"
+CI_STATES["failed"]="new"
+CI_STATES["needs-work"]="new"
+
 # DEV_REMOTE_BRANCHES defines what branches in the main Crowbar repository
 # should be pulled and synced with what remotes.
 # Barclamps do care about remote branches.
@@ -46,12 +64,12 @@ VERBOSE=true
 [[ $CROWBAR_DIR = /* ]] || CROWBAR_DIR="$currdir/$CROWBAR_DIR"
 [[ -f $CROWBAR_DIR/build_crowbar.sh && -d $CROWBAR_DIR/.git ]] || \
     die "$CROWBAR_DIR is not a git checkout of Crowbar!"
+[[ $CI_TRACKING_REPO ]] || CI_TRACKING_REPO=ci-tracking
 [[ $CROWBAR_TEST_DIR ]] || CROWBAR_TEST_DIR="/tmp/crowbar-dev-test"
-[[ $LOCAL_PULL_TRACKING ]] || LOCAL_PULL_TRACKING="$HOME/.crowbar"
-[[ $OPEN_PULL_REQUESTS ]] || OPEN_PULL_REQUESTS="$LOCAL_PULL_TRACKING/open_pull_requests"
-[[ $OLD_PULL_REQUESTS ]] || OLD_PULL_REQUESTS="$LOCAL_PULL_TRACKING/old_pull_requests"
+[[ $LOCAL_PULL_TRACKING ]] || LOCAL_PULL_TRACKING="$CROWBAR_DIR/.ci-tracking"
+[[ $OPEN_PULL_REQUESTS ]] || OPEN_PULL_REQUESTS="$LOCAL_PULL_TRACKING/local"
 export CROWBAR_DIR CROWBAR_TEST_DIR LOCAL_PULL_TRACKING
-export OPEN_PULL_REQUESTS OLD_PULL_REQUESTS
+export OPEN_PULL_REQUESTS
 
 . "$CROWBAR_DIR/build_lib.sh" || exit 1
 trap - 0 INT QUIT TERM
@@ -558,7 +576,6 @@ update_all_tracking_branches() {
     done
 }
 
-
 source_prq_vars() (
     # $1 = path to pull request metadata
     # $2 = whether to scope the variables as local
@@ -614,7 +631,9 @@ scrub_merged_pull_requests() {
     git remote prune personal
 }
 
-# Helper function only for use by fetch_pull_request_metadata
+# Helper function only for use by fetch_pull_request_metadata.
+# If we have applicable metadata from the CI repo, we will
+# pull it in as well.
 save_pull_request_metadata() (
     local fetchcmd
     [[ $base_branch && \
@@ -622,17 +641,32 @@ save_pull_request_metadata() (
         $pull_req_repo && \
         $pull_req_target_repo && \
         $pull_req_sha && \
+        $pull_req_state && \
         $repo && \
         $title && \
         $github_id && \
         $created_at  && \
         $github_target_user ]] || return
     if [[ $pull_req_id ]]; then
-        local dest="$OPEN_PULL_REQUESTS/bundles/$pull_req_id/$repo"
+        prq="bundles/$pull_req_id/$repo"
+        if [[ -d $LOCAL_CI_TRACKING/${prq%/*} && \
+            ! -d $OPEN_PULL_REQUESTS/${prq%/*} ]]; then
+            mkdir -p "$OPEN_PULL_REQUESTS/${prq%/*}"
+            cp -a "$LOCAL_CI_TRACKING/${prq%/*}/." \
+                "$OPEN_PULL_REQUESTS/${prq%/*}/."
+        fi
     else
-        local dest="$OPEN_PULL_REQUESTS/singletons/$github_target_user/$repo/$github_id"
+        prq="singletons/$github_target_user/$repo/$github_id"
         [[ $order ]] || order='1:1'
+        if [[ -d $LOCAL_CI_TRACKING/${prq} && \
+            ! -d $OPEN_PULL_REQUESTS/${prq} ]]; then
+            mkdir -p "$OPEN_PULL_REQUESTS/${prq}"
+            cp -a "$LOCAL_CI_TRACKING/${prq}/." \
+                "$OPEN_PULL_REQUESTS/${prq}/."
+        fi
     fi
+    local dest="$OPEN_PULL_REQUESTS/$prq"
+    mkdir -p "$dest"
     case $repo in
         crowbar) fetchcmd="in_repo git fetch";;
         barclamp-*) fetchcmd="in_barclamp "${repo#barclamp-}" git fetch";;
@@ -640,7 +674,7 @@ save_pull_request_metadata() (
     esac
     local local_branch="pull-req/$github_user/$github_id"
     $fetchcmd "$pull_req_repo" "+$pull_req_branch:$local_branch" &>/dev/null || return
-    mkdir -p "$dest" && cd "$dest"
+    cd "$dest"
     echo "$order" > order
     echo "$pull_req_repo" > source_repo
     echo "$repo" > local_repo
@@ -652,6 +686,7 @@ save_pull_request_metadata() (
     echo "$github_id" > number
     echo "$created_at" > created_at
     echo "$title" > title
+    echo "$pull_req_state" > state
     echo "$github_url" > github_url
     echo "$local_branch" > local_branch
     echo "$github_user" > source_account
@@ -694,18 +729,18 @@ fetch_pull_request_metadata() {
             curl_and_res "https://api.github.com/repos/$acct/$2/pulls"))
     local pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
     local base_branch key ord repo title rel github_id updated_at github_url github_user
-    local github_target_user pull_req_target_repo pull_req_target_sha
+    local github_target_user pull_req_target_repo pull_req_target_sha pull_req_state
     for key in $(printf '%s\n' "${!pulls[@]}" |sort); do
         if [[ $ord && $ord != ${key%%.*} ]]; then
             # The first part of the key has changed, so we should have a complete set of data.
             save_pull_request_metadata
             unset pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
             unset base_branch key ord repo title rel github_id updated_at github_url github_user
-            unset github_target_user pull_req_target_repo pull_req_target_sha
+            unset github_target_user pull_req_target_repo pull_req_target_sha pull_req_state
 
             local pull_req_id pull_req_sha order pull_req_repo pull_req_branch created_at
             local base_branch key ord repo title rel github_id updated_at github_url github_user
-            local github_target_user pull_req_target_repo pull_req_target_sha
+            local github_target_user pull_req_target_repo pull_req_target_sha pull_req_state
 
         fi
         ord=${key%%.*}
@@ -734,6 +769,7 @@ fetch_pull_request_metadata() {
             base.ref) base_branch="${pulls[$key]}";;
             base.repo.name) repo="${pulls[$key]}";;
             number) github_id="${pulls[$key]}";;
+            state)  pull_req_state="${pulls[$key]}";;
             created_at) created_at="${pulls[$key]}";;
             updated_at) updated_at="${pulls[$key]}";;
             html_url) github_url="${pulls[$key]}";;
@@ -748,6 +784,7 @@ fetch_pull_requests_for_remote() {
     local -a remotes
     local remote
     [[ $1 ]] && remotes=("$@") || remotes=($(origin_remote))
+    fetch_ci_tracking
     clear_pull_request_metadata
     for remote in "${remotes[@]}"; do
         if ! (crowbar_remote_exists "$remote" && remote_available "$remote" && \
@@ -888,7 +925,7 @@ pull_request_last_touched() (
             cat "$OPEN_PULL_REQUESTS/$1/created_at"
         fi
     else
-        die "No idea how to find lat touched time for $1"
+        die "No idea how to find last touched time for $1"
     fi
 )
 
@@ -1248,6 +1285,96 @@ pull_request_close() {
     esac
 }
 
+fetch_ci_tracking() (
+    [[ ! -d $LOCAL_PULL_TRACKING ]] && mkdir -p "$LOCAL_PULL_TRACKING"
+    cd "$LOCAL_PULL_TRACKING"
+    if [[ ! -d .git ]]; then
+        for remote in "${DEV_SORTED_REMOTES[@]}"; do
+            remote_available "$remote" || continue
+            test_remote "${DEV_REMOTE_URLBASE[$remote]}/$CI_TRACKING_REPO" || continue
+            debug "Fetching CI repository from ${remote}"
+            git clone "${DEV_REMOTE_URLBASE[$remote]}/$CI_TRACKING_REPO" . &>/dev/null
+            break
+        done
+    else
+        debug "Updating local CI tracking repository"
+        git pull --all --force &>/dev/null
+    fi
+)
+
+__ci_set_status() (
+    # $1 = id
+    # $2 = status
+    # $3 = old status
+    # $4 = comment
+    cd "$LOCAL_PULL_TRACKING/$1" || die "$1 is not being tracked by CI"
+    status="ci_status/$(date -u +%Y-%m-%dT%TZ)/$DEV_GITHUB_ID/$2"
+    mkdir -p "$status"
+    echo "$3" >"$status/last_state"
+    echo "$4" >"$status/comment"
+)
+
+ci_get_state() {
+    # $1 = id
+
+    # regex for splitting the state directory into its component parts
+    local st_re='^\./([^/]+)/([^/]+)/([^/]+)$'
+    local state_dir state acct timestamp
+    local -A per_acct_states
+    [[ -d $LOCAL_PULL_TRACKING/$1 ]] || die "$1 is not being tracked by CI"
+    while read state_dir; do
+        [[ $state_dir =~ $st_re ]] || die "Malformed state in ci_get_state"
+        timestamp=${BASH_REMATCH[1]}
+        acct=${BASH_REMATCH[2]}
+        state=${BASH_REMATCH[3]}
+        case $state in
+            # Start with the states that have global scope --
+            # if any of the accounts register something in this state, then
+            # it will be the global state of the CI system for this pull requests.
+            new)
+                # When we hit the new state, we stop because that any state information from
+                # before it is irrelavent -- new indicates that any previous testing state
+                # is invalid due to either the pull request branch or the target branch
+                # having changed.  If we don't have any other recorded states, then
+                # we will just return the current state.
+                [[ ${!per_acct_states[*]} ]] || per_acct_states[$acct]=$state
+                break;;
+            failed|needs-work|closed|mergeable|merged)
+                # If we hit the failed state, then that is where we shall remain until
+                # someone transitions us out of failed back to new. That may happen automatically
+                # due to any of the branches involved in the pull request getting updated,
+                # or due to manual intervention.
+
+                # needs-work is much like failed, except it is the result of someone
+                # saying that the code failed code review for some reason.
+
+                # Ditto for closed, except nothing will transition us back out of that.
+
+                # Mergeable and merged are also handled here as well, because their
+                # gating functions should ensure that they are never reached until
+                # we have the appropriate number of code-reviewed states in the currently
+                # applicable state transition history.
+                echo "$state"; return;;
+        esac
+    done < <(cd "$LOCAL_PULL_TRACKING/$1/ci_status"; find . -mindepth 3 -maxdepth 3 -type d |sort -r)
+
+    # logic for figuring what to report from the per-acct state hash here.
+}
+
+ci_import_new_pull_requests() {
+    local nr id
+    [[ -f $OPEN_PULL_REQUESTS/pull_request_index ]] || return 0
+    while read nr id; do
+        [[ -d $LOCAL_PULL_TRACKING/$id ]] && continue
+        mkdir -p "$LOCAL_PULL_TRACKING/$id"
+        cp -a "$OPEN_PULL_REQUESTS/$id/." "$LOCAL_PULL_TRACKING/$id/."
+        __ci_set_status "$id" "new"
+        (   cd "$LOCAL_PULL_TRACKING/$id"
+            git add .
+            git commit -m "Added new pull request $id")
+    done < "$OPEN_PULL_REQUESTS/pull_request_index"
+}
+
 __fetch_all() {
     local remote remotes=() res=true 
     if [[ $@ || $DEV_FROM_REMOTES ]]; then
@@ -1295,6 +1422,7 @@ fetch_all() {
     results_dir="$(mktemp -d /tmp/crowbar_fetch_${USER}_${dt}_XXXXXX)" || \
         die "Cannot create temporary storage for fetch results!"
     debug "Fetching updates:"
+    fetch_ci_tracking
     for d in "$CROWBAR_DIR/barclamps/"* "$CROWBAR_DIR"; do
         [[ -d $d/.git ]] || continue
         if [[ $BADLINK  ]]; then
@@ -3318,6 +3446,16 @@ pull_request_handler() {
     esac
 }
 
+ci_helper() {
+    local req=$1
+    shift
+    case $req in
+        fetch) fetch_ci_tracking "$@";;
+        import) ci_import_new_pull_requests "$@";;
+        push) (cd "$LOCAL_PULL_TRACKING"; git push);;
+        *) die "Not a valid CI command.  Try fetch, import, or push.";;
+    esac
+}
 # Hash for handling command -> function mapping.
 DEV_COMMANDS["backup"]="backup_everything"
 DEV_COMMANDS["barclamps-in-build"]="barclamps_in_build"
@@ -3327,6 +3465,7 @@ DEV_COMMANDS["build"]="build_crowbar"
 DEV_COMMANDS["build-refs"]="refs_for_build"
 DEV_COMMANDS["builds"]="builds_in_release"
 DEV_COMMANDS["checkout"]="checkout"
+DEV_COMMANDS["ci"]="ci_helper"
 DEV_COMMANDS["clear-unit-tests"]="clear_unit_tests"
 DEV_COMMANDS["clone-barclamps"]="clone_barclamps"
 DEV_COMMANDS["create-barclamp"]="create_barclamp"
@@ -3379,6 +3518,7 @@ DEV_SHORT_HELP["build"]="              Show the current build or build Crowbar"
 DEV_SHORT_HELP["builds"]="             Show the builds in the current release."
 DEV_SHORT_HELP["build-refs"]="         Show the Git commits that would be used in a build."
 DEV_SHORT_HELP["checkout"]="           Check out a branch in the current release."
+DEV_SHORT_HELP["ci"]="                 Heper for Continuous Intergration subcommands."
 DEV_SHORT_HELP["clear-unit-tests"]="   Remove unit test environment."
 DEV_SHORT_HELP["clone-barclamps"]="    Clone barclamps."
 DEV_SHORT_HELP["create-barclamp"]="    Create a new barclamp."
@@ -3725,6 +3865,7 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
 
       Please note that this will put any trees that have changes to be pulled
       into a detached HEAD state.  You can use dev switch to get back to normal."
+DEV_LONG_HELP["ci"]="Helper."
 
 # Verify that we have help for all commands, and exit if we don't.
 for cmd in "${!DEV_COMMANDS[@]}"; do
