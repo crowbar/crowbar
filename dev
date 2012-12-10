@@ -53,7 +53,7 @@ export CROWBAR_DIR
 
 . "$CROWBAR_DIR/build_lib.sh" || exit 1
 trap - 0 INT QUIT TERM
-trap 'sudo rm -rf "$CROWBAR_TMP"' 0 INT QUIT TERM
+trap 'rm -rf "$CROWBAR_TMP"' 0 INT QUIT TERM
 which gem &>/dev/null || \
     die "Rubygems not installed, and some of our helpers need a JSON gem."
 

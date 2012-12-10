@@ -267,7 +267,7 @@ cleanup() {
     wait
     flock -u 70
     rm "$CROWBAR_DIR/".*.lock
-    [[ -d $CROWBAR_TMP ]] && sudo rm -rf "$CROWBAR_TMP"
+    [[ -d $CROWBAR_TMP ]] && rm -rf "$CROWBAR_TMP"
     exit $res
 } 70> "$CLEANUP_LOCK"
 
