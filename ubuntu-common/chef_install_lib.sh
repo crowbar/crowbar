@@ -50,6 +50,18 @@ bring_up_chef() {
     # Fix ruby-gems and merb-core mismatch
     sed -i -e "s/Gem.activate(dep)/dep.to_spec.activate/g" /usr/lib/ruby/1.8/merb-core/core_ext/kernel.rb
 
+
+    ## JMALTIN
+    ## append to /etc/chef/client.rb to enable report handlers
+    cat >> /etc/chef/client.rb <<EOF
+
+## JMALTIN
+## append to /etc/chef/client.rb to enable report handlers - also needs an LWRP
+require 'chef/handler/json_file'
+report_handlers << Chef::Handler::JsonFile.new(:path => "/var/chef/reports")
+exception_handlers << Chef::Handler::JsonFile.new(:path => "/var/chef/reports")
+EOF
+
     log_to svc service chef-server restart
 }
 
