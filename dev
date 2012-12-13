@@ -29,22 +29,31 @@ DEV_BRANCHES["cloudera-os-build"]="master"
 github_re='^(https?|ssh|git)://.*github\.com/([^/]+)'
 
 # Associative array to handle skeleton of the state transition machine.
+# This is roughly a reverse lookup table for use by ci_get_state().
+# The state transition rules are implemented by ci_next_states()
 declare -A CI_STATES
-CI_STATES["new"]="merge-testing"
-CI_STATES["merge-testing"]="merge-tested"
-CI_STATES["merge-tested"]="unit-testing"
-CI_STATES["unit-testing"]="unit-tested"
-CI_STATES["unit-tested"]="build-testing"
-CI_STATES["build-testing"]="build-tested"
-CI_STATES["build-tested"]="smoke-testing"
-CI_STATES["smoke-testing"]="smoke-tested"
-CI_STATES["smoke-tested"]="code-reviewing"
-CI_STATES["code-reviewing"]="code-reviewed"
-CI_STATES["code-reviewed"]="mergeable"
-CI_STATES["mergeable"]="merged"
-CI_STATES["merged"]="closed"
-CI_STATES["failed"]="new"
-CI_STATES["needs-work"]="new"
+CI_STATES["new"]="failed needs-work"
+CI_STATES["merge-testing"]="new"
+CI_STATES["merge-tested"]="merge-testing"
+# These are shortened versions of the real next states.
+# The real next states are unit-(testing|tested)-release/build
+CI_STATES["unit-testing"]="merge-tested"
+CI_STATES["unit-tested"]="unit-testing"
+# These are also shortened versions.  The real states are:
+# (build|smoke)-(testing|tested)-<release>/<build>/<os>
+CI_STATES["build-testing"]="merge-tested unit-tested"
+CI_STATES["build-tested"]="build-testing"
+CI_STATES["smoke-testing"]="build-tested"
+CI_STATES["smoke-tested"]="smoke-testing"
+# These are the actual states.
+CI_STATES["code-reviewing"]="smoke-tested"
+CI_STATES["needs-work"]="code-reviewing"
+CI_STATES["code-reviewed"]="code-reviewing"
+CI_STATES["mergeable"]="code-reviewed"
+CI_STATES["merged"]="mergeable"
+CI_STATES["failed"]="all"
+CI_STATES["closed"]="all"
+
 
 # DEV_REMOTE_BRANCHES defines what branches in the main Crowbar repository
 # should be pulled and synced with what remotes.
@@ -955,10 +964,15 @@ sort_pull_requests() {
 # translate a pull request number (as displayed by dev pull-requests list)
 # into an internal ID.
 pull_request_number_to_id() {
-    [[ $1 && $1 =~ [0-9]+ ]] || die "Please pass a pull request # from dev pull-request list!"
-    read idx id < <(grep "^$1 " "$OPEN_PULL_REQUESTS/pull_request_index")
-    [[ $1 = $idx ]] || die "$1 is not a valid pull request." \
-        "dev pull-requests list shows the open ones we know about."
+    if [[ $1 && $1 =~ [0-9]+ ]]; then
+        read idx id < <(grep "^$1 " "$OPEN_PULL_REQUESTS/pull_request_index")
+        [[ $1 = $idx ]] || die "$1 is not a valid pull request." \
+            "dev pull-requests list shows the open ones we know about."
+    elif grep -q " $1\$" "$OPEN_PULL_REQUESTS/pull_request_index"; then
+        id="$1"
+    else
+        die "$1 is not a valid pull request ID"
+    fi
     echo $id
 }
 
@@ -1054,7 +1068,7 @@ builds_for_pull_request() {
     # Display the ones that did not get masked
     for id in "${res[@]}"; do
         [[ ${build_tmp[$id]} && ${build_tmp[$id]} = build ]] || continue
-        echo "$id: ${build_oses[$id]}"
+        echo "$release/$id: ${build_oses[$id]}"
     done
 }
 
@@ -1302,6 +1316,7 @@ fetch_ci_tracking() (
     fi
 )
 
+
 __ci_set_status() (
     # $1 = id
     # $2 = status
@@ -1314,52 +1329,110 @@ __ci_set_status() (
     echo "$4" >"$status/comment"
 )
 
-ci_get_state() {
-    # $1 = id
+# Figure out the set of possible next states from the current state
+ci_next_states() {
+    # $1 = index or local ID.
+    # $2 = current state
+    local -A unit_test_whitelist
+    local -a next
+    local id release build os oses current_state
+    # As we get more releases that are unit test enabled, add them here,
+    # replace this with blacklist logic or (ideally) remove it altogether.
+    unit_test_whitelist["development"]=true
+    id=$(pull_request_number_to_id "$1") || \
+        die "$1 is not a valid pull request!"
+    [[ -d $LOCAL_PULL_TRACKING/$id ]] || \
+        die "Pull request $1 has not been imported into CI." \
+        "Please run $0 ci import."
+    [[ $2 ]] && current_state=$2 || current_state=$(ci_get_state $id)
+    case $current_state in
+        # The first two states are fairly simple in their allowed transitions.
+        new) next=(merge-testing);;
+        merge-testing) next=(merge-tested);;
+        # Unit testing happens on a per-release/build basis,
+        # and is not applicable to all releases.  Our next state
+        # depends on the whitelist.
+        merge-tested)
+            while read build oses; do
+                build=${build%:}
+                if [[ ${unit_test_whitelist[$release]} ]]; then
+                    next+=("unit-testing-$build")
+                else
+                    for os in $oses; do
+                        next+=("build-testing-$build/$os")
+                    done
+                fi
+            done < <(builds_for_pull_request "$id");;
+        # unit testing happens on a per-release and per-build basis.
+        unit-testing-*)
+            build=${2#unit-testing-}
+            next=("unit-tested-$build");;
+        unit-tested-*)
+            local b=${2#unit-tested-}
+            while read build oses; do
+                build=${build%:}
+                if [[ $build != $b ]]; then continue; fi
+                next+=("build-testing-$build/$os")
+            done < <(builds_for_pull_request "$id");;
+        # Build and smoke tests happen on a release/build/os basis.
+        build-testing-*)
+            build=${2#build-testing-}
+            next=("build-tested-$build");;
+        build-tested-*)
+            build=${2#build-tested-}
+            next=("smoke-testing-$build");;
+        smoke-testing-*)
+            build=${2#smoke-testing-}
+            next=("smoke-tested-$build");;
+        smoke-tested-*) next=(code-reviewing);;
+        # code-reviewing can actaully happen in parallel with the above
+        # steps.
+        code-reviewing) next=(code-reviewed);;
+        code-reviewed) next=(mergeable);;
+        # Mergeable cannot happen until we have a sufficient number of code-reviewed states
+        # and we have smoke-tested states for all the release/build/OS combos applicable.
+        mergeable) next=(merged);;
+        merged) next=(closed);;
+        failed|needs-work) next=(new);;
+        closed) next=();;
+        *) die "Unknown state $current_state!";;
+    esac
+    printf "%s\n" "${next[@]}"
+}
 
-    # regex for splitting the state directory into its component parts
+
+# Get the state paths relative to an entry in the CI state tracking repo.
+# This is intended to be used by the backend machinery to implement the real
+# state transitions.
+ci_get_current_state_paths() {
+    # $1 = pull request ID.
     local st_re='^\./([^/]+)/([^/]+)/([^/]+)$'
-    local state_dir state acct timestamp
-    local -A per_acct_states
-    [[ -d $LOCAL_PULL_TRACKING/$1 ]] || die "$1 is not being tracked by CI"
+    local state_dir state last_state
+    local -A states
+    id=$(pull_request_number_to_id "$1") || exit 1
+    [[ -d $LOCAL_PULL_TRACKING/$id ]] || die "$1 is not being tracked by CI"
+    # First, read all of the state paths in.
     while read state_dir; do
         [[ $state_dir =~ $st_re ]] || die "Malformed state in ci_get_state"
-        timestamp=${BASH_REMATCH[1]}
-        acct=${BASH_REMATCH[2]}
-        state=${BASH_REMATCH[3]}
-        case $state in
-            # Start with the states that have global scope --
-            # if any of the accounts register something in this state, then
-            # it will be the global state of the CI system for this pull requests.
-            new)
-                # When we hit the new state, we stop because that any state information from
-                # before it is irrelavent -- new indicates that any previous testing state
-                # is invalid due to either the pull request branch or the target branch
-                # having changed.  If we don't have any other recorded states, then
-                # we will just return the current state.
-                [[ ${!per_acct_states[*]} ]] || per_acct_states[$acct]=$state
-                break;;
-            failed|needs-work|closed|mergeable|merged)
-                # If we hit the failed state, then that is where we shall remain until
-                # someone transitions us out of failed back to new. That may happen automatically
-                # due to any of the branches involved in the pull request getting updated,
-                # or due to manual intervention.
-
-                # needs-work is much like failed, except it is the result of someone
-                # saying that the code failed code review for some reason.
-
-                # Ditto for closed, except nothing will transition us back out of that.
-
-                # Mergeable and merged are also handled here as well, because their
-                # gating functions should ensure that they are never reached until
-                # we have the appropriate number of code-reviewed states in the currently
-                # applicable state transition history.
-                echo "$state"; return;;
-        esac
-    done < <(cd "$LOCAL_PULL_TRACKING/$1/ci_status"; find . -mindepth 3 -maxdepth 3 -type d |sort -r)
-
-    # logic for figuring what to report from the per-acct state hash here.
+        states[${state_dir#./}]=current
+    done < <(cd "$LOCAL_PULL_TRACKING/$id/ci_status"; find . -mindepth 3 -maxdepth 3 -type d)
+    # Second, mask out all of the states that have a last file pointing at them.
+    for state in "${!states[@]}"; do
+        [[ -f $LOCAL_PULL_TRACKING/$id/$state/last_state ]] || continue
+        read -r last_state < "$LOCAL_PULL_TRACKING/$id/$state/last_state"
+        [[ ${state[$last_state]} ]] || \
+            die "State graph for CI item $id is invalid." \
+            "State $state says that it transitioned from $last_state," \
+            "but $last_state is not in the state graph!"
+        state[$last_state]=stale
+    done
+    # Anything not marked as stale is a state that we are in.
+    for state in "${!states[@]}"; do
+        [[ ${states[$state]} = stale ]] && continue
+        echo "$state"
+    done
 }
+
 
 ci_import_new_pull_requests() {
     local nr id
@@ -3453,6 +3526,8 @@ ci_helper() {
         fetch) fetch_ci_tracking "$@";;
         import) ci_import_new_pull_requests "$@";;
         push) (cd "$LOCAL_PULL_TRACKING"; git push);;
+        state-dirs) ci_get_current_state_paths "$@";;
+        next-states) ci_next_states "$@";;
         *) die "Not a valid CI command.  Try fetch, import, or push.";;
     esac
 }
