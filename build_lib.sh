@@ -488,7 +488,6 @@ cache_add() {
     # $2 = location to store it in the cache
     cp "$1" "$2" || \
         die "Cannot save $1 in $2!"
-    debug "cache_add: Saved $1 in $2"
     if [[ $CURRENT_CACHE_BRANCH ]]; then
         CACHE_NEEDS_COMMIT=true
         in_cache git add "${2#${CACHE_DIR}/}"
@@ -577,81 +576,91 @@ update_barclamp_pkg_cache() {
     make_barclamp_pkg_metadata "$1"
 }
 
+# Fetch all of a gem's dependencies, followed by the gem itself.
+__fetch_gem() {
+    # $1 = gem to fetch.
+    # $2 = (optional) version string
+    if [[ ${fetched_gems["$1 $2"]} ]]; then
+        debug "Gem ${fetched_gems["$1 $2"]} already fetched to satisfy $1 $2"
+        return
+    fi
+    local gemver_re='(.+) \(([^)]*)\)'
+    local our_versions=() v=()
+    local -A gem_versions
+    local fetch_gems=()
+    local in_our_gem=false line gemname i our_gemname
+    IFS=',' read -a v <<< "${2}"
+    # Translate into something we can pass to our gem wrapper.
+    for i in "${v[@]}"; do
+        our_versions+=(--version "$i")
+    done
+    # Download the gem that best matches the constraints
+    our_gemname=$("$CROWBAR_DIR/fetch_all_gems.rb" fetch "$1" "${our_versions[@]}")
+    our_gemname=${our_gemname##*Downloaded }
+    # Figure out the version we downloaded
+    [[ $our_gemname =~ $GEM_RE ]] || die "Could not find version of downloaded gem!"
+    fetched_gems["$1 $2"]="$our_gemname"
+    # and get the dependencies for gems that match these constraints.
+    our_versions=(--version "${BASH_REMATCH[2]}")
+    while read line; do
+        case $line in
+            Gem*)
+                in_our_gem=false
+                gemname=${line#Gem }
+                [[ $gemname = $our_gemname ]] || continue
+                in_our_gem=true;;
+            '') [[ $in_our_gem = true ]] && break
+                gemname='';;
+            *) [[ $in_our_gem = true && \
+                $line =~ $gemver_re && \
+                ${BASH_REMATCH[2]} != *development* ]] || continue
+                fetch_gems+=("${BASH_REMATCH[1]}")
+                gem_versions["${BASH_REMATCH[1]}"]="${BASH_REMATCH[2]}";;
+        esac
+    done < <("$CROWBAR_DIR/fetch_all_gems.rb" dependency "$1" --remote "${our_versions[@]}")
+    for gemname in "${fetch_gems[@]}"; do
+        [[ ${fetched_gems["$gemname ${gem_versions[$gemname]}"]} ]] && continue
+        debug "Fetching $gemname ${gem_versions[$gemname]} as a dependency of $1"
+        __fetch_gem "$gemname" "${gem_versions[$gemname]}"
+    done
+}
+
 # Update the gem cache for a barclamp
 update_barclamp_gem_cache() {
     local -A gems
     local gemname gemver gemopts bc gem
     local bc_cache="$CACHE_DIR/barclamps/$1/gems"
-    install_rubygems || die "Could not install gem, cannot update gem cache!"
-    CHROOT_GEMDIR="$(in_chroot /usr/bin/gem environment gemdir | grep -v home)"
+    which gem &>/dev/null || die "Please install rubygems before updating the gem cache!"
+    local gemdir="$CROWBAR_TMP/gems/$1"
+    mkdir -p "$gemdir"
 
-    debug "update_barclamp_gem_cache: starting to ${1} to $bc_cache"
-
-    # Wipe out the caches.
-    debug "destroy that cruft"
-    ( cd "$CHROOT/$CHROOT_GEMDIR" && sudo rm -rf * )
-    debug "$(ls -al ${CHROOT}/${CHROOT_GEMDIR})"
-
-    # if we have deb or gem caches, copy them back in.
-    # Make sure we copy the caches for all our dependent barclamps.
-    
-    in_chroot mkdir -p "${CHROOT}/${CHROOT_GEMDIR}" || die "could not make ${CHROOT}/${CHROOT_GEMDIR}"
-
-    debug "copy from $CACHE_DIR/barclamps/$bc/gems/. to  $CHROOT/$CHROOT_GEMDIR"
+    # Stage prerequisite gems first
     for bc in $(all_deps "$1"); do
-	debug "are there any gems? sudo ls $CACHE_DIR/barclamps/$bc/gems/."
-	debug "$(sudo ls ${CACHE_DIR}/barclamps/${bc}/gems/.)"
         [[ -d "$CACHE_DIR/barclamps/$bc/gems/." ]] && \
-            sudo cp -va "$CACHE_DIR/barclamps/$bc/gems/." \
-            "$CHROOT/$CHROOT_GEMDIR" 
-	debug "did it make it into chroot?"
-	debug "$(in_chroot ls -al /${CHROOT_GEMDIR})"
+            cp -a "$CACHE_DIR/barclamps/$bc/gems/." \
+            "$gemdir"
     done
 
-    debug "create a hash of gems"
+    # Remember what we already have.
     while read gem; do
-	debug "gem ${gem} is from ${CHROOT}/${CHROOT_GEMDIR}"
-	debug "gem ${gem} sure does end in .gem"
-        [[ $gem = *.gem ]] || continue
-        gems["$gem"]="true"
-    done < <(sudo find "$CHROOT/$CHROOT_GEMDIR" -type f)
+        gems["${gem##*/}"]="true"
+    done < <(find "$gemdir" -type f -name '*.gem')
 
-    # install any build dependencies we need.
-
-    # Grab the gems needed for this barclamp.
-    debug "installing gems needed in this barclamp $1"
-    for gem in ${BC_GEMS["$1"]}; do
-	debug "gem ${gem} is required by barclamp $1"
-        if [[ $gem =~ $GEM_RE ]]; then
-            gemname="${BASH_REMATCH[1]}"
-            gemver="${BASH_REMATCH[2]}"
-        else
-            gemname="$gem"
-            gemver=''
-        fi
-        gemopts=(install --no-ri --no-rdoc)
-        [[ $gemver ]] && gemopts+=(--version "'= ${gemver}'")
-        [[ $http_proxy ]] && gemopts+=(-p "$http_proxy")
-        in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
-    done
-    debug "finished installing the gems"
-
-    # Save our updated gems and pkgs in the cache for later.
+    (   cd "$gemdir"
+        local -A fetched_gems
+        for gem in ${BC_GEMS["$1"]}; do
+            if [[ $gem =~ $GEM_RE ]]; then
+                __fetch_gem "${BASH_REMATCH[1]}" "= ${BASH_REMATCH[2]}"
+            else
+                __fetch_gem "$gem" ">= 0"
+            fi
+        done
+    ) || exit 1
     mkdir -p "$bc_cache" || die "Failed to make gem cache ${bc_cache}"
-    debug "made the gem cache ${bc_cache}"
-
-
-    debug "adding gems to cache"
-    debug "$(sudo find $CHROOT/$CHROOT_GEMDIR -name '*.gem')"
     while read gem; do
-    	debug "gem ${gem} is from $CHROOT/$CHROOT_GEMDIR" 
-        [[ $gem = *.gem ]] || continue
-        [[ ${gems["$gem"]} = "true" ]] && continue
-	debug "gem hash ${gem} = ${gems[${gem}]} "
-	debug "update_barclamp_gem_cache: adding ${gem} to $bc_cache"
+        [[ ${gems["${gem##*/}"]} = "true" ]] && continue
         cache_add "$gem" "$bc_cache"
-    done < <(sudo find "$CHROOT/$CHROOT_GEMDIR" -type f -name '*.gem')
-    debug "done adding gems to cache"
+    done < <(find "$gemdir" -type f -name '*.gem')
 }
 
 # Fetch any raw packages we do not already have.
