@@ -1,0 +1,86 @@
+#!/bin/bash
+#
+# Setup qemu-kvm server for running VMs. Should be executed on bare metal.
+# Nested virtualization works but it is generally too slow and painful.
+#
+# This should be eventually moved to a Chef cookbook/recipe.
+
+ensure_root() {
+  if [[ $EUID -ne 0 ]]; then
+    echo "This script must be run as root"
+    exit 1
+  fi
+}
+
+grep_cpu_info() {
+  local regex=$1
+  shift
+  grep -E -q "$(printf "$regex" "$@")" /proc/cpuinfo
+}
+
+# Check that the CPU supports KVM, which requires the 'svm' flag (AMD-V) on AMD
+# CPUs and the 'vmx' flag (Intel VT-x) on Intel CPUs.
+check_cpu() {
+  local VENDOR_REGEX='^vendor_id[[:space:]]*:[[:space:]]*%s$'
+  local FLAG_REGEX='^flags[[:space:]]*:[[:space:]]*.*( %s)( |$)'
+  cpu=
+
+  grep_cpu_info "$VENDOR_REGEX" AuthenticAMD && grep_cpu_info "$FLAG_REGEX" svm
+  [ $? -eq 0 ] && cpu="amd"
+
+  grep_cpu_info "$VENDOR_REGEX" GenuineIntel && grep_cpu_info "$FLAG_REGEX" vmx
+  [ $? -eq 0 ] && cpu="intel"
+
+  if [ ! "$cpu" ]; then
+    echo "Your CPU does not support KVM"
+    exit 1
+  fi
+}
+
+load_kvm_module() {
+  if [ ! -d /sys/module/kvm-$cpu ]; then
+    echo "Loading kvm-$cpu module"
+    /sbin/modprobe kvm-$cpu
+    [ $? -ne 0 ] && exit 1
+  fi
+
+  # Is KVM disabled by BIOS?
+  dmesg | tail -1 | grep -q "disabled by bios"
+  if [ $? -eq 0 ]; then
+    echo "KVM is disabled by BIOS. Please enable it."
+    exit 1
+  fi
+}
+
+# SUSE and RedHat uses /etc/sysconfig/kernel, while Ubuntu uses /etc/modules.
+# So this is harmless on Ubuntu, but has no effect.
+load_kvm_module_on_boot() {
+  local MODULES_LOADED_ON_BOOT=
+  local SYSCON_KERNEL=/etc/sysconfig/kernel
+
+  [ ! -f $SYSCON_KERNEL ] && touch $SYSCON_KERNEL
+  . $SYSCON_KERNEL
+
+  echo "$MODULES_LOADED_ON_BOOT" | egrep -q "(^| )kvm-$cpu( |$)"
+  if [ $? -ne 0 ]; then
+    egrep -q '^[[:space:]]*MODULES_LOADED_ON_BOOT=' $SYSCON_KERNEL
+    if [ $? -eq 0 ]; then
+      # Line exists, modify
+      if [ "$MODULES_LOADED_ON_BOOT" ]; then
+        sed -i -r -e "s@^([[:space:]]*MODULES_LOADED_ON_BOOT=[\"'])([^'\"]*)([\"'])@\1\2 kvm-$cpu\3@" $SYSCON_KERNEL
+      else
+        sed -i -r -e "s@^([[:space:]]*MODULES_LOADED_ON_BOOT=[\"'])([\"'])@\1kvm-$cpu\2@" $SYSCON_KERNEL
+      fi
+    else
+      echo '' >> $SYSCON_KERNEL
+      echo "MODULES_LOADED_ON_BOOT=\"kvm-$cpu\"" >> $SYSCON_KERNEL
+    fi
+  fi
+}
+
+ensure_root
+check_cpu
+load_kvm_module
+load_kvm_module_on_boot
+
+echo "Done!"
