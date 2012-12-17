@@ -3265,11 +3265,11 @@ unit_tests_need_reset() {
 
 setup_unit_tests() (
     local gem f barclamps=()
+    local gem_offline=true update_gem_cache=false
     unit_prereqs_installed || exit 1
     for f in "$@"; do
         case $f in
-            --offline) local gem_offline=true;;
-            --update-gem-cache) local update_gem_cache=true;;
+            --update-gem-cache) update_gem_cache=true;;
             *) barclamps+=("$f");;
         esac
     done
@@ -3277,20 +3277,18 @@ setup_unit_tests() (
     mkdir "$CROWBAR_TEST_DIR"
     reinstall_barclamps "${barclamps[@]}" || exit 1
     cd "$CROWBAR_TEST_DIR"
-    cp crowbar_framework/Gemfile .
+    cp crowbar_framework/Gemfile* .
     if [[ $gem_offline = true ]]; then
         unset update_gem_cache
         maybe_checkout_build_cache_branch
-        [[ -d $CACHE_DIR/unit_tests/gems ]] || \
-            die "Asked to run in offline mode, but no gem cache available!"
-        sed -ie 's/^source .*/source "http:\/\/127.0.0.1:8125"/' "Gemfile"
-        gem serve --dir "$CACHE_DIR/unit_tests/gems" -p 8125 -b 127.0.0.1 --daemon
-    else
-        sed -ie 's/^source .*/source "http:\/\/rubygems.org"/' "Gemfile"
-    fi
-    bundle || die "Could not fetch all required gems!"
-    if [[ $gem_offline = true ]]; then
-        ps x |awk '/[g]em serve/ {print $1}' |xargs kill -9
+        mkdir -p "$CROWBAR_TMP/gems"
+        find "$CACHE_DIR/barclamps" -type f -name '*.gem' \
+            -exec cp '{}' "$CROWBAR_TMP/gems" ';'
+        bundle install --path "$CROWBAR_TMP/gems" --local || \
+            die "Not all required gems are present." \
+            "Please run again with --update-gem-cache." \
+            "If that does not work, then you will need to add the missing gems to:" \
+            "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
     elif [[ $update_gem_cache = true ]]; then
         maybe_checkout_build_cache_branch
         git_managed_cache && git rm -rf "$CACHE_DIR/unit_tests/"
