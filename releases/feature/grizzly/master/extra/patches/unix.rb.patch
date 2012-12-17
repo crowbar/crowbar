@@ -1,0 +1,20 @@
+--- /usr/lib/ruby/gems/1.8/gems/chef-0.10.6/lib/chef/mixin/command/unix.rb	2011-12-14 12:31:10.000000000 +0000
++++ unix.rb	2012-03-17 02:27:56.000000000 +0000
+@@ -28,7 +28,7 @@
+         #
+         # Thanks Ara!
+         def popen4(cmd, args={}, &b)
+-
++          GC.disable
+           # Waitlast - this is magic.
+           #
+           # Do we wait for the child process to die before we yield
+@@ -207,6 +207,8 @@
+           else
+             [cid, pw.last, pr.first, pe.first]
+           end
++        ensure
++          GC.enable
+         end
+ 
+       end
