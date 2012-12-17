@@ -960,7 +960,7 @@ builds_for_pull_request() {
         bundles/*)
             for repo in "$prq"/*; do
                 [[ -d $repo ]] || continue
-                . <(source_prq_vars "$prq" "local")
+                . <(source_prq_vars "$repo" "local")
                 [[ $prq_local_repo = barclamp-* ]] && \
                     PULL_REQUEST_BARCLAMPS[${prq_local_repo#barclamp-}]="$prq_local_branch"
                 for b in $(builds_for_one_pull_request "$repo"); do
@@ -1121,7 +1121,7 @@ pull_request_switch() {
         build=$2
     fi
     prq="$OPEN_PULL_REQUESTS/$id"
-    switch_release "$(cat "$prq/release")/$build"
+    switch_release "$build"
     case $id in
         singletons/*) repo_dirs=("$prq");;
         bundles/*) repo_dirs=("$prq/"*);;
