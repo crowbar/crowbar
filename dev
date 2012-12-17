@@ -1121,7 +1121,7 @@ pull_request_switch() {
         build=$2
     fi
     prq="$OPEN_PULL_REQUESTS/$id"
-    switch_release "$(cat "$prq/release")/$build"
+    switch_release "$build"
     case $id in
         singletons/*) repo_dirs=("$prq");;
         bundles/*) repo_dirs=("$prq/"*);;
