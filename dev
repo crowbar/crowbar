@@ -2973,7 +2973,7 @@ purge_submodule_metadata() (
 unit_prereqs_installed() {
     local f gem
     f=true
-    if ! [[ -f /usr/bin/markdown ]]; then
+    if ! command -v markdown >/dev/null 2>&1; then
         debug "Please make sure markdown is installed."
         f=false
     fi
