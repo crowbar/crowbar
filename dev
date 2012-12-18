@@ -1249,7 +1249,7 @@ pull_request_close() {
 }
 
 __fetch_all() {
-    local remote remotes=() res=true
+    local remote remotes=() res=true 
     if [[ $@ || $DEV_FROM_REMOTES ]]; then
 	[[ $1 ]] && remotes+=("$@")
 	[[ $DEV_FROM_REMOTES ]] && remotes+=("${DEV_FROM_REMOTES[@]}")
@@ -1291,12 +1291,17 @@ __fetch_all() {
 fetch_all() {
     local results_dir d
     clear_pull_request_metadata
-    results_dir="$(mktemp -d /tmp/crowbar_fetch_XXXXXX)" || \
+    dt=$(date +%s)
+    results_dir="$(mktemp -d /tmp/crowbar_fetch_${USER}_${dt}_XXXXXX)" || \
         die "Cannot create temporary storage for fetch results!"
     debug "Fetching updates:"
     for d in "$CROWBAR_DIR/barclamps/"* "$CROWBAR_DIR"; do
         [[ -d $d/.git ]] || continue
-        ( cd "$d" && __fetch_all "$@") &
+        if [[ $BADLINK  ]]; then
+          cd "$d" && __fetch_all "$@"
+        else
+          ( cd "$d" && __fetch_all "$@") &
+        fi
     done
     wait
     echo
@@ -1310,7 +1315,11 @@ fetch_all() {
             cat "$d"
         fi
     done
-    rm -rf "$results_dir"
+    if [[ $BADLINK ]]; then
+      debug "not removing $results_dir"
+    else
+      rm -rf "$results_dir"
+    fi
     update_all_tracking_branches
     show_open_pull_requests
     sort_pull_requests
@@ -3436,7 +3445,12 @@ DEV_LONG_HELP["fetch"]="Fetch changes from remote repositories.
   working trees. You can run a fetch at any time without disturbing
   your working code, provided you have network connectivity.  If you
   pass the names of remotes, or specify remotes using the --from flag,
-  fetch will try to fetch changes from just those remotes"
+  fetch will try to fetch changes from just those remotes.
+  
+  If you are experiencing lots of !!!! in your fetches, then export
+  BADLINK=true and dev will run fetch serially, not in parallel.  
+  Also, the temporary files will not be removed, so you can report
+  on the failures later."
 DEV_LONG_HELP["remote"]="Manage remotes across all repositories.
   Subcommands:
     add <remote> <urlbase> : The add subcommand adds a new remote to
