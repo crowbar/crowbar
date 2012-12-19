@@ -57,11 +57,15 @@ extract_barclamp_metadata() {
     [[ -d $CROWBAR_DIR/barclamps/$1/.git || \
         -f $CROWBAR_DIR/barclamps/$1/.git ]] || \
         die "$1 is not a barclamp/."
-    read mode type sha name < <(cd "$CROWBAR_DIR/barclamps/$1"; git ls-tree "$2" crowbar.yml)
-    [[ $name ]] || return
-    [[ -f $CROWBAR_TMP/$sha.yml ]] || \
-        (cd "$CROWBAR_DIR/barclamps/$1"; git cat-file "$type" "$sha") > "$CROWBAR_TMP/$sha.yml"
-    echo "$CROWBAR_TMP/$sha.yml"
+    if [[ $2 ]]; then
+        read mode type sha name < <(cd "$CROWBAR_DIR/barclamps/$1"; git ls-tree "$2" crowbar.yml)
+        [[ $name ]] || return
+        [[ -f $CROWBAR_TMP/$sha.yml ]] || \
+            (cd "$CROWBAR_DIR/barclamps/$1"; git cat-file "$type" "$sha") > "$CROWBAR_TMP/$sha.yml"
+        echo "$CROWBAR_TMP/$sha.yml"
+    else
+        echo "$CROWBAR_DIR/barclamps/$1/crowbar.yml"
+    fi
 }
 
 read_barclamp_metadata() {
