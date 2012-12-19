@@ -199,7 +199,7 @@ Merging changes from parent into feature/<featurename>
 
  1: Commit your current work to your local repo. git commit -am 'cool message'
  2: Run ./dev find-parent returns the name of your working copy's parent.
- 3: Run ./dev sync <parent>
+ 3: Run ./dev sync <parent>  (no branch name allowed)
 
 Merging changes from your now complete feature back into parent:
 
