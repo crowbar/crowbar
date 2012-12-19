@@ -47,6 +47,8 @@ declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
 declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
 declare -A BC_SUPERCEDES BC_SRC_PKGS
 
+GEM_EXT_RE='^(.*)-\((.*)\)$'
+
 extract_barclamp_metadata() {
     # $1 = path to barclamp
     # $2 = git commit-ish to extract metadata from
@@ -77,7 +79,7 @@ get_one_barclamp_info() {
     # $2 = git commit-ish
     # Gets all the info that BC_QUERY_STRINGS wants.
     [[ -d $CROWBAR_DIR/barclamps/$1 ]] || die "$1 is not a barclamp!"
-    local mdfile=$(extract_barclamp_metadata "$1" "${2:-HEAD}")
+    local mdfile="$CROWBAR_DIR/barclamps/$1/crowbar.yml"
     local query line
     [[ $mdfile ]] || return
     [[ $1 = crowbar ]] || BC_DEPS["$1"]+="crowbar "
@@ -629,7 +631,6 @@ __fetch_gem() {
 update_barclamp_gem_cache() {
     local -A gems
     local gemname gemver gemopts bc gem
-    local GEM_EXT_RE='^(.*)-\((.*)\)$'
     local bc_cache="$CACHE_DIR/barclamps/$1/gems"
     which gem &>/dev/null || die "Please install rubygems before updating the gem cache!"
     local gemdir="$CROWBAR_TMP/gems/$1"
@@ -741,11 +742,18 @@ barclamp_gem_cache_needs_update() {
     local -A pkgs
     # Second, check to see if we have all the gems we need.
     for pkg in ${BC_GEMS["$1"]}; do
+        if [[ $pkg =~ $GEM_RE ]]; then
+            local finder="$pkg.gem"
+        elif [[ $pkg =~ $GEM_EXT_RE ]]; then
+            local finder="${BASH_REMATCH[1]}*.gem"
+        else
+            local finder="$pkg*.gem"
+        fi
         for bc in $(all_deps "$1"); do
             local bc_cache="$CACHE_DIR/barclamps/$bc/gems"
             mkdir -p "$bc_cache"
             [[ $(find "$bc_cache" \
-                -name "$pkg*.gem" -type f) = *.gem ]] && continue 2
+                -name "$finder" -type f) = *.gem ]] && continue 2
         done
         debug "Gem $pkg is not cached, and $1 needs it."
         ret=0
