@@ -44,6 +44,10 @@ kernel modules.
 Only Ubuntu 12.04 LTS is supported at the moment, but we will add support for
 openSUSE 12.2 and SLES 11 SP2 soon.
 
+The steps here describe how to setup the VM from the command line. You can use
+[virt-manager](http://virt-manager.org) if you prefer a graphical user
+interface. Do submit your relevant virt-manager configs if you have some!
+
 Installation steps:
 
 1. Download Ubuntu 12.04 LTS 64 bit (`ubuntu-12.04.1-server-amd64.iso`) from
