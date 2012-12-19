@@ -178,6 +178,34 @@ Regular Development:
  5: If you are not ready to create a pull request for your changes, go
     to 1.
 
+Collaborating on a Feature:
+Make Feature available for fetch:
+
+ 1: Run dev push-release feature/<featurename>
+    a: dev will create branches for this release on github/dellcloudedge
+ 2: Run git push dellcloudedge master
+    a: dev will update the github/dellcloudedge/Crowbar main repo with the
+       metadata necessary for others to manage this feature
+
+Grabbing a feature and starting to hack on it:
+
+ 1: Normal dev fetch and dev sync will make the feature available in your
+     local repo.
+ 2: dev releases will show you the available releases and features
+ 3: dev switch feature/<featurename> will checkout that feature in your working
+    copy
+
+Merging changes from parent into feature/<featurename>
+
+ 1: Commit your current work to your local repo. git commit -am 'cool message'
+ 2: Run ./dev find-parent returns the name of your working copy's parent.
+ 3: Run ./dev sync <parent>
+
+Merging changes from your now complete feature back into parent:
+
+ 1: ./dev switch <parent>
+ 2: ./dev sync feature/<featurename>
+
 Ready for pull request:
 
  1: Run dev pull-requests-prep
