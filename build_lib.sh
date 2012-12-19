@@ -629,6 +629,7 @@ __fetch_gem() {
 update_barclamp_gem_cache() {
     local -A gems
     local gemname gemver gemopts bc gem
+    local GEM_EXT_RE='^(.*)-\((.*)\)$'
     local bc_cache="$CACHE_DIR/barclamps/$1/gems"
     which gem &>/dev/null || die "Please install rubygems before updating the gem cache!"
     local gemdir="$CROWBAR_TMP/gems/$1"
@@ -652,6 +653,8 @@ update_barclamp_gem_cache() {
             debug "Fetching top-level gem $gem"
             if [[ $gem =~ $GEM_RE ]]; then
                 __fetch_gem "${BASH_REMATCH[1]}" "= ${BASH_REMATCH[2]}"
+            elif [[ $gem =~ $GEM_EXT_RE ]]; then
+                __fetch_gem "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
             else
                 __fetch_gem "$gem" ">= 0"
             fi
