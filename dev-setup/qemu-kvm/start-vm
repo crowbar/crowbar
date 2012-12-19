@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [[ $EUID -ne 0 ]]; then
+  echo "This script must be run as root"
+  exit 1
+fi
+
+ram=2G
+disk=ubuntu-12.04.qcow2
+
+qemu-kvm -cpu host -m $ram -daemonize -vnc :10 \
+         -net nic,model=virtio,macaddr=DE:AD:BE:EF:30:22 \
+         -net tap,script=qemu-ifup \
+         -drive file=$disk,cache=none,if=virtio
