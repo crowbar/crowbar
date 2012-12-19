@@ -3263,8 +3263,9 @@ unit_tests_need_reset() {
         $(cat "$CROWBAR_TEST_DIR/.build") = $(current_build) ]]
 }
 
+
 setup_unit_tests() (
-    local gem f barclamps=()
+    local gem f bc barclamps=()
     local gem_offline=true update_gem_cache=false
     unit_prereqs_installed || exit 1
     for f in "$@"; do
@@ -3278,34 +3279,34 @@ setup_unit_tests() (
     reinstall_barclamps "${barclamps[@]}" || exit 1
     cd "$CROWBAR_TEST_DIR"
     cp crowbar_framework/Gemfile* .
-    if [[ $gem_offline = true ]]; then
-        unset update_gem_cache
+    if [[ $update_gem_cache = true ]]; then
         maybe_checkout_build_cache_branch
-        [[ -d $CROWBAR_TEST_DIR/gemsite ]] && \
-            rm -rf "$CROWBAR_TEST_DIR/gemsite/gems"
-        mkdir -p "$CROWBAR_TEST_DIR/gemsite/gems"
-        find "$CACHE_DIR/barclamps" -type f -name '*.gem' \
-            -exec cp '{}' "$CROWBAR_TEST_DIR/gemsite/gems" ';'
-        (   cd "$CROWBAR_TEST_DIR/gemsite/"
-            gem generate_index)
-        sed -ie "s@^source .*@source \"file://$CROWBAR_TEST_DIR/gemsite\"@" "Gemfile"
-        bundle install --path "$CROWBAR_TEST_DIR/gems" || \
-            die "Not all required gems are present." \
-            "Please run again with --update-gem-cache." \
-            "If that does not work, then you will need to add the missing gems to:" \
-            "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
-    elif [[ $update_gem_cache = true ]]; then
-        maybe_checkout_build_cache_branch
-        git_managed_cache && git rm -rf "$CACHE_DIR/unit_tests/"
-        rm -rf "$CACHE_DIR/unit_tests"
-        mkdir -p "$CACHE_DIR/unit_tests/gems"
-        cp -a "$(gem env gemdir)" "$CACHE_DIR/unit_tests/gems"
-        rm -rf "$CACHE_DIR/unit_tests/gems/gems"
-        git_managed_cache && {
-            in_cache git add unit_tests
-            in_cache git commit -m "Added updated gems for unit tests"
-        }
+        local crowbar_yml
+        for bc in $(barclamps_in_build); do
+            crowbar_yml=$(extract_barclamp_metadata "$bc") || \
+                die "Cannot extract barclamp metadata for $bc"
+            (
+                local -A BC_GEMS
+                BC_GEMS[$bc]="$("$CROWBAR_DIR/parse_yml.rb" "$crowbar_yml" gems pkgs)"
+                update_barclamp_gem_cache "$bc"
+            )
+        done
     fi
+    unset update_gem_cache
+    maybe_checkout_build_cache_branch
+    [[ -d $CROWBAR_TEST_DIR/gemsite ]] && \
+        rm -rf "$CROWBAR_TEST_DIR/gemsite/gems"
+    mkdir -p "$CROWBAR_TEST_DIR/gemsite/gems"
+    find "$CACHE_DIR/barclamps" -type f -name '*.gem' \
+        -exec cp '{}' "$CROWBAR_TEST_DIR/gemsite/gems" ';'
+    (   cd "$CROWBAR_TEST_DIR/gemsite/"
+        gem generate_index)
+    sed -ie "s@^source .*@source \"file://$CROWBAR_TEST_DIR/gemsite\"@" "Gemfile"
+    bundle install --path "$CROWBAR_TEST_DIR/gems" || \
+        die "Not all required gems are present." \
+        "Please run again with --update-gem-cache." \
+        "If that does not work, then you will need to add the missing gems to:" \
+        "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
     cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
     sudo "$CROWBAR_TEST_DIR/crowbar_framework/BDD/linux_install.sh"
     ./linux_compile.sh
@@ -3318,7 +3319,7 @@ reload_unit_tests() (
       setup_unit_tests || exit 1
   fi
   barclamps=($(barclamps_needing_reinstall "$@"))
-  
+
   if databases_need_reload "${barclamps[@]}"; then
       dbs_need_reload=true
   elif [[ ! $barclamps ]]; then
