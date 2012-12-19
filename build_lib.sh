@@ -649,6 +649,7 @@ update_barclamp_gem_cache() {
     (   cd "$gemdir"
         local -A fetched_gems
         for gem in ${BC_GEMS["$1"]}; do
+            debug "Fetching top-level gem $gem"
             if [[ $gem =~ $GEM_RE ]]; then
                 __fetch_gem "${BASH_REMATCH[1]}" "= ${BASH_REMATCH[2]}"
             else
