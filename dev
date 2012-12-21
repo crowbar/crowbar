@@ -1143,6 +1143,29 @@ list_pull_requests() {
     done <"$OPEN_PULL_REQUESTS/pull_request_index"
 }
 
+
+pull_request_checkout_one() (
+    . <(source_prq_vars "$1" "local")
+    case $prq_local_repo in
+        barclamp-*) cd "$CROWBAR_DIR/barclamps/${prq_local_repo#barclamp-}";;
+        crowbar) cd "$CROWBAR_DIR";;
+    esac
+    debug "$prq_local_repo: Checking out $prq_local_branch"
+    quiet_checkout "$(git rev-parse "$prq_local_branch")" || \
+        die "Could not checkout $prq_local_branch!"
+)
+
+pull_request_switch_one() (
+    . <(source_prq_vars "$1" "local")
+    case $prq_local_repo in
+        barclamp-*) cd "$CROWBAR_DIR/barclamps/${prq_local_repo#barclamp-}";;
+        crowbar) cd "$CROWBAR_DIR";;
+    esac
+    pull_request_checkout_one "$1" || exit 1
+    git merge "$(git rev-parse "$prq_target_branch")" || \
+        die "Could not merge $prq_target_branch into $prq_local_branch!"
+)
+
 # Switch to a specific build in a pull request.
 # The release is inferred by the preferred release of the build request.
 pull_request_switch() {
@@ -1151,7 +1174,7 @@ pull_request_switch() {
     #      build is applicable for a pull request, it defaults to that one.
     #      If more than one is applicable, you must set this arg.
     crowbar_is_clean || die "Trees must be clean before switching to a pull request"
-    local id idx prq release bc barclamps build builds repo_dirs repo_dir repo
+    local id idx prq release bc barclamps build builds repo_dirs repo_dir repo res
     idx=$1
     id=$(pull_request_number_to_id "$idx") ||  \
         die "$id is not a valid pull request. dev pull-requests list will help."
@@ -1172,31 +1195,31 @@ pull_request_switch() {
         build=$2
     fi
     prq="$OPEN_PULL_REQUESTS/$id"
-    switch_release "$build"
+    switch_release "$build" || \
+        die "Could not switch to release $build"
+    res=0
     case $id in
-        singletons/*) repo_dirs=("$prq");;
-        bundles/*) repo_dirs=("$prq/"*);;
+        singletons/*)
+            pull_request_switch_one "$prq"
+            res=$?;;
+        bundles/*)
+            for repo in "$prq"/*; do
+                [[ -d $repo ]] || continue
+                if ((res == 0)); then
+                    pull_request_switch_one "$repo" && continue
+                    debug "Switch failed, skipping the rest."
+                    res=1
+                else
+                    debug "Skipping $(cat "$repo/github_url")"
+                fi
+            done;;
     esac
-    for repo_dir in "${repo_dirs[@]}"; do
-        [[ -d $repo_dir ]] || continue
-        (
-            . <(source_prq_vars "$repo_dir" "local")
-            case $prq_local_repo in
-                barclamp-*) cd "$CROWBAR_DIR/barclamps/${prq_local_repo#barclamp-}";;
-                crowbar) cd "$CROWBAR_DIR";;
-            esac
-            debug "Switching to merge results for $prq_local_repo"
-            quiet_checkout "$(git rev-parse "$prq_target_branch")" || \
-                die "Could not checkout raw commit for $target_branch"
-            git merge "$(git rev-parse "$prq_local_branch")" && continue
-            git merge --abort
-            die "Could not merge $prq_local_branch into $prq_target_branch in $prq_local_repo"
-        ) || {
-            switch_release
-            die "Pull request $idx does not merge cleanly.  It should be updated or closed."
-        }
-    done
-    debug "You are now on build $build in pull request $idx."
+    if ((res == 0)); then
+            debug "You are now on build $build in pull request $idx."
+    else
+        switch_release
+        die "Pull request $idx does not merge cleanly.  It should be updated or closed."
+    fi
 }
 
 pull_request_merge_one () {
@@ -1214,6 +1237,39 @@ pull_request_merge_one () {
         return 0
     else
         debug "Merge of $(cat "$1/github_url") failed."
+        return 1
+    fi
+}
+
+pull_request_checkout() {
+    # $1 = index
+    local id res=0 repo
+    crowbar_is_clean || die "Trees must be clean before switching to a pull request!"
+    id=$(pull_request_number_to_id "$1") || \
+        die "$1 is not a valid pull request!"
+    case $id in
+        singletons/*)
+            pull_request_checkout_one "$OPEN_PULL_REQUESTS/$id"
+            res=$?;;
+        bundles/*)
+            for repo in "$OPEN_PULL_REQUESTS/$id/"*; do
+                [[ -d $repo ]] || continue
+                if ((res == 0)); then
+                    pull_request_checkout_one "$repo" && continue
+                    debug "Skipping remaining pull requests"
+                    res=1
+                else
+                    debug "Skipping $(cat $repo/github_url)"
+                fi
+            done;;
+    esac
+    if ((res == 0)); then
+        debug "Pull request checked out." \
+            "You can get back to your regular tree with ./dev switch"
+        return 0
+    else
+        switch_release
+        debug "Could not check out pull request."
         return 1
     fi
 }
@@ -3516,6 +3572,7 @@ pull_request_handler() {
         builds)  builds_for_pull_request "$@";;
         switch)  pull_request_switch "$@";;
         merge)   pull_request_merge "$@";;
+        checkout) pull_request_checkout "$@";;
         comment) pull_request_comment "$@";;
         close)   pull_request_close "$@";;
         '')      show_open_pull_requests "$@";;
@@ -3937,6 +3994,7 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
     close: Close a pull request or pull request bundle
       Second arg must be a closing comment.
     builds: Show a list of builds this pull request should trigger.
+    checkout: Check out the exact contents of a pull request.  
     switch: Switch to a new tree that has the contents of a pull request
       merged into your current trees.  Your trees must be clean before 
       doing this. The first argument to this command must be a pull request
