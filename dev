@@ -2219,47 +2219,35 @@ find_remote_changed_branches_for_release() {
 
 # Merge (or rebase) changes into the specificed branch from the corresponding
 # branch on the specified remote.
-# This function performs a merge first, and rolls things back if there was a
-# merge conflict.  If the merge succeeds, we also try a rebase of the local
-# version of this branch onto the remote version.  If that succeeds and results
-# in a working tree that is identical to the merged version, we go with the
-# rebased version of the tree, otherwise we go with the merged version.
-# We also leave behind a placeholder branch that points at the state the local
-# branch was in before we started things in case we need to unwind things.
 merge_or_rebase_from_remote() {
     # $1 = remote
     # $2 = local branch
     local remote branch rebase_temp
-    remote="$1" branch="$2" merge_temp="$branch-$btemp" rebase_temp="$branch-rebase-$btemp"
+    remote="$1" branch="$2" merge_temp="$branch-$btemp"
     git rev-parse --verify -q "$remote/$branch" &>/dev/null || return 0
     branches_synced "." "refs/heads/$branch" "refs/remotes/$remote/$branch" && return 0
     quiet_checkout "$branch" || return 1
     git branch -f --no-track "$merge_temp" "$branch"
-    debug "  Merging $remote/$branch into $branch"
-    git merge -q "$remote/$branch" || {
-	git merge --abort
-	git reset --hard "$merge_temp"
-        git branch -D "$merge_temp"
-        debug "  Merge conflicts merging $remote/$branch into $branch"
-        return 1
-    }
-    if [[ $allow_remote_rebase = true ]] && \
-	crowbar_remote_exists "$remote" && \
+    if crowbar_remote_exists "$remote" && \
 	[[ ! $DEV_FROM_REMOTES ]]; then
-        git branch -f --no-track "$rebase_temp" "$branch"
-	if ! git rebase -p -q "$remote/$branch" "$rebase_temp" &>/dev/null; then
-	    git rebase --abort
-	    quiet_checkout "$branch"
-	elif ! git diff --exit-code "$branch" "$rebase_temp"; then
-	    quiet_checkout "$branch"
-	else
-	    debug "  Rebased version of $branch is identical to merged version."
-	    debug "  Using the rebased version instead."
-	    quiet_checkout "$branch"
-	    git reset --hard "$rebase_temp"
-	fi
-        git branch -D "$rebase_temp"
+        if git rebase -p -q "$remote/$branch" "$branch" &>/dev/null; then
+            debug "  Rebased $branch onto $remote/$branch"
+            return 0
+        else
+            git rebase --abort
+            git reset --hard "$merge_temp"
+            debug "  Rebase failed, will try merge."
+        fi
     fi
+    if git merge -q "$remote/$branch"; then
+        debug "  Merged $remote/$branch merged into $branch"
+        return 0
+    fi
+    git merge --abort
+    git reset --hard "$merge_temp"
+    git branch -D "$merge_temp"
+    debug "  Merge conflicts merging $remote/$branch into $branch"
+    return 1
 }
 
 # Handle merges across releases.
@@ -2357,7 +2345,7 @@ unwind_or_commit_barclamp_syncs() {
 # repository.
 sync_everything() {
     local unsynced_barclamps=()
-    local b u head res=0 ref branch rel allow_remote_rebase=true
+    local b u head res=0 ref branch rel
     local btemp="$$-${RANDOM}"
     barclamps_are_clean || exit 1
     # Do barclamps first.
