@@ -3224,6 +3224,7 @@ databases_need_reload() {
     for bc in "${barclamps[@]}"; do
         for p in "crowbar_framework/db" "crowbar_framework/test/fixtures" \
             "chef/data_bags"; do
+            [[ -d "$CROWBAR_DIR/barclamps/$1/$p" ]] || continue # ignore if dir not there.
             paths_same "$CROWBAR_TEST_DIR/barclamps/$1/$p" \
                 "$CROWBAR_DIR/barclamps/$1/$p" && continue
             debug "Database files changed in $bc, need reload."
