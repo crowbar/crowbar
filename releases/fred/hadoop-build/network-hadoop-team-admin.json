@@ -83,15 +83,6 @@
 	    }
 	  }
 	},
-	{
-          "pattern": "team/.*/.*slavenode",
-          "conduit_list": { 
-             "prod": {
-              "if_list": [ "1g1", "1g2" ],
-              "team_mode": 6
-            }
-          }
-        },
         {
           "pattern": "team/.*/.*edgenode",
           "conduit_list": { 
@@ -102,6 +93,15 @@
             "public" : {
             	"if_list": [ "1g3", "1g4" ],
             	"team_mode" : 6
+            }
+          }
+        },
+	{
+          "pattern": "team/.*/.*slavenode",
+          "conduit_list": { 
+             "prod": {
+              "if_list": [ "1g1", "1g2" ],
+              "team_mode": 6
             }
           }
         },
