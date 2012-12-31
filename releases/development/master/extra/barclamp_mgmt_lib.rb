@@ -412,6 +412,12 @@ def upload_data_bags_from_rpm(rpm, rpm_files, bc_path, log)
   end
 end
 
+def copy_docs_from_rpm(rpm, rpm_files, bc_path, log)
+  docs_source = "unknown"
+  docs_target = "#{@BASE_PATH}/doc/#{@BC_NAME}"
+  FileUtils.mkdir docs_target
+end
+
 def upload_roles_from_rpm(rpm, rpm_files, bc_path, log)
   roles_dir = "#{@BASE_PATH}/chef/roles"
   roles = rpm_files.grep(%r!^#{roles_dir}/([^/]+)$!)
