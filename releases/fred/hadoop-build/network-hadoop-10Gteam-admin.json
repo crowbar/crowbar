@@ -86,12 +86,30 @@
           }
         },
      {
-          "pattern": "team/.*/.*",
+          "pattern": "team/.*/.*datanode",
           "conduit_list": { 
              "prod": {
               "if_list": [ "10g1", "10g2" ],
               "team_mode": 6
             }
+          }
+        },
+         {
+        "pattern": "team/.*/.*filernode",
+        "conduit_list": { 
+           "prod": {
+            "if_list": [ "10g1", "10g2" ],
+            "team_mode": 6
+               }
+           }
+        },
+         {
+        "pattern": "team/.*/.*journalingnode",
+        "conduit_list": { 
+           "prod": {
+            "if_list": [ "10g1", "10g2" ],
+            "team_mode": 6
+               }
           }
         },
             {
