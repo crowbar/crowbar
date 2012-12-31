@@ -583,6 +583,10 @@ update_all_tracking_branches() {
 	debug "Updating tracking branch references in barclamp ${bc##*/}"
 	(cd "$bc"; update_tracking_branches)
     done
+    if [[ -d $LOCAL_PULL_TRACKING/.git ]]; then
+        debug "Updating tracking branch references in the CI tracking repo."
+        (cd "$LOCAL_PULL_TRACKING"; update_tracking_branches)
+    fi
 }
 
 source_prq_vars() (
@@ -1363,7 +1367,7 @@ fetch_ci_tracking() (
             remote_available "$remote" || continue
             test_remote "${DEV_REMOTE_URLBASE[$remote]}/$CI_TRACKING_REPO" || continue
             debug "Fetching CI repository from ${remote}"
-            git clone "${DEV_REMOTE_URLBASE[$remote]}/$CI_TRACKING_REPO" . &>/dev/null
+            git clone -o "$remote" "${DEV_REMOTE_URLBASE[$remote]}/$CI_TRACKING_REPO" . &>/dev/null
             break
         done
     else
@@ -1371,7 +1375,6 @@ fetch_ci_tracking() (
         git pull --all --force &>/dev/null
     fi
 )
-
 
 __ci_set_status() (
     # $1 = id
@@ -1554,7 +1557,7 @@ fetch_all() {
     fetch_ci_tracking
     for d in "$CROWBAR_DIR/barclamps/"* "$CROWBAR_DIR"; do
         [[ -d $d/.git ]] || continue
-        if [[ $BADLINK  ]]; then
+        if [[ $BADLINK ]]; then
           cd "$d" && __fetch_all "$@"
         else
           ( cd "$d" && __fetch_all "$@") &
@@ -1674,54 +1677,60 @@ set_url_remote() {
     git fetch "$1"
 }
 
-# Synchronize remote definitions in the barclamps to match what is in the
-# main Crowbar repository as closely as possible.
-sync_barclamp_remotes() {
-    # $1 = barclamp to synchronize Crowbar remotes into.
-    # We will ignore the origin remote.
+
+# Synchronize a remote definition as closely as possible
+# This assumes that you are already in the repo you want to sync.
+__sync_remotes() {
+    # $1 = function to call to test to see remote is already valid.
+    # $2 = function to call to get the proper remote URL.
     local remote urlbase remote_repo barclamp_repo
     for remote in "${DEV_SORTED_REMOTES[@]}"; do
         urlbase="${DEV_REMOTE_URLBASE[$remote]}"
+        [[ $urlbase ]] || continue
         # Do nothing if this remote is correct, otherwise set/add as appropriate.
-	remote_repo=$(in_barclamp "$1" git_url_for_remote "$remote") && \
-	    [[ ${remote_repo%.git} = $urlbase/barclamp-$1 || \
-            ${remote_repo%.git} = $urlbase/crowbar/barclamps/$1 ]] && continue
-        remote_repo="$(probe_barclamp_remote "$1" "$urlbase")" || continue
+	remote_repo=$(git_url_for_remote "$remote") && \
+            $1 ${remote_repo%.git} && continue
+        remote_repo="$($2 "$urlbase")" || continue
 	debug "Synchronizing remote $remote for barclamp $1"
-	if in_barclamp "$1" git_remote_exists "$remote"; then
-	    in_barclamp "$1" set_url_remote "$remote" "$urlbase" "$remote_repo" || continue
+	if git_remote_exists "$remote"; then
+	    set_url_remote "$remote" "$urlbase" "$remote_repo" || continue
 	else
-	    in_barclamp "$1" add_remote "$remote" "$urlbase" "$remote_repo" || \
-		die "Could not add new remote $remote for barclamp $1 in sync_barclamp_remotes"
+	    add_remote "$remote" "$urlbase" "$remote_repo" || \
+		die "Could not add new remote $remote for $PWD in sync_barclamp_remotes"
 	fi
 	local update_tracking=true
     done
     if [[ $update_tracking ]]; then
-	in_barclamp "$1" update_tracking_branches
+        update_tracking_branches
     fi
 }
 
-sync_crowbar_remotes() {
-    local remote urlbase remote_repo barclamp_repo
-    for remote in "${DEV_SORTED_REMOTES[@]}"; do
-        urlbase="${DEV_REMOTE_URLBASE[$remote]}"
-        # Do nothing if this remote is correct, otherwise set/add as appropriate.
-	remote_repo=$(in_repo git_url_for_remote "$remote") && \
-	    [[ ${remote_repo%.git} = $urlbase/crowbar ]] && continue
-        test_remote "$urlbase/crowbar" || continue
-	debug "Synchronizing remote $remote for Crowbar"
-	if in_repo git_remote_exists "$remote"; then
-	    in_repo set_url_remote "$remote" "$urlbase" "$remote_repo" || continue
-	else
-	    in_repo add_remote "$remote" "$urlbase" "$remote_repo" || \
-		die "Could not add new remote $remote for Crowbar in sync_barclamp_remotes"
-	fi
-	local update_tracking=true
-    done
-    if [[ $update_tracking ]]; then
-	in_repo update_tracking_branches
-    fi
+test_barclamp_remote() {
+    # $1 = local repo name
+    # $2 = remote repo
+    [[  $2 = $urlbase/barclamp-$1 || \
+        $2 = $urlbase/crowbar/barclamps/$1 ]]
 }
+
+# Synchronize remote definitions in the barclamps to match what is in the
+# main Crowbar repository as closely as possible.
+sync_barclamp_remotes() {
+    in_barclamp "$1" __sync_remotes "test_barclamp_remote $1" "probe_barclamp_remote $1"
+}
+
+test_simple_remote() [[ $2 = $urlbase/$1 ]]
+get_simple_remote() {
+    test_remote "$2/$1" && echo "$2/$1"
+}
+
+sync_crowbar_remotes() {
+    in_repo __sync_remotes "test_simple_remote crowbar" "get_simple_remote crowbar"
+}
+
+sync_ci_remotes() (
+    cd "$LOCAL_PULL_TRACKING"
+    __sync_remotes "test_simple_remote $CI_TRACKING_REPO" "get_simple_remote $CI_TRACKING_REPO"
+)
 
 # Show saved parameters for either a specific remote or all of them.
 show_remote() {
@@ -1833,6 +1842,7 @@ remote_wrapper() {
 		 sync_barclamp_remotes "${bc##*/}"
 	    done
             sync_crowbar_remotes
+            sync_ci_remotes
 	    return
 	    ;;
 	priority)
@@ -1855,6 +1865,10 @@ remote_wrapper() {
     debug "Crowbar:"
     if [[ $action != sync_barclamp_remotes ]]; then
 	in_repo $action "$remote" "$urlbase"
+    fi
+    if [[ -d $LOCAL_PULL_TRACKING/.git ]]; then
+        debug "CI Tracking:"
+        (cd "$LOCAL_PULL_TRACKING"; $action "$remote" "$urlbase")
     fi
     local c
     for c in "${cfgaction[@]}"; do
