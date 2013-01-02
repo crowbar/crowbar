@@ -3337,7 +3337,7 @@ setup_unit_tests() (
     mkdir "$CROWBAR_TEST_DIR"
     reinstall_barclamps "${barclamps[@]}" || exit 1
     cd "$CROWBAR_TEST_DIR"
-    cp crowbar_framework/Gemfile* .
+    mv crowbar_framework/Gemfile* .
     if [[ $update_gem_cache = true ]]; then
         maybe_checkout_build_cache_branch
         local crowbar_yml
@@ -3407,16 +3407,18 @@ run_unit_tests() (
     cd "$CROWBAR_TEST_DIR/crowbar_framework"
     rm -rf coverage
     mkdir coverage
-    rcov --aggregate coverage/testing.data -Ispec:lib \
+    bundle exec rcov --aggregate coverage/testing.data -Ispec:lib \
         --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
         spec/*/*.rb || final_result=fail
-    rcov --aggregate coverage/testing.data -Itest:lib \
+    bundle exec rcov --aggregate coverage/testing.data -Itest:lib \
         --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
         test/unit/*.rb || final_result=fail
 
-    # Run BDD tests
-    cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
-    ./linux_run.sh || final_result=fail
+    # Start rails
+    bundle exec script/rails s Puma >> log/test.out 2>> log/test.err &
+    sleep 10
+    (cd BDD; erl -s bdd test crowbar -s init stop -noshell) || final_result=fail
+    kill $(ps -ef | grep Puma | grep ruby | awk '{ print $2 }')
 
     # Run chef unit tests
     cd "$CROWBAR_TEST_DIR/chef/cookbooks"

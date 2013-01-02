@@ -4,7 +4,7 @@ require 'yaml'
 # This is very cheesy, and should only be called by the build script.
 tree = YAML.load_file ARGV[0]
 ARGV[1..-1].each do |n|
-  tree = tree[n]
+  tree = tree[n] unless tree.nil?
 end
 case tree.class
 when Array
