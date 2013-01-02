@@ -58,9 +58,6 @@ VERBOSE=true
 
 [[ $ALLOW_CACHE_UPDATE ]] || ALLOW_CACHE_UPDATE=true
 
-# Location for caches that should not be erased between runs
-[[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
-
 # Location to store .iso images that we use in the build process.
 # These are usually OS install DVDs that we will stage Crowbar on to.
 [[ $ISO_LIBRARY ]] || ISO_LIBRARY="$CACHE_DIR/iso"

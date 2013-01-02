@@ -12,8 +12,11 @@
 }
 
 [[ $CROWBAR_TMP ]] || CROWBAR_TMP=$(mktemp -d /tmp/.crowbar-tmp-XXXXXXX)
-export CROWBAR_TMP
 
+# Location for caches that should not be erased between runs
+[[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
+
+export CROWBAR_TMP CACHE_DIR
 # We might use lots and lots of open files.  Bump our open FD limits.
 ulimit -Sn unlimited
 
