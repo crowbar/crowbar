@@ -3337,7 +3337,7 @@ setup_unit_tests() (
     mkdir "$CROWBAR_TEST_DIR"
     reinstall_barclamps "${barclamps[@]}" || exit 1
     cd "$CROWBAR_TEST_DIR"
-    cp crowbar_framework/Gemfile* .
+    mv crowbar_framework/Gemfile* .
     if [[ $update_gem_cache = true ]]; then
         maybe_checkout_build_cache_branch
         local crowbar_yml
