@@ -3402,6 +3402,7 @@ run_unit_tests() (
     local barclamps=($(barclamps_needing_reinstall "$@"))
     local final_result=pass
     unit_tests_need_reset && clear_unit_tests
+    rm -f "$CROWBAR_TEST_DIR/crowbar_framework/Gemfile" # Use the parent directory gemfile
     reload_unit_tests "$@" || exit 1
     # Run unit tests
     cd "$CROWBAR_TEST_DIR/crowbar_framework"
