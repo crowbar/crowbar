@@ -3409,10 +3409,10 @@ run_unit_tests() (
     rm -rf coverage
     mkdir coverage
     bundle exec rcov --aggregate coverage/testing.data -Ispec:lib \
-        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
+        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,/config/,/lib/rspec/,/lib/rspec-,spec \
         spec/*/*.rb || final_result=fail
     bundle exec rcov --aggregate coverage/testing.data -Itest:lib \
-        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
+        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,/config/,/lib/rspec/,/lib/rspec-,spec \
         test/unit/*.rb || final_result=fail
 
     # Start rails
