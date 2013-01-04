@@ -56,8 +56,23 @@
         }
       ],
       "conduit_map": [
+{
+       "pattern": "team/.*/crowbar-config-default",
+       "conduit_list": { 
+        "prod": {
+           "if_list": [ "1g2", "1g3" ],
+           "team_mode": 6
+         },
+            "public": {
+              "if_list": [ "1g1" ]
+            },
+         "mgmt": {
+           "if_list": [ "1g4" ]
+         }
+       }
+     },
         {
-          "pattern": "team/.*/.*masternamenode",
+          "pattern": "team/.*/.*namenode",
           "conduit_list": { 
            "prod": {
               "if_list": [ "1g1", "1g2", "1g3" ],
@@ -65,30 +80,6 @@
             },
             "mgmt": {
               "if_list": [ "1g4" ]
-            }
-          }
-        },
-   	{
-	  "pattern": "team/.*/crowbar-config-default",
-	  "conduit_list": { 
-	   "prod": {
-	      "if_list": [ "1g2", "1g3" ],
-	      "team_mode": 6
-	    },
-            "public": {
-              "if_list": [ "1g1" ]
-            },
-	    "mgmt": {
-	      "if_list": [ "1g4" ]
-	    }
-	  }
-	},
-	{
-          "pattern": "team/.*/.*slavenode",
-          "conduit_list": { 
-             "prod": {
-              "if_list": [ "1g1", "1g2" ],
-              "team_mode": 6
             }
           }
         },
@@ -100,11 +91,38 @@
               "team_mode": 6
             },
             "public" : {
-            	"if_list": [ "1g3", "1g4" ],
-            	"team_mode" : 6
+               "if_list": [ "1g3", "1g4" ],
+               "team_mode" : 6
             }
           }
         },
+     {
+          "pattern": "team/.*/.*/.*filernode",
+          "conduit_list": { 
+             "prod": {
+              "if_list": [ "1g1", "1g2" ],
+              "team_mode": 6
+            }
+          }
+        },
+     {
+          "pattern": "team/.*/.*/.*datanode",
+          "conduit_list": { 
+             "prod": {
+              "if_list": [ "1g1", "1g2" ],
+              "team_mode": 6
+            }
+          }
+        },
+     {
+          "pattern": "team/.*/.*/.*journalingnode",
+          "conduit_list": { 
+             "prod": {
+              "if_list": [ "1g1", "1g2" ],
+              "team_mode": 6
+            }
+          }
+        },        
         {
           "pattern": ".*/.*/.*",
           "conduit_list": { 
@@ -135,79 +153,79 @@
         }
       ],
       "networks": {
-		"bmc": {
-		"conduit": "bmc",
-		"vlan": 300,
-		"use_vlan": false,
-		"add_bridge": false,
-		"subnet": "172.16.0.0",
-		"netmask": "255.255.255.0",
-		"broadcast": "172.16.0.255",
-		"router": "172.16.0.1",
-		"router_pref": 30,
-		"ranges": {
-			"router": { "start": "172.16.0.1", "end": "172.16.0.10" },
-			"host": { "start": "172.16.0.51", "end": "172.16.0.254" }
+          "bmc": {
+          "conduit": "bmc",
+          "vlan": 300,
+          "use_vlan": false,
+          "add_bridge": false,
+          "subnet": "172.16.0.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "172.16.0.255",
+          "router": "172.16.0.1",
+          "router_pref": 30,
+          "ranges": {
+               "router": { "start": "172.16.0.1", "end": "172.16.0.10" },
+               "host": { "start": "172.16.0.51", "end": "172.16.0.254" }
             }
         },
-	"storage": {
-		"conduit": "intf1",
-		"vlan": 200,
-		"use_vlan": false,
-		"add_bridge": false,
-		"subnet": "192.168.125.0",
-		"netmask": "255.255.255.0",
-		"broadcast": "192.168.125.255",
-		"ranges": {
-			"host": { "start": "192.168.125.10", "end": "192.168.125.239" }
-	}
-	},
+     "storage": {
+          "conduit": "intf1",
+          "vlan": 200,
+          "use_vlan": false,
+          "add_bridge": false,
+          "subnet": "192.168.125.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "192.168.125.255",
+          "ranges": {
+               "host": { "start": "192.168.125.10", "end": "192.168.125.239" }
+     }
+     },
         "bmc_vlan": {
-		"conduit": "mgmt",
-		"vlan": 300,
-		"use_vlan": false,
-		"add_bridge": false,
-		"subnet": "172.16.0.0",
-		"netmask": "255.255.255.0",
-		"broadcast": "172.16.0.255",
-		"router": "172.16.0.1",
-		"router_pref": 30,
-		"ranges": {
-			"host": { "start": "172.16.0.21", "end": "172.16.0.50" }
-	    }
+          "conduit": "mgmt",
+          "vlan": 300,
+          "use_vlan": false,
+          "add_bridge": false,
+          "subnet": "172.16.0.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "172.16.0.255",
+          "router": "172.16.0.1",
+          "router_pref": 30,
+          "ranges": {
+               "host": { "start": "172.16.0.21", "end": "172.16.0.50" }
+         }
         },
         "public": {
-		"conduit": "public",
-		"vlan": 500,
-		"use_vlan": false,
-		"add_bridge": false,
-		"subnet": "192.168.1.0",
-		"netmask": "255.255.255.0",
-		"broadcast": "192.168.1.255",
-		"router": "192.168.1.1",
-		"router_pref": 10,
-		"ranges": {
-			"host": { "start": "192.168.1.10", "end": "192.168.1.25" }
+          "conduit": "public",
+          "vlan": 500,
+          "use_vlan": false,
+          "add_bridge": false,
+          "subnet": "192.168.1.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "192.168.1.255",
+          "router": "192.168.1.1",
+          "router_pref": 10,
+          "ranges": {
+               "host": { "start": "192.168.1.10", "end": "192.168.1.25" }
             }
         },
         "admin": {
-		"conduit": "prod",
-		"vlan": 100,
-		"use_vlan": false,
-		"add_bridge": false,
-		"subnet": "172.16.2.0",
-		"netmask": "255.255.254.0",
-		"broadcast": "172.16.3.255",
-		"router_pref": 20,
-		"router": "172.16.2.1",
-		"ranges": {
-			"host": { "start": "172.16.2.21", "end": "172.16.2.254" },
-			"dhcp": { "start": "172.16.3.1", "end": "172.16.3.240" },
-			"admin" : {"start": "172.16.2.18", "end": "172.16.2.20" }
-		  }
-		}
-	      }
-	}      
+          "conduit": "prod",
+          "vlan": 100,
+          "use_vlan": false,
+          "add_bridge": false,
+          "subnet": "172.16.2.0",
+          "netmask": "255.255.254.0",
+          "broadcast": "172.16.3.255",
+          "router_pref": 20,
+          "router": "172.16.2.1",
+          "ranges": {
+               "host": { "start": "172.16.2.21", "end": "172.16.2.254" },
+               "dhcp": { "start": "172.16.3.1", "end": "172.16.3.240" },
+               "admin" : {"start": "172.16.2.18", "end": "172.16.2.20" }
+            }
+          }
+           }
+     }      
      },
    "deployment": {
     "network": {

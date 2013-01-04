@@ -59,11 +59,11 @@
       {
        "pattern": "team/.*/crowbar-config-default",
        "conduit_list": { 
-        "prod": {
+        "public": {
            "if_list": [ "10g1", "10g3" ],
            "team_mode": 6
          },
-            "public": {
+            "prod": {
               "if_list": [ "10g2", "10g4" ],
                 "team_mode": 6
             },
@@ -76,29 +76,29 @@
           "pattern": "team/.*/.*edgenode",
           "conduit_list": { 
            "prod": {
-              "if_list": [ "10g1", "10g3" ],
+              "if_list": [ "10g2", "10g4" ],
               "team_mode": 6
             },
             "public" : {
-            "if_list": [ "10g2", "10g4" ],
+            "if_list": [ "10g1", "10g3" ],
             "team_mode" : 6
             }
           }
         },
-     {
-          "pattern": "team/.*/.*datanode",
+{
+          "pattern": "team/.*/.*namenode",
           "conduit_list": { 
              "prod": {
-              "if_list": [ "10g1", "10g2" ],
+               "if_list": [ "10g2", "10g4" ],
               "team_mode": 6
             }
           }
-        },
+        },        
          {
         "pattern": "team/.*/.*filernode",
         "conduit_list": { 
            "prod": {
-            "if_list": [ "10g1", "10g2" ],
+            "if_list": [ "10g2", "10g4" ],
             "team_mode": 6
                }
            }
@@ -107,16 +107,25 @@
         "pattern": "team/.*/.*journalingnode",
         "conduit_list": { 
            "prod": {
-            "if_list": [ "10g1", "10g2" ],
+            "if_list": [ "10g2", "10g4" ],
             "team_mode": 6
                }
           }
         },
+        {
+             "pattern": "team/.*/.*datanode",
+             "conduit_list": { 
+                "prod": {
+                 "if_list": [ "10g1", "10g2" ],
+                 "team_mode": 6
+               }
+             }
+           },
             {
           "pattern": ".*/.*/.*",
           "conduit_list": { 
             "prod": {
-              "if_list": [ "10g1" ]
+              "if_list": [ "10g2" ]
             },
             "admin": {
               "if_list": [ "10g2" ]
