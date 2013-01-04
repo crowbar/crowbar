@@ -583,6 +583,10 @@ update_all_tracking_branches() {
 	debug "Updating tracking branch references in barclamp ${bc##*/}"
 	(cd "$bc"; update_tracking_branches)
     done
+    if [[ -d $LOCAL_PULL_TRACKING/.git ]]; then
+        debug "Updating tracking branch references in the CI tracking repo."
+        (cd "$LOCAL_PULL_TRACKING"; update_tracking_branches)
+    fi
 }
 
 source_prq_vars() (
@@ -1143,6 +1147,29 @@ list_pull_requests() {
     done <"$OPEN_PULL_REQUESTS/pull_request_index"
 }
 
+
+pull_request_checkout_one() (
+    . <(source_prq_vars "$1" "local")
+    case $prq_local_repo in
+        barclamp-*) cd "$CROWBAR_DIR/barclamps/${prq_local_repo#barclamp-}";;
+        crowbar) cd "$CROWBAR_DIR";;
+    esac
+    debug "$prq_local_repo: Checking out $prq_local_branch"
+    quiet_checkout "$(git rev-parse "$prq_local_branch")" || \
+        die "Could not checkout $prq_local_branch!"
+)
+
+pull_request_switch_one() (
+    . <(source_prq_vars "$1" "local")
+    case $prq_local_repo in
+        barclamp-*) cd "$CROWBAR_DIR/barclamps/${prq_local_repo#barclamp-}";;
+        crowbar) cd "$CROWBAR_DIR";;
+    esac
+    pull_request_checkout_one "$1" || exit 1
+    git merge "$(git rev-parse "$prq_target_branch")" || \
+        die "Could not merge $prq_target_branch into $prq_local_branch!"
+)
+
 # Switch to a specific build in a pull request.
 # The release is inferred by the preferred release of the build request.
 pull_request_switch() {
@@ -1151,7 +1178,7 @@ pull_request_switch() {
     #      build is applicable for a pull request, it defaults to that one.
     #      If more than one is applicable, you must set this arg.
     crowbar_is_clean || die "Trees must be clean before switching to a pull request"
-    local id idx prq release bc barclamps build builds repo_dirs repo_dir repo
+    local id idx prq release bc barclamps build builds repo_dirs repo_dir repo res
     idx=$1
     id=$(pull_request_number_to_id "$idx") ||  \
         die "$id is not a valid pull request. dev pull-requests list will help."
@@ -1172,31 +1199,31 @@ pull_request_switch() {
         build=$2
     fi
     prq="$OPEN_PULL_REQUESTS/$id"
-    switch_release "$build"
+    switch_release "$build" || \
+        die "Could not switch to release $build"
+    res=0
     case $id in
-        singletons/*) repo_dirs=("$prq");;
-        bundles/*) repo_dirs=("$prq/"*);;
+        singletons/*)
+            pull_request_switch_one "$prq"
+            res=$?;;
+        bundles/*)
+            for repo in "$prq"/*; do
+                [[ -d $repo ]] || continue
+                if ((res == 0)); then
+                    pull_request_switch_one "$repo" && continue
+                    debug "Switch failed, skipping the rest."
+                    res=1
+                else
+                    debug "Skipping $(cat "$repo/github_url")"
+                fi
+            done;;
     esac
-    for repo_dir in "${repo_dirs[@]}"; do
-        [[ -d $repo_dir ]] || continue
-        (
-            . <(source_prq_vars "$repo_dir" "local")
-            case $prq_local_repo in
-                barclamp-*) cd "$CROWBAR_DIR/barclamps/${prq_local_repo#barclamp-}";;
-                crowbar) cd "$CROWBAR_DIR";;
-            esac
-            debug "Switching to merge results for $prq_local_repo"
-            quiet_checkout "$(git rev-parse "$prq_target_branch")" || \
-                die "Could not checkout raw commit for $target_branch"
-            git merge "$(git rev-parse "$prq_local_branch")" && continue
-            git merge --abort
-            die "Could not merge $prq_local_branch into $prq_target_branch in $prq_local_repo"
-        ) || {
-            switch_release
-            die "Pull request $idx does not merge cleanly.  It should be updated or closed."
-        }
-    done
-    debug "You are now on build $build in pull request $idx."
+    if ((res == 0)); then
+            debug "You are now on build $build in pull request $idx."
+    else
+        switch_release
+        die "Pull request $idx does not merge cleanly.  It should be updated or closed."
+    fi
 }
 
 pull_request_merge_one () {
@@ -1214,6 +1241,39 @@ pull_request_merge_one () {
         return 0
     else
         debug "Merge of $(cat "$1/github_url") failed."
+        return 1
+    fi
+}
+
+pull_request_checkout() {
+    # $1 = index
+    local id res=0 repo
+    crowbar_is_clean || die "Trees must be clean before switching to a pull request!"
+    id=$(pull_request_number_to_id "$1") || \
+        die "$1 is not a valid pull request!"
+    case $id in
+        singletons/*)
+            pull_request_checkout_one "$OPEN_PULL_REQUESTS/$id"
+            res=$?;;
+        bundles/*)
+            for repo in "$OPEN_PULL_REQUESTS/$id/"*; do
+                [[ -d $repo ]] || continue
+                if ((res == 0)); then
+                    pull_request_checkout_one "$repo" && continue
+                    debug "Skipping remaining pull requests"
+                    res=1
+                else
+                    debug "Skipping $(cat $repo/github_url)"
+                fi
+            done;;
+    esac
+    if ((res == 0)); then
+        debug "Pull request checked out." \
+            "You can get back to your regular tree with ./dev switch"
+        return 0
+    else
+        switch_release
+        debug "Could not check out pull request."
         return 1
     fi
 }
@@ -1307,7 +1367,7 @@ fetch_ci_tracking() (
             remote_available "$remote" || continue
             test_remote "${DEV_REMOTE_URLBASE[$remote]}/$CI_TRACKING_REPO" || continue
             debug "Fetching CI repository from ${remote}"
-            git clone "${DEV_REMOTE_URLBASE[$remote]}/$CI_TRACKING_REPO" . &>/dev/null
+            git clone -o "$remote" "${DEV_REMOTE_URLBASE[$remote]}/$CI_TRACKING_REPO" . &>/dev/null
             break
         done
     else
@@ -1315,7 +1375,6 @@ fetch_ci_tracking() (
         git pull --all --force &>/dev/null
     fi
 )
-
 
 __ci_set_status() (
     # $1 = id
@@ -1498,7 +1557,7 @@ fetch_all() {
     fetch_ci_tracking
     for d in "$CROWBAR_DIR/barclamps/"* "$CROWBAR_DIR"; do
         [[ -d $d/.git ]] || continue
-        if [[ $BADLINK  ]]; then
+        if [[ $BADLINK ]]; then
           cd "$d" && __fetch_all "$@"
         else
           ( cd "$d" && __fetch_all "$@") &
@@ -1618,54 +1677,60 @@ set_url_remote() {
     git fetch "$1"
 }
 
-# Synchronize remote definitions in the barclamps to match what is in the
-# main Crowbar repository as closely as possible.
-sync_barclamp_remotes() {
-    # $1 = barclamp to synchronize Crowbar remotes into.
-    # We will ignore the origin remote.
+
+# Synchronize a remote definition as closely as possible
+# This assumes that you are already in the repo you want to sync.
+__sync_remotes() {
+    # $1 = function to call to test to see remote is already valid.
+    # $2 = function to call to get the proper remote URL.
     local remote urlbase remote_repo barclamp_repo
     for remote in "${DEV_SORTED_REMOTES[@]}"; do
         urlbase="${DEV_REMOTE_URLBASE[$remote]}"
+        [[ $urlbase ]] || continue
         # Do nothing if this remote is correct, otherwise set/add as appropriate.
-	remote_repo=$(in_barclamp "$1" git_url_for_remote "$remote") && \
-	    [[ ${remote_repo%.git} = $urlbase/barclamp-$1 || \
-            ${remote_repo%.git} = $urlbase/crowbar/barclamps/$1 ]] && continue
-        remote_repo="$(probe_barclamp_remote "$1" "$urlbase")" || continue
+	remote_repo=$(git_url_for_remote "$remote") && \
+            $1 ${remote_repo%.git} && continue
+        remote_repo="$($2 "$urlbase")" || continue
 	debug "Synchronizing remote $remote for barclamp $1"
-	if in_barclamp "$1" git_remote_exists "$remote"; then
-	    in_barclamp "$1" set_url_remote "$remote" "$urlbase" "$remote_repo" || continue
+	if git_remote_exists "$remote"; then
+	    set_url_remote "$remote" "$urlbase" "$remote_repo" || continue
 	else
-	    in_barclamp "$1" add_remote "$remote" "$urlbase" "$remote_repo" || \
-		die "Could not add new remote $remote for barclamp $1 in sync_barclamp_remotes"
+	    add_remote "$remote" "$urlbase" "$remote_repo" || \
+		die "Could not add new remote $remote for $PWD in sync_barclamp_remotes"
 	fi
 	local update_tracking=true
     done
     if [[ $update_tracking ]]; then
-	in_barclamp "$1" update_tracking_branches
+        update_tracking_branches
     fi
 }
 
-sync_crowbar_remotes() {
-    local remote urlbase remote_repo barclamp_repo
-    for remote in "${DEV_SORTED_REMOTES[@]}"; do
-        urlbase="${DEV_REMOTE_URLBASE[$remote]}"
-        # Do nothing if this remote is correct, otherwise set/add as appropriate.
-	remote_repo=$(in_repo git_url_for_remote "$remote") && \
-	    [[ ${remote_repo%.git} = $urlbase/crowbar ]] && continue
-        test_remote "$urlbase/crowbar" || continue
-	debug "Synchronizing remote $remote for Crowbar"
-	if in_repo git_remote_exists "$remote"; then
-	    in_repo set_url_remote "$remote" "$urlbase" "$remote_repo" || continue
-	else
-	    in_repo add_remote "$remote" "$urlbase" "$remote_repo" || \
-		die "Could not add new remote $remote for Crowbar in sync_barclamp_remotes"
-	fi
-	local update_tracking=true
-    done
-    if [[ $update_tracking ]]; then
-	in_repo update_tracking_branches
-    fi
+test_barclamp_remote() {
+    # $1 = local repo name
+    # $2 = remote repo
+    [[  $2 = $urlbase/barclamp-$1 || \
+        $2 = $urlbase/crowbar/barclamps/$1 ]]
 }
+
+# Synchronize remote definitions in the barclamps to match what is in the
+# main Crowbar repository as closely as possible.
+sync_barclamp_remotes() {
+    in_barclamp "$1" __sync_remotes "test_barclamp_remote $1" "probe_barclamp_remote $1"
+}
+
+test_simple_remote() [[ $2 = $urlbase/$1 ]]
+get_simple_remote() {
+    test_remote "$2/$1" && echo "$2/$1"
+}
+
+sync_crowbar_remotes() {
+    in_repo __sync_remotes "test_simple_remote crowbar" "get_simple_remote crowbar"
+}
+
+sync_ci_remotes() (
+    cd "$LOCAL_PULL_TRACKING"
+    __sync_remotes "test_simple_remote $CI_TRACKING_REPO" "get_simple_remote $CI_TRACKING_REPO"
+)
 
 # Show saved parameters for either a specific remote or all of them.
 show_remote() {
@@ -1777,6 +1842,7 @@ remote_wrapper() {
 		 sync_barclamp_remotes "${bc##*/}"
 	    done
             sync_crowbar_remotes
+            sync_ci_remotes
 	    return
 	    ;;
 	priority)
@@ -1799,6 +1865,10 @@ remote_wrapper() {
     debug "Crowbar:"
     if [[ $action != sync_barclamp_remotes ]]; then
 	in_repo $action "$remote" "$urlbase"
+    fi
+    if [[ -d $LOCAL_PULL_TRACKING/.git ]]; then
+        debug "CI Tracking:"
+        (cd "$LOCAL_PULL_TRACKING"; $action "$remote" "$urlbase")
     fi
     local c
     for c in "${cfgaction[@]}"; do
@@ -2163,47 +2233,35 @@ find_remote_changed_branches_for_release() {
 
 # Merge (or rebase) changes into the specificed branch from the corresponding
 # branch on the specified remote.
-# This function performs a merge first, and rolls things back if there was a
-# merge conflict.  If the merge succeeds, we also try a rebase of the local
-# version of this branch onto the remote version.  If that succeeds and results
-# in a working tree that is identical to the merged version, we go with the
-# rebased version of the tree, otherwise we go with the merged version.
-# We also leave behind a placeholder branch that points at the state the local
-# branch was in before we started things in case we need to unwind things.
 merge_or_rebase_from_remote() {
     # $1 = remote
     # $2 = local branch
     local remote branch rebase_temp
-    remote="$1" branch="$2" merge_temp="$branch-$btemp" rebase_temp="$branch-rebase-$btemp"
+    remote="$1" branch="$2" merge_temp="$branch-$btemp"
     git rev-parse --verify -q "$remote/$branch" &>/dev/null || return 0
     branches_synced "." "refs/heads/$branch" "refs/remotes/$remote/$branch" && return 0
     quiet_checkout "$branch" || return 1
     git branch -f --no-track "$merge_temp" "$branch"
-    debug "  Merging $remote/$branch into $branch"
-    git merge -q "$remote/$branch" || {
-	git merge --abort
-	git reset --hard "$merge_temp"
-        git branch -D "$merge_temp"
-        debug "  Merge conflicts merging $remote/$branch into $branch"
-        return 1
-    }
-    if [[ $allow_remote_rebase = true ]] && \
-	crowbar_remote_exists "$remote" && \
+    if crowbar_remote_exists "$remote" && \
 	[[ ! $DEV_FROM_REMOTES ]]; then
-        git branch -f --no-track "$rebase_temp" "$branch"
-	if ! git rebase -p -q "$remote/$branch" "$rebase_temp" &>/dev/null; then
-	    git rebase --abort
-	    quiet_checkout "$branch"
-	elif ! git diff --exit-code "$branch" "$rebase_temp"; then
-	    quiet_checkout "$branch"
-	else
-	    debug "  Rebased version of $branch is identical to merged version."
-	    debug "  Using the rebased version instead."
-	    quiet_checkout "$branch"
-	    git reset --hard "$rebase_temp"
-	fi
-        git branch -D "$rebase_temp"
+        if git rebase -p -q "$remote/$branch" "$branch" &>/dev/null; then
+            debug "  Rebased $branch onto $remote/$branch"
+            return 0
+        else
+            git rebase --abort
+            git reset --hard "$merge_temp"
+            debug "  Rebase failed, will try merge."
+        fi
     fi
+    if git merge -q "$remote/$branch"; then
+        debug "  Merged $remote/$branch merged into $branch"
+        return 0
+    fi
+    git merge --abort
+    git reset --hard "$merge_temp"
+    git branch -D "$merge_temp"
+    debug "  Merge conflicts merging $remote/$branch into $branch"
+    return 1
 }
 
 # Handle merges across releases.
@@ -2301,7 +2359,7 @@ unwind_or_commit_barclamp_syncs() {
 # repository.
 sync_everything() {
     local unsynced_barclamps=()
-    local b u head res=0 ref branch rel allow_remote_rebase=true
+    local b u head res=0 ref branch rel
     local btemp="$$-${RANDOM}"
     barclamps_are_clean || exit 1
     # Do barclamps first.
@@ -3279,7 +3337,7 @@ setup_unit_tests() (
     mkdir "$CROWBAR_TEST_DIR"
     reinstall_barclamps "${barclamps[@]}" || exit 1
     cd "$CROWBAR_TEST_DIR"
-    cp crowbar_framework/Gemfile* .
+    mv crowbar_framework/Gemfile* .
     if [[ $update_gem_cache = true ]]; then
         maybe_checkout_build_cache_branch
         local crowbar_yml
@@ -3349,16 +3407,18 @@ run_unit_tests() (
     cd "$CROWBAR_TEST_DIR/crowbar_framework"
     rm -rf coverage
     mkdir coverage
-    rcov --aggregate coverage/testing.data -Ispec:lib \
+    bundle exec rcov --aggregate coverage/testing.data -Ispec:lib \
         --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
         spec/*/*.rb || final_result=fail
-    rcov --aggregate coverage/testing.data -Itest:lib \
+    bundle exec rcov --aggregate coverage/testing.data -Itest:lib \
         --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
         test/unit/*.rb || final_result=fail
 
-    # Run BDD tests
-    cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
-    ./linux_run.sh || final_result=fail
+    # Start rails
+    bundle exec script/rails s Puma >> log/test.out 2>> log/test.err &
+    sleep 10
+    (cd BDD; erl -s bdd test crowbar -s init stop -noshell) || final_result=fail
+    kill $(ps -ef | grep Puma | grep ruby | awk '{ print $2 }')
 
     # Run chef unit tests
     cd "$CROWBAR_TEST_DIR/chef/cookbooks"
@@ -3516,6 +3576,7 @@ pull_request_handler() {
         builds)  builds_for_pull_request "$@";;
         switch)  pull_request_switch "$@";;
         merge)   pull_request_merge "$@";;
+        checkout) pull_request_checkout "$@";;
         comment) pull_request_comment "$@";;
         close)   pull_request_close "$@";;
         '')      show_open_pull_requests "$@";;
@@ -3937,6 +3998,7 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
     close: Close a pull request or pull request bundle
       Second arg must be a closing comment.
     builds: Show a list of builds this pull request should trigger.
+    checkout: Check out the exact contents of a pull request.  
     switch: Switch to a new tree that has the contents of a pull request
       merged into your current trees.  Your trees must be clean before 
       doing this. The first argument to this command must be a pull request
