@@ -3402,16 +3402,17 @@ run_unit_tests() (
     local barclamps=($(barclamps_needing_reinstall "$@"))
     local final_result=pass
     unit_tests_need_reset && clear_unit_tests
+    rm -f "$CROWBAR_TEST_DIR/crowbar_framework/Gemfile" # Use the parent directory gemfile
     reload_unit_tests "$@" || exit 1
     # Run unit tests
     cd "$CROWBAR_TEST_DIR/crowbar_framework"
     rm -rf coverage
     mkdir coverage
     bundle exec rcov --aggregate coverage/testing.data -Ispec:lib \
-        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
+        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,/config/,/lib/rspec/,/lib/rspec-,spec \
         spec/*/*.rb || final_result=fail
     bundle exec rcov --aggregate coverage/testing.data -Itest:lib \
-        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,config,/lib/rspec/,/lib/rspec-,spec \
+        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,/config/,/lib/rspec/,/lib/rspec-,spec \
         test/unit/*.rb || final_result=fail
 
     # Start rails
