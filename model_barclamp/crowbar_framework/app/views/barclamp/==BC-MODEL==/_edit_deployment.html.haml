@@ -1,0 +1,12 @@
+
+%p
+  = render :partial => "barclamp/node_selector"
+
+:javascript
+  $(document).ready(function(){
+    var constraints = { 
+      "==BC-MODEL==-server": { "unique": false, "count": 1, "admin":false } 
+    };
+    node_selector($('#drag_drop'), constraints);
+  });
+

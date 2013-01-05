@@ -1,0 +1,157 @@
+# Copyright 2011, Dell
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Author: RobHirschfeld
+#
+# This file directs the installation of the barclamp by the Crowbar Framework
+# The major compoents are
+#    barclamp: detalis about the barclamp
+#    crowbar: installation instructions
+#    nav: (optional) injects items into the Crowbar UI menu
+#    debs/rpms/gems: components needs by the barclamp
+
+barclamp:
+  name: ==BC-MODEL==
+  display: ==*BC-MODEL==
+  description: A way to maximize awesomeness for ==*BC-MODEL==
+  proposal_schema_version: 1
+  # controlls if barclamp is shown in UI list (true=yes)
+  user_managed: true
+  version: 0
+  # Should crowbar allow multiple proposals created?
+  allow_multiple_proposals: false
+  # Requires allows you to declare that this barclamp relies on
+  # another barclamp to provide some of its functionality.
+  # All barclamps implicitly rely on the crowbar barclamp.
+  requires:
+    - another-barclamp # rely on a single other barclamp
+    - @barclamp-group  # rely on another group of barclamps.
+  # Member allows you to declare that this barclamp is a member
+  # of a group of related barclamp.  A barclamp can be a member of 
+  # muliple groups, and a group name can be used instead of a barclamp
+  # in a requires: clause by prefixing it with an @ sign. 
+  member:
+    - barclamp-group
+    - another-barclamp-group
+  # Os_support allows you to declare that this barclamp only supports
+  # specific operating systems.  If you don't have an os_support
+  # section, Crowbar will assume the barclamp works on all the operating
+  # systems it supports.  
+  os_support:
+    - redhat-5.6
+    - ubuntu-10.10
+
+crowbar:
+  layout: 1
+  order: 1000
+  run_order: 1000
+  chef_order: 1000
+  proposal_schema_version: 2
+
+
+# debs, gems, rpms and extra_files allow you declare the OS packages,
+# gems, and raw files that this barclamp needs.
+
+# debs allows you to declare extra repositories to pull packages from
+# and delare that packages that you need for systems that use Debian-style
+# packaging.  
+debs:
+  # repos allows you to add an apt repository that the build system
+  # should pull packages from.  Each entry is formatted in the standard
+  # sources.list format.
+  repos:
+    # pull from internet: 
+    # - deb http://www.rabbitmq.com/debian/ testing main
+  # ppas allows you to declare Ubuntu personal package archives that 
+  # the build should try to pull from.
+  ppas:
+    - ppa_username/ppa_name 
+  # pkgs is a list of extra packages that the build system will try to pull
+  # and cache on the crowbar iso image.  You only have to list top-level 
+  # packages here -- if apt-get install gets all the dependencies, you do not
+  # need to list them here.
+  pkgs:
+    # put your packages here
+    # - mod_fcgid
+  # raw_pkgs is a list of URLs to .deb packages that the build system will try
+  # to download and add to the iso.  It does not do dependency checking, and
+  # it uses curl to handle the actual download process.
+  raw_pkgs:
+    - http://your_site/your_special_deb.deb
+  # You can have multiple OS specific sections as well.  You can declare
+  # dependencies for repos, ppas, pkgs, and raw_pkgs here, and they will
+  # be picked up when building Crowbar on that OS. 
+  os-token:
+    repos:
+    ppas:
+    pkgs:
+    raw_pkgs:
+    
+# rpms does the same thing that debs does, except for RPM-based systems.
+rpms:
+  repos:
+    # rpm repos allow you to declare that you want to use a repo that
+    # is set up using an RPM.  EPEL is a good example of such a repo.
+    - rpm http://repo_addr/repo.rpm
+    # bare allows you to declare that you want to use a repository that
+    # does not allow easy installation via rpm.
+    # It has a slightly more complex declaration:
+    # bare repo_name numeric_repo_priority repo_url
+    - bare epel5-nagios3 10 http://repos.fedorapeople.org/repos/peter/nagios3/epel-5/x86_64/ 
+  pkgs:
+    # put your rpms here
+    # - httpd
+  raw_pkgs: 
+    - http://your_site/your_special_rpm.rpm
+  pkg_sources:
+    # This is designed to pull a .src.rpm for use by the rest of the build 
+    # system.  It has the same restrictions that raw_pkgs does, with the
+    # added restriction that you must also manually specify all the packages
+    # needed to build this RPM in build_pkgs.
+  os-token:
+    # build_cmd is called after the rest of the packages and files have been
+    # staged inthe build cache.  This script will be sourced by the build
+    # system in a subshell, and should be written in bash.
+    # Full documentation on how this works is in the README.build in the 
+    # root of the main Crowbar repository.
+    build_cmd: your_shell_script.sh
+    
+# gems allows you to declare the gems you need.
+# Unlike the other package types, you can ask for a specific version of a gem
+# The build system will solve dependencies as best it can, but if a gem you have 
+# requires extra packages to install you will need to add them to the appropriate
+# build_pkgs section of rpms and debs above.
+gems:
+  pkgs:
+    # put your gems here.
+    - i18n
+    - rails-2.3.12 # Will try and pull rails-2.3.12 exactly.
+
+# extra_files downloads and saves a file to be slipstreamed on to the 
+# crowbar .iso in the extra/files directory (or a subdirectory thereof).
+# The build system will try to extract the .rpm files from 
+# anything that looks like an Oracle java rpm.bin and treat the extracted
+# .rpm files as if they were provided by raw_pkgs. 
+extra_files:
+  # will place file into extra/files
+  - http://some/file
+  # will place file into extra/files/foo
+  - http://some/file foo 
+  # will place image.tar.gz in extra/files/ami.
+  # For backwards compatibility, it will also be available at /ami
+  - http://some/amazon/image.tar.gz ami 
+  # Will download a java package and try to install its RPMS
+  # if bulding Crowbar staged on Redhat.
+  - http://java.oracle.com/java-version-x64-rpm.bin java
+  
