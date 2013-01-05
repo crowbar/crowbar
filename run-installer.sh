@@ -43,7 +43,7 @@ NICS_PER_BRIDGE=1
 [[ -f $1 && $1 = *Crowbar_Installer.vmdk ]] || \
     die "$1 is not a crowbar installer disk image!"
 [[ -f $2 && $2 = *crowbar-*.iso ]] || \
-    die "$2 is not a croebar ISO!"
+    die "$2 is not a crowbar ISO!"
 [[ -d /sys/class/net/$3 ]] || \
     die "$3 is not an interface to let the installer serve PXE boots!"
 PHYSICAL_INTERFACES=("$3,deploy-br")
