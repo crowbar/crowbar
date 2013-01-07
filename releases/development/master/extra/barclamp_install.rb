@@ -21,7 +21,7 @@
 if File.exists?('/opt/dell/bin/barclamp_mgmt_lib.rb')
   require '/opt/dell/bin/barclamp_mgmt_lib.rb'
 else
-  require 'barclamp_mgmt_lib.rb'
+  require File.join(File.dirname(__FILE__), 'barclamp_mgmt_lib.rb')
 end
 require 'getoptlong'
 require 'pp'
