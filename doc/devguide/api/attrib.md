@@ -58,6 +58,8 @@ Details:
       "name":"ram",
       "description":null,
       "order":10000,
+      "barclamp_id":40,
+      "hint":null,
       "created_at":"2012-08-13T17:20:21Z",
       "updated_at":"2012-08-13T17:20:21Z"
     }
@@ -67,6 +69,8 @@ Details:
 * Format - json
 * id - Attrib id
 * name - Attrib name
+* barclamp_id - relation with barclamp (attribute only has 1)
+* hint - helps the barclamp figure out how to populate the attribute.  should be assigned by the attribute
 
 ##### Attrib CRUD: Create
 
