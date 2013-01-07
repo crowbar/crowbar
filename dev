@@ -3308,7 +3308,11 @@ reinstall_barclamps() {
         ./barclamp_install.rb --force --no-files --no-chef -b \
             "$CROWBAR_TEST_DIR" "${barclamp_list[@]}") || \
             die "Failed to install some barclamps."
-    sudo chown -R "$USER.$USER" "${CROWBAR_TEST_DIR}"
+
+    local group=$USER
+    [ -f /etc/SuSE-release ] && group=users
+    sudo chown -R "$USER.$group" "${CROWBAR_TEST_DIR}"
+
     find "$CROWBAR_TEST_DIR" -type d -exec chmod a+x '{}' ';'
     # Clean up the filelists.
     rm barclamps/*.txt
