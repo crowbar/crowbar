@@ -1691,7 +1691,8 @@ __sync_remotes() {
 	remote_repo=$(git_url_for_remote "$remote") && \
             $1 ${remote_repo%.git} && continue
         remote_repo="$($2 "$urlbase")" || continue
-	debug "Synchronizing remote $remote for barclamp $1"
+        remote_repo="${remote_repo#$urlbase/}"
+	debug "Synchronizing remote $remote for $PWD"
 	if git_remote_exists "$remote"; then
 	    set_url_remote "$remote" "$urlbase" "$remote_repo" || continue
 	else
