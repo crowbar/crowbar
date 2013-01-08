@@ -3372,6 +3372,9 @@ setup_unit_tests() (
             "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
     else
         sed -ie "s@^source .*@source \"http://rubygems.org\"@" "Gemfile"
+        echo "NOTE: Using the --no-gem-cache option means that the gems used to"\
+        "run the unit tests may not be the same as the ones used to build and"\
+        "install Crowbar, so results may differ."
     fi
 
     cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
