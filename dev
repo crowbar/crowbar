@@ -3232,14 +3232,20 @@ purge_submodule_metadata() (
 unit_prereqs_installed() {
     local f=true
 
-    echo "** Installing minimal dev setup dependencies..."
-    bundle install --gemfile=dev-setup/Gemfile
-    echo
-
     if [[ ! $(find /usr/include -name 'sqlite3.h') ]]; then
         debug "sqlite development headers not installed."
         f=false
     fi
+
+    if command -v bundle >/dev/null 2>&1; then
+        echo "** Installing minimal dev setup dependencies..."
+        bundle install --gemfile=dev-setup/Gemfile
+        echo
+    else
+        debug "Please make sure bundler is installed. Eg. 'sudo gem install bundler'."
+        f=false
+    fi
+
     [[ $f = true ]]
 }
 
