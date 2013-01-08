@@ -3240,6 +3240,7 @@ unit_prereqs_installed() {
     if command -v bundle >/dev/null 2>&1; then
         echo "** Installing minimal dev setup dependencies..."
         bundle install --gemfile=dev-setup/Gemfile
+        [ $? -eq 0 ] || f=false
         echo
     else
         debug "Please make sure bundler is installed. Eg. 'sudo gem install bundler'."
