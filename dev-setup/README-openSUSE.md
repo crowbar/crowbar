@@ -14,8 +14,8 @@ working from. If not, adapt the commands accordingly.
 
 Installation steps:
 
-1. Download the latest version of the Crowbar Dev VM image from
-   http://susestudio.com/a/n0rKOx/crowbar-dev. We recommend using the KVM
+1. Download the latest version of the Crowbar Dev VM image from [SUSE Gallery]
+   (http://susestudio.com/a/n0rKOx/crowbar-dev). We recommend using the KVM
    image. Place the image in the `dev-setup/qemu-kvm` directory of the Crowbar
    git checkout on your KVM host.
 
