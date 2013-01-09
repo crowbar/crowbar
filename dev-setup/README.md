@@ -12,8 +12,8 @@ system as the VM host. There is no hard requirement for this - you just need to
 adapt the steps and commands listed here accordingly.
 
 If you prefer to use another hypervisor other than qemu-kvm, see [Crowbar in
-VirtualBox](https://github.com/dellcloudedge/crowbar/wiki/Running-Crowbar-in-VirtualBox-VMs)
-or [Crowbar in VMWare](https://github.com/dellcloudedge/crowbar/wiki/Running-Crowbar-in-VMWare-VMs).
+VirtualBox](https://github.com/crowbar/crowbar/wiki/Running-Crowbar-in-VirtualBox-VMs)
+or [Crowbar in VMWare](https://github.com/crowbar/crowbar/wiki/Running-Crowbar-in-VMWare-VMs).
 Then jump to the section titled "Installing the development system" and adapt
 the steps/commands accordingly.
 
@@ -33,7 +33,7 @@ or [AMD-V](http://en.wikipedia.org/wiki/X86_virtualization#AMD_virtualization_.2
 capable CPUs. This is usually disabled by default in the BIOS, so you may need
 to enable it manually.
 
-You can run the [qemu-kvm/setup-kvm](https://github.com/dellcloudedge/crowbar/blob/master/dev-setup/qemu-kvm/setup-kvm)
+You can run the [qemu-kvm/setup-kvm](https://github.com/crowbar/crowbar/blob/master/dev-setup/qemu-kvm/setup-kvm)
 script to set it up. It will check for CPU support and load the appropriate
 kernel modules.
 
