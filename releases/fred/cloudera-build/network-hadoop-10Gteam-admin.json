@@ -59,11 +59,11 @@
       {
        "pattern": "team/.*/crowbar-config-default",
        "conduit_list": { 
-        "prod": {
+        "public": {
            "if_list": [ "10g1", "10g3" ],
            "team_mode": 6
          },
-            "public": {
+            "prod": {
               "if_list": [ "10g2", "10g4" ],
                 "team_mode": 6
             },
@@ -125,7 +125,7 @@
           "pattern": ".*/.*/.*",
           "conduit_list": { 
             "prod": {
-              "if_list": [ "10g1" ]
+              "if_list": [ "10g2" ]
             },
             "admin": {
               "if_list": [ "10g2" ]
