@@ -3230,21 +3230,23 @@ purge_submodule_metadata() (
 # Unit testing functions:
 
 unit_prereqs_installed() {
-    local f gem
-    f=true
-    if ! command -v markdown >/dev/null 2>&1; then
-        debug "Please make sure markdown is installed."
-        f=false
-    fi
+    local f=true
+
     if [[ ! $(find /usr/include -name 'sqlite3.h') ]]; then
         debug "sqlite development headers not installed."
         f=false
     fi
-    for gem in kwalify bundler rake rcov rspec; do
-        gem list |grep -q "$gem" && continue
-        debug "Please install the $gem gem."
+
+    if command -v bundle >/dev/null 2>&1; then
+        echo "** Installing minimal dev setup dependencies..."
+        bundle install --gemfile=dev-setup/Gemfile
+        [ $? -eq 0 ] || f=false
+        echo
+    else
+        debug "Please make sure bundler is installed. Eg. 'sudo gem install bundler'."
         f=false
-    done
+    fi
+
     [[ $f = true ]]
 }
 
