@@ -1,0 +1,71 @@
+#!/usr/bin/env ruby
+
+# Compares two YAML or JSON files. Returns exit code 0 if they result in the
+# same hash after parsing, 1 otherwise.
+
+require 'rubygems'
+require 'json'
+require 'yaml'
+
+if ARGV.size != 2
+  puts "
+  Compares two YAML or JSON files. Also ignores all 'created_at' and
+  'updated_at' keys (if any) in the first level values in YAML files.
+
+  Usage: #{File.basename(__FILE__)} FILE1 FILE2
+
+  Returns the following exit codes:
+  0 - Parsed hashes is identical
+  1 - Parsed hashes differs
+  2 - Parsing fails
+  3 - Unknown file type (only .yml|yaml, and .json are recognized)
+  4 - No such file
+  "
+  exit 4
+end
+
+f1 = ARGV[0]
+f2 = ARGV[1]
+
+ext = File.extname(f1)
+
+error = (RUBY_VERSION == '1.8.7') ? YAML::ParseError : Psych::SyntaxError
+
+class Hash
+  def diff(other)
+    self.keys.inject({}) do |memo, key|
+      unless self[key] == other[key]
+        memo[key] = [self[key], other[key]]
+      end
+      memo
+    end
+  end
+end
+
+def nuke_timestamps(hash)
+  hash.each do |key, value|
+    if value.is_a? Hash
+      value.delete('created_at')
+      value.delete('updated_at')
+    end
+  end
+  hash
+end
+
+begin
+  case ext
+  when /yml|yaml/i
+    exit nuke_timestamps(YAML.load_file(f1)) == nuke_timestamps(YAML.load_file(f2))
+  when /json/i
+    exit JSON.parse(File.read(f1)) == JSON.parse(File.read(f2))
+  else
+    puts "Unknown file type"
+    exit 3
+  end
+rescue error, JSON::ParserError => ex
+  puts ex.message
+  exit 2
+rescue Errno::ENOENT => ex
+  puts ex.message
+  exit 4
+end
