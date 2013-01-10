@@ -60,7 +60,7 @@
        "pattern": "team/.*/crowbar-config-default",
        "conduit_list": { 
         "prod": {
-           "if_list": [ "1g2", "1g3" ],
+           "if_list": [ "1g2", "1g4" ],
            "team_mode": 6
          },
             "public": {
