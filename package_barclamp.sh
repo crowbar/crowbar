@@ -13,14 +13,16 @@ package_cleanup() {
 }
 
 trap package_cleanup 0 INT QUIT TERM
+if [[ ! $CACHE_DIR ]]; then
 
-# Source our config file if we have one
-[[ -f $HOME/.build-crowbar.conf ]] && \
-    . "$HOME/.build-crowbar.conf"
+    # Source our config file if we have one
+    [[ -f $HOME/.build-crowbar.conf ]] && \
+        . "$HOME/.build-crowbar.conf"
 
-# Look for a local one.
-[[ -f build-crowbar.conf ]] && \
-    . "build-crowbar.conf"
+    # Look for a local one.
+    [[ -f build-crowbar.conf ]] && \
+        . "build-crowbar.conf"
+fi
 
 # Location for caches that should not be erased between runs
 [[ $CACHE_DIR ]] || CACHE_DIR="$HOME/.crowbar-build-cache"
