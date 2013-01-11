@@ -3330,7 +3330,6 @@ unit_tests_need_reset() {
 setup_unit_tests() (
     local gem f bc barclamps=()
     local gem_offline=true update_gem_cache=false use_gem_cache=true
-    unit_prereqs_installed || exit 1
     for f in "$@"; do
         case $f in
             --update-gem-cache) update_gem_cache=true;;
@@ -3338,6 +3337,18 @@ setup_unit_tests() (
             *) barclamps+=("$f");;
         esac
     done
+    if [[ $use_gem_cache = true ]]; then
+        unit_prereqs_installed || exit 1
+    else
+        if command -v bundle >/dev/null 2>&1; then
+            debug "** Installing minimal dev setup dependencies..."
+            bundle install --gemfile=dev-setup/Gemfile
+            [ $? -eq 0 ] || die "Failed to install gem dependencies"
+            debug
+        else
+            die "Please make sure bundler is installed. Eg. 'sudo gem install bundler'"
+        fi
+    fi
     rm -rf "$CROWBAR_TEST_DIR"
     mkdir "$CROWBAR_TEST_DIR"
     reinstall_barclamps "${barclamps[@]}" || exit 1
