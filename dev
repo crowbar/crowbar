@@ -3340,6 +3340,8 @@ setup_unit_tests() (
     if [[ $use_gem_cache = true ]]; then
         unit_prereqs_installed || exit 1
     else
+        local rvm=/usr/local/rvm/scripts/rvm
+        [ -f $rvm ] && source $rvm
         if command -v bundle >/dev/null 2>&1; then
             debug "** Installing minimal dev setup dependencies..."
             bundle install --gemfile=dev-setup/Gemfile
