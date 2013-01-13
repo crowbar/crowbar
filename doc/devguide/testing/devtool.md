@@ -8,7 +8,7 @@ The following gems are pre-requisite (must run as root)
 * `gem install rake`
 * `gem install bundler`
 * `gem install sqlite3`
-
+* Run with `--update-gem-cache` on your first `run-unit-tests` to make sure you have the tests
 The following commands work for Unix environments:
 
 1. `./dev setup-unit-tests`   # builds a unit test environment in /tmp/crowbar-dev-test
