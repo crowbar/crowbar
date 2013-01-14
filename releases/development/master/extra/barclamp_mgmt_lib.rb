@@ -94,18 +94,19 @@ def catalog(bc_path)
   end
 end
 
+
 # copies paths from one place to another (recursive)
 def bc_cloner(item, bc, entity, source, target, replace)
+  # Replace: ONLY used when creating a new barclamp from the model!
   debug "bc_cloner method called with debug option enabled"
   debug "bc_cloner args: item=#{item}, bc=#{bc}, entity=#{entity}, source=#{source}, target=#{target}, replace=#{replace}"
 
   files = []
   new_item = (replace ? bc_replacer("#{item}", bc, entity) : item)
-  debug "new_item=#{new_item}"
   new_file = File.join target, new_item
-  debug "new_file=#{new_file}"
   new_source = File.join(source, item)
-  debug "new_source=#{new_source}"
+  debug "\tnew_source=#{new_source}"
+  debug "\tnew_target=#{new_file} (item is #{new_item})"
   if File.directory? new_source
     debug "\tcreating directory #{new_file}."
     FileUtils.mkdir new_file unless File.directory? new_file
@@ -114,11 +115,12 @@ def bc_cloner(item, bc, entity, source, target, replace)
       files += bc_cloner(recurse, bc, entity, new_source, new_file, replace)
     end
   else
-    #need to inject into the file
+    #need to inject into the file (normal copy)
     unless replace
-      debug "\t\tcopying file #{new_file}."
+      debug "\t\tcopying file to #{new_file}."
       FileUtils.cp new_source, new_file
       files << new_file
+    #we need to scrub the file for replacement strings
     else
       debug "\t\tcreating file #{new_file}."
       t = File.open(new_file, 'w')
@@ -220,21 +222,6 @@ def merge_sass(yaml, bc, path, installing)
   end
 end
 
-# cleanup (anti-install) assumes the install generates a file list
-def bc_remove_layout_1(bc, bc_path, yaml)
-  filelist = File.join @BARCLAMP_PATH, "#{bc}-filelist.txt"
-  if File.exist? filelist
-    files = [ filelist ]
-    File.open(filelist, 'r') do |f|
-      f.each_line { |line| files << line }
-    end
-    FileUtils.rm files
-    merge_nav yaml, false
-    merge_sass yaml, bc, bc_path, false
-    debug "Barclamp #{bc} UNinstalled"
-  end
-end
-
 def framework_permissions(bc, bc_path)
   FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'db')
   chmod_dir 0644, File.join(@CROWBAR_PATH, 'db')
@@ -255,6 +242,7 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
   #copy the rails parts (required for render BEFORE import into chef)
   dirs = Dir.entries(bc_path)
   debug "path entries #{dirs.pretty_inspect}"
+
   if dirs.include? 'crowbar_framework'
     debug "path entries include \"crowbar_framework\""
     files += bc_cloner('crowbar_framework', bc, nil, bc_path, @BASE_PATH, false)
@@ -270,6 +258,7 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
     FileUtils.chmod_R 0755, @BIN_PATH
     debug "\tcopied command line files"
   end
+
   if dirs.include? 'updates' and !@@no_files
     debug "path entries include \"updates\""
     files += bc_cloner('updates', bc, nil, bc_path, @ROOT_PATH, false)
@@ -282,6 +271,19 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
     debug "path entries include \"chef\""
     files += bc_cloner('chef', bc, nil, bc_path, @BASE_PATH, false)
     debug "\tcopied over chef parts from #{bc_path} to #{@BASE_PATH}"
+  end
+
+  # copy over docs
+  if dirs.include? 'doc'
+    doc_source = File.join(bc_path,'doc')
+    doc_target = File.join(@BASE_PATH,'doc',bc)
+    FileUtils.mkdir File.join(@BASE_PATH,'doc') unless File.directory? File.join(@BASE_PATH,'doc')
+    FileUtils.mkdir doc_target unless File.directory? doc_target
+    debug "Doc path entries from #{doc_source} to #{doc_target}"
+    files += bc_cloner('', bc, nil, doc_source, doc_target, false)
+    debug "\tcopied over Docs from #{doc_source} to #{doc_target}"
+  else
+    debug "\tno Docs to copy"
   end
 
   # Migrate base crowbar schema if needed
@@ -409,6 +411,7 @@ def upload_data_bags_from_rpm(rpm, rpm_files, bc_path, log)
     end
   end
 end
+
 
 def upload_roles_from_rpm(rpm, rpm_files, bc_path, log)
   roles_dir = "#{@BASE_PATH}/chef/roles"
