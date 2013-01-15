@@ -1417,11 +1417,13 @@ fetch_ci_tracking() (
 
 # Push CI tracking to the upstream repository.
 push_ci_tracking() (
+    local remote
     fetch_ci_tracking || return $?
     cd "$LOCAL_PULL_TRACKING"
+    remote=$(git config --get branch.master.remote) || return 3
     git push -q "$remote" "master:master"
     local __res=$?
-    (( $res > 127 || $res == 0 )) && return $res
+    (( $__res > 127 || $__res == 0 )) && return $res
 )
 
 # Get all the IDs that the pull request system knows about.
@@ -1521,7 +1523,11 @@ ci_link_state() {
     done < <(ci_all_last_states "$1" "$2")
     mkdir -p "$LOCAL_PULL_TRACKING/$1/ci_state/$3/last_states"
     touch "$LOCAL_PULL_TRACKING/$1/ci_state/$3/last_states/$2"
+    (   cd "$LOCAL_PULL_TRACKING/$1/ci_state"
+        git add "$3/last_states/$2"
+        git commit -m "ci_link_state $*")
 }
+
 
 # Figure out the set of possible next states from the current state.
 # This may not be the same as the next states we will wind up transitioning to.
@@ -1611,6 +1617,36 @@ ci_all_next_states() {
     printf "%s\n" "${next[@]}"
 }
 
+# Print any passed args in pseudo-random order
+__random_order() {
+    local -a res
+    local k v
+    for v in "$@"; do
+        k="$RANDOM"
+        while [[ ${res[$k]} ]]; do k="$RANDOM"; done
+        res[$k]="$v"
+    done
+    printf "%s\n" "${res[@]}"
+}
+
+# Wrapper around ci_all_next_states that filters out next states that have
+# an intent registered for them, and prints them in random order.
+ci_next_states() {
+    local state id state_dir
+    local -a states
+    id=$(pull_request_number_to_id "$1") || \
+        die "$1 is not a valid pull request!"
+    [[ -d $LOCAL_PULL_TRACKING/$id ]] || \
+        die "Pull request $1 has not been imported into CI." \
+        "Please run $0 ci import."
+    state_dir="$LOCAL_PULL_TRACKING/$id/ci_state/$2"
+    while read -r state; do
+        [[ -d $state_dir/intents/$state ]] && continue
+        states+=("$state")
+    done < <(ci_all_next_states "$id" "$2")
+    __random_order "${states[@]}"
+}
+
 # Get the current states that a given pull request in the CI is currently in.
 # In the interest of parallelization, a pull request can be in multiple CI
 # states at any given time.
@@ -1620,7 +1656,7 @@ ci_get_current_states() {
     local -A states
     id=$(pull_request_number_to_id "$1") || \
         die "$1 is not a valid pull request!"
-    [[ -d $LOCAL_PULL_TRACKING/$id/ci_state ]] || die "$1 is not being tracked by CI"
+    [[ -d $LOCAL_PULL_TRACKING/$id/ci_state ]] || die "$id is not being tracked by CI"
     # First, read all of the state paths in.
     for state_dir in "$LOCAL_PULL_TRACKING/$id/ci_state/"*; do
         [[ -d $state_dir ]] || continue
@@ -1636,7 +1672,7 @@ ci_get_current_states() {
                 "State $state says that it transitioned from $last_state," \
                 "but $last_state is not in the state graph!"
             states[$last_state]=stale
-        done < <(ci_last_states "$1" "$state")
+        done < <(ci_last_states "$id" "$state")
     done
     # Anything not marked as stale is a state that we are in.
     for state in "${!states[@]}"; do
@@ -1650,10 +1686,120 @@ ci_get_current_states() {
             return
         done
     done
-    for state in "${!states[@]}"; do
-        echo "$state"
-    done
+    __random_order "${!states[@]}"
 }
+
+ci_kill_stale_intents() (
+    # $1 = pull request ID
+    [[ -d $LOCAL_PULL_TRACKING/$1/ci_state ]] || return 1
+    cd "$LOCAL_PULL_TRACKING/$1/ci_state"
+    local intent need_commit=false
+    for intent in */intents/*; do
+        [[ -d $intent ]] || continue
+        local from=${intent%/intents/*}
+        local to=${intent#*/intents/}
+        [[ -d $to ]] && continue
+        (( $(cat "$intent/timeout") >= $(date -u '+%s'))) && continue
+        git rm -rf "$intent"
+        need_commit=true
+    done
+    [[ $need_commit = true ]] || return 1
+    git commit -mq "Killed stale intents for $1"
+)
+
+ci_register_intent() {
+    # $1 = pull request ID
+    # $2 = current state
+    # $3 = intended next state
+    # $4 = timeout for intent.  Defaults to 5 hours.
+    local timeout="${4:-18000}" id prq state state_ok=false
+    id=$(pull_request_number_to_id "$1") || \
+        die "$1 is not a valid pull request!"
+    [[ -d $LOCAL_PULL_TRACKING/$id ]] || \
+        die "Pull request $1 has not been imported into CI." \
+        "Please run $0 ci import."
+    prq="$LOCAL_PULL_TRACKING/$id"
+    [[ -d $prq/ci_state/$2 ]] || {
+        debug "$id does not have state $2, cannot register an intent to move to $3"
+        return 1
+    }
+    [[ -d $prq/ci_state/$3 ]] && {
+        debug "$id already has state $3"
+        return 1
+    }
+    while read state; do
+        [[ $state = $2 ]] || continue
+        state_ok=true
+        break
+    done < <(ci_get_current_states "$1")
+    [[ $state_ok = true ]] || \
+        die "$id is not in state $2, cannot register an intent for it."
+    state_ok=false
+    while read state; do
+        [[ $state = $3 ]] || continue
+        state_ok=true
+        break
+    done < <(ci_all_next_states "$id" "$2")
+    [[ $state_ok = true ]] || \
+        die "$id: State $2 does not have a next state of $3, cannot register an intent."
+    # See if we need to expire intents on the current state.
+    if [[ -d $prq/ci_state/$2/intents/$3 ]]; then
+        ci_kill_stale_intents "$id" && push_ci_tracking && \
+            [[ ! -d $prq/ci_state/$2/intents/$3 ]] || return 1
+    fi
+    mkdir -p "$prq/ci_state/$2/intents/$3/"
+    local intent_id=$((ip addr show; date -u "+%s%N"; printf "$RANDOM") |sha1sum -)
+    intent_id="${intent_id%% *}"
+    echo "$(( $(date -u '+%s') + ${timeout} ))" > "$prq/ci_state/$2/intents/$3/timeout"
+    touch "$prq/ci_state/$2/intents/$3/$intent_id"
+    (   cd "$prq/ci_state/$2/intents/$3/"
+        git add .
+        git commit -m "ci_register_intent $*") &>/dev/null
+    echo "$intent_id"
+}
+
+ci_handle_intent() {
+    # $1 = intent ID
+    # $2 = passed or failed
+    local -a intents states
+    local intent state
+    while read -r intent; do
+        intents+=("$intent")
+    done < <(find "$LOCAL_PULL_TRACKING/singletons" "$LOCAL_PULL_TRACKING/bundles" \
+        -name "$1" -type f) 2>/dev/null
+    [[ ${intents[1]} ]] && \
+        die "More than one intent with id $1 found. This should never happen." \
+        "${intents[@]}"
+    [[ $2 = passed || $2 = failed ]] || \
+        die "Second arg to ci_handle_intent should either be passed or failed."
+    intent="${intents[0]#$LOCAL_PULL_TRACKING/}"
+    local prq="${intent%%/ci_state/*}"
+    intent="${intent#${prq}/ci_state/}"
+    local current_state=${intent%/intents/*}
+    local next_state=${intent#*/intents/}
+    next_state=${next_state%/*}
+    if [[ $2 = failed ]]; then
+        if [[ $(ci_get_current_states "$prq") = failed ]]; then
+            return 0
+        else
+            while read state; do
+                states+=("$state")
+            done  < <(ci_get_current_states "$prq")
+            __ci_set_state "$prq" failed \
+                "Intent to transition from $current_state to $next_state failed."
+            for state in "${states[@]}"; do
+                ci_link_state "$prq" "$state" failed
+            done
+        fi
+    else
+        __ci_set_state "$prq" "$next_state" \
+            "Intent to transition from $current_state to $next_state passed."
+        ci_link_state "$prq" "$current_state" "$next_state"
+    fi
+}
+
+ci_commit_intent() { ci_handle_intent "$1" "passed"; }
+ci_fail_intent() { ci_handle_intent "$1" "failed"; }
 
 # Handle transitioning a pull request in the CI state machine to closed
 # or merged once it has been closed on Github.
@@ -1690,7 +1836,7 @@ ci_close_stale_pull_request() (
         ci_link_state "$1" "$p_state" "$p_merged"
     done
     git add "$1"
-    git commit -qm "Pull request id $1 $p_merged upstream."
+    git commit --allow-empty -qm "Pull request id $1 $p_merged upstream."
 )
 
 ci_close_stale_pull_requests() {
@@ -3902,9 +4048,19 @@ ci_helper() {
         fetch) fetch_ci_tracking "$@";;
         import) ci_import_new_pull_requests "$@";;
         push) (cd "$LOCAL_PULL_TRACKING"; git push);;
-        state-dirs) ci_get_current_state_paths "$@";;
+        states) ci_get_current_states "$@";;
+        all-next-states) ci_all_next_states "$@";;
         next-states) ci_next_states "$@";;
-        *) die "Not a valid CI command.  Try fetch, import, or push.";;
+        open-ids) ci_open_ids "$@";;
+        all-open-ids) ci_ids "$@";;
+        register-intent)
+            ci_do_and_push ci_register_intent "$@";;
+        commit-intent)
+            ci_do_and_push ci_commit_intent "$@";;
+        fail-intent)
+            ci_do_and_push ci_fail_intent "$@";;
+
+        *) die "Not a valid CI command.  Run $0 help ci for valid CI commands.";;
     esac
 }
 # Hash for handling command -> function mapping.
@@ -4350,12 +4506,32 @@ DEV_LONG_HELP["ci"]="Crowbar Continuous Intergration Helper.
       is at in the CI system.
       The only argument is the ID of the pull request.
     all-next-states: Shows all the next states that may be applicable to
-      the curent pr passed state of a pull request.
+      the current or passed state of a pull request.
       Arguments:
         id: The ID of the pull request.
         (optional) state: The state to determine the next state from. Defaults
           to the current state of the pull request, if the pull request is
-          only in one state."
+          only in one state.
+    next-states: Same as all-next-states, but filters out state transitions
+      that have an intent registered for them in the state machine.
+    register-intent: Register an intent to do whatever work is needed to
+      run the tests and do the work needed to transition a pull request
+      from one state to another.
+      Arguments:
+        id: A pull request ID.
+        current_state: One of the current states of the pull request.
+        next_state: The intended next state.  This must be one of the states
+          that next-states would return for current_state.
+        timeout: How many seconds from now the CI system can discard this
+          intent.  Defaults to 5 hours, but it should be set to a smaller value
+          if you expect your task to take a shorter amount than this.
+      Returns a unique ID for the intent.
+    commit-intent: Tell the CI system that the test we wanted to run for a
+      registered intent passed, and that it should transition appropriatly.
+      Arguments:
+        id: An intent ID returned by register-intent.
+    fail-intent: The same as commit-intent, but it will transition to the
+      failed state instead."
 
 # Verify that we have help for all commands, and exit if we don't.
 for cmd in "${!DEV_COMMANDS[@]}"; do
