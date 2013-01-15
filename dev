@@ -1435,11 +1435,14 @@ ci_ids() {
 # Get all the pull request IDs that are not closed or merged.
 ci_open_ids() {
     local id
+    local -a ids
     while read id; do
         local state=$(ci_get_current_states "$id")
-        [[ $state = closed || $state = merged ]] && continue
-        echo "$id"
+        [[ $state = closed || $state = merged || \
+            $state = failed || $state = needs-work ]] && continue
+        ids+=("$id")
     done < <(ci_ids)
+    __random_order "${ids[@]}"
 }
 
 __ci_set_state() (
@@ -1690,17 +1693,14 @@ ci_close_stale_pull_request() (
 )
 
 ci_close_stale_pull_requests() {
-    local id commit prqs=() p_state prq
+    local id commit prqs=() prq
     local -A states
 
     for prq in "$LOCAL_PULL_TRACKING/bundles/"* "$LOCAL_PULL_TRACKING/singletons/"*/*/*; do
         id="${prq#$LOCAL_PULL_TRACKING/}"
         [[ -d $prq/ci_state ]] || continue
+        [[ -d $prq/ci_state/closed || -d $prq/ci_state/merged ]] && continue
         [[ -d $OPEN_PULL_REQUESTS/$id ]] && continue
-        for p_state in $(ci_get_current_states "$id"); do
-            states[$p_state]=$p_state
-        done
-        [[ ${states["closed"]} || ${states["merged"]} ]] && continue
         ci_close_stale_pull_request "$id"
     done
 }
