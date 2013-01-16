@@ -366,7 +366,7 @@ do_crowbar_build() {
     fi
 
     # Make additional directories we will need.
-    for d in discovery extra/pkgs extra/files; do
+    for d in discovery extra/pkgs extra/files doc/framework; do
 	mkdir -p "$BUILD_DIR/$d"
     done
 
@@ -384,7 +384,7 @@ do_crowbar_build() {
     d="$(build_cfg_dir)" && [[ -d $d/extra && -d $d/change-image ]] || \
         die "Cannot find extra and change-image directories for $(current_build)!"
     cp -r "$d/extra"/* "$BUILD_DIR/extra"
-    cp -r "$d/doc"/* "$BUILD_DIR/doc/framework"
+    cp -r "$CROWBAR_DIR/doc"/* "$BUILD_DIR/doc/framework"
     cp -r "$d/change-image/"* "$BUILD_DIR"
     for d in "$OS-common" "$OS_TOKEN-extra"; do
 	[[ -d $CROWBAR_DIR/$d ]] || continue

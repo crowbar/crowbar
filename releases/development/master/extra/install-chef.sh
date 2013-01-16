@@ -124,6 +124,11 @@ fi
 
 }
 
+# Copy over the framework docs into their final location
+mkdir -p /opt/dell/doc
+cp -a "$DVD_PATH/doc/framework" /opt/dell/doc
+
+
 fqdn_re='^[0-9a-zA-Z.-]+$'
 # Make sure there is something of a domain name
 DOMAINNAME=${FQDN#*.}
