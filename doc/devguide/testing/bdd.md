@@ -53,8 +53,8 @@ The Crowbar barclamp tests include:
 * scaffolds.feature - Tests all the feature objects
 * authenticate.feature - Tests login
 * users.feature - Tests user management screen
-* attributes - Tests CMDB attributes API
-* cmdbs - Tests the CMDB engine API
+* attributes - Tests Jig attributes API
+* jigs - Tests the Jig engine API
     
 
 ### Test Debugging
