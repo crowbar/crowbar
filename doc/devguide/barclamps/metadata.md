@@ -19,7 +19,7 @@ This migration is used to populate (or update) the barclamp information used by 
 * layout - version of layout (default 2)
 * order - display order in UI (default 0)
 * run_order
-* cmdb_order
+* jig_order
 * commit - automatically generated flag
 * build_on - automatically generated flag
   
