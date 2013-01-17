@@ -50,8 +50,10 @@ def debug(msg)
   puts "DEBUG: " + msg if @@debug
 end
 
-def fatal(msg, log)
-  puts "ERROR: #{msg}  Aborting; examine #{log} for more info."
+def fatal(msg, log=nil)
+  m = "ERROR: #{msg}  Aborting"
+  m ="#{m}; examine #{log} for more info."  if log
+  puts m
   exit 1
 end
 
@@ -67,6 +69,8 @@ def bc_install(bc, bc_path, yaml)
     bc_install_layout_1_chef bc, bc_path, yaml unless @@no_chef
     debug "Installing cache components" unless @@no_files
     bc_install_layout_1_cache bc, bc_path unless @@no_files
+    debug "Performing install action"
+    bc_do_install_action bc, bc_path, yaml
   else
     throw "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
   end
@@ -230,6 +234,18 @@ def framework_permissions(bc, bc_path)
   chmod_dir 0644, File.join(@CROWBAR_PATH, 'tmp')
   debug "\tcopied crowbar_framework files"
 end
+
+
+# perform install action for the barclamp
+def bc_do_install_action(bc,bc_path, yaml)
+  action = yaml["barclamp"]["barclamp_install_action"]
+  return if action.nil?
+  action = File.join(bc_path,action)
+  fatal("action #{action} not found for #{bc}") unless File.exists?(action)
+  output = `#{action}`
+  fatal("action #{action} failed for #{bc}:\n #{output}") unless $? == 0
+end
+
 
 # install the framework files for a barclamp
 def bc_install_layout_2_app(bc, bc_path, yaml)
