@@ -1,6 +1,6 @@
 ### Attribute (aka Attrib) APIs
 
-Attribute APIs are used to manage attributes tracked by the CMDB system
+Attribute APIs are used to manage attributes tracked by the Jig system
 
 > To prevent Rails name collisions, Crowbar uses 'Attrib' instead of Attribute.
 

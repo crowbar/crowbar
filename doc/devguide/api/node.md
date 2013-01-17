@@ -107,7 +107,7 @@ Details:
 
 Node Attributes API is used to retrieve data about attributes that have been associated with a Node.
 
-Typically, attribute data is populated by the CMDB system(s) based on the associations established using this API.
+Typically, attribute data is populated by the Jig system(s) based on the associations established using this API.
 
 #### Associations
 

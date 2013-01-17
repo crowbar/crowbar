@@ -21,10 +21,10 @@ Put commonly used string and information here.  This function is provided to hel
 
     g(Item) ->
       case Item of
-        path -> "2.0/crowbar/2.0/cmdb";
-        type -> "CmdbTest";
-        name1 -> "bddcmdb";
-        atom1 -> cmdb1;
+        path -> "2.0/crowbar/2.0/jig";
+        type -> "JigTest";
+        name1 -> "bddjig";
+        atom1 -> jig1;
         _ -> crowbar:g(Item)
       end.
 
@@ -58,7 +58,7 @@ The inspector is part of a housekeeping system for BDD that helps detect orphane
 The objective of the inspector method is to return a list of items found in the system.  This list is generated before and after BDD runs.
 
     inspector(Config) -> 
-      crowbar_rest:inspector(Config, cmdbs).  % shared inspector works here, but may not always
+      crowbar_rest:inspector(Config, jigs).  % shared inspector works here, but may not always
 
 > It is likely that you can leverage a generic inspector routine if your API has a consistent list pattern.
 
@@ -87,59 +87,59 @@ Common steps are easy to create because thy can leverage existing steps with min
 
 Get List 
 
-    step(Config, _Given, {step_when, _N, ["REST gets the cmdb list"]}) -> 
+    step(Config, _Given, {step_when, _N, ["REST gets the jig list"]}) -> 
       bdd_restrat:step(Config, _Given, {step_when, _N, ["REST requests the",eurl:path(g(path),""),"page"]});
 
 Get Object
 
-    step(Config, _Given, {step_when, _N, ["REST gets the cmdb",Name]}) -> 
+    step(Config, _Given, {step_when, _N, ["REST gets the jig",Name]}) -> 
       bdd_restrat:step(Config, _Given, {step_when, _N, ["REST requests the",eurl:path(g(path),Name),"page"]});
 
 Validate Object
 
 > This routine will call back the the modules own validate!
 
-    step(_Config, Result, {step_then, _N, ["the cmdb is properly formatted"]}) -> 
-      crowbar_rest:step(_Config, Result, {step_then, _N, ["the", cmdb, "object is properly formatted"]});
+    step(_Config, Result, {step_then, _N, ["the jig is properly formatted"]}) -> 
+      crowbar_rest:step(_Config, Result, {step_then, _N, ["the", jig, "object is properly formatted"]});
 
 
 Create Object
 
 >Creates a new object using the require components.  The routine builds the JSON for the object (see above) and then calls the shared create method.
 
-    step(Config, _Global, {step_given, _N, ["there is a cmdb",CMDB,"of type", Type]}) -> 
-      JSON = json(CMDB, g(description), Type, 200),
+    step(Config, _Global, {step_given, _N, ["there is a jig",Jig,"of type", Type]}) -> 
+      JSON = json(Jig, g(description), Type, 200),
       crowbar_rest:create(Config, g(path), JSON);
 
 Remove Object
 
-    step(Config, _Given, {step_finally, _N, ["REST removes the cmdb",CMDB]}) -> 
-      crowbar_rest:destroy(Config, g(path), CMDB);
+    step(Config, _Given, {step_finally, _N, ["REST removes the jig",Jig]}) -> 
+      crowbar_rest:destroy(Config, g(path), Jig);
 
 #### Reference Features
 
-    Scenario: CMDB List
-      Given there is a cmdb "my_special_cmdb"
-      When REST gets the cmdb list
-      Then there should be a value "my_special_cmdb"
+    Scenario: Jig List
+      Given there is a jig "my_special_jig"
+      When REST gets the jig list
+      Then there should be a value "my_special_jig"
         And there should be a value "chef"
-        And there should be a value "bddcmdb"
-      Finally REST removes the cmdb "my_special_cmdb"
+        And there should be a value "bddjig"
+      Finally REST removes the jig "my_special_jig"
   
     Scenario: REST JSON check
-      Given there is a cmdb "cmdb_json_test"
-      When REST gets the cmdb "cmdb_json_test"
-      Then the cmdb is properly formatted
-      Finally REST removes the cmdb "cmdb_json_test"
+      Given there is a jig "jig_json_test"
+      When REST gets the jig "jig_json_test"
+      Then the jig is properly formatted
+      Finally REST removes the jig "jig_json_test"
   
     Scenario: REST Add 
-      Given there is not a cmdb "cmdb_add_test"
-      When REST adds the cmdb "cmdb_add_test"
-      Then there is a cmdb "cmdb_add_test"
-      Finally REST removes the cmdb "cmdb_add_test"
+      Given there is not a jig "jig_add_test"
+      When REST adds the jig "jig_add_test"
+      Then there is a jig "jig_add_test"
+      Finally REST removes the jig "jig_add_test"
   
     Scenario: REST Delete 
-      Given there is a cmdb "cmdb_delete_test"
-      When REST deletes the cmdb "cmdb_delete_test"
-      Then there is a not cmdb "cmdb_delete_test"
+      Given there is a jig "jig_delete_test"
+      When REST deletes the jig "jig_delete_test"
+      Then there is a not jig "jig_delete_test"
 
