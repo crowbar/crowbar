@@ -2697,8 +2697,10 @@ dev_help () {
 
 # Tests to see if the given branch in a repo needs a pull request.
 branch_needs_pull_req() {
-    # $1 = branch
-    local upstream="$to_remote/$1"
+    # $1 = local branch
+    # $2 = (optional) target branch
+    local target="${2:-$1}"
+    local upstream="$to_remote/$target"
     git rev-parse --verify -q "$upstream" &>/dev/null || return 1
     branches_synced '.' "refs/remotes/$upstream" \
 	"refs/heads/$1" && return 1
@@ -2768,9 +2770,16 @@ pull_requests_prep() {
     remote_is_github "$to_remote" || \
 	die "Cannot issue pull requests for $to_remote, it is not from github."
     local branch bc build release=$(current_release)
+    local target_release="$release"
+    if [[ $1 = --merge ]]; then
+        target_release="$(find_best_parent "$release")" || \
+            die "No parent release to merge into!"
+        echo "Will generate pull requests for merge $release into $target_release" >&2
+    fi
     for bc in $(barclamps_in_release $release); do
         for branch in $(barclamp_branches_for_release "$release" "$bc"); do
-	    in_barclamp "$bc" branch_needs_pull_req "$branch" || continue
+            local target_branch=$(barclamp_branches_for_release "$target_release" "$bc")
+	    in_barclamp "$bc" branch_needs_pull_req "$branch" "$target_branch" || continue
 	    barclamps_to_push+=("$bc")
             break
         done
@@ -2783,6 +2792,8 @@ pull_requests_prep() {
     [[ ${push_master} ]] && echo "Crowbar needs push"
     echo "Command to generate pull requests:"
     echo -n "$0 pull-requests-gen --to $to_remote --release $release"
+    [[ $target_release != $release ]] && \
+        echo -n " --merge"
     [[ ${push_master} ]] && \
 	echo -n " --branches master"
     [[ ${barclamps_to_push[*]} ]] && \
@@ -2853,7 +2864,8 @@ pull_requests_gen() {
     remote_available personal && remote_is_github personal || \
 	die "No personal remote available at Github.  Cannot do pull requests."
     local -A barclamps branches barclamp_branches bc_pulls br_pulls refs
-    local bc br bcr bcb title body option bc_name head release
+    local bc br bcr bcb title body option bc_name head release target_release
+    local merge_into_parent=false
     local prc=0 n=1
     local to_remote="$(origin_remote)"
     [[ $DEV_TO_REMOTES ]] && to_remote="$DEV_TO_REMOTES"
@@ -2890,11 +2902,17 @@ pull_requests_gen() {
                 release_exists "$1" || die "$1 is not a release"
                 release="$1"
                 shift;;
+            --merge) shift; merge_into_parent=true;;
 	    *) die "Unknown option $1 to $0 pull-requests-gen!";;
 	esac
     done
 
     [[ $release ]] || release=$(current_release)
+    target_release=$release
+    if [[ $merge_into_parent = true ]]; then
+        target_release=$(find_best_parent "$release") || \
+            die "No parent release to merge into!"
+    fi
 
     switch_release "$release"
     # OK, sanity-check any barclamp branches we were passed.
@@ -2955,6 +2973,7 @@ pull_requests_gen() {
 	local bc=${barclamp%%/*}
 	local bc_base=${barclamp#*/}
 	in_barclamp "$bc" git_push personal "$bc_base:${bc_pulls[$barclamp]}"
+        local bc_target="$(barclamp_branches_for_release "$target_release" "$bc")"
 	local bc_head="$DEV_GITHUB_ID:${bc_pulls[$barclamp]}"
 	local bc_name=$(in_barclamp $bc git_url_for_remote $to_remote)
 	bc_name=${bc_name##*/}
@@ -2962,9 +2981,9 @@ pull_requests_gen() {
 	bc_name=${bc_name%.git}
 	do_pull_request \
 	    "https://api.github.com/repos/$to_account/$bc_name/pulls" \
-	    --title "$title [$n/$prc]" --base "$bc_base" --head "$bc_head" \
+	    --title "$title [$n/$prc]" --base "$bc_target" --head "$bc_head" \
 	    --body "@$body" \
-	    --body "$(in_barclamp "$bc" diffstat_from_upstream "$bc_base")" \
+	    --body "$(in_barclamp "$bc" diffstat_from_upstream "$bc_target")" \
             --body "Crowbar-Pull-ID: $pull_id" \
             --body "Crowbar-Release: $release"
 	n=$(($n + 1))
@@ -4270,13 +4289,20 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
       that you want to issue pull requests for all the changes it found.
 
       pull-requests-prep honors the --to flag to control what remote you
-      want to send your pull requests to.
+      want to send your pull requests to.  It also honors a --merge flag
+      to signal that you want to merge the current release into its parent.
+      This lets you use feature branches as topic branches.
 
       The output is a command line that can be edited to reflect what you
       actually want to issue pull requests for.
     gen: Generate pull requests to Github.
       Creates a set of pull requests based on differences inthe current
       release between your origin remote and your local trees.
+
+      If you pass the --merge flag to pull-requests gen, it will generate
+      pull requests that will merge the current release into its parent
+      release.  This is intended to facilitate using feature bundles as
+      short-lived topic branches.
     list: List the open pull requests an pull request bundles.
       List displays the pull requests in oldest-first format, and the
       numbers next to each pull request will be stable until the next
