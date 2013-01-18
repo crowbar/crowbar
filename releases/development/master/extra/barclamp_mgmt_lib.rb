@@ -242,7 +242,7 @@ def bc_do_install_action(bc,bc_path, yaml)
   return if action.nil?
   action = File.join(bc_path,action)
   fatal("action #{action} not found for #{bc}") unless File.exists?(action)
-  output = `#{action}`
+  output = `#{action} 2>1`
   fatal("action #{action} failed for #{bc}:\n #{output}") unless $? == 0
 end
 
