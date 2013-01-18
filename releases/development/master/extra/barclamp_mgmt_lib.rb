@@ -289,6 +289,13 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
     debug "\tcopied over chef parts from #{bc_path} to #{@BASE_PATH}"
   end
 
+  # copy all the BDD files to the target
+  if dirs.include? 'BDD'
+    debug "path entries include \"BDD\""
+    files += bc_cloner('BDD', bc, nil, bc_path, @BASE_PATH, false)
+    debug "\tcopied over BDD parts from #{bc_path} to #{@BASE_PATH}"
+  end
+
   # copy over docs
   if dirs.include? 'doc'
     doc_source = File.join(bc_path,'doc')

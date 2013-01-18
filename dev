@@ -3821,8 +3821,8 @@ setup_unit_tests() (
         "install Crowbar, so results may differ."
     fi
 
-    cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
-    sudo "$CROWBAR_TEST_DIR/crowbar_framework/BDD/linux_install.sh"
+    cd "$CROWBAR_TEST_DIR/BDD"
+    sudo "$CROWBAR_TEST_DIR/BDD/linux_install.sh"
     ./linux_compile.sh
     current_build >"$CROWBAR_TEST_DIR/.build"
 )
@@ -3848,9 +3848,8 @@ reload_unit_tests() (
           done
       done
   fi
-  cd "$CROWBAR_TEST_DIR/crowbar_framework/BDD"
+  cd "$CROWBAR_TEST_DIR/BDD"
   ./linux_compile.sh
-  sed -ie 's/192.168.124.10/127.0.0.1/' "crowbar.config"
 )
 
 run_unit_tests() (
@@ -3873,7 +3872,7 @@ run_unit_tests() (
     # Start rails
     bundle exec script/rails s Puma >> log/test.out 2>> log/test.err &
     sleep 10
-    (cd BDD; erl -s bdd test crowbar -s init stop -noshell) || final_result=fail
+    (cd "$CROWBAR_TEST_DIR/BDD"; erl -s bdd test devtool -s init stop -noshell) || final_result=fail
     kill $(ps -ef | grep Puma | grep ruby | awk '{ print $2 }')
 
     # Run chef unit tests
