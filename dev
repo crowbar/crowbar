@@ -1392,13 +1392,13 @@ ci_do_and_push() {
 # local changes and let the caller know that we failed to merge local changes.
 fetch_ci_tracking() (
     [[ ! -d $LOCAL_PULL_TRACKING ]] && mkdir -p "$LOCAL_PULL_TRACKING"
-    if [[ ! -d .git ]]; then
+    if [[ ! -d $LOCAL_PULL_TRACKING/.git ]]; then
         for remote in "${DEV_SORTED_REMOTES[@]}"; do
             remote_available "$remote" || continue
             test_remote "${DEV_REMOTE_URLBASE[$remote]}/$CI_TRACKING_REPO" || continue
             git clone -o "$remote" \
                 "${DEV_REMOTE_URLBASE[$remote]}/$CI_TRACKING_REPO" \
-                . &>/dev/null || return 2
+                "$LOCAL_PULL_TRACKING" || return 2
             return 0
         done
         return 2
@@ -1957,6 +1957,7 @@ fetch_all() {
     dt=$(date +%s)
     results_dir="$(mktemp -d /tmp/crowbar_fetch_${USER}_${dt}_XXXXXX)" || \
         die "Cannot create temporary storage for fetch results!"
+    fetch_ci_tracking
     debug "Fetching updates:"
     for d in "$CROWBAR_DIR/barclamps/"* "$CROWBAR_DIR"; do
         [[ -d $d/.git ]] || continue
@@ -1983,7 +1984,6 @@ fetch_all() {
     else
       rm -rf "$results_dir"
     fi
-    fetch_ci_tracking
     update_all_tracking_branches
     show_open_pull_requests
     sort_pull_requests
