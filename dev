@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 export LANG="C"
 export LC_ALL="C"
 
@@ -614,7 +615,6 @@ scrub_merged_pull_requests() {
     # $@ = branches to test for mergedness
     local br ref pull_req remote
     local -A to_remove pull_reqs heads
-    remote_available personal || return
     while read ref br; do
 	case $br in
 	    refs/heads/*)
@@ -1797,8 +1797,8 @@ __fetch_all() {
             printf '!'
             res=false
         fi
-	[[ $remote = personal ]] && scrub_merged_pulls || :
     done
+    scrub_merged_pull_requests
     [[ $res = true ]] && debug "  All fetches passed." 2>> "$results_dir/$logfile"
 }
 
