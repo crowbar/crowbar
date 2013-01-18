@@ -1403,6 +1403,7 @@ fetch_ci_tracking() (
         done
         return 2
     fi
+    cd "$LOCAL_PULL_TRACKING"
     git fetch -q --all || return 128
     quiet_checkout -f master
     remote=$(git config --get branch.master.remote) || return 3
