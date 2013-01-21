@@ -240,7 +240,6 @@ end
 # look for setup/* files and execute the appropriate ones, in order, based on
 # the lifecycle stage the barclap is going through :
 #  :install - IXXX
-#  :remove - RXXX
 #  :update - UXXX
 #
 # The XXX is sorted, and the scripts are executed in order.
@@ -259,6 +258,7 @@ def bc_do_install_action(bc,bc_path, stage)
   actions = []
   Dir.glob(File.join(bc_path,"setup","*.#{suffix}")) { |x| actions << x}
   actions.sort!
+  debug("actions to perform: #{actions.join(' ')}")
   actions.each { |act| 
   action = File.join(bc_path,action)
     fatal("action #{action} not found for #{bc}") unless File.exists?(action)
