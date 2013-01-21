@@ -3780,6 +3780,8 @@ setup_unit_tests() (
     fi
     rm -rf "$CROWBAR_TEST_DIR"
     mkdir "$CROWBAR_TEST_DIR"
+    mkdir -p "$CROWBAR_TEST_DIR/doc/framework"
+    cp -r doc/* "$CROWBAR_TEST_DIR/doc/framework"
     reinstall_barclamps "${barclamps[@]}" || exit 1
     cd "$CROWBAR_TEST_DIR"
     mv crowbar_framework/Gemfile* .
