@@ -69,8 +69,8 @@ def bc_install(bc, bc_path, yaml)
     bc_install_layout_1_chef bc, bc_path, yaml unless @@no_chef
     debug "Installing cache components" unless @@no_files
     bc_install_layout_1_cache bc, bc_path unless @@no_files
-    debug "Performing install action"
-    bc_do_install_action bc, bc_path, yaml
+    debug "Performing install actions"
+    bc_do_install_action bc, bc_path, :install
   else
     throw "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
   end
@@ -236,14 +236,35 @@ def framework_permissions(bc, bc_path)
 end
 
 
-# perform install action for the barclamp
-def bc_do_install_action(bc,bc_path, yaml)
-  action = yaml["barclamp"]["barclamp_install_action"]
-  return if action.nil?
+# perform install actions for the barclamp
+# look for setup/* files and execute the appropriate ones, in order, based on
+# the lifecycle stage the barclap is going through :
+#  :install - IXXX
+#  :update - UXXX
+#
+# The XXX is sorted, and the scripts are executed in order.
+# The crowbar reserves the ranges 0-9 and 50-9.
+# Other params:
+#   bc - the barclamps name
+#   bc_path - the full path for the barclamp's files
+def bc_do_install_action(bc,bc_path, stage)
+  suffix = ""
+  case stage
+  when :install then suffix="install"
+  when :remove then  suffix="remove"
+  else
+    fatal("unknown barclamp lifecycle stage: #{stage}")
+  end
+  actions = []
+  Dir.glob(File.join(bc_path,"setup","*.#{suffix}")) { |x| actions << x}
+  actions.sort!
+  debug("actions to perform: #{actions.join(' ')}")
+  actions.each { |act| 
   action = File.join(bc_path,action)
-  fatal("action #{action} not found for #{bc}") unless File.exists?(action)
-  output = `#{action} 2>1`
-  fatal("action #{action} failed for #{bc}:\n #{output}") unless $? == 0
+    fatal("action #{action} not found for #{bc}") unless File.exists?(action)
+    output = `#{action} 2>1`
+    fatal("action #{action} failed for #{bc}:\n #{output}") unless $? == 0
+  }   
 end
 
 
