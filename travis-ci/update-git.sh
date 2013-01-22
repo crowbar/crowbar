@@ -71,6 +71,7 @@ function commit_and_push() {
   local output="" git_hash=""
   cd $GIT_DIR
   log "Committing files..."
+  git pull
   git add *
 
   output=`git commit -a -m "Update to latest in https://github.com/crowbar/crowbar master" 2>&1`
