@@ -1171,8 +1171,9 @@ pull_request_switch_one() (
     esac
     pull_request_checkout_one "$1" || exit 1
     git checkout "$(git rev-parse HEAD)"
-    git merge "$(git rev-parse "$prq_target_branch")" || \
-        die "Could not merge $prq_target_branch into $prq_local_branch!"
+    git merge "$(git rev-parse "$prq_target_branch")" && return 0
+    git merge --abort
+    die "Could not merge $prq_target_branch into $prq_local_branch!"
 )
 
 # Switch to a specific build in a pull request.
