@@ -4048,7 +4048,7 @@ ci_helper() {
     case $req in
         fetch) fetch_ci_tracking "$@";;
         import) ci_import_new_pull_requests "$@";;
-        push) (cd "$LOCAL_PULL_TRACKING"; git push);;
+        push) push_ci_tracking "$@";;
         states) ci_get_current_states "$@";;
         all-next-states) ci_all_next_states "$@";;
         next-states) ci_next_states "$@";;
