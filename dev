@@ -1407,8 +1407,11 @@ fetch_ci_tracking() (
     git fetch -q --all || return 128
     quiet_checkout -f master
     remote=$(git config --get branch.master.remote) || return 3
-    branches_synced "." "$remote/master" "master" && return 0
     exec &>/dev/null
+    if branches_synced "." "$remote/master" "master"; then
+	git reset --hard "$remote/master"
+	return 0
+    fi
     git rebase "$remote/master" master && return 0
     git rebase --abort
     git reset --hard "$remote/master"
