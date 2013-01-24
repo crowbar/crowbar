@@ -4060,6 +4060,8 @@ ci_helper() {
             ci_do_and_push ci_commit_intent "$@";;
         fail-intent)
             ci_do_and_push ci_fail_intent "$@";;
+        kill-stale-intents)
+	    ci_do_and_push ci_kill_stale_intents "$@
 
         *) die "Not a valid CI command.  Run $0 help ci for valid CI commands.";;
     esac
@@ -4532,7 +4534,9 @@ DEV_LONG_HELP["ci"]="Crowbar Continuous Intergration Helper.
       Arguments:
         id: An intent ID returned by register-intent.
     fail-intent: The same as commit-intent, but it will transition to the
-      failed state instead."
+      failed state instead.
+    kill-stale-intents: Given a pull request ID, this will kill any stale intents
+      that are hanging around and attempt to push them out."
 
 # Verify that we have help for all commands, and exit if we don't.
 for cmd in "${!DEV_COMMANDS[@]}"; do
