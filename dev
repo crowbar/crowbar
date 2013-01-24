@@ -1707,7 +1707,7 @@ ci_kill_stale_intents() (
         need_commit=true
     done
     [[ $need_commit = true ]] || return 1
-    git commit -mq "Killed stale intents for $1"
+    git commit -q -m "Killed stale intents for $1"
 )
 
 ci_register_intent() {
