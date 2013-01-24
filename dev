@@ -4061,7 +4061,7 @@ ci_helper() {
         fail-intent)
             ci_do_and_push ci_fail_intent "$@";;
         kill-stale-intents)
-	    ci_do_and_push ci_kill_stale_intents "$@"
+	    ci_do_and_push ci_kill_stale_intents "$@";;
 
         *) die "Not a valid CI command.  Run $0 help ci for valid CI commands.";;
     esac
