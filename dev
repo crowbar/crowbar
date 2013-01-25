@@ -1732,15 +1732,17 @@ ci_kill_stale_intents() (
     [[ -d $LOCAL_PULL_TRACKING/$1/ci_state ]] || return 1
     cd "$LOCAL_PULL_TRACKING/$1/ci_state"
     local intent need_commit=false
-    for intent in */intents/*; do
-        [[ -d $intent ]] || continue
+    while read intent; do
+        [[ $intent = */intents/* ]] || continue
         local from=${intent%/intents/*}
+        from="${from#./}"
         local to=${intent#*/intents/}
+        to="${to%/timeout}"
         [[ -d $to ]] && continue
-        (( $(cat "$intent/timeout") >= $(date -u '+%s'))) && continue
-        git rm -rf "$intent"
+        (( $(cat "$intent") >= $(date -u '+%s'))) && continue
+        git rm -rf "${intent%/timeout}"
         need_commit=true
-    done
+    done < <(find -name timeout -type f)
     [[ $need_commit = true ]] || return 1
     git commit -q -m "Killed stale intents for $1"
 )
@@ -4117,7 +4119,6 @@ ci_helper() {
             ci_do_and_push ci_fail_intent "$@";;
         kill-stale-intents)
 	    ci_do_and_push ci_kill_stale_intents "$@";;
-
         *) die "Not a valid CI command.  Run $0 help ci for valid CI commands.";;
     esac
 }
