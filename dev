@@ -1439,6 +1439,25 @@ ci_ids() {
     done
 }
 
+ci_filtered_ids() {
+    local id state test_state
+    local -a ids states
+    while read id; do
+        states=()
+        while read state; do
+            states+=("$state")
+        done < <(ci_get_current_states "$id")
+        for state in "${states[@]}"; do
+            for test_state in "$@"; do
+                [[ $test_state = $state* ]] || continue
+                ids+=("$id")
+                break 2
+            done
+        done
+    done < <(ci_ids)
+    __random_order "${ids[@]}"
+}
+
 # Get all the pull request IDs that are not closed or merged.
 ci_open_ids() {
     local id
@@ -1858,6 +1877,24 @@ ci_close_stale_pull_requests() {
     done
 }
 
+ci_reset_pull_request() {
+    local id
+    id=$(pull_request_number_to_id "$1") || \
+        die "$1 is not a valid pull request!"
+    [[ -d $LOCAL_PULL_TRACKING/$id ]] || \
+        die "$id is not being tracked in the CI system, cannot reset it!"
+    case $(ci_get_current_states "$id") in
+        new) return 0;;
+        closed|merged) die "$id is already closed or merged, cannot be reset!";;
+    esac
+    (   cd "$LOCAL_PULL_TRACKING/$id"
+        git rm -rf ci_state
+        __ci_set_state "$id" "new" "State machine reset due to pull request update."
+        git add ci_state
+        git commit -q -m "State machine for $id reset by $DEV_GITHUB_ID"
+    )
+}
+
 # Test to see if a pull request needs to be reset back to the new
 # state due to the underlying branches changing.
 ci_maybe_reset_pull_request() {
@@ -1884,16 +1921,7 @@ ci_maybe_reset_pull_request() {
         done
     done
     [[ $needs_reset = false ]] && return 0
-    case $(ci_get_current_states "$1") in
-        new) return 0;;
-        closed|merged) die "$1 is already closed or merged, cannot be reset!";;
-    esac
-    (   cd "$LOCAL_PULL_TRACKING/$1"
-        git rm -rf ci_state
-        __ci_set_state "$1" "new" "State machine reset due to pull request update."
-        git add ci_state
-        git commit -q -m "State machine for $1 reset by $DEV_GITHUB_ID"
-    )
+    ci_reset_pull_request "$1"
 }
 
 # Handle cleaning up old state transitions, resetting any pulls that need
@@ -4055,10 +4083,14 @@ ci_helper() {
         fetch) fetch_ci_tracking "$@";;
         import) ci_import_new_pull_requests "$@";;
         push) push_ci_tracking "$@";;
+        reset)
+            ci_do_and_push ci_reset_pull_request "$@";;
         states) ci_get_current_states "$@";;
         all-next-states) ci_all_next_states "$@";;
         next-states) ci_next_states "$@";;
         open-ids) ci_open_ids "$@";;
+        failed-ids) ci_filtered_ids failed needs-work;;
+        filtered-ids) ci_filtered_ids "$@";;
         all-open-ids) ci_ids "$@";;
         register-intent)
             ci_do_and_push ci_register_intent "$@";;
@@ -4507,9 +4539,12 @@ DEV_LONG_HELP["ci"]="Crowbar Continuous Intergration Helper.
       as needed. It will then reset any pull requests whose underlying Git
       branches have been updated, and import any pull requests that are not
       already being tracked by the CI database.
+    reset: Resets the state machine for a specific pull request ID back to new.
     open-ids: Lists the IDs of all open pull requests and pull request bundles.
       These ids are stable and globally unique.
-    all-ids: List the IDs of all the pull requests and pull request bundles
+    failed-ids: Lists the IDs of all the failed pull requests.
+    filtered-ids: Lists the IDs of all pull requests in a given state.
+    all-open-ids: List the IDs of all the pull requests and pull request bundles
       that the CI system knows about.
     states: Shows the current states that a pull request or pull request bundle
       is at in the CI system.
