@@ -1374,7 +1374,7 @@ pull_request_close() {
 # The thing to do should be idempotent.
 ci_do_and_push() {
     while true; do
-        $@ || return $?
+        "$@" || return $?
         push_ci_tracking
         local __res=$?
         case $__res in
