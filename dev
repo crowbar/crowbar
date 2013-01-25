@@ -1083,8 +1083,8 @@ builds_for_pull_request() {
 
 # Show information for a pull request in human-readable format.
 show_pull_request() {
-    local idx id prq repo release target_account
-    local -a builds
+    local idx id prq repo release target_account state
+    local -a builds ci_states
     idx=$1
     id=$(pull_request_number_to_id $idx) || exit 1
     prq="$OPEN_PULL_REQUESTS/$id"
@@ -1110,12 +1110,24 @@ show_pull_request() {
         echo "Target Branch:       $prq_target_branch"
         echo "Pull Request URL:    $prq_github_url"
         echo "Builds:              ${builds[*]}"
+        if [[ -d $LOCAL_PULL_TRACKING/$id ]]; then
+            echo "Current CI States:"
+            while read state; do
+                echo "    $state"
+            done < <(ci_get_current_states "$id")
+        fi
     elif [[ $id = bundles/* ]]; then
         echo "Title:          $(cat "$prq/title")"
         echo "Release:        $(cat "$prq/release")"
         echo "Last Updated:   $(pull_request_last_touched "$id")"
         echo "Type:           bundle"
         echo "Bundle ID:      ${id##*/}"
+        if [[ -d $LOCAL_PULL_TRACKING/$id ]]; then
+            echo "Current CI States:"
+            while read state; do
+                echo "    $state"
+            done < <(ci_get_current_states "$id")
+        fi
         local repo
         for repo in "$prq/"*; do
             [[ -d $repo ]] || continue
