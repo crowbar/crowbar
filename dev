@@ -1890,10 +1890,11 @@ ci_reset_pull_request() {
         new) return 0;;
         closed|merged) die "$id is already closed or merged, cannot be reset!";;
     esac
+    cp -a "$OPEN_PULL_REQUESTS/$id/." "$LOCAL_PULL_TRACKING/$id/."
     (   cd "$LOCAL_PULL_TRACKING/$id"
         git rm -rf ci_state
         __ci_set_state "$id" "new" "State machine reset due to pull request update."
-        git add ci_state
+        git add .
         git commit -q -m "State machine for $id reset by $DEV_GITHUB_ID"
     )
 }
@@ -1919,8 +1920,9 @@ ci_maybe_reset_pull_request() {
             [[ -f $OPEN_PULL_REQUESTS/$prq/$tag && \
                 -f $LOCAL_PULL_TRACKING/$prq/$tag ]] || continue
             [[ $(cat "$OPEN_PULL_REQUESTS/$prq/$tag") = \
-                $(cat "$LOCAL_PULL_TRACKING/$prq/$tag") ]] || \
-                needs_reset=true
+                $(cat "$LOCAL_PULL_TRACKING/$prq/$tag") ]] && continue
+            needs_reset=true
+            break 2
         done
     done
     [[ $needs_reset = false ]] && return 0
