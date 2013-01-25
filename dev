@@ -1479,6 +1479,8 @@ __ci_set_state() (
     state="ci_state/$2"
     mkdir -p "$state"
     echo "$3" >>"$state/comment"
+    git add "$state"
+    git commit -m "Added state $2 to $1"
 )
 
 # Find the states that the current state transitioned from.
@@ -1548,7 +1550,7 @@ ci_link_state() {
     touch "$LOCAL_PULL_TRACKING/$1/ci_state/$3/last_states/$2"
     (   cd "$LOCAL_PULL_TRACKING/$1/ci_state"
         git add "$3/last_states/$2"
-        git commit -m "ci_link_state $*")
+        git commit -m "Made state $3 a child of $2 in $1")
 }
 
 
@@ -1593,7 +1595,7 @@ ci_all_next_states() {
         # depends on the whitelist.
         merge-tested)
             while read build oses; do
-                build=${build%:}
+                build="${build%:}"
                 if [[ ${unit_test_whitelist["$release"]} ]]; then
                     next+=("unit-testing $build")
                 else
@@ -1604,10 +1606,10 @@ ci_all_next_states() {
             done < <(builds_for_pull_request "$id");;
         # unit testing happens on a per-release and per-build basis.
         unit-testing*)
-            build=${2#unit-testing }
+            build="${2#unit-testing }"
             next=("unit-tested $build");;
         unit-tested*)
-            local b=${2#unit-tested }
+            local b="${2#unit-tested }"
             while read build oses; do
                 build=${build%:}
                 if [[ $build != $b ]]; then continue; fi
@@ -1615,13 +1617,13 @@ ci_all_next_states() {
             done < <(builds_for_pull_request "$id");;
         # Build and smoke tests happen on a release/build/os basis.
         build-testing*)
-            build=${2#build-testing }
+            build="${2#build-testing }"
             next=("build-tested $build");;
         build-tested*)
-            build=${2#build-tested }
+            build="${2#build-tested }"
             next=("smoke-testing $build");;
         smoke-testing*)
-            build=${2#smoke-testing }
+            build="${2#smoke-testing }"
             next=("smoke-tested $build");;
         smoke-tested*) next=(code-reviewing);;
         # code-reviewing can actaully happen in parallel with the above
@@ -1681,10 +1683,11 @@ ci_get_current_states() {
         die "$1 is not a valid pull request!"
     [[ -d $LOCAL_PULL_TRACKING/$id/ci_state ]] || die "$id is not being tracked by CI"
     # First, read all of the state paths in.
-    for state_dir in "$LOCAL_PULL_TRACKING/$id/ci_state/"*; do
-        [[ -d $state_dir ]] || continue
-        states[${state_dir##*/}]=current
-    done
+    while read state_dir; do
+        state_dir="${state_dir%/comment}"
+        state_dir="${state_dir%/last_states}"
+        states[${state_dir#$LOCAL_PULL_TRACKING/$id/ci_state/}]=current
+    done < <(find "$LOCAL_PULL_TRACKING/$id/ci_state/" -type f -and -name comment -or -type d -and -name last_states)
     # Second, mask out all of the states that have a last file pointing at them.
     # This needs to be ornate-ified to handle per-state special conditions.
     for state in "${!states[@]}"; do
