@@ -262,7 +262,7 @@ def bc_do_install_action(bc,bc_path, stage)
   debug("actions to perform: #{actions.join(' ')}")
   actions.each { |action| 
     fatal("action #{action} not found for #{bc}") unless File.exists?(action)
-    output = `#{action} 2>1`
+    output = `#{action} 2>&1`
     fatal("action #{action} failed for #{bc}:\n #{output}") unless $? == 0
   }   
 end
