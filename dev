@@ -1794,11 +1794,13 @@ ci_handle_intent() {
             for state in "${states[@]}"; do
                 ci_link_state "$prq" "$state" failed
             done
+            pull_request_comment "$prq" "CI: Gating tests for $current_state to $next_state failed."
         fi
     else
         __ci_set_state "$prq" "$next_state" \
             "Intent to transition from $current_state to $next_state passed."
         ci_link_state "$prq" "$current_state" "$next_state"
+        pull_request_comment "$prq" "CI: Gating tests for $current_state to $next_state passed."
     fi
 }
 
