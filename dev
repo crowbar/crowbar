@@ -1506,9 +1506,11 @@ ci_last_states() {
         die "$2 is not a state in $1"
     [[ -d $state_dir/last_states ]] || return 0
     local sfile state
-    for sfile in "$state_dir/last_states/"*; do
-        echo "${sfile##*/}"
-    done
+    while read -r state; do
+        state=${state#./}
+        state=${state%/.last}
+        echo "$state"
+    done < <(cd "$state_dir/last_states"; find -name .last -type f)
 }
 
 __ci_state_walker() {
@@ -1558,10 +1560,10 @@ ci_link_state() {
         [[ $state = $3 ]] && \
             die "$1: Linking $2 to $3 would create a cyclical state graph!"
     done < <(ci_all_last_states "$1" "$2")
-    mkdir -p "$LOCAL_PULL_TRACKING/$1/ci_state/$3/last_states"
-    touch "$LOCAL_PULL_TRACKING/$1/ci_state/$3/last_states/$2"
+    mkdir -p "$LOCAL_PULL_TRACKING/$1/ci_state/$3/last_states/$2"
+    touch "$LOCAL_PULL_TRACKING/$1/ci_state/$3/last_states/$2/.last"
     (   cd "$LOCAL_PULL_TRACKING/$1/ci_state"
-        git add "$3/last_states/$2"
+        git add "$3/last_states/$2/.last"
         git commit -m "Made state $3 a child of $2 in $1")
 }
 
