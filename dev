@@ -1423,11 +1423,13 @@ fetch_ci_tracking() (
     exec &>/dev/null
     if branches_synced "." "$remote/master" "master"; then
 	git reset --hard "$remote/master"
+        git clean -f -d
 	return 0
     fi
     git rebase "$remote/master" master && return 0
     git rebase --abort
     git reset --hard "$remote/master"
+    git clean -f -d
     return 1
 )
 
