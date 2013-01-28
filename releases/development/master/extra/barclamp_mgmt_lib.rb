@@ -232,11 +232,15 @@ def merge_sass(yaml, bc, path, installing)
 end
 
 def framework_permissions(bc, bc_path)
-  FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'db')
-  chmod_dir 0644, File.join(@CROWBAR_PATH, 'db')
-  FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'db', 'migrate')
-  FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'tmp')
-  chmod_dir 0644, File.join(@CROWBAR_PATH, 'tmp')
+  if File.exists?(File.join(@CROWBAR_PATH, 'db'))
+    FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'db')
+    chmod_dir 0644, File.join(@CROWBAR_PATH, 'db')
+    FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'db', 'migrate')
+  end
+  if File.exists?(File.join(@CROWBAR_PATH, 'tmp'))
+    FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'tmp')
+    chmod_dir 0644, File.join(@CROWBAR_PATH, 'tmp')
+  end
   debug "\tcopied crowbar_framework files"
 end
 
