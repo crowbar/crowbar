@@ -1718,7 +1718,7 @@ ci_get_current_states() {
     done
     # Anything not marked as stale is a state that we are in.
     for state in "${!states[@]}"; do
-        [[ ${states[$state]} = stale ]] && unset states[$state]
+        [[ ${states["$state"]} = stale ]] && unset states["$state"]
     done
     # See if we are in one of the terminal states
     for last_state in closed failed needs-work merged new; do
