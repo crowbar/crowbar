@@ -91,6 +91,8 @@ gem list -i json &>/dev/null || \
     die "JSON gem not installed.  Please install it with gem install json."
 
 set -o pipefail
+shopt -s extglob
+shopt -s nullglob
 
 # A little wrapper for git to help people see what dev is doing.
 git() {
@@ -1622,10 +1624,10 @@ ci_all_next_states() {
             done < <(builds_for_pull_request "$id");;
         # unit testing happens on a per-release and per-build basis.
         unit-testing*)
-            build="${2#unit-testing }"
+            build="${current_state#* }"
             next=("unit-tested $build");;
         unit-tested*)
-            local b="${2#unit-tested }"
+            build="${current_state#* }"
             while read build oses; do
                 build=${build%:}
                 if [[ $build != $b ]]; then continue; fi
@@ -1633,13 +1635,13 @@ ci_all_next_states() {
             done < <(builds_for_pull_request "$id");;
         # Build and smoke tests happen on a release/build/os basis.
         build-testing*)
-            build="${2#build-testing }"
+            build="${current_state#* }"
             next=("build-tested $build");;
         build-tested*)
-            build="${2#build-tested }"
+            build="${current_state#* }"
             next=("smoke-testing $build");;
         smoke-testing*)
-            build="${2#smoke-testing }"
+            build="${current_state#* }"
             next=("smoke-tested $build");;
         smoke-tested*) next=(code-reviewing);;
         # code-reviewing can actaully happen in parallel with the above
@@ -1682,7 +1684,7 @@ ci_next_states() {
         "Please run $0 ci import."
     state_dir="$LOCAL_PULL_TRACKING/$id/ci_state/$2"
     while read -r state; do
-        [[ -d $state_dir/intents/$state ]] && continue
+        [[ -d $state_dir/intents/$state/timeout ]] && continue
         states+=("$state")
     done < <(ci_all_next_states "$id" "$2")
     __random_order "${states[@]}"
@@ -1702,33 +1704,57 @@ ci_get_current_states() {
     while read state_dir; do
         state_dir="${state_dir%/comment}"
         state_dir="${state_dir%/last_states}"
-        states[${state_dir#$LOCAL_PULL_TRACKING/$id/ci_state/}]=current
+        states[${state_dir##*/ci_state/}]=current
     done < <(find "$LOCAL_PULL_TRACKING/$id/ci_state/" -type f -and -name comment -or -type d -and -name last_states)
     # Second, mask out all of the states that have a last file pointing at them.
     # This needs to be ornate-ified to handle per-state special conditions.
     for state in "${!states[@]}"; do
-        [[ -d $LOCAL_PULL_TRACKING/$id/ci_state/$state/last_states ]] || continue
+	# If this state has no last_states, then it is current.
+	[[ -d $LOCAL_PULL_TRACKING/$id/ci_state/$state/last_states ]] || continue
+	# If we have intents, and some of them are unfulfilled,
+	# we are not stale.
+	if [[ -d $LOCAL_PULL_TRACKING/$id/ci_state/$state/intents ]]; then
+	    local next_state
+	    while read -r next_state; do
+		next_state=${next_state##*/intents/}
+		next_state=${next_state%/timeout}
+		next_state=${next_state%/.intent}
+		# if $next_state is not a directory under ci_state,
+	        #then this intent is not filled.
+		[[ -d $LOCAL_PULL_TRACKING/$id/ci_state/$next_state ]] && continue
+		states["$state"]=unfilled
+		continue 2
+	    done < <(find "$LOCAL_PULL_TRACKING/$id/ci_state/$state/intents" -name timeout -or -name .intent)
+	    states["$state"]=stale
+	fi
         while read -r last_state; do
+	    # Sanity-check the state transition graph.
             [[ ${states[$last_state]} ]] || \
                 die "State graph for CI item $id is invalid." \
                 "State $state says that it transitioned from $last_state," \
                 "but $last_state is not in the state graph!"
+	    # If any of the last states have intents, and those intents are not filled,
+	    # then don't set that last state as stale.
+	    [[ ${states["$last_state"]} = unfilled ]] && continue
+	    # If we get this far, $last_state is stale.
             states[$last_state]=stale
         done < <(ci_last_states "$id" "$state")
     done
     # Anything not marked as stale is a state that we are in.
+    local -A active_states
     for state in "${!states[@]}"; do
-        [[ ${states["$state"]} = stale ]] && unset states["$state"]
+        [[ ${states["$state"]} = stale ]] && continue
+	active_states["$state"]="${states[$state]}"
     done
     # See if we are in one of the terminal states
     for last_state in closed failed needs-work merged new; do
-        for state in "${!states[@]}"; do
+        for state in "${!active_states[@]}"; do
             [[ $state = $last_state ]] || continue
             echo "$state"
             return
         done
     done
-    __random_order "${!states[@]}"
+    __random_order "${!active_states[@]}"
 }
 
 ci_kill_stale_intents() (
@@ -1738,13 +1764,17 @@ ci_kill_stale_intents() (
     local intent need_commit=false
     while read intent; do
         [[ $intent = */intents/* ]] || continue
+	intent=${intent%/timeout}
         local from=${intent%/intents/*}
         from="${from#./}"
         local to=${intent#*/intents/}
-        to="${to%/timeout}"
         [[ -d $to ]] && continue
-        (( $(cat "$intent") >= $(date -u '+%s'))) && continue
-        git rm -rf "${intent%/timeout}"
+        (( $(cat "$intent/timeout") >= $(date -u '+%s'))) && continue
+	[[ -f $intent/.intnet ]] || {
+	    touch "$intent/.intent"
+	    git add "$intent/.intent"
+	}
+        (cd "$intent"; git rm -f timeout +([[:xdigit:]]))
         need_commit=true
     done < <(find -name timeout -type f)
     [[ $need_commit = true ]] || return 1
@@ -1787,18 +1817,19 @@ ci_register_intent() {
     [[ $state_ok = true ]] || \
         die "$id: State $2 does not have a next state of $3, cannot register an intent."
     # See if we need to expire intents on the current state.
-    if [[ -d $prq/ci_state/$2/intents/$3 ]]; then
+    if [[ -f $prq/ci_state/$2/intents/$3/timeout ]]; then
         ci_kill_stale_intents "$id" && push_ci_tracking && \
-            [[ ! -d $prq/ci_state/$2/intents/$3 ]] || return 1
+            [[ ! -f $prq/ci_state/$2/intents/$3/timeout ]] || return 1
     fi
     mkdir -p "$prq/ci_state/$2/intents/$3/"
     local intent_id=$((ip addr show; date -u "+%s%N"; printf "$RANDOM") |sha1sum -)
     intent_id="${intent_id%% *}"
     echo "$(( $(date -u '+%s') + ${timeout} ))" > "$prq/ci_state/$2/intents/$3/timeout"
     touch "$prq/ci_state/$2/intents/$3/$intent_id"
+    touch "$prq/ci_state/$2/intents/$3/.intent" # Solely to keep git from nuking the dir.
     (   cd "$prq/ci_state/$2/intents/$3/"
         git add .
-        git commit -m "ci_register_intent $*") &>/dev/null
+        git commit -m "Registered intent to transition $id from $2 to $3") &>/dev/null
     echo "$intent_id"
 }
 
@@ -1814,18 +1845,15 @@ ci_handle_intent() {
     [[ ${intents[1]} ]] && \
         die "More than one intent with id $1 found. This should never happen." \
         "${intents[@]}"
-    [[ $2 = passed || $2 = failed ]] || \
-        die "Second arg to ci_handle_intent should either be passed or failed."
     intent="${intents[0]#$LOCAL_PULL_TRACKING/}"
     local prq="${intent%%/ci_state/*}"
     intent="${intent#${prq}/ci_state/}"
     local current_state=${intent%/intents/*}
     local next_state=${intent#*/intents/}
     next_state=${next_state%/*}
-    if [[ $2 = failed ]]; then
-        if [[ $(ci_get_current_states "$prq") = failed ]]; then
-            return 0
-        else
+    case $2 in
+	failed)
+            [[ $(ci_get_current_states "$prq") = failed ]] && return 0
             while read state; do
                 states+=("$state")
             done  < <(ci_get_current_states "$prq")
@@ -1834,18 +1862,56 @@ ci_handle_intent() {
             for state in "${states[@]}"; do
                 ci_link_state "$prq" "$state" failed
             done
-            pull_request_comment "$prq" "CI: Gating tests for $current_state to $next_state failed."
-        fi
-    else
-        __ci_set_state "$prq" "$next_state" \
-            "Intent to transition from $current_state to $next_state passed."
-        ci_link_state "$prq" "$current_state" "$next_state"
-        pull_request_comment "$prq" "CI: Gating tests for $current_state to $next_state passed."
-    fi
+            pull_request_comment "$prq" "ci: gating tests for $current_state to $next_state failed.";;
+	passed)
+            __ci_set_state "$prq" "$next_state" \
+		"Intent to transition from $current_state to $next_state passed."
+            ci_link_state "$prq" "$current_state" "$next_state"
+            pull_request_comment "$prq" "CI: Gating tests for $current_state to $next_state passed.";;
+	expire) (cd "$LOCAL_PULL_TRACKING/$prq/ci_state/$current_state/intents/$next_state/"
+		[[ -f .intent ]] || {
+		    touch .intent
+		    git add .intent
+		}
+		git rm -f timeout +([[:xdigit:]])
+		git commit -m "Expired intent to transition $prq from $current_state to $next_state"
+	    );;
+	delete) (cd "$LOCAL_PULL_TRACKING/prq/ci_state"
+		git rm -rf "$current_state/intents/$next_state/"
+		git commit -m "Deleted intent to transition $prq from $current_state to $next_state");;
+	*) die "Second arg to ci_handle_intent should either be passed or failed.";;
+    esac
 }
 
 ci_commit_intent() { ci_handle_intent "$1" "passed"; }
 ci_fail_intent() { ci_handle_intent "$1" "failed"; }
+ci_expire_intent() { ci_handle_intent "$1" "expire"; }
+ci_delete_intent() { ci_handle_intent "$1" "delete"; }
+
+# Show all incomplete intents for a CI ID.
+ci_show_intents() (
+    local id intent
+    local -A intents
+    id=$(pull_request_number_to_id "$1") || \
+        die "$1 is not a valid pull request!"
+    cd "$LOCAL_PULL_TRACKING/$id/ci_state" || die "$id is not in the CI system"
+    while read -r intent; do
+	[[ $intent = */intents/* ]] || continue
+	intent=${intent#./}
+	intent=${intent%/*}
+	from_state=${intent%%/intents/*}
+	to_state=${intent##*/intents/}
+	[[ -d $to_state ]] && continue
+	[[ ${intents["$intent"]} ]] && continue
+	intents["$intent"]="$from_state => $to_state: "
+	if [[ -f $intent/timeout ]] && (( $(date -u +%s) <= $(cat "$intent/timeout") )); then
+	    intents["$intent"]+="active, id=$(cd "$intent"; echo +([[:xdigit:]]))"
+	else
+	    intents["$intent"]+="stale"
+	fi
+    done < <(find -name .intent -or -name timeout)
+    printf "%s\n" "${intents[@]}"
+)
 
 # Handle transitioning a pull request in the CI state machine to closed
 # or merged once it has been closed on Github.
@@ -4119,6 +4185,11 @@ ci_helper() {
             ci_do_and_push ci_register_intent "$@";;
         commit-intent)
             ci_do_and_push ci_commit_intent "$@";;
+	expire-intent)
+            ci_do_and_push ci_expire_intent "$@";;
+	delete-intent)
+	    ci_do_and_push ci_delete_intent "$@";;
+	show-intents) ci_show_intents "$@";;
         fail-intent)
             ci_do_and_push ci_fail_intent "$@";;
         kill-stale-intents)
@@ -4598,6 +4669,10 @@ DEV_LONG_HELP["ci"]="Crowbar Continuous Intergration Helper.
         id: An intent ID returned by register-intent.
     fail-intent: The same as commit-intent, but it will transition to the
       failed state instead.
+    expire-intent: Immediatly force an intent to go stale.
+    delete-intent: Deletes an intent.  This potentially prunes a path from
+      the state transition tree.
+    show-intents: Shows all the current and stale intents for a pull request. 
     kill-stale-intents: Given a pull request ID, this will kill any stale intents
       that are hanging around and attempt to push them out."
 
