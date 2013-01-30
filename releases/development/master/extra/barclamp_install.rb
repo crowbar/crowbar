@@ -29,7 +29,9 @@ require 'pp'
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
+  [ '--no-framework-install', '-i', GetoptLong::NO_ARGUMENT ],
   [ '--no-files', '-x', GetoptLong::NO_ARGUMENT ],
+  [ '--no-migrations', '-m', GetoptLong::NO_ARGUMENT ],
   [ '--no-chef', '-c', GetoptLong::NO_ARGUMENT ],
   [ '--base-dir', '-b', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--force', '-f', GetoptLong::NO_ARGUMENT ]
@@ -37,7 +39,7 @@ opts = GetoptLong.new(
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--base-dir <dir>] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-framework-install] [--no-migrations] [--base-dir <dir>] /path/to/new/barclamp"
   exit
 end
 
@@ -50,6 +52,11 @@ opts.each do |opt, arg|
     when "--debug"
     @@debug = true
     debug "debug mode is enabled"
+    when "--no-framework-install"
+    @@no_framework = true
+    when "--no-migrations"
+    @@no_migrations = true
+    debug "no-migrations is enabled"
     when "--no-files"
     @@no_files = true
     debug "no-files is enabled"
