@@ -44,6 +44,8 @@ end
 
 @@debug = ENV['DEBUG'] === "true"
 @@base_dir = "/opt/dell"
+@@no_framework = false
+@@no_migrations = false
 @@no_chef = false
 @@no_files = false
 
@@ -65,7 +67,9 @@ def bc_install(bc, bc_path, yaml)
     throw "ERROR: Crowbar 1.x barclamp formats are not supported in Crowbar 2.x"
   when "1.9","2"
     debug "Installing app components"
-    bc_install_layout_2_app bc, bc_path, yaml
+    bc_install_layout_2_app bc, bc_path, yaml unless @@no_framework
+    debug "Running database migrations"
+    bc_install_layout_2_migrations bc, bc_path, yaml unless @@no_migrations
     debug "Installing chef components" unless @@no_chef
     bc_install_layout_1_chef bc, bc_path, yaml unless @@no_chef
     debug "Installing cache components" unless @@no_files
@@ -228,11 +232,15 @@ def merge_sass(yaml, bc, path, installing)
 end
 
 def framework_permissions(bc, bc_path)
-  FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'db')
-  chmod_dir 0644, File.join(@CROWBAR_PATH, 'db')
-  FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'db', 'migrate')
-  FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'tmp')
-  chmod_dir 0644, File.join(@CROWBAR_PATH, 'tmp')
+  if File.exists?(File.join(@CROWBAR_PATH, 'db'))
+    FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'db')
+    chmod_dir 0644, File.join(@CROWBAR_PATH, 'db')
+    FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'db', 'migrate')
+  end
+  if File.exists?(File.join(@CROWBAR_PATH, 'tmp'))
+    FileUtils.chmod 0755, File.join(@CROWBAR_PATH, 'tmp')
+    chmod_dir 0644, File.join(@CROWBAR_PATH, 'tmp')
+  end
   debug "\tcopied crowbar_framework files"
 end
 
@@ -368,14 +376,19 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
   template_file = File.join bc_path, "chef", "data_bags", "crowbar", "bc-template-#{bc}.json"
   schema_file = File.join bc_path, "chef", "data_bags", "crowbar", "bc-template-#{bc}.schema"
   new_template_file = File.join bc_path, "chef", "data_bags", "crowbar", "bc-template-#{bc}-new.json"
-  FileUtils.mkdir yml_path unless File.directory? yml_path
-  FileUtils.mkdir template_path unless File.directory? template_path
-  FileUtils.mkdir schema_path unless File.directory? schema_path
+  FileUtils.mkdir_p yml_path unless File.directory? yml_path
+  FileUtils.mkdir_p template_path unless File.directory? template_path
+  FileUtils.mkdir_p schema_path unless File.directory? schema_path
   FileUtils.cp yml_barclamp, File.join(yml_path, "#{bc}.yml")
   FileUtils.cp template_file, File.join(template_path, "", "bc-template-#{bc}.json") if File.exists? template_file
   FileUtils.cp schema_file, File.join(schema_path, "", "bc-template-#{bc}.schema") if File.exists? schema_file
   FileUtils.cp new_template_file, File.join(template_path, "", "bc-template-#{bc}-new.json") if File.exists? new_template_file
 
+  bc_layout = yaml["crowbar"]["layout"].to_i rescue 2
+  debug "Barclamp #{bc} (format v#{bc_layout}) added to Crowbar Framework.  Review #{filelist} for files created."
+end
+
+def bc_install_layout_2_migrations(bc, bc_path, yaml)
   #database migration
   bc_layout = yaml["crowbar"]["layout"].to_i rescue 2
   if bc_layout > 1
@@ -384,8 +397,6 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
       debug "Database migration invoked - #{db}"
     end
   end
-  
-  debug "Barclamp #{bc} (format v#{bc_layout}) added to Crowbar Framework.  Review #{filelist} for files created."
 end
 
 # upload the chef parts for a barclamp
