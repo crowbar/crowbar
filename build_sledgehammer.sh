@@ -27,14 +27,14 @@ GEM_RE='([^0-9].*)-([0-9].*)'
 readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 
-# Source our config file if we have one
-[[ -f $HOME/.build-crowbar.conf ]] && \
-    . "$HOME/.build-crowbar.conf"
-
-# Look for a local one.
-[[ -f build-crowbar.conf ]] && \
-    . "build-crowbar.conf"
-
+if ! [[ $CACHE_DIR ]]; then
+    # Source our config file if we have one
+    [[ -f $HOME/.build-crowbar.conf ]] && \
+        . "$HOME/.build-crowbar.conf"
+    # Look for a local one.
+    [[ -f build-crowbar.conf ]] && \
+        . "build-crowbar.conf"
+fi
 # Always run in verbose mode for now.
 VERBOSE=true
 
