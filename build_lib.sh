@@ -261,10 +261,12 @@ cleanup() {
     # If we saved unadded changes, resurrect them.
     [[ $THROWAWAY_STASH ]] && git stash apply "$THROWAWAY_STASH" &>/dev/null
     # Nuke any wild caches.
-    for f in "${CACHE_DIR%/*}/.crowbar_temp_cache"*; do
-        [[ -d $f ]] || continue
-        sudo rm -rf "$f"
-    done
+    if [[ $WILD_CACHE = true ]]; then
+        for f in "${CACHE_DIR%/*}/.crowbar_temp_cache"*; do
+            [[ -d $f ]] || continue
+            sudo rm -rf "$f"
+        done
+    fi
     if [[ -d $CACHE_DIR && -d $CACHE_DIR/.git && $MAYBE_UPDATE_GIT_CACHE ]]; then
         cd "$CACHE_DIR"
         if ! in_cache git diff-index --cached --quiet HEAD; then
