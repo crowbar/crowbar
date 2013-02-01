@@ -150,7 +150,7 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   debug "bc = #{bc.pretty_inspect}"
   begin
     unless /^#{@@base_dir}\/barclamps\// =~ bc[:src]
-      target="#{@@base_dir}/barclamps/#{bc[:src].split("/")[-1]}"
+      target="#{@@base_dir}/barclamps/#{bc[:name]}"
       if File.directory? target
         debug "target directory #{target} exists"
         if File.exists? "#{target}/crowbar.yml"
