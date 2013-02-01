@@ -1,5 +1,5 @@
 #
-# spec file for package crowbar
+# spec file for package crowbar-barclamp-<%= name %>
 #
 # Copyright (c) 2012 SUSE LINUX Products GmbH, Nuernberg, Germany.
 #
@@ -17,8 +17,8 @@
 
 %define barclamp <%= name %>
 %define barclamp_displayname <%= displayname %>
-%define tarball %{name}-git-%{version}.tar.bz2
-%define tar_subdir %{name}-git-%{version}
+%define tarball %{name}-%{version}.tar.bz2
+%define tar_subdir %{name}-%{version}
 %define dell_dir /opt/dell
 %define dell_bin_dir %{dell_dir}/bin
 %define bc_dir %{dell_dir}/barclamps/%{barclamp}
@@ -31,6 +31,8 @@ Summary:        Crowbar barclamp for %{barclamp_displayname}
 Url:            https://github.com/dellcloudedge/crowbar/wiki
 Group:          System/Management
 Source0:        %{tarball}
+BuildRequires:  crowbar
+Requires(pre):  crowbar
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildArch:      noarch
 
@@ -50,21 +52,36 @@ functioning operating systems using Chef.
 
 %install
 dell_dir=%{buildroot}%{dell_dir}
+find . -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\|erb\)$' | xargs chmod a-x
+find . -regex '.+/README.*\|.+/chef/cookbooks/.+/recipes/.+.rb' | xargs chmod a-x
+/opt/dell/bin/barclamp_install.rb --no-rsync --no-migrations --no-chef --base-dir $dell_dir .
+rm $dell_dir/barclamps/*-filelist.txt
+%crowbar_barclamp_extract_locale $bc_dir $dell_dir/crowbar_framework/config/locales
 
-bc_dir=$dell_dir/barclamps/%{barclamp}
-install -d -m 755 $bc_dir
-cp -a * $bc_dir
-chmod a+x $bc_dir/bin/*
-find $bc_dir -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\|erb\)$' | xargs chmod a-x
-find $bc_dir -regex '.+/README.*\|.+/chef/cookbooks/.+/recipes/.+.rb' | xargs chmod a-x
-mv $bc_dir/{bin,chef,crowbar_framework} $dell_dir
+%pre
+%crowbar_barclamp_update_pre %{bc_dir}
+
+%post
+%crowbar_barclamp_update_post %{bc_dir}
+
+%preun
+%crowbar_barclamp_update_preun %{bc_dir}
+
+%postun
+%crowbar_barclamp_update_postun %{bc_dir}
 
 %files
-%defattr(-,root,root,-)
-%dir %{dell_dir}
-%{dell_dir}/*
+%defattr(-,crowbar,crowbar,-)
+%{dell_dir}/barclamps/%{barclamp}/
+%{dell_dir}/bin/*
+%{dell_dir}/chef/cookbooks/*
+%{dell_dir}/chef/roles/*
+%{dell_dir}/crowbar_framework/*
+%{dell_dir}/doc/*
+%{dell_dir}/BDD/*
+%{dell_dir}/chef/data_bags/crowbar/*.schema
 # FIXME: FHS violation, should not have config files in /opt
 # https://github.com/dellcloudedge/crowbar/issues/833
-%config(noreplace) %{dell_dir}/chef/data_bags/crowbar/bc-template-%{barclamp}.json
+%config(noreplace) %{dell_dir}/chef/data_bags/crowbar/*.json
 
 %changelog
