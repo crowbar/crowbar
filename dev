@@ -1861,13 +1861,12 @@ ci_handle_intent() {
                 "Intent to transition from $current_state to $next_state failed."
             for state in "${states[@]}"; do
                 ci_link_state "$prq" "$state" failed
-            done
-            pull_request_comment "$prq" "ci: gating tests for $current_state to $next_state failed.";;
+            done;;
 	passed)
             __ci_set_state "$prq" "$next_state" \
 		"Intent to transition from $current_state to $next_state passed."
-            ci_link_state "$prq" "$current_state" "$next_state"
-            pull_request_comment "$prq" "CI: Gating tests for $current_state to $next_state passed.";;
+            ci_link_state "$prq" "$current_state" "$next_state";;
+
 	expire) (cd "$LOCAL_PULL_TRACKING/$prq/ci_state/$current_state/intents/$next_state/"
 		[[ -f .intent ]] || {
 		    touch .intent
@@ -1883,10 +1882,16 @@ ci_handle_intent() {
     esac
 }
 
-ci_commit_intent() { ci_handle_intent "$1" "passed"; }
-ci_fail_intent() { ci_handle_intent "$1" "failed"; }
-ci_expire_intent() { ci_handle_intent "$1" "expire"; }
-ci_delete_intent() { ci_handle_intent "$1" "delete"; }
+ci_commit_intent() {
+    ci_do_and_push ci_handle_intent "$1" "passed" || return $?
+    pull_request_comment "$prq" "CI: Gating tests for $current_state to $next_state passed."
+}
+ci_fail_intent() {
+    ci_do_and_push ci_handle_intent "$1" "failed" || return $?
+    pull_request_comment "$prq" "ci: gating tests for $current_state to $next_state failed."
+}
+ci_expire_intent() { ci_do_and_push ci_handle_intent "$1" "expire"; }
+ci_delete_intent() { ci_do_and_push ci_handle_intent "$1" "delete"; }
 
 # Show all incomplete intents for a CI ID.
 ci_show_intents() (
@@ -4183,15 +4188,11 @@ ci_helper() {
         all-open-ids) ci_ids "$@";;
         register-intent)
             ci_do_and_push ci_register_intent "$@";;
-        commit-intent)
-            ci_do_and_push ci_commit_intent "$@";;
-	expire-intent)
-            ci_do_and_push ci_expire_intent "$@";;
-	delete-intent)
-	    ci_do_and_push ci_delete_intent "$@";;
+        commit-intent) ci_commit_intent "$@";;
+	expire-intent) ci_expire_intent "$@";;
+	delete-intent) ci_delete_intent "$@";;
 	show-intents) ci_show_intents "$@";;
-        fail-intent)
-            ci_do_and_push ci_fail_intent "$@";;
+        fail-intent) ci_fail_intent "$@";;
         kill-stale-intents)
 	    ci_do_and_push ci_kill_stale_intents "$@";;
         *) die "Not a valid CI command.  Run $0 help ci for valid CI commands.";;
