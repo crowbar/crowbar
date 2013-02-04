@@ -2,6 +2,8 @@
 require 'rubygems'
 require 'rubygems/gem_runner'
 require 'rubygems/exceptions'
+# In theory this shoulc have already been required.
+require 'rubygems/version_option'
 
 # Stupid hack to allow multiple --version options.
 module Gem::VersionOption
