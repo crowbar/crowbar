@@ -64,7 +64,7 @@ end
 def bc_install(bc, bc_path, yaml)
   case yaml["crowbar"]["layout"].to_s
   when "1"
-    throw "ERROR: Crowbar 1.x barclamp formats are not supported in Crowbar 2.x"
+    throw "ERROR: Crowbar 1.x barclamp formats (#{bc}) are not supported in Crowbar 2.x"
   when "1.9","2"
     debug "Installing app components"
     bc_install_layout_2_app bc, bc_path, yaml unless @@no_framework
@@ -275,6 +275,9 @@ def bc_do_install_action(bc,bc_path, stage)
   }   
 end
 
+def camelize(str)
+  str.split('_').map {|w| w.capitalize}.join
+end
 
 # install the framework files for a barclamp
 def bc_install_layout_2_app(bc, bc_path, yaml)
@@ -288,14 +291,20 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
   dirs = Dir.entries(bc_path)
   debug "path entries #{dirs.pretty_inspect}"
 
-  if dirs.include? 'crowbar_framework'
+  if dirs.include? 'crowbar_engine'
+    debug "path entries include \"crowbar_engine\""
+    system "perl -pi -e 's|engine mounts|engine mounts\n  mount " + camelize(bc) + "Bc::Engine, :at => \"" + bc + "\"|' " + @BASE_PATH + "/crowbar_framework/config/routes.rb"
+    system "perl -pi -e 's|engine mounts|engine mounts\ngem \"" + bc + "_bc\", :path => \"" + bc_path + "/crowbar_engine/" + bc + "_bc\"|' " + @BASE_PATH + "/crowbar_framework/Gemfile" 
+
+  elsif dirs.include? 'crowbar_framework'
     debug "path entries include \"crowbar_framework\""
     files += bc_cloner('crowbar_framework', bc, nil, bc_path, @BASE_PATH, false)
     framework_permissions bc, bc_path
   end
 
-  debug "merge_sass"
-  merge_sass yaml, bc, bc_path, true
+  # TODO: going away for 2.0, we think
+  #debug "merge_sass"
+  #merge_sass yaml, bc, bc_path, true
 
   {'bin'=>@BIN_PATH, 'setup' =>@SETUP_PATH}.each { |k,v|
     if dirs.include? k
@@ -393,6 +402,8 @@ def bc_install_layout_2_migrations(bc, bc_path, yaml)
   bc_layout = yaml["crowbar"]["layout"].to_i rescue 2
   if bc_layout > 1
     FileUtils.cd(@CROWBAR_PATH) do
+      system "RAILS_ENV=production rake railties:install:migrations"
+      debug "Engine migrations copied in" 
       db = system "RAILS_ENV=production rake db:migrate"
       debug "Database migration invoked - #{db}"
     end

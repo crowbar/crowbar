@@ -15,14 +15,7 @@
 #
 # Author: RobHirschfeld
 #
-
-# the 1st choice is to use the code from the framework since it is most up to date
-# however, that code is not always available when installing
-if File.exists?('/opt/dell/bin/barclamp_mgmt_lib.rb')
-  require '/opt/dell/bin/barclamp_mgmt_lib.rb'
-else
-  require File.join(File.dirname(__FILE__), 'barclamp_mgmt_lib.rb')
-end
+require File.join(File.dirname(__FILE__), 'barclamp_mgmt_lib.rb')
 require 'getoptlong'
 require 'pp'
 
