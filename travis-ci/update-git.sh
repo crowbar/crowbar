@@ -7,6 +7,14 @@
 
 GIT_DIR=~/travis-ci-crowbar_framework
 
+function load_rvm() {
+  if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
+    source "$HOME/.rvm/scripts/rvm"
+  elif [[ -s "/usr/local/rvm/scripts/rvm" ]]; then
+    source "/usr/local/rvm/scripts/rvm"
+  fi
+}
+
 function usage() {
   echo "
   Script to update the combined git repository.
@@ -106,6 +114,7 @@ fi
 
 curr_dir=`pwd`
 
+load_rvm
 update_with_dev_tool
 rsync_files
 remove_unchanged_files
