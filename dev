@@ -3972,7 +3972,7 @@ reload_unit_tests() (
   reinstall_barclamps "${barclamps[@]}" || exit 1
   if [[ $dbs_need_reload ]]; then
       cd "$CROWBAR_TEST_DIR/crowbar_framework"
-      for rake_task in db:drop db:migrate db:fixtures:dump; do
+      for rake_task in db:drop railties:install:migrations db:migrate db:fixtures:dump; do
           for RAILS_ENV in test development; do
               (export RAILS_ENV; bundle exec rake "$rake_task")
           done
