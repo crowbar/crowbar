@@ -45,6 +45,7 @@ end
 @@debug = ENV['DEBUG'] === "true"
 @@base_dir = "/opt/dell"
 @@no_framework = false
+@@no_install_actions = false
 @@no_migrations = false
 @@no_chef = false
 @@no_files = false
@@ -68,14 +69,14 @@ def bc_install(bc, bc_path, yaml)
   when "1.9","2"
     debug "Installing app components"
     bc_install_layout_2_app bc, bc_path, yaml unless @@no_framework
-    debug "Running database migrations"
+    debug "Running database migrations" unless @@no_migrations
     bc_install_layout_2_migrations bc, bc_path, yaml unless @@no_migrations
     debug "Installing chef components" unless @@no_chef
     bc_install_layout_1_chef bc, bc_path, yaml unless @@no_chef
     debug "Installing cache components" unless @@no_files
     bc_install_layout_1_cache bc, bc_path unless @@no_files
-    debug "Performing install actions"
-    bc_do_install_action bc, bc_path, :install
+    debug "Performing install actions" unless @@no_install_actions
+    bc_do_install_action bc, bc_path, :install unless @@no_install_actions
   else
     throw "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
   end
