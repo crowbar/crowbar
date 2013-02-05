@@ -1,4 +1,4 @@
-# Crowbar and Travis CI [![Build Status](https://travis-ci.org/crowbar/travis-ci-crowbar_framework.png?branch=master)](https://travis-ci.org/crowbar/travis-ci-crowbar_framework)
+# Crowbar and Travis CI [![Build Status](https://travis-ci.org/crowbar/travis-ci-crowbar.png?branch=master)](https://travis-ci.org/crowbar/travis-ci-crowbar)
 
 Crowbar uses Travis CI (among other things) to perform continuous integration.
 
@@ -9,9 +9,9 @@ repositories - the main Crowbar framework and its required barclamps.
 
 Hence we use a cron job that runs the `dev` tool every 5 minutes to assemble
 the application, and pushes that to a [separate Git repository]
-(https://github.com/crowbar/travis-ci-crowbar_framework). This repository is
+(https://github.com/crowbar/travis-ci-crowbar). This repository is
 then [linked to Travis CI]
-(https://travis-ci.org/crowbar/travis-ci-crowbar_framework).
+(https://travis-ci.org/crowbar/travis-ci-crowbar).
 
 ## Setup details
 

@@ -5,7 +5,7 @@
 #
 # */5 * * * * cd ~/crowbar/travis-ci && ./update-git.sh >>update-git.log 2>&1
 
-GIT_DIR=~/travis-ci-crowbar_framework
+GIT_DIR=~/travis-ci-crowbar
 
 function load_rvm() {
   if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
@@ -47,12 +47,12 @@ function update_with_dev_tool() {
 }
 
 function rsync_files() {
-  local TMP_DIR=/tmp/crowbar-dev-test/crowbar_framework
+  local DEV_TEST=/tmp/crowbar-dev-test
   cd $GIT_DIR
   log "Copying files..."
   git reset -q --hard HEAD
   git clean -f -d -q
-  rsync -aq --delete --exclude=BDD/*.beam $TMP_DIR/{../Gemfile,*} .
+  rsync -aq --delete --exclude=.git/ $DEV_TEST/{barclamps,crowbar_framework,Gemfile} .
 }
 
 # A number of JSON files are generated during barclamp installation. These
