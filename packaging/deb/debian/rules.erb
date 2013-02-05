@@ -1,0 +1,30 @@
+#!/usr/bin/make -f
+
+override SRC := <%= @path %>
+override DELL_DIR := debian/crowbar-barclamp-<%= @name %>/opt/dell
+override BC_DIR := $(DELL_DIR)/barclamps/<%= @name %>
+override PATH := /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+%:
+	dh $@
+
+clean::
+	test -d .git && rm -rf .git || true
+	chmod a+x bin/*
+	find . -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\|erb\|spec\)$$' | xargs chmod a-x
+	find . -regex '.+/README.*\|.+/chef/cookbooks/.+/recipes/.+.rb' | xargs chmod a-x
+binary::
+	dh_testroot
+	dh_prep
+	install -d -m 755 $(BC_DIR)
+	for d in *; do \
+	    case $$d in \
+	        bin|chef|crowbar_framework) mv "$$d" "$(DELL_DIR)";; \
+	        debian) : ;; \
+	        *) mv "$$d" "$(BC_DIR)";; \
+	    esac \
+	done
+	dh_fixperms
+	dh_installdeb
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb

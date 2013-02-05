@@ -1,0 +1,122 @@
+#!/usr/bin/ruby
+#
+# Generate initial .spec and _service files for each barclamp.
+# This is most likely a one-off operation since we will probably
+# want to manually tweak individual barclamp .spec files later.
+#
+# Arguments for having a spec file per barclamp:
+#   - separate .spec    files are easier to read / edit / compare than one huge one
+#   - separate _service files are easier to read / edit / compare than one huge one
+#   - osc service disabledrun is much quicker and more fine-grained
+#     (avoids unnecessary re-fetch of all barclamps)
+#   - (re)builds of individual barclamps are much quicker and more fine-grained
+#     (avoids unnecessary rebuild of all barclamps, and any consequent risk of
+#      redundant package updates)
+#   - separate changelog per barclamp
+#
+# Arguments for having a single spec file with a sub-package per barclamp:
+#   - can't think of any right now
+
+require 'erb'
+require 'yaml'
+
+class Barclamp
+  attr_reader :name, :displayname, :requires, :pkg
+
+  def initialize(path, name, dest)
+    yaml_path = File.join(path,'crowbar.yml')
+    yaml = YAML.load_file(yaml_path)
+
+    bcy = yaml['barclamp']
+
+    @name = bcy['name']
+    @path = path
+    @dest = dest
+    raise "name mismatch: #{name} != #{@name}" unless name == @name
+
+    @displayname = bcy['display']
+    @requires = (bcy['requires'] || [])
+    # All barclamps have an implicit dependency on the Crowbar barclamp.
+    @requires << "crowbar-barclamp-crowbar" unless @requires.member?("crowbar-barclamp-crowbar")
+    # Revisit once we get a real versioning scheme.
+    @version = Time.now.utc.strftime('%Y%m%d.%H%M%S')
+    @pkg = "crowbar-barclamp-#@name"
+  end
+
+  def make_rpm
+    Dir.chdir(@path)
+    outfile="#{@pkg}.spec"
+    tmpl = File.join(ENV["CROWBAR_DIR"],"packaging","rpm","crowbar-barclamp.spec.erb")
+
+    unless File.exists?(tmpl)
+      die("Cannot find the spec template at #{spec_template}")
+    end
+    template=ERB.new(File.read(tmpl))
+    File.open(outfile.to_s, 'w') do |f|
+      f.puts template.result(binding)
+    end
+    system("rpmbuild -bb #{outfile}")
+  end
+
+  def make_deb
+    Dir.chdir(@path)
+    # All of our Debian packages need these.
+    @requires += ['${shlibs:Depends}', '${misc:Depends}']
+    tmpls = {}
+    ["control","rules"].each do |tmpl|
+      t = File.join("debian",tmpl + '.erb')
+      unless File.exists?(t)
+        die("Cannot find the template at #{t}")
+      end
+      template=ERB.new(File.read(t))
+      outfile=File.join("debian",tmpl)
+      File.open(outfile.to_s, 'w') do |f|
+        f.puts template.result(binding)
+      end
+    end
+    system("dpkg-buildpackage -b -uc")
+  end
+end
+
+
+def die(msg)
+  STDERR.puts(msg)
+  exit(1)
+end
+
+def usage
+  me = File.basename($0)
+  puts <<EOUSAGE
+Usage: #{me} BARCLAMP_PATH DEST TYPE
+
+BARCLAMP_PATH is a path to barclamp source code.
+DEST is the location you want the generated package to wind up in
+TYPE is the type of the package to generate.  Either deb or rpm will work.
+
+EOUSAGE
+  exit 0
+end
+
+usage if ARGV[0] =~ /^(-h|--help)$/ or ARGV.count < 2
+barclamp_dir = ARGV[0]
+barclamp = barclamp_dir.split(File::Separator)[-1]
+
+unless File.exists?(File.join(barclamp_dir,"crowbar.yml"))
+  die("#{ARGV[0]} does not point to a barclamp")
+end
+
+unless ENV["CROWBAR_DIR"]
+  die("CROWBAR_DIR is not in the environment.  Are you running me directly?")
+end
+
+unless ARGV[1] && File.directory?(ARGV[1])
+  die("Destination directory does not exist.")
+end
+dest=ARGV[1]
+
+bc = Barclamp.new(barclamp_dir, barclamp, dest)
+case ARGV[2]
+when "rpm" then bc.make_rpm
+when "deb" then bc.make_deb
+else die "Unknown package type #{ARGV[2]}"
+end
