@@ -293,8 +293,8 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
 
   if dirs.include? 'crowbar_engine'
     debug "path entries include \"crowbar_engine\""
-    system "perl -pi -e 's|engine mounts|engine mounts\n  mount " + camelize(bc) + "Bc::Engine, :at => \"" + bc + "\"|' " + @BASE_PATH + "/crowbar_framework/config/routes.rb"
-    system "perl -pi -e 's|engine mounts|engine mounts\ngem \"" + bc + "_bc\", :path => \"" + bc_path + "/crowbar_engine/" + bc + "_bc\"|' " + @BASE_PATH + "/crowbar_framework/Gemfile" 
+    system "perl -pi -e 's|engine mounts|engine mounts\n  mount Barclamp" + camelize(bc) + "::Engine, :at => \"" + bc + "\"|' " + @BASE_PATH + "/crowbar_framework/config/routes.rb"
+    system "perl -pi -e 's|engine mounts|engine mounts\ngem \"barclamp_" + bc + "\", :path => \"" + bc_path + "/crowbar_engine/barclamp_" + bc + "\"|' " + @BASE_PATH + "/crowbar_framework/Gemfile" 
 
   elsif dirs.include? 'crowbar_framework'
     debug "path entries include \"crowbar_framework\""
