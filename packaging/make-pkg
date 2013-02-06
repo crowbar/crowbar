@@ -25,9 +25,9 @@ class Barclamp
 
   def initialize(path, name, dest)
     yaml_path = File.join(path,'crowbar.yml')
-    yaml = YAML.load_file(yaml_path)
+    @yaml = YAML.load_file(yaml_path)
 
-    bcy = yaml['barclamp']
+    bcy = @yaml['barclamp']
 
     @name = bcy['name']
     @path = path
@@ -45,6 +45,7 @@ class Barclamp
 
   def make_rpm
     Dir.chdir(@path)
+    @requires += @yaml['rpms']['required_pkgs'] if (@yaml['rpms']['required_pkgs'] rescue nil)
     outfile="#{@pkg}.spec"
     tmpl = File.join(ENV["CROWBAR_DIR"],"packaging","rpm","crowbar-barclamp.spec.erb")
 
@@ -61,6 +62,7 @@ class Barclamp
   def make_deb
     Dir.chdir(@path)
     # All of our Debian packages need these.
+    @requires += @yaml['debs']['required_pkgs'] if (@yaml['debs']['required_pkgs'] rescue nil)
     @requires += ['${shlibs:Depends}', '${misc:Depends}']
     tmpls = {}
     ["control","rules"].each do |tmpl|
