@@ -1,0 +1,17 @@
+Source: crowbar-barclamp-<%= @name %>
+Section: admin
+Priority: optional
+Maintainer: Crowbar <crowbar@dell.com>
+Build-Depends: debhelper (>= 5)
+Standards-Version: 3.7.2
+Homepage: https://github.com/crowbar/barclamp-<%= @name %>
+
+Package: crowbar-barclamp-<%= @name %>
+Architecture: all
+Depends: <%= @requires.join(", ") %>
+Description: This is the <%= @displayname %> barclamp for Crowbar.
+ Crowbar is a platform for server provisioning and deployment from bare
+ metal.  It provides server discovery, firmware upgrades, and operating
+ system installation using PXE Boot.  It deploys applications on top of
+ functioning operating systems using Chef.
+
