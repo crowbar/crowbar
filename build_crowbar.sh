@@ -89,6 +89,8 @@ declare -A CD_POOL STAGED_POOL INSTALLED_PKGS FORCE_BARCLAMP_UPDATE
 OS_TO_STAGE="${1-ubuntu-10.10}"
 shift
 
+BC_PKG_TYPE="tar"
+
 unset CROWBAR_BUILD_PID
 # Source our common build functions
 . "$CROWBAR_DIR/build_lib.sh" || exit 1
@@ -266,6 +268,11 @@ while [[ $1 ]]; do
 	--no-iso) shift; NO_GENERATE_ISO=true;;
 	--skip-lock) shift; __skip_lock=true;;
         --do-not-clean) shift; NO_CLEAN_DIRS=true;;
+        --native-packages) shift;
+            case $OS_TO_STAGE in
+                ubuntu*|debian*) BC_PKG_TYPE="deb";;
+                redhat*|centos*|suse*|opensuse*) BC_PKG_TYPE="rpm";;
+            esac;;
 	*)          die "Unknown command line parameter $1";;
     esac
 done
@@ -444,12 +451,18 @@ do_crowbar_build() {
 	    )
 	fi
 	make_barclamp_pkg_metadata "$bc"
-	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
+        # Once all our barclamps have had their packages staged, create tarballs of them.
+        mkdir -p "$BUILD_DIR/dell/barclamps"
+        package_opts=(--destdir "$BUILD_DIR/dell/barclamps" --os "$OS_TOKEN")
+        case $BC_PKG_TYPE in
+            tar) : ;;
+            deb) package_opts+=("--deb");;
+            rpm) package_opts+=("--rpm");;
+        esac
+        "$CROWBAR_DIR/package_barclamp.sh" "${package_opts[@]}" "$bc"
+	echo "barclamps/rclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
-    # Once all our barclamps have had their packages staged, create tarballs of them.
-    mkdir -p "$BUILD_DIR/dell/barclamps"
-    "$CROWBAR_DIR/package_barclamp.sh" --destdir "$BUILD_DIR/dell/barclamps" \
-	--os "$OS_TOKEN" "${BARCLAMPS[@]}"
+    
 
     [[ $NO_GENERATE_ISO = true ]] && return 0
 
