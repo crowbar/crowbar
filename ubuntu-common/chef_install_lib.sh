@@ -12,23 +12,8 @@ OS_TOKEN="ubuntu-${DISTRIB_RELEASE}"
 update_hostname() { update_hostname.sh $FQDN; }
 
 install_base_packages() {
-    cp apt.conf /etc/apt
     log_to apt sed -i "s/__HOSTNAME__/$FQDN/g" ./debsel.conf
     log_to apt /usr/bin/debconf-set-selections ./debsel.conf
-    mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra"
-    mkdir -p /etc/apt/sources.list.d
-    (cd "/tftpboot/$OS_TOKEN/crowbar-extra";
-        # Find all the staged barclamps
-        for bc in "/opt/dell/barclamps/"*; do
-            [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
-            # Link them in.
-            ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
-            echo "deb file:/tftpboot/$OS_TOKEN/crowbar-extra/${bc##*/} /" > \
-                /etc/apt/sources.list.d/10-barclamp-${bc##*/}.list
-        done
-    )
-    log_to apt apt-get update
-    log_to apt apt-get -y remove apparmor
     log_to apt apt-get -y install rubygems gcc ruby tcpdump \
         libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev nginx \
         ipmitool efibootmgr
@@ -46,7 +31,6 @@ bring_up_chef() {
     (cd "$DVD_PATH/extra/patches"; chmod +x ./patch.sh ; ./patch.sh) || exit 1
     # increase chef-solr index field size
     perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml
-
     # Fix ruby-gems and merb-core mismatch
     sed -i -e "s/Gem.activate(dep)/dep.to_spec.activate/g" /usr/lib/ruby/1.8/merb-core/core_ext/kernel.rb
 

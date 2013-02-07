@@ -169,7 +169,7 @@ find "/opt/dell/barclamps" -path '*/gems/*.gem' \
 # Arrange for all our gem binaries to be installed into /usr/local/bin
 cat >/etc/gemrc <<EOF
 :sources:
-- http://127.0.0.1:3001/
+- file:///tftpboot/gemsite/
 gem: --no-ri --no-rdoc --bindir /usr/local/bin
 EOF
 
@@ -193,17 +193,8 @@ cp "$DVD_PATH/extra/"*.pill /etc/bluepill
 cp "$DVD_PATH/extra/chef-server.conf" /etc/nginx
 cp "$DVD_PATH/extra/chef-client.pill" /tftpboot
 
-# Fire up a Webrick instance on port 3001 to serve gems.
-echo "$(date '+%F %T %z'): Arranging for gems to be served from port 3001"
 mkdir -p /opt/dell
 [[ -L /opt/dell/extra ]] || ln -s "$DVD_PATH/extra" /opt/dell/extra
-if [[ ! -f /var/log/rubygems-server.log ]]; then
-    >/var/log/rubygems-server.log
-    chown nobody /var/log/rubygems-server.log
-fi
-
-bluepill load /etc/bluepill/rubygems-server.pill
-sleep 5
 
 if [[ ! -x /etc/init.d/bluepill ]]; then
 
@@ -365,9 +356,12 @@ COUNT=0
 while (($COUNT < 60))
 do
   sleep 1
-  pumactl -S /var/run/crowbar/puma.state stats 2>/dev/null >/devnull && COUNT=60
+  pumactl -S /var/run/crowbar/puma.state stats &>/dev/null && COUNT=60
   COUNT=$(($COUNT + 1))
 done
+
+# Make sure we grab the key if it changed.
+export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
 
 # Add configured crowbar proposal
 if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
