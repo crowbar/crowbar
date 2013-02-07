@@ -116,8 +116,9 @@ barclamps = Hash.new
 candidates.each do |bc|
   # We have already verified that each of the candidates has crowbar.yml
   begin
-    debug "trying to parse crowbar.yml"
-    barclamp = YAML.load_file File.join(bc,"crowbar.yml")
+    yaml = File.join(bc,"crowbar.yml")
+    debug "trying to parse #{yaml}"
+    barclamp = YAML.load_file(yaml)
   rescue
     puts "Exception occured while parsing crowbar.yml in #{bc}, skiping"
     next
