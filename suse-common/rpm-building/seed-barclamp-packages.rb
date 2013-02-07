@@ -66,7 +66,7 @@ def ensure_dir_exists(dir)
 end
 
 class Barclamp
-  attr_reader :name, :displayname, :requires, :pkg
+  attr_reader :name, :displayname, :pkg
 
   def initialize(git_path, name)
     yaml_path = Pathname(git_path) + 'barclamps' + name + 'crowbar.yml'
@@ -78,11 +78,6 @@ class Barclamp
     raise "name mismatch: #{name} != #{@name}" unless name == @name
 
     @displayname = bcy['display']
-    @requires = (bcy['requires'] || []).inject(['crowbar']) { |reqs, req|
-      reqs.push "crowbar-barclamp-#{req}" unless req == '@crowbar'
-      reqs
-    }.join ' '
-
     @pkg = "crowbar-barclamp-#@name"
   end
 
