@@ -19,6 +19,7 @@
 
 require 'erb'
 require 'yaml'
+require 'kwalify'
 
 class Barclamp
   attr_reader :name, :displayname, :requires, :pkg
@@ -43,6 +44,38 @@ class Barclamp
     @pkg = "crowbar-barclamp-#@name"
   end
 
+  def validate
+    data_bags = File.join(@path,"chef","data_bags")
+    return unless File.directory?(data_bags)
+    schemas = {}
+    # First, make a list of all the schemas we know, and
+    # validate that they are correct.
+    Dir.glob(File.join(data_bags,"*","*.schema")).each do |s|
+      validator = Kwalify::MetaValidator.instance
+      parser = Kwalify::Yaml::Parser.new(validator)
+      document = parser.parse_file(s)
+      if parser.errors && ! parser.errors.empty?
+        parser.errors.each do |err|
+          puts "#{s}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
+        end
+        exit(1)
+      end
+      schemas[s.gsub(/\.schema$/,'')] = Kwalify::Validator.new(Kwalify::Yaml.load_file(s))
+    end
+    # Next, use the known-validated schemas to validate the data bags.
+    Dir.glob(File.join(data_bags,"*","*.json")).each do |f|
+      schema=f.gsub(/\.json$/,'')
+      next unless schemas[schema]
+      parser = Kwalify::Yaml::Parser.new(schemas[schema])
+      document = parser.parse_file(f)
+      next unless parser.errors && !parser.errors.empty?
+      parser.errors.each do |err|
+        puts "#{f}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
+      end
+      exit(1)
+    end
+  end
+
   def make_rpm
     Dir.chdir(@path)
     @requires += @yaml['rpms']['required_pkgs'] if (@yaml['rpms']['required_pkgs'] rescue nil)
@@ -57,6 +90,7 @@ class Barclamp
       f.puts template.result(binding)
     end
     system("rpmbuild -bb #{outfile}")
+    exit($?)
   end
 
   def make_deb
@@ -77,6 +111,7 @@ class Barclamp
       end
     end
     system("dpkg-buildpackage -b -uc")
+    exit($?)
   end
 end
 
@@ -117,6 +152,7 @@ end
 dest=ARGV[1]
 
 bc = Barclamp.new(barclamp_dir, barclamp, dest)
+bc.validate
 case ARGV[2]
 when "rpm" then bc.make_rpm
 when "deb" then bc.make_deb
