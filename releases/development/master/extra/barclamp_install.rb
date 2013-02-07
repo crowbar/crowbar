@@ -19,6 +19,8 @@ require File.join(File.dirname(__FILE__), 'barclamp_mgmt_lib.rb')
 require 'getoptlong'
 require 'pp'
 
+@@no_rsync = false
+
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
@@ -26,13 +28,14 @@ opts = GetoptLong.new(
   [ '--no-files', '-x', GetoptLong::NO_ARGUMENT ],
   [ '--no-migrations', '-m', GetoptLong::NO_ARGUMENT ],
   [ '--no-chef', '-c', GetoptLong::NO_ARGUMENT ],
+  [ '--no-rsync', '-r', GetoptLong::NO_ARGUMENT ],
   [ '--base-dir', '-b', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--force', '-f', GetoptLong::NO_ARGUMENT ]
 )
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-framework-install] [--no-migrations] [--base-dir <dir>] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-framework-install] [--no-migrations] [--no-rsync] [--base-dir <dir>] /path/to/new/barclamp"
   exit
 end
 
@@ -55,6 +58,9 @@ opts.each do |opt, arg|
     debug "no-files is enabled"
     when "--no-chef"
     @@no_chef = true
+    debug "no-chef is enabled"
+    when "--no-rsync"
+    @@no_rsync = true
     debug "no-chef is enabled"
     when "--base-dir"
     @@base_dir = arg
@@ -137,7 +143,7 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   debug "bc = #{bc.pretty_inspect}"
   begin
     unless /^#{@@base_dir}\/barclamps\// =~ bc[:src]
-      target="#{@@base_dir}/barclamps/#{bc[:src].split("/")[-1]}"
+      target="#{@@base_dir}/barclamps/#{bc[:name]}"
       if File.directory? target
         debug "target directory #{target} exists"
         if File.exists? "#{target}/crowbar.yml"
@@ -182,15 +188,19 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
         debug "creating directory \"#{target}\""
         system "mkdir -p \"#{target}\""
       end
-      # Only rsync over the changes if this is a different install
-      # from the POV of the sha1sums files
-      unless File.exists?("#{bc[:src]}/sha1sums") and \
-        File.exists?("#{target}/sha1sums") and \
-        system "/bin/bash -c 'diff -q <(sort \"#{bc[:src]}/sha1sums\") <(sort \"#{target}/sha1sums\")'"
-        debug "syncing \"#{bc[:src]}\" directory and \"#{target}\" directory"
-        system "rsync -r \"#{bc[:src]}/\" \"#{target}\""
+      unless @@no_rsync
+        # Only rsync over the changes if this is a different install
+        # from the POV of the sha1sums files
+        unless File.exists?("#{bc[:src]}/sha1sums") and \
+          File.exists?("#{target}/sha1sums") and \
+          system "/bin/bash -c 'diff -q <(sort \"#{bc[:src]}/sha1sums\") <(sort \"#{target}/sha1sums\")'"
+          debug "syncing \"#{bc[:src]}\" directory and \"#{target}\" directory"
+          system "rsync -r \"#{bc[:src]}/\" \"#{target}\""
+        end
+        bc[:src] = target
+      else
+        FileUtils.cp File.join(bc[:src],"crowbar.yml") , File.join(target, "crowbar.yml")
       end
-      bc[:src] = target
     end
     debug "installing barclamp"
     begin
