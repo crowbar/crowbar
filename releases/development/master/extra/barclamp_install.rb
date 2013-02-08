@@ -61,7 +61,7 @@ opts.each do |opt, arg|
     debug "no-chef is enabled"
     when "--no-rsync"
     @@no_rsync = true
-    debug "no-chef is enabled"
+    debug "no-rsync is enabled"
     when "--base-dir"
     @@base_dir = arg
     debug "base-dir is #{@@base_dir}"
