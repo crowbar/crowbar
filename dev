@@ -97,6 +97,14 @@ shopt -s nullglob
 # A little wrapper for git to help people see what dev is doing.
 git() {
     [[ $SHOW_GIT_OPERATIONS ]] && debug "$PWD: git $@"
+    case $1 in
+        rebase|merge|push|commit)
+            [[ $(git config --get user.name) && $(git config --get user.email) ]] || \
+                die "Git not setup." \
+                "Please run" \
+                "git config user.name \"your name\"" \
+                "git config user.email \"you@your.domain\"";;
+    esac
     command git "$@"
 }
 
@@ -4703,6 +4711,7 @@ fi
 in_repo origin_remote &>/dev/null || \
     [[ $1 = setup ]] || \
     die "Unable to find origin account, please run setup!"
+
 
 # Handle some global option parsing.
 # This is mainly for --from and --to handling.
