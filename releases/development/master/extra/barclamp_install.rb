@@ -26,6 +26,7 @@ opts = GetoptLong.new(
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
   [ '--no-framework-install', '-i', GetoptLong::NO_ARGUMENT ],
   [ '--no-files', '-x', GetoptLong::NO_ARGUMENT ],
+  [ '--no-install-actions', '-a', GetoptLong::NO_ARGUMENT ],
   [ '--no-migrations', '-m', GetoptLong::NO_ARGUMENT ],
   [ '--no-chef', '-c', GetoptLong::NO_ARGUMENT ],
   [ '--no-rsync', '-r', GetoptLong::NO_ARGUMENT ],
@@ -35,7 +36,7 @@ opts = GetoptLong.new(
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-framework-install] [--no-migrations] [--no-rsync] [--base-dir <dir>] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-framework-install] [--no-install-actions] [--no-migrations] [--no-rsync] [--base-dir <dir>] /path/to/new/barclamp"
   exit
 end
 
@@ -50,6 +51,8 @@ opts.each do |opt, arg|
     debug "debug mode is enabled"
     when "--no-framework-install"
     @@no_framework = true
+    when "--no-install-actions"
+    @@no_install_actions = true
     when "--no-migrations"
     @@no_migrations = true
     debug "no-migrations is enabled"
@@ -61,7 +64,7 @@ opts.each do |opt, arg|
     debug "no-chef is enabled"
     when "--no-rsync"
     @@no_rsync = true
-    debug "no-chef is enabled"
+    debug "no-rsync is enabled"
     when "--base-dir"
     @@base_dir = arg
     debug "base-dir is #{@@base_dir}"

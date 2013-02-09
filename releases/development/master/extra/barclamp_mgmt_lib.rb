@@ -45,6 +45,7 @@ end
 @@debug = ENV['DEBUG'] === "true"
 @@base_dir = "/opt/dell"
 @@no_framework = false
+@@no_install_actions = false
 @@no_migrations = false
 @@no_chef = false
 @@no_files = false
@@ -68,14 +69,14 @@ def bc_install(bc, bc_path, yaml)
   when "1.9","2"
     debug "Installing app components"
     bc_install_layout_2_app bc, bc_path, yaml unless @@no_framework
-    debug "Running database migrations"
+    debug "Running database migrations" unless @@no_migrations
     bc_install_layout_2_migrations bc, bc_path, yaml unless @@no_migrations
     debug "Installing chef components" unless @@no_chef
     bc_install_layout_1_chef bc, bc_path, yaml unless @@no_chef
     debug "Installing cache components" unless @@no_files
     bc_install_layout_1_cache bc, bc_path unless @@no_files
-    debug "Performing install actions"
-    bc_do_install_action bc, bc_path, :install
+    debug "Performing install actions" unless @@no_install_actions
+    bc_do_install_action bc, :install unless @@no_install_actions
   else
     throw "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
   end
@@ -255,8 +256,8 @@ end
 # The crowbar reserves the ranges 0-9 and 50-9.
 # Other params:
 #   bc - the barclamps name
-#   bc_path - the full path for the barclamp's files
-def bc_do_install_action(bc,bc_path, stage)
+def bc_do_install_action(bc, stage)
+  setup_target = File.join(@SETUP_PATH,bc)
   suffix = ""
   case stage
   when :install then suffix="install"
@@ -265,7 +266,7 @@ def bc_do_install_action(bc,bc_path, stage)
     fatal("unknown barclamp lifecycle stage: #{stage}")
   end
   actions = []
-  Dir.glob(File.join(bc_path,"setup","*.#{suffix}")) { |x| actions << x}
+  Dir.glob(File.join(setup_target,"*.#{suffix}")) { |x| actions << x}
   actions.sort!
   debug("actions to perform: #{actions.join(' ')}")
   actions.each { |action| 
@@ -306,14 +307,26 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
   #debug "merge_sass"
   #merge_sass yaml, bc, bc_path, true
 
-  {'bin'=>@BIN_PATH, 'setup' =>@SETUP_PATH}.each { |k,v|
-    if dirs.include? k
-      debug "path entries include \"#{k}\""
-      files += bc_cloner(k, bc, nil, bc_path, @BASE_PATH, false)
-      FileUtils.chmod_R 0755, v
-      debug "\tcopied files for #{k}"
-    end
-  }
+  if dirs.include? 'bin'
+    debug "path entries include \"bin\""
+    files += bc_cloner('bin', bc, nil, bc_path, @BASE_PATH, false)
+    FileUtils.chmod_R 0755, @BIN_PATH
+    debug "\tcopied files for #{@BIN_PATH}"
+  end
+
+  # copy over install-actions
+  if dirs.include? 'setup'
+    setup_source = File.join(bc_path,'setup')
+    setup_target = File.join(@SETUP_PATH,bc)
+    FileUtils.mkdir @SETUP_PATH unless File.directory? @SETUP_PATH
+    FileUtils.mkdir setup_target unless File.directory? setup_target
+    debug "Install actions path entries from #{setup_source}/setup to #{setup_target}"
+    files += bc_cloner('', bc, nil, setup_source, setup_target, false)
+    FileUtils.chmod_R 0755, setup_target
+    debug "\tcopied over install actions from #{setup_source}/setup to #{setup_target}"
+  else
+    debug "\tno install actions to copy"
+  end
 
   if dirs.include? 'updates' and !@@no_files
     debug "path entries include \"updates\""
