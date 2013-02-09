@@ -54,7 +54,9 @@ functioning operating systems using Chef.
 dell_dir=%{buildroot}%{dell_dir}
 find . -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\|erb\)$' | xargs chmod a-x
 find . -regex '.+/README.*\|.+/chef/cookbooks/.+/recipes/.+.rb' | xargs chmod a-x
-/opt/dell/bin/barclamp_install.rb --no-rsync --no-migrations --no-chef --base-dir $dell_dir .
+/opt/dell/bin/barclamp_install.rb --no-install-actions \
+                                  --no-rsync --no-migrations \
+                                  --no-chef --base-dir $dell_dir .
 rm $dell_dir/barclamps/*-filelist.txt
 %crowbar_barclamp_extract_locale $bc_dir $dell_dir/crowbar_framework/config/locales
 
