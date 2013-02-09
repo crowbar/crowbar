@@ -37,7 +37,7 @@ def update_paths
     @MODEL_SOURCE = File.join @CROWBAR_PATH, 'barclamp_model'
   end
   @BIN_PATH = File.join @BASE_PATH, 'bin'
-  @SETUP_PATH = File.join @BASE_PATH, 'bin'
+  @SETUP_PATH = File.join @BASE_PATH, 'setup'
   @UPDATE_PATH = '/updates'
   @ROOT_PATH = '/'
 end
