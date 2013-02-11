@@ -1622,7 +1622,7 @@ ci_all_next_states() {
         merge-tested)
             while read build oses; do
                 build="${build%:}"
-                if [[ ${unit_test_whitelist["$release"]} ]]; then
+                if [[ ${unit_test_whitelist["$release"]} && $build = master ]]; then
                     next+=("unit-testing $build")
                 else
                     for os in $oses; do
@@ -1718,7 +1718,7 @@ ci_get_current_states() {
     # This needs to be ornate-ified to handle per-state special conditions.
     for state in "${!states[@]}"; do
 	# If this state has no last_states, then it is current.
-	[[ -d $LOCAL_PULL_TRACKING/$id/ci_state/$state/last_states ]] || continue
+	[[ -d $LOCAL_PULL_TRACKING/$id/ci_state/$state/last_states || $state = new ]] || continue
 	# If we have intents, and some of them are unfulfilled,
 	# we are not stale.
 	if [[ -d $LOCAL_PULL_TRACKING/$id/ci_state/$state/intents ]]; then
