@@ -757,7 +757,9 @@ run_admin_node() {
     ssh root@192.168.124.10 mkdir -p /opt/dell/.hooks/admin-post-install.d
     scp -r "$CROWBAR_DIR/test_framework/admin-post-hooks/." \
         "root@192.168.124.10:/opt/dell/.hooks/admin-post-install.d/"
-    # Kick off the install.
+    # If we want to manually deploy, then exit now.
+    [[ $manual_deploy ]] && return 0
+    # Otherwise, kick off the install.
     ssh root@192.168.124.10 /opt/dell/bin/install-crowbar admin.smoke.test
     sleep 5
     # Wait for the screen session to terminate
@@ -1131,7 +1133,9 @@ run_test() {
             pause-after-admin) local pause_after_admin=true;;
             admin-only) local admin_only=true;;
             develop-mode) local develop_mode=true;;
-            manual-deploy) local manual_deploy=true;;
+            manual-deploy) local manual_deploy=true
+                local develop_mode=true
+                local admin_only=true;;
             use-iso) shift; SMOKETEST_ISO="$1";;
             single*|dual*|team*) local network_mode="$1";;
             bind-nic) shift;
