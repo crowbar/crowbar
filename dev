@@ -3868,7 +3868,7 @@ reinstall_barclamps() {
     done
     debug "${barclamps[*]} barclamps have changed, reloading."
     (   cd ${CROWBAR_DIR}/releases/$build/extra
-        ./barclamp_install.rb ${DEBUG:+--debug} --force --no-files --no-chef -b \
+        ./barclamp_install.rb ${DEBUG:+--debug} --force --no-files --no-chef --no-install-actions -b \
             "$CROWBAR_TEST_DIR" "${barclamp_list[@]}") || \
             die "Failed to install some barclamps."
 
