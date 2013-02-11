@@ -23,12 +23,5 @@ Nodes are managed by the Crowbar state machine.  They are discovered via dhcp, h
 Crowbar 2.0 will remove the hard dependency of Chef by storing all of Crowbar’s configuration information in a simple database. 
 
 
-## Before you begin
-
-## First Steps
-
-## Now that you are running
-
-## Next Steps
 
 
