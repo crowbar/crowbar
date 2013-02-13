@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 export LANG="C"
 export LC_ALL="C"
 
@@ -3276,7 +3275,7 @@ pull_requests_gen() {
     # Now, issue the requests for branches.
     # Make sure they are ordered correctly.
     for br in "${!br_pulls[@]}"; do
-        local br_pull_name="$(in_repo git_ref "$br" "$pull_id")"
+        local br_pull_name="pull-req-$(in_repo git_ref "$br" "$pull_id")"
 	in_repo git_push personal "${br}:${br_pull_name}"
 	local br_head="$DEV_GITHUB_ID:${br_pull_name}"
 	do_pull_request \
