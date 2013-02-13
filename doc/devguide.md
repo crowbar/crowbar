@@ -32,8 +32,8 @@ We will accept small pushes and bug fixes without a CLA; however, we ask that yo
 
 CLAs:
 
-* Individual:[[https://github.com/dellcloudedge/crowbar/blob/master/license/Corporate%20Contributor%20License%20Agreement.pdf]]
-* Corporate: [[https://github.com/dellcloudedge/crowbar/blob/master/license/Individual%20License%20Agreement.pdf]]
+* [Individual CLA](https://github.com/dellcloudedge/crowbar/blob/master/license/Corporate%20Contributor%20License%20Agreement.pdf)
+* [Corporate CLA](https://github.com/dellcloudedge/crowbar/blob/master/license/Individual%20License%20Agreement.pdf)
 
 #### Guidelines for Pull Requests
 
