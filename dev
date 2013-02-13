@@ -1445,6 +1445,7 @@ fetch_ci_tracking() (
 
 # Push CI tracking to the upstream repository.
 push_ci_tracking() (
+    [[ $SKIP_CI_PUSH ]] && return 
     local remote
     fetch_ci_tracking || return $?
     cd "$LOCAL_PULL_TRACKING"
