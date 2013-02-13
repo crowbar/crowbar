@@ -325,17 +325,19 @@ echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
     die "Crowbar configuration has errors.  Please fix and rerun install."
 
-echo "$(date '+%F %T %z'): Create Admin node role"
 NODE_ROLE="crowbar-${FQDN//./_}" 
-cat > /tmp/role.rb <<EOF
+if ! knife role list |grep -qF "$NODE_ROLE"; then
+    echo "$(date '+%F %T %z'): Create Admin node role"
+    cat > /tmp/role.rb <<EOF
 name "$NODE_ROLE"
 description "Role for $FQDN"
 run_list()
 default_attributes( "crowbar" => { "network" => {} } )
 override_attributes()
 EOF
-knifeloop role from file /tmp/role.rb
-rm -rf /tmp/role.rb
+    knifeloop role from file /tmp/role.rb
+    rm -rf /tmp/role.rb
+fi
 
 echo "$(date '+%F %T %z'): Update run list..."
 for role in crowbar deployer-client $NODE_ROLE; do
