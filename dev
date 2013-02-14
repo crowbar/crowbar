@@ -1782,7 +1782,7 @@ ci_kill_stale_intents() (
 	    touch "$intent/.intent"
 	    git add "$intent/.intent"
 	}
-        (cd "$intent"; git rm -f timeout +([[:xdigit:]]))
+        (cd "$intent"; git rm -f timeout +([[:xdigit:]])) &>/dev/null
         need_commit=true
     done < <(find -name timeout -type f)
     [[ $need_commit = true ]] || return 1
