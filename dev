@@ -2045,7 +2045,7 @@ ci_import_new_pull_requests() {
         debug "Adding new pull request $id"
         (   cd "$LOCAL_PULL_TRACKING/$id"
             git add .
-            git commit -qm "Added new pull request $id")
+            git commit -qm "Added new pull request $id") &>/dev/null
     done < "$OPEN_PULL_REQUESTS/pull_request_index"
 }
 
