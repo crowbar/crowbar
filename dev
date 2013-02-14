@@ -1853,6 +1853,8 @@ ci_handle_intent() {
     [[ ${intents[1]} ]] && \
         die "More than one intent with id $1 found. This should never happen." \
         "${intents[@]}"
+    [[ ${intents[0]} ]] || \
+	die "Intent $1 not found."
     intent="${intents[0]#$LOCAL_PULL_TRACKING/}"
     local prq="${intent%%/ci_state/*}"
     intent="${intent#${prq}/ci_state/}"
