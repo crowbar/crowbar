@@ -26,6 +26,43 @@ baseurl=$REPO_URL
 gpgcheck=0
 EOF
 
+# Barclamp preparation (put them in the right places)
+mkdir -p /opt/dell/barclamps
+for i in "$BASEDIR/dell/barclamps/"*".tar.gz"; do
+    [[ -f $i ]] || continue
+    ( cd "/opt/dell/barclamps"; tar xzf "$i"; )
+done
+
+
+find /opt/dell/barclamps -type d -name cache -maxdepth 2 | while read src; do
+    [[ -d $src/$OS_TOKEN/pkgs/repodata ]] || continue
+    bc=${src%/cache}
+    bc=${bc##*/}
+   cat >"/etc/yum.repos.d/crowbar-$bc.repo" <<EOF
+[crowbar-$bc]
+name=Crowbar $bc Packages
+baseurl=file://$src/$OS_TOKEN/pkgs
+gpgcheck=0
+EOF
+done
+
+# Make sure we only try to install x86_64 packages.
+echo 'exclude = *.i?86' >>/etc/yum.conf
+# Nuke any non-64 bit packages that snuck in.
+yum -y erase '*.i?86'
+yum -y makecache
+
+yum -y install createrepo
+mkdir -p /opt/dell/rpms
+cp "$BASEDIR/dell/barclamps/"*.rpm /opt/dell/rpms
+(cd /opt/dell/rpms; createrepo -d -q .)
+cat >"/etc/yum.repos.d/crowbar.repo" <<EOF
+[crowbar]
+name=Crowbar Packages
+baseurl=file:///opt/dell/rpms
+gpgcheck=0
+EOF
+
 # for CentOS.
 (cd "$BASEDIR"; [[ -d Server ]] || ln -sf . Server)
 
@@ -57,16 +94,9 @@ ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n
 # put the chef files in place
 cp "$BASEDIR/rsyslog.d/"* /etc/rsyslog.d/
 
-# Barclamp preparation (put them in the right places)
-mkdir /opt/dell/barclamps
-for i in "$BASEDIR/dell/barclamps/"*".tar.gz"; do
-    [[ -f $i ]] || continue
-    ( cd "/opt/dell/barclamps"; tar xzf "$i"; )
-done
-
 barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
-( cd "/opt/dell/barclamps/crowbar/bin"; \
-    cp "${barclamp_scripts[@]}" /opt/dell/bin; )
+( cd "/opt/dell/barclamps/crowbar/bin" &&  \
+    cp "${barclamp_scripts[@]}" /opt/dell/bin || :)
 
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
@@ -75,7 +105,7 @@ chmod +x /opt/dell/bin/*
 chmod +x "$BASEDIR/extra/"*
 
 # This directory is the model to help users create new barclamps
-cp -r /opt/dell/barclamps/crowbar/crowbar_framework/barclamp_model /opt/dell
+cp -r /opt/dell/barclamps/crowbar/crowbar_framework/barclamp_model /opt/dell || :
 
 # "Blacklisting IPv6".
 echo "blacklist ipv6" >>/etc/modprobe.d/blacklist-ipv6.conf
@@ -110,5 +140,4 @@ for s in $(cat /proc/cmdline); do
     esac
 done
 
-mkdir -p /opt/dell/bin
 ln -s /tftpboot/redhat_dvd/extra/install /opt/dell/bin/install-crowbar
