@@ -22,8 +22,6 @@ for p in redhat_dvd ubuntu_dvd; do
 done
 unset p
 
-[[ $DVD_PATH ]] || die "Cannot find our install source!"
-
 if [[ -f /etc/redhat-release || -f /etc/centos-release ]]; then
     OS=redhat
 elif [[ -d /etc/apt ]]; then
@@ -34,6 +32,12 @@ else
     die "Staged on to unknown OS media!"
 fi
 
+# On SUSE based installs we don't (yet) rely on the DVD being copied
+# the the harddisk. This might be subject to change.
+if [[ $OS != suse ]]; then
+    [[ $DVD_PATH ]] || die "Cannot find our install source!"
+fi
+
 if [[ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]]; then
     echo "Crowbar is already installed, refusing to let install run."
     echo "If you really want to do this, "
@@ -42,23 +46,26 @@ if [[ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]]; then
 fi
 
 export FQDN="$1"
-export PATH="/opt/dell/bin:/usr/local/bin:$PATH"
 export DEBUG=true
-[[ ! $HOME || $HOME = / ]] && export HOME="/root"
-mkdir -p "$HOME"
 
-mkdir -p /opt/dell/bin
-cp -a "$DVD_PATH/extra/"*.rb /opt/dell/bin
+if [[ $OS != suse ]]; then
+    export PATH="/opt/dell/bin:/usr/local/bin:$PATH"
+    [[ ! $HOME || $HOME = / ]] && export HOME="/root"
+    mkdir -p "$HOME"
 
-# Set Version for all to use.
-VERSION=$(cat $DVD_PATH/dell/Version)
-echo "Installing admin with version: $VERSION"
+    # Set Version for all to use.
+    VERSION=$(cat $DVD_PATH/dell/Version)
+    echo "Installing admin with version: $VERSION"
 
-# Verify that our install bits are intact.
-if [[ ! -f $DVD_PATH/sha1_passed ]]; then
-    (cd $DVD_PATH && sha1sum -c sha1sums &>/dev/null) || \
-    die "SHA1sums do not match, install is corrupt."
-    >$DVD_PATH/sha1_passed
+    mkdir -p /opt/dell/bin
+    cp -a "$DVD_PATH/extra/"*.rb /opt/dell/bin
+
+    # Verify that our install bits are intact.
+    if [[ ! -f $DVD_PATH/sha1_passed ]]; then
+        (cd $DVD_PATH && sha1sum -c sha1sums &>/dev/null) || \
+        die "SHA1sums do not match, install is corrupt."
+        >$DVD_PATH/sha1_passed
+    fi
 fi
 
 fqdn_re='^[0-9a-zA-Z.-]+$'
@@ -70,8 +77,12 @@ export HOSTNAME=$FQDN
 [[ $FQDN =~ $fqdn_re ]] || \
     die "Please specify an FQDN for the admin name with valid characters"
 
-echo "$(date '+%F %T %z'): Setting Hostname..."
-/opt/dell/bin/update_hostname.sh "$FQDN" || die "Could not update our hostname"
+# On SUSE the assumption is that the hostname is already set during
+# base os installation
+if [[ $OS != suse ]]; then
+    echo "$(date '+%F %T %z'): Setting Hostname..."
+    /opt/dell/bin/update_hostname.sh "$FQDN" || die "Could not update our hostname"
+fi
 
 # Set up rsyslog to not rate limit to avoid discarding exceptions
 cat > /etc/rsyslog.d/10-noratelimit.conf <<EOF
@@ -81,16 +92,22 @@ cat > /etc/rsyslog.d/10-noratelimit.conf <<EOF
 EOF
 
 # Bounce rsyslog to let it know our hostname is correct and not to rate limit
-service rsyslog restart || :
+if [[ $OS = suse ]]; then
+    service syslog restart || :
+else
+    service rsyslog restart || :
+fi
 
 # Hack up sshd_config to kill delays
 sed -i -e 's/^\(GSSAPI\)/#\1/' \
     -e 's/#\(UseDNS.*\)yes/\1no/' /etc/ssh/sshd_config
 service sshd restart || :
 
-
-# Link the discovery image to an off-DVD location.
-[[ -d ${DVD_PATH}/discovery ]] && mv "${DVD_PATH}/discovery" "/tftpboot"
+if [[ $OS != suse ]]; then
+    # Link the discovery image to an off-DVD location.
+    # On SUSE the image is part of the crowbar-sledgehammer package
+    [[ -d ${DVD_PATH}/discovery ]] && mv "${DVD_PATH}/discovery" "/tftpboot"
+fi
 
 if [[ $OS = ubuntu ]]; then
     if ! dpkg-query -S /opt/dell/bin/crowbar_crowbar; then
@@ -105,48 +122,55 @@ if [[ $OS = ubuntu ]]; then
 elif [[ $OS = redhat ]]; then
     yum -y makecache
     yum -y install 'crowbar-barclamp-*'
+elif [[ $OS = suse ]]; then
+    zypper -n in -t pattern Crowbar_Admin
 else
     die "Cannot install onto unknown OS $OS!"
 fi
 
-# Lift the gems off the install media for easy file serving.
-mkdir -p /tftpboot/gemsite/gems
-find "/opt/dell/barclamps" -path '*/gems/*.gem' \
-    -exec ln -sf '{}' /tftpboot/gemsite/gems ';'
+# all this can be skipped on SUSE based installs:
+#  * all gems are available as packages
+#  * the chef packages contain init scripts, no need to create
+#    bluepill config and initscript here
+if [[ $OS != suse ]]; then
+    # Lift the gems off the install media for easy file serving.
+    mkdir -p /tftpboot/gemsite/gems
+    find "/opt/dell/barclamps" -path '*/gems/*.gem' \
+        -exec ln -sf '{}' /tftpboot/gemsite/gems ';'
 
-# Arrange for all our gem binaries to be installed into /usr/local/bin
-cat >/etc/gemrc <<EOF
+    # Arrange for all our gem binaries to be installed into /usr/local/bin
+    cat >/etc/gemrc <<EOF
 :sources:
 - file:///tftpboot/gemsite/
 gem: --no-ri --no-rdoc --bindir /usr/local/bin
 EOF
 
-# This is ugly, but there does not seem to be a better way
-# to tell Chef to just look in a specific location for its gems.
-echo "$(date '+%F %T %z'): Arranging for gems to be installed"
-(   cd /tftpboot/gemsite/gems
-    for gem in builder json net-http-digest_auth activesupport i18n \
-        daemons bluepill xml-simple libxml-ruby wsman cstruct ; do
-        gem install --local --no-ri --no-rdoc $gem-*.gem
-    done
-    cd ..
-    gem generate_index)
+    # This is ugly, but there does not seem to be a better way
+    # to tell Chef to just look in a specific location for its gems.
+    echo "$(date '+%F %T %z'): Arranging for gems to be installed"
+    (   cd /tftpboot/gemsite/gems
+        for gem in builder json net-http-digest_auth activesupport i18n \
+            daemons bluepill xml-simple libxml-ruby wsman cstruct ; do
+            gem install --local --no-ri --no-rdoc $gem-*.gem
+        done
+        cd ..
+        gem generate_index)
 
-mkdir -p /var/run/bluepill
-mkdir -p /var/lib/bluepill
-mkdir -p /etc/bluepill
+    mkdir -p /var/run/bluepill
+    mkdir -p /var/lib/bluepill
+    mkdir -p /etc/bluepill
 
-# Copy all our pills to
-cp "$DVD_PATH/extra/"*.pill /etc/bluepill
-cp "$DVD_PATH/extra/chef-server.conf" /etc/nginx
-cp "$DVD_PATH/extra/chef-client.pill" /tftpboot
+    # Copy all our pills to
+    cp "$DVD_PATH/extra/"*.pill /etc/bluepill
+    cp "$DVD_PATH/extra/chef-server.conf" /etc/nginx
+    cp "$DVD_PATH/extra/chef-client.pill" /tftpboot
 
-[[ -L /opt/dell/extra ]] || ln -s "$DVD_PATH/extra" /opt/dell/extra
+    [[ -L /opt/dell/extra ]] || ln -s "$DVD_PATH/extra" /opt/dell/extra
 
-if [[ ! -x /etc/init.d/bluepill ]]; then
+    if [[ ! -x /etc/init.d/bluepill ]]; then
 
-    # Create an init script for bluepill
-    cat > /etc/init.d/bluepill <<EOF
+        # Create an init script for bluepill
+        cat > /etc/init.d/bluepill <<EOF
 #!/bin/bash
 # chkconfig: 2345 90 10
 # description: Bluepill Daemon runner
@@ -169,17 +193,18 @@ case \$1 in
 esac
 EOF
 
-    # enable the bluepill init script and disable the old sysv init scripts.
-    if which chkconfig &>/dev/null; then
-        chkconfig bluepill on
-    elif which update-rc.d &>/dev/null; then
-        update-rc.d bluepill defaults 90 10
-    else
-        echo "Don't know how to handle services on this system!"
-        exit 1
+        # enable the bluepill init script and disable the old sysv init scripts.
+        if which chkconfig &>/dev/null; then
+            chkconfig bluepill on
+        elif which update-rc.d &>/dev/null; then
+            update-rc.d bluepill defaults 90 10
+        else
+            echo "Don't know how to handle services on this system!"
+            exit 1
+        fi
+        chmod 755 /etc/init.d/bluepill
     fi
-    chmod 755 /etc/init.d/bluepill
-fi
+fi # [[ $OS != suse ]]
 
 # Set up initial SSH keys if we don't have them
 [[ -f $HOME/.ssh/id_rsa ]] || {
@@ -191,7 +216,7 @@ fi
 # Run the rest of the barclamp install actions.
 (cd /opt/dell/barclamps && /opt/dell/bin/barclamp_install.rb --no-framework-install *)
 
-for role in crowbar deployer-client "crowbar-${$FQDN//./_}"; do
+for role in crowbar deployer-client "crowbar-${FQDN//./_}"; do
     knife node run_list add "$FQDN" role["$role"] || \
         die "Could not add $role to Chef. Crowbar bringup will fail."
 done

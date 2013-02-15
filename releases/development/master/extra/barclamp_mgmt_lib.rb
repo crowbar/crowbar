@@ -426,6 +426,11 @@ end
 
 # upload the chef parts for a barclamp
 def bc_install_layout_1_chef(bc, bc_path, yaml)
+  unless File.exists? '/root/.chef/knife.rb'
+    puts "Not uploading Barclamp #{bc} Chef Components as knife hasn't been not configured yet."
+    return
+  end
+
   log_path = File.join '/var', 'log', 'barclamps'
   FileUtils.mkdir log_path unless File.directory? log_path
   log = File.join log_path, "#{bc}.log"
