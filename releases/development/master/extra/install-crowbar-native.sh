@@ -191,7 +191,7 @@ fi
 # Run the rest of the barclamp install actions.
 (cd /opt/dell/barclamps && /opt/dell/bin/barclamp_install.rb --no-framework-install *)
 
-for role in crowbar deployer-client "crowbar-${$FQDN//./_}"; do
+for role in crowbar deployer-client "crowbar-${FQDN//./_}"; do
     knife node run_list add "$FQDN" role["$role"] || \
         die "Could not add $role to Chef. Crowbar bringup will fail."
 done
