@@ -55,13 +55,35 @@ ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n
 # Set up initial syslog
 cp "$BASEDIR/rsyslog.d/"* /etc/rsyslog.d/
 
-# Barclamp preparation (put them in the right places)
+# Barclamp preparation for install and set up package caches
 mkdir /opt/dell/barclamps
 for i in "$BASEDIR/dell/barclamps/"*".tar.gz"; do
     [[ -f $i ]] || continue
-	(cd /opt/dell/barclamps && tar xzf "$i")
-	echo "copy new format $i"
+    (cd /opt/dell/barclamps && tar xzf "$i")
+    echo "copy new format $i"
 done
+
+# Teach the local system about the new package caches
+cp "$BASEDIR/extra/apt.conf" /etc/apt
+rm -rf /etc/apt/sources.list*
+mkdir -p /etc/apt/sources.list.d
+echo "deb file://$BASEDIR precise main restricted" >/etc/apt/sources.list.d/00-base.list
+while read src; do
+    [[ -d $src/$OS_TOKEN/pkgs ]] || continue
+    bc=${src%/cache}
+    bc=${bc##*/}
+    echo "deb file://$src/$OS_TOKEN/pkgs /" > "/etc/apt/sources.list.d/10-barclamp-$bc.list"
+done < <(find /opt/dell/barclamps -type d -name cache -maxdepth 2)
+apt-get -y update
+apt-get -y remove apparmor
+apt-get -y install dpkg-dev
+mkdir -p /opt/dell/debs
+cp "$BASEDIR/dell/barclamps/"*.deb /opt/dell/debs
+(cd /opt/dell/debs; dpkg-scanpackages . |gzip -9 >Packages.gz)
+echo "deb file:///opt/dell/debs /" >/etc/apt/sources.list.d/20-barclamps.list
+apt-get -y update
+
+
 
 barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
   ( cp "${barclamp_scripts[@]}" /opt/dell/bin; )

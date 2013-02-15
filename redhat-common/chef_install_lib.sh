@@ -13,25 +13,12 @@ install_base_packages() {
     (cd "/tftpboot/$OS_TOKEN/crowbar-extra";
         # Find all the staged barclamps
         for bc in "/opt/dell/barclamps/"*; do
-            [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
+            [[ -d $bc/cache/$OS_TOKEN/pkgs/repodata ]] || continue
             # Link them in.
             ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
-            cat >/etc/yum.repos.d/crowbar-${bc##*/}.repo <<EOF
-[crowbar-${bc##*/}]
-name=Crowbar ${bc##*/} Packages
-baseurl=file:///tftpboot/$OS_TOKEN/crowbar-extra/${bc##*/}
-gpgcheck=0
-EOF
         done
     )
 
-    # Make sure we only try to install x86_64 packages.
-    echo 'exclude = *.i?86' >>/etc/yum.conf
-    # Nuke any non-64 bit packages that snuck in.
-    log_to yum yum -y erase '*.i?86'
-
-    log_to yum yum -y makecache
-    echo "$(date '+%F %T %z'): Installing updated packages."
     log_to yum yum -q -y update
 
     # Install the rpm and gem packages
