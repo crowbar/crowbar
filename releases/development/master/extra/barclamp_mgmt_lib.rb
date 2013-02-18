@@ -44,7 +44,7 @@ end
 
 @@debug = ENV['DEBUG'] === "true"
 @@base_dir = "/opt/dell"
-@@no_framework = false
+@@deploy = false
 @@no_install_actions = false
 @@no_migrations = false
 @@no_chef = false
@@ -68,7 +68,7 @@ def bc_install(bc, bc_path, yaml)
     throw "ERROR: Crowbar 1.x barclamp formats (#{bc}) are not supported in Crowbar 2.x"
   when "1.9","2"
     debug "Installing app components"
-    bc_install_layout_2_app bc, bc_path, yaml unless @@no_framework
+    bc_install_layout_2_app bc, bc_path, yaml unless @@deploy
     debug "Running database migrations" unless @@no_migrations
     bc_install_layout_2_migrations bc, bc_path, yaml unless @@no_migrations
     debug "Installing chef components" unless @@no_chef
@@ -76,7 +76,7 @@ def bc_install(bc, bc_path, yaml)
     debug "Installing cache components" unless @@no_files
     bc_install_layout_1_cache bc, bc_path unless @@no_files
     debug "Performing install actions" unless @@no_install_actions
-    bc_do_install_action bc, :install unless @@no_install_actions
+    bc_do_install_action bc, bc_path, :install unless @@no_install_actions
   else
     throw "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
   end
@@ -256,7 +256,7 @@ end
 # The crowbar reserves the ranges 0-9 and 50-9.
 # Other params:
 #   bc - the barclamps name
-def bc_do_install_action(bc, stage)
+def bc_do_install_action(bc, bc_path, stage)
   setup_target = File.join(@SETUP_PATH,bc)
   suffix = ""
   case stage
