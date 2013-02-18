@@ -216,13 +216,5 @@ fi # [[ $OS != suse ]]
 # Run the rest of the barclamp install actions.
 (cd /opt/dell/barclamps && /opt/dell/bin/barclamp_install.rb --deploy *)
 
-for role in crowbar deployer-client "crowbar-${FQDN//./_}"; do
-    knife node run_list add "$FQDN" role["$role"] || \
-        die "Could not add $role to Chef. Crowbar bringup will fail."
-done
-
-# aaand... Go!
-chef-client
-
-# Make sure we have CROWBAR_KEY
-export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
+# This is as far as we expect to get for now.
+exit 0

@@ -65,40 +65,6 @@ log_to() {
 }
 
 
-
-chef_or_die() {
-    if [ -e /opt/dell/bin/blocking_chef_client.sh ]; then
-        log_to chef blocking_chef_client.sh && return
-    else
-        log_to chef chef-client && return
-    fi
-    # If we were left without an IP address, rectify that.
-    ip link set eth0 up
-    ip addr add 192.168.124.10/24 dev eth0
-    die "$@"
-}
-
-# Run knife in a loop until it doesn't segfault.
-knifeloop() {
-    local RC=0
-    while { log_to knife knife "$@" -u chef-webui -k /etc/chef/webui.pem
-        RC=$?
-        (($RC == 139)); }; do
-        :
-    done
-}
-
-# Sometimes the machine role (crowbar-${FQDN//./_}) does not get properly
-# attached to the admin node.  We are in deep trouble if that happens.
-check_machine_role() {
-    local count
-    for ((count=0; count <= 5; count++)); do
-        grep -q "crowbar-${FQDN//./_}" < <(knife node show "$FQDN" ) && return 0
-        sleep 10
-    done
-    die "Node machine-specific role got lost.  Deploy failed."
-}
-
 # Include OS specific functionality
 . chef_install_lib.sh || die "Could not include OS specific functionality"
 
@@ -120,14 +86,11 @@ fi
     ssh-keygen -q -b 2048 -P '' -f "$HOME/.ssh/id_rsa"
     cat "$HOME/.ssh/id_rsa.pub" >> "$HOME/.ssh/authorized_keys"
     cp "$HOME/.ssh/authorized_keys" "/tftpboot/authorized_keys"
-    cat "$HOME/.ssh/id_rsa.pub" >> /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/templates/default/authorized_keys.erb
-
 }
 
 # Copy over the framework docs into their final location
 mkdir -p /opt/dell/doc
 cp -a "$DVD_PATH/doc/framework" /opt/dell/doc
-
 
 fqdn_re='^[0-9a-zA-Z.-]+$'
 # Make sure there is something of a domain name
