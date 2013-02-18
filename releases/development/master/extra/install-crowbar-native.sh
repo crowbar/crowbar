@@ -28,7 +28,7 @@ if [[ -f /etc/redhat-release || -f /etc/centos-release ]]; then
 elif [[ -d /etc/apt ]]; then
     OS=ubuntu
     apt-get -y install ruby1.9.1 ruby1.9.1-dev \
-        libxml2-dev libxslt1-dev zlibg1-dev
+        libxml2-dev libxslt1-dev zlib1g-dev
 elif [[ -f /etc/SuSE-release ]]; then
     OS=suse
 else
