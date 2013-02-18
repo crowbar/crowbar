@@ -44,7 +44,7 @@ end
 
 @@debug = ENV['DEBUG'] === "true"
 @@base_dir = "/opt/dell"
-@@no_framework = false
+@@deploy = false
 @@no_install_actions = false
 @@no_migrations = false
 @@no_chef = false
@@ -68,7 +68,7 @@ def bc_install(bc, bc_path, yaml)
     throw "ERROR: Crowbar 1.x barclamp formats (#{bc}) are not supported in Crowbar 2.x"
   when "1.9","2"
     debug "Installing app components"
-    bc_install_layout_2_app bc, bc_path, yaml unless @@no_framework
+    bc_install_layout_2_app bc, bc_path, yaml unless @@deploy
     debug "Running database migrations" unless @@no_migrations
     bc_install_layout_2_migrations bc, bc_path, yaml unless @@no_migrations
     debug "Installing chef components" unless @@no_chef

@@ -25,7 +25,7 @@ opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
   [ '--build', GetoptLong::NO_ARGUMENT ],
-  [ '--no-framework-install', '-i', GetoptLong::NO_ARGUMENT ],
+  [ '--deploy', '-i', GetoptLong::NO_ARGUMENT ],
   [ '--no-files', '-x', GetoptLong::NO_ARGUMENT ],
   [ '--no-install-actions', '-a', GetoptLong::NO_ARGUMENT ],
   [ '--no-chef', '-c', GetoptLong::NO_ARGUMENT ],
@@ -35,7 +35,7 @@ opts = GetoptLong.new(
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-install-actions] [--no-framework-install] [--build] [--base-dir <dir>] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-install-actions] [--deploy] [--build] [--base-dir <dir>] /path/to/new/barclamp"
   exit
 end
 
@@ -57,6 +57,8 @@ opts.each do |opt, arg|
     @@no_framework = true
     when "--no-install-actions"
     @@no_install_actions = true
+    when "--deploy"
+    @@deploy = true
     when "--no-files"
     @@no_files = true
     debug "no-files is enabled"
