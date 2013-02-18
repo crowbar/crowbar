@@ -249,8 +249,8 @@ end
 # perform install actions for the barclamp
 # look for setup/* files and execute the appropriate ones, in order, based on
 # the lifecycle stage the barclap is going through :
-#  :install - IXXX
-#  :update - UXXX
+#  :install - *.install
+#  :remove -  *.remove
 #
 # The XXX is sorted, and the scripts are executed in order.
 # The crowbar reserves the ranges 0-9 and 50-9.
