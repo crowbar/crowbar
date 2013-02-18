@@ -24,19 +24,18 @@ require 'pp'
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
-  [ '--no-framework-install', '-i', GetoptLong::NO_ARGUMENT ],
+  [ '--build', GetoptLong::NO_ARGUMENT ],
+  [ '--deploy', '-i', GetoptLong::NO_ARGUMENT ],
   [ '--no-files', '-x', GetoptLong::NO_ARGUMENT ],
   [ '--no-install-actions', '-a', GetoptLong::NO_ARGUMENT ],
-  [ '--no-migrations', '-m', GetoptLong::NO_ARGUMENT ],
   [ '--no-chef', '-c', GetoptLong::NO_ARGUMENT ],
-  [ '--no-rsync', '-r', GetoptLong::NO_ARGUMENT ],
   [ '--base-dir', '-b', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--force', '-f', GetoptLong::NO_ARGUMENT ]
 )
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-framework-install] [--no-install-actions] [--no-migrations] [--no-rsync] [--base-dir <dir>] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-install-actions] [--deploy] [--build] [--base-dir <dir>] /path/to/new/barclamp"
   exit
 end
 
@@ -49,22 +48,23 @@ opts.each do |opt, arg|
     when "--debug"
     @@debug = true
     debug "debug mode is enabled"
+    when "--build"
+    @@no_install_actions = true
+    @@no_chef = true
+    @@no_migrations = true
+    @@no_rsync = true
     when "--no-framework-install"
     @@no_framework = true
     when "--no-install-actions"
     @@no_install_actions = true
-    when "--no-migrations"
-    @@no_migrations = true
-    debug "no-migrations is enabled"
+    when "--deploy"
+    @@deploy = true
     when "--no-files"
     @@no_files = true
     debug "no-files is enabled"
     when "--no-chef"
     @@no_chef = true
     debug "no-chef is enabled"
-    when "--no-rsync"
-    @@no_rsync = true
-    debug "no-rsync is enabled"
     when "--base-dir"
     @@base_dir = arg
     debug "base-dir is #{@@base_dir}"

@@ -214,7 +214,7 @@ fi # [[ $OS != suse ]]
 }
 
 # Run the rest of the barclamp install actions.
-(cd /opt/dell/barclamps && /opt/dell/bin/barclamp_install.rb --no-framework-install *)
+(cd /opt/dell/barclamps && /opt/dell/bin/barclamp_install.rb --deploy *)
 
 for role in crowbar deployer-client "crowbar-${FQDN//./_}"; do
     knife node run_list add "$FQDN" role["$role"] || \
