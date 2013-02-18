@@ -19,9 +19,12 @@ The following commands work for Unix environments:
 For debugging, the `/tmp/crowbar-dev-test/crowbar_framework` environment can be used as a rails app.  
 
 The crowbar webserver can be run by running:
-* `bundle exec rails s`
+* `bundle exec rails s Pumaa`
+* hit the webserver using the dev environment's IP address:3000
 
 You must do this if you want to debug the BDD tests!  Once the server is running on localhost, you can run the BDD tests interactively from erlang (`erl`) in from the code area (not just the test area) using commands like `bdd:test(crowbar).` and `bdd:debug(crowbar, myfeature, mytestid, debug).`  
 
-> Note: only the `crowbar-dev-test` area will have all the tests available because of the barclamp rollup.
+You can work interactively with the rails console (`rails c`) using `bundle exec rails c` in a similar way.
+
+> Reminder: only the `crowbar-dev-test` area will have all the tests available because of the barclamp rollup.
 
