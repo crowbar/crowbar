@@ -80,30 +80,7 @@ def bc_install(bc, bc_path, yaml)
   else
     throw "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
   end
-  catalog bc_path
 end
-
-# regenerate the barclamp catalog (LEGACY - no longer generated catalog)
-def catalog(bc_path)
-  debug "Copying barclamp 1.x meta_data from #{bc_path}"
-  # create the groups for the catalog - for now, just groups.  other catalogs may be added later
-  barclamps = File.join @CROWBAR_PATH, 'barclamps'
-  system("knife data bag create -k /etc/chef/webui.pem -u chef-webui barclamps") unless @@no_chef
-  list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
-  # scan the installed barclamps
-  list.each do |bc_file|
-    Dir.mkdir("#{barclamps}/bc_meta") unless File.directory?("#{barclamps}/bc_meta")
-    debug "Loading #{bc_file}"
-    bc = YAML.load_file File.join(barclamps, bc_file)
-    File.open("#{barclamps}/bc_meta/#{bc_file}.json","w+") { |f|
-      f.truncate(0)
-      bc["id"] = bc_file.split('.')[0]
-      f.puts(JSON.pretty_generate(bc))
-    }
-    Kernel.system("knife data bag from file -k /etc/chef/webui.pem -u chef-webui barclamps \"#{barclamps}/bc_meta/#{bc_file}.json\"") unless @@no_chef
-  end
-end
-
 
 # copies paths from one place to another (recursive)
 def bc_cloner(item, bc, entity, source, target, replace)
