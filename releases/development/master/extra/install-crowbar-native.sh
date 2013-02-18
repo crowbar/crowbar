@@ -24,10 +24,11 @@ unset p
 
 if [[ -f /etc/redhat-release || -f /etc/centos-release ]]; then
     OS=redhat
-    yum -y install ruby rubygems
+    yum -y install ruby rubygems ruby-devel libxml2-devel zlib-devel gcc make
 elif [[ -d /etc/apt ]]; then
     OS=ubuntu
-    apt-get -y install ruby1.9.1
+    apt-get -y install ruby1.9.1 ruby1.9.1-dev \
+        libxml2-dev libxslt1-dev zlibg1-dev
 elif [[ -f /etc/SuSE-release ]]; then
     OS=suse
 else
