@@ -43,32 +43,32 @@ force_install = false
 
 opts.each do |opt, arg|
   case opt
-    when "--help"
+  when "--help"
     usage
-    when "--debug"
+  when "--debug"
     @@debug = true
     debug "debug mode is enabled"
-    when "--build"
+  when "--build"
     @@no_install_actions = true
     @@no_chef = true
     @@no_migrations = true
     @@no_rsync = true
-    when "--no-framework-install"
+  when "--no-framework-install"
     @@no_framework = true
-    when "--no-install-actions"
+  when "--no-install-actions"
     @@no_install_actions = true
-    when "--deploy"
+  when "--deploy"
     @@deploy = true
-    when "--no-files"
+  when "--no-files"
     @@no_files = true
     debug "no-files is enabled"
-    when "--no-chef"
+  when "--no-chef"
     @@no_chef = true
     debug "no-chef is enabled"
-    when "--base-dir"
+  when "--base-dir"
     @@base_dir = arg
     debug "base-dir is #{@@base_dir}"
-    when "--force"
+  when "--force"
     force_install = true
   end
 end
