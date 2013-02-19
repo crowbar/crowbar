@@ -1,0 +1,298 @@
+## Path:	Network/General
+## Description:	Set some general network configuration
+## Type:	string("","-","+")
+## Default:	"+"
+## ServiceRestart: network
+#
+# DEFAULT_BROADCAST is used when no individual BROADCAST is set. It can get one
+# of the following values:
+# ""  : don't set a broadcast address
+# "-" : use IPADDR with all host bits deleted
+# "+" : use IPADDR with all host bits set
+DEFAULT_BROADCAST="+"
+
+## Type:	yesno
+## Default:	yes
+# sometimes we want some script to be executed after an interface has been
+# brought up, or before an interface is taken down. 
+# default dir is /etc/sysconfig/network/if-up.d for POST_UP and
+# /etc/sysconfig/network/if-down.d for PRE_DOWN
+# Note: if you use NetworkManager then down scripts will be called after the
+# interface is down and not before.
+GLOBAL_POST_UP_EXEC="yes"
+GLOBAL_PRE_DOWN_EXEC="yes"
+
+## Type:        yesno
+## Default:     no
+# If ifup should check if an ip address is already in use, set this to yes.
+# Make sure that packet sockets (CONFIG_PACKET) are supported in the kernel,
+# since this feature uses arping, which depends on that.
+# Also be aware that this takes one second per interface; consider that when
+# setting up a lot of interfaces. 
+CHECK_DUPLICATE_IP="no"
+
+## Type:        yesno
+## Default:     no
+# Switch on/off debug messages for all network configuration stuff. If set to no
+# most scripts can enable it locally with "-o debug".
+DEBUG="no"
+
+## Type:        yesno
+## Default:     yes
+# All error and info messages from network and hardware configuration scripts go
+# to stderr. Most tools that call sysconfig scripts (udev, rcnetwork, scpm,
+# YaST) catch these messages and can log them. So some messages appear twice in
+# syslog. If you don't like that, then set USE_SYSLOG=no.
+USE_SYSLOG="yes"
+
+# Handling of network connections
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# These features are designed for the convenience of the experienced
+# user. If you encounter problems you don't understand then switch
+# them off. That is the default.
+# Please do not complain if you get troubles. But if you want help to
+# make them smarter write to <http://www.suse.de/feedback>.
+
+## Type:	yesno
+## Default:	no
+#
+# If you are interested in the connections and nfs mounts that use a
+# network interface, you can set CONNECTION_SHOW_WHEN_IFSTATUS="yes".
+# Then you will see them with 'ifstatus <interface>' (or 'ifstatus
+# <config>')
+# This one _should_ never harm ;)
+#
+CONNECTION_SHOW_WHEN_IFSTATUS="no"
+
+## Type:	yesno
+## Default:	no
+#
+# If an interface should be set down only if there are no active
+# connections, then use CONNECTION_CHECK_BEFORE_IFDOWN="yes"
+#
+CONNECTION_CHECK_BEFORE_IFDOWN="no"
+
+## Type:	yesno
+## Default:	no
+#
+# If these connetions (without the nfs mounts) should be closed when
+# shutting down an interface, set CONNECTION_CLOSE_BEFORE_IFDOWN="yes".
+# WARNING: Be aware that this may terminate applications which need
+# one of these connections!
+#
+CONNECTION_CLOSE_BEFORE_IFDOWN="no"
+
+## Type:	yesno
+## Default:	no
+#
+# If you are a mobile laptop user and like even nfs mounts to be
+# closed when you leave your current workplace, then set
+# CONNECTION_UMOUNT_NFS_BEFORE_IFDOWN="yes". This does only work
+# if CONNECTION_CLOSE_BEFORE_IFDOWN="yes", too.
+# WARNING: Be aware that this may terminate applications which use
+# these nfs mounts as working directory. Be very carefull if your home
+# is mounted via nfs!!!
+# WARNING: This may even lead to hanging ifdown processes if there are
+# processes that could not be terminated. If you are using
+# hotpluggable devices (pcmcia, usb, firewire), first shut them down
+# before unplugging!
+#
+CONNECTION_UMOUNT_NFS_BEFORE_IFDOWN="no"
+
+## Type:	yesno
+## Default:	no
+#
+# If terminating processes that use a connection or nfs mount is not
+# enough, then they can be killed after an unsuccesfull termination.
+# If you want that set CONNECTION_SEND_KILL_SIGNAL="yes"
+#
+CONNECTION_SEND_KILL_SIGNAL="no"
+
+## Type:        string
+## Default:     ""
+#
+# Here you may specify which interfaces have to be up and configured properly
+# after 'rcnetwork start'. rcconfig will return 'failed' if any of these
+# interfaces is not up. You may use interface names as well but better use
+# hardware descriptions of the devices (eth-id-<macaddress> or eth-bus-...  See
+# man ifup for 'hardware description'). The network start script will wait for
+# these interfaces, but not longer as set in WAIT_FOR_INTERFACES.
+# You need not to add dialup or tunnel interfaces here, only physical devices.
+# The interface 'lo' is always considered to be mandatory and can be omitted.
+#
+# If this variable is empty, rcnetwork tries to derive the list of mandatory
+# devices automatically from the list of existing configurations. Configurations
+# with names bus-pcmcia or bus-usb or with STARTMODE=hotplug are skipped. (try
+# '/etc/init.d/rc5.d/S*network start -o debug fake | grep MANDAT')
+MANDATORY_DEVICES=""
+
+## Type:	integer
+## Default:	30
+#
+# Some interfaces need some time to come up or come asynchronously via hotplug.
+# WAIT_FOR_INTERFACES is a global wait for all mandatory interfaces in
+# seconds. If empty no wait occurs.
+#
+WAIT_FOR_INTERFACES="30"
+
+## Type:	yesno
+## Default:	yes
+#
+# With this variable you can determine if the SuSEfirewall when enabled
+# should get started when network interfaces are started.
+FIREWALL="no"
+
+## Type:        string
+## Default:     "eth*[0-9]|tr*[0-9]|wlan[0-9]|ath[0-9]"
+#
+# Automatically add a linklocal route to the matching interfaces.
+# This string is used in a bash "case" statement, so it may contain
+# '*', '[', ']'  and '|' meta-characters.
+#
+LINKLOCAL_INTERFACES="eth*[0-9]|tr*[0-9]|wlan[0-9]|ath[0-9]"
+
+## Type:        string
+## Default:     "-f -I"
+#
+# Set default options for ifplugd. You may also set them in an ifcfg-* file
+# individually. Have a look at 'man ifplug' for details. We let ifplugd set the
+# interface UP when starting, because there are many interfaces where link beat
+# cannot be detected otherwise. If you want the interface to stay down then add
+# the option '-a'. If you like ifplugd to beep on cable (un)plug, remove '-b'.
+#
+IFPLUGD_OPTIONS="-f -I -b"
+
+## Type:        yesno
+## Default:     no
+#
+# Instead of the usual network setup (now called 'NetControl') you may also use
+# 'NetworkManager' to control your interfaces.
+#
+# NetControl is what you were used to in SUSE Linux up to now. It has a wide
+# range of configurations means for setting up any number of different virtual
+# and real interfaces. It should be used if you:
+# - want a static network setup
+# - have many interfaces
+# - need VLAN, bonding, bridging, multiple IP addresses
+# - must restrict network control to root
+# It may also switch interfaces automatically, but lacks a usable GUI for normal
+# users.
+#
+# NetworkManager lets the user control interfaces and switches automatically if
+# network interfaces lose/gain physical connection. It should be used if you:
+# - move between networks frequently
+# - want a GUI for network control
+# Especially on mobile computers that use mainly one wired and one wireless
+# interface NetworkManager will please you.
+#
+# If you are used to SCPM then you might probably stay with NetControl. But at
+# least try NetworkManager, because it can replace SCPM in some usage scenarios.
+# 
+NETWORKMANAGER="no"
+
+## Type:	int
+## Default:	0
+#
+# When using NetworkManager you may define a timeout to wait for NetworkManager
+# to connect.  Other network services may require the system to have a valid
+# network setup in order to succeed.
+# 
+# This variable has no effect if NETWORKMANAGER=no
+#
+NM_ONLINE_TIMEOUT="0"
+
+## Type:        string
+## Default:     "dns-resolver dns-bind ntp-runtime nis"
+#
+# This variable defines the start order of netconfig modules installed
+# in the /etc/netconfig.d/ directory.
+#
+# To disable the execution of a module, don't remove it from the list
+# but prepend it with a minus sign, "-ntp-runtime".
+#
+NETCONFIG_MODULES_ORDER="dns-resolver dns-bind dns-dnsmasq nis ntp-runtime"
+
+## Type:        string
+## Default:     "auto"
+#
+# Defines the DNS merge policy as documented in netconfig(8) manual page.
+# Set to "" to disable DNS configuration.
+#
+NETCONFIG_DNS_POLICY="auto"
+
+## Type:        string
+## Default:     "resolver"
+#
+# Defines the name of the DNS forwarder that has to be configured.
+#
+NETCONFIG_DNS_FORWARDER="resolver"
+
+## Type:        string
+## Default:     ""
+#
+# List of DNS domain names used for host-name lookup.
+#
+NETCONFIG_DNS_STATIC_SEARCHLIST=""
+
+## Type:        string
+## Default:     ""
+#
+# List of DNS nameserver IP addresses to use for host-name lookup.
+#
+NETCONFIG_DNS_STATIC_SERVERS=""
+
+## Type:        string
+## Default:     "auto"
+#
+# Defines the NTP merge policy as documented in netconfig(8) manual page.
+# Set to "" to disable NTP configuration.
+#
+NETCONFIG_NTP_POLICY="auto"
+
+## Type:        string
+## Default:     ""
+#
+# List of NTP servers.
+#
+NETCONFIG_NTP_STATIC_SERVERS=""
+
+## Type:        string
+## Default:     "auto"
+#
+# Defines the NIS merge policy as documented in netconfig(8) manual page.
+# Set to "" to disable NIS configuration.
+#
+NETCONFIG_NIS_POLICY="auto"
+
+## Type:        string
+## Default:     "yes"
+#
+# Defines whether to set the default NIS domain. When enabled and no domain
+# is provided dynamically or in static settings, /etc/defaultdomain is used.
+# Valid values are:
+#  - "no" or ""         netconfig does not set the domainname
+#  - "yes"              netconfig sets the domainname according to the
+#                       NIS policy using settings provided by the first
+#                       iterface and service that provided it.
+#  - "<interface name>" as yes, but only using settings from interface.
+#
+NETCONFIG_NIS_SETDOMAINNAME="yes"
+
+## Type:        string
+## Default:     ""
+#
+# Defines a default NIS domain.
+#
+# Further domain can be specified by adding a "_<number>" suffix to
+# the NETCONFIG_NIS_STATIC_DOMAIN and NETCONFIG_NIS_STATIC_SERVERS
+# variables, e.g.: NETCONFIG_NIS_STATIC_DOMAIN_1="second".
+#
+NETCONFIG_NIS_STATIC_DOMAIN=""
+
+## Type:        string
+## Default:     ""
+#
+# Defines a list of NIS servers for the default NIS domain or the
+# domain specified with same "_<number>" suffix.
+#
+NETCONFIG_NIS_STATIC_SERVERS=""

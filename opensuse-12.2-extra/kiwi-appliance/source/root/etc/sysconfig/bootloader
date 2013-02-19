@@ -1,0 +1,23 @@
+## Path:	System/Bootloader
+## Description:	Bootloader configuration
+## Type:	list(grub,lilo,none)
+## Default:	grub
+#
+# Type of bootloader in use.
+# For making the change effect run bootloader configuration tool
+# and configure newly selected bootloader
+#
+#
+LOADER_TYPE="grub"
+
+
+## Path:        System/Bootloader
+## Description: Bootloader configuration
+## Type:        list(floppy,mbr,root,boot,custom,none)
+## Default:     mbr
+#
+# Location of boot loader.
+# For making the change effect run bootloader configuration tool
+#
+#
+LOADER_LOCATION="mbr"

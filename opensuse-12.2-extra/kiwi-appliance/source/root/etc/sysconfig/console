@@ -1,0 +1,87 @@
+## Path:	System/Console/Framebuffer
+## Description:	Framebuffer configuration
+## Type:	string
+## Default:	""
+#
+# You may want to load a framebuffer display driver into your kernel
+# in order to be able to change graphics modes etc. with fbset in
+# console mode.
+#
+# Notes: Most people won't enter anything here, as:
+#   * it won't work if you have vesafb already active
+#   * its advantageous to have fb support compiled into your kernel
+#   * Some XFree86 drivers (especially in XFree86-4.x) don't work
+#     too well, if you enable framebuffer text mode.
+#
+# Example:
+#  FB_MODULES="matroxfb_base vesa=0x182 fv=85 matroxfb_maven matroxfb_crtc2"
+# 
+FB_MODULES=""
+
+## Type:        string
+## Default:     ""
+#
+# In case your kernel has framebuffer support (or you loaded the framebuffer
+# support into your kernel as a module above), you may want to change the
+# resolution or other parameters. This is done by secifying the parameters
+# to fbset. Use a mode from /etc/fb-modes and additional parameters as
+# -a, -depth <BPP>, -vyres <VYRES>, ... (See fbset manpage and/or fbset -h).
+#
+# Notes:
+#   * vesafb does not (currently) support changing the display mode
+#   * BEWARE! Don't set modes your monitor can't do. Watch out for the maximum
+#     horizontal frequency. Old monitors might even be damaged if you exceed 
+#     their capabilities.
+#
+# Example:
+#   FBSET_PARAMS="-a -depth 16 768x576-90 -vyres 10240"
+# 
+FBSET_PARAMS=""
+## Path:        Hardware/Console
+## Description: Text console settings (see also Hardware/Keyboard)
+## Type:	string
+## Default:	""
+## ServiceRestart: kbd
+#
+# Console settings.
+# Note: The KBD_TTY setting from Hardware/Keyboard (sysconfig/keyboard)
+# also applies for the settings here.
+#
+# Load this console font on bootup:
+# (/usr/share/kbd/consolefonts/)
+# 
+CONSOLE_FONT="lat9w-16.psfu"
+
+## Type:	string
+## Default:	""
+#
+# Some fonts come without a unicode map.
+# (.psfu fonts supposedly have it, others often not.)
+# You can then specify the unicode mapping of your font 
+# explicitly. (/usr/share/kbd/unimaps/)
+# Normally not needed.
+#
+CONSOLE_UNICODEMAP=""
+
+## Type:	string
+## Default:	""
+#
+# Most programs output 8 bit characters, so you need a table to
+# translate those characters into unicode. That one can be specified
+# here. (/usr/share/kbd/consoletrans/)
+# (Note: If your console is in utf-8 mode you don't need this.)
+# If your code does not use a unicode mapping at all (because you
+# e.g. explicitly specified UNICODEMAP="none") you may circumvent
+# the translation via unicode, but load a map which directly maps
+# 8 bit output of your program to a font position.
+#
+CONSOLE_SCREENMAP=""
+
+## Type:	string
+## Default:	""
+#
+# for some fonts the console has to be initialized with CONSOLE_MAGIC.
+# CONSOLE_MAGIC can be empty or have the values "(B", ")B", "(K" or ")K".
+# Normally not needed (automatically handled by setfont).
+#
+CONSOLE_MAGIC=""

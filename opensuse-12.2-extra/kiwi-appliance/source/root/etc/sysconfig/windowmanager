@@ -1,0 +1,27 @@
+## Path:	Desktop/Window manager
+## Description:	
+## Type:	string(gnome,startkde,startkde3,startxfce4,twm)
+## Default:	kde
+## Config:      profiles,kde,susewm
+#
+# Here you can set the default window manager (kde, fvwm, ...)
+# changes here require at least a re-login
+DEFAULT_WM=""
+
+## Type:	yesno
+## Default:	yes
+#
+# install the SuSE extension for new users
+# (theme and additional functions)
+#
+INSTALL_DESKTOP_EXTENSIONS="yes"
+
+## Type:    string
+## Default:
+## Path: Desktop
+## Description: default mouse cursor theme
+#
+# Name of mouse cursor theme for X11. Possible themes can be found
+# in /usr/share/icons/
+#
+X_MOUSE_CURSOR="DMZ"
