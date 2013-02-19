@@ -109,10 +109,10 @@ ARGV.each do |src|
   when File.exists?(File.join(src,"crowbar.yml"))
     # We were handed something that looks like a path to a barclamp
     candidates << File.expand_path(src)
-  when File.exists?(File.join(@@base_dir,"barclamps",src,"crowbar.yml"))
-    candidates << File.join(@@base_dir,"barclamps",src)
+  when File.exists?(File.join(@BASE_PATH,"barclamps",src,"crowbar.yml"))
+    candidates << File.join(@BASE_PATH,"barclamps",src)
   else
-    debug "base directory is #{@@base_dir}"
+    debug "base directory is #{@BASE_PATH}"
     puts "#{src} is not a barclamp, ignoring."
   end
 end
@@ -150,8 +150,8 @@ debug "installing barclamps:"
 barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   debug "bc = #{bc.pretty_inspect}"
   begin
-    unless /^#{@@base_dir}\/barclamps\// =~ bc[:src]
-      target="#{@@base_dir}/barclamps/#{bc[:name]}"
+    unless /^#{@BASE_PATH}\/barclamps\// =~ bc[:src]
+      target="#{@BASE_PATH}/barclamps/#{bc[:name]}"
       if File.directory? target
         debug "target directory #{target} exists"
         if File.exists? "#{target}/crowbar.yml"
