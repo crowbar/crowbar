@@ -2,13 +2,16 @@
 
 The dev tool has been updated to allow for running these tests from in a build environment.  
 
-The following gems are pre-requisite (must run as root)
-* `sudo -i`
-* `apt-get install sqlite3`
-* `gem install rake`
-* `gem install bundler`
-* `gem install sqlite3`
-* Run with `--update-gem-cache` on your first `run-tests` to make sure you have the tests
+#### Setup on Ubuntu
+
+On Ubuntu, run the following commands to ensure all pre-requisites are installed:
+
+    sudo apt-get install sqlite3
+    sudo gem install rake bundler sqlite3
+
+Run with `--update-gem-cache` on your first `run-tests` to make sure you have the necessary gems.
+
+#### Running the tests
 
 The following commands work for Unix environments:
 
