@@ -3844,8 +3844,8 @@ paths_same() {
 
 barclamp_needs_reinstall() {
     # $1 = name of the barclamp
-    [[ -f $CROWBAR_TEST_DIR/barclamps/$1/crowbar.yml ]] || return 0
-    ! paths_same "$CROWBAR_TEST_DIR/barclamps/$1" "$CROWBAR_DIR/barclamps/$1"
+    [[ -f $CROWBAR_TEST_DIR/opt/dell/barclamps/$1/crowbar.yml ]] || return 0
+    ! paths_same "$CROWBAR_TEST_DIR/opt/dell/barclamps/$1" "$CROWBAR_DIR/barclamps/$1"
 }
 
 barclamps_needing_reinstall() {
@@ -3860,16 +3860,16 @@ barclamps_needing_reinstall() {
 databases_need_reload() {
     # $@ = list of barclamps to check for new migrations
     local bc barclamps=() p
-    [[ -f $CROWBAR_TEST_DIR/crowbar_framework/db/test.sqlite3 && \
-        $CROWBAR_TEST_DIR/crowbar_framework/db/development.sqlite3 ]] || \
+    [[ -f $CROWBAR_TEST_DIR/opt/dell/crowbar_framework/db/test.sqlite3 && \
+        $CROWBAR_TEST_DIR/opt/dell/crowbar_framework/db/development.sqlite3 ]] || \
         return 0
     [[ $@ ]] && barclamps=("$@") || barclamps=($(barclamps_needing_reinstall))
     for bc in "${barclamps[@]}"; do
         for p in "crowbar_framework/db" "crowbar_framework/test/fixtures" \
             "chef/data_bags"; do
-            [[ -d "$CROWBAR_DIR/barclamps/$1/$p" ]] || continue # ignore if dir not there.
-            paths_same "$CROWBAR_TEST_DIR/barclamps/$1/$p" \
-                "$CROWBAR_DIR/barclamps/$1/$p" && continue
+            [[ -d "$CROWBAR_DIR/opt/dell/barclamps/$1/$p" ]] || continue # ignore if dir not there.
+            paths_same "$CROWBAR_TEST_DIR/opt/dell/barclamps/$1/$p" \
+                "$CROWBAR_DIR/opt/dell/barclamps/$1/$p" && continue
             debug "Database files changed in $bc, need reload."
             return 0
         done
@@ -3884,14 +3884,15 @@ reinstall_barclamps() {
         debug "No barclamps changed."
         return 0
     fi
+    mkdir -p "$CROWBAR_TEST_DIR/opt/dell/barclamps"
     for bc in "${barclamps[@]}"; do
-        rm -rf "$CROWBAR_TEST_DIR/barclamps/$bc"
-        barclamp_list+=("$CROWBAR_DIR/barclamps/$bc")
+        rm -rf "$CROWBAR_TEST_DIR/opt/dell/barclamps/$bc"
+        cp -a "$CROWBAR_DIR/barclamps/$bc" "$CROWBAR_TEST_DIR/opt/dell/barclamps"
     done
     debug "${barclamps[*]} barclamps have changed, reloading."
-    (   cd ${CROWBAR_DIR}/releases/$build/extra
-        ./barclamp_install.rb ${DEBUG:+--debug} --force --no-files --no-chef --no-install-actions -b \
-            "$CROWBAR_TEST_DIR" "${barclamp_list[@]}") || \
+    (   cd "$CROWBAR_TEST_DIR/opt/dell/barclamps"
+        "${CROWBAR_DIR}/releases/$build/extra/barclamp_install.rb" \
+            --force --root "$CROWBAR_TEST_DIR" "${barclamps[@]}") || \
             die "Failed to install some barclamps."
 
     local group=$USER
@@ -3900,10 +3901,12 @@ reinstall_barclamps() {
 
     find "$CROWBAR_TEST_DIR" -type d -exec chmod a+x '{}' ';'
     # Clean up the filelists.
-    rm barclamps/*.txt
-    "$CROWBAR_TEST_DIR/bin/validate_bags.rb" \
-        "$CROWBAR_TEST_DIR/chef/data_bags" || \
-        die "Crowbar configuration has errors.  Please fix and rerun install."
+    for d in "$CROWBAR_TEST_DIR/opt/dell/barclamps/"*; do
+        [[ -d $d/chef/data_bags ]] || continue
+        "$CROWBAR_TEST_DIR/opt/dell/bin/validate_bags.rb" \
+        "$d/chef/data_bags" || \
+        die "Crowbar configuration in barclamp ${d##*/} has errors.  Please fix and rerun install."
+    done
 }
 
 unit_tests_need_reset() {
@@ -3922,7 +3925,7 @@ setup_unit_tests() (
             *) barclamps+=("$f");;
         esac
     done
-    if [[ $use_gem_cache = true ]]; then
+     if [[ $use_gem_cache = true ]]; then
         unit_prereqs_installed || exit 1
     else
         local rvm=/usr/local/rvm/scripts/rvm
@@ -3938,11 +3941,9 @@ setup_unit_tests() (
     fi
     rm -rf "$CROWBAR_TEST_DIR"
     mkdir "$CROWBAR_TEST_DIR"
-    mkdir -p "$CROWBAR_TEST_DIR/doc/framework"
-    cp -r doc/* "$CROWBAR_TEST_DIR/doc/framework"
     reinstall_barclamps "${barclamps[@]}" || exit 1
     cd "$CROWBAR_TEST_DIR"
-    mv crowbar_framework/Gemfile* .
+    mv opt/dell/crowbar_framework/Gemfile* .
     if [[ $update_gem_cache = true ]]; then
         maybe_checkout_build_cache_branch
         local crowbar_yml
@@ -3981,8 +3982,8 @@ setup_unit_tests() (
         "install Crowbar, so results may differ."
     fi
 
-    cd "$CROWBAR_TEST_DIR/BDD"
-    sudo "$CROWBAR_TEST_DIR/BDD/linux_install.sh"
+    cd "$CROWBAR_TEST_DIR/opt/dell/BDD"
+    sudo "$CROWBAR_TEST_DIR/opt/dell/BDD/linux_install.sh"
     ./linux_compile.sh
     current_build >"$CROWBAR_TEST_DIR/.build"
 )
@@ -4000,15 +4001,16 @@ reload_unit_tests() (
       return 0
   fi
   reinstall_barclamps "${barclamps[@]}" || exit 1
+  rm "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework/Gemfile"* &>/dev/null
   if [[ $dbs_need_reload ]]; then
-      cd "$CROWBAR_TEST_DIR/crowbar_framework"
+      cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
       for rake_task in db:drop railties:install:migrations db:migrate db:fixtures:dump; do
           for RAILS_ENV in test development; do
               (export RAILS_ENV; bundle exec rake "$rake_task")
           done
       done
   fi
-  cd "$CROWBAR_TEST_DIR/BDD"
+  cd "$CROWBAR_TEST_DIR/opt/dell/BDD"
   ./linux_compile.sh
 )
 
@@ -4016,10 +4018,9 @@ run_unit_tests() (
     local barclamps=($(barclamps_needing_reinstall "$@"))
     local final_result=pass
     unit_tests_need_reset && clear_unit_tests
-    rm -f "$CROWBAR_TEST_DIR/crowbar_framework/Gemfile" # Use the parent directory gemfile
     reload_unit_tests "$@" || exit 1
     # Run unit tests
-    cd "$CROWBAR_TEST_DIR/crowbar_framework"
+    cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
     rm -rf coverage
     mkdir coverage
     echo "Running spec tests with rcov"
@@ -4035,15 +4036,18 @@ run_unit_tests() (
     echo "Starting Rails app"
     bundle exec script/rails s Puma >> log/test.out 2>> log/test.err &
     sleep 10
-    (echo "Running BDD"; cd "$CROWBAR_TEST_DIR/BDD"; erl -s bdd test devtool -s init stop -noshell) || final_result=fail
+    (echo "Running BDD"; cd "$CROWBAR_TEST_DIR/opt/dell/BDD"; erl -s bdd test devtool -s init stop -noshell) || final_result=fail
     echo "Stopping Rails app"
     kill $(ps -ef | grep Puma | grep ruby | awk '{ print $2 }')
 
     # Run chef unit tests
-    cd "$CROWBAR_TEST_DIR/chef/cookbooks"
-    rm README
-    echo "Running rspec tests with rcov"
-    bundle exec rspec * || final_result=fail
+    for d in "$CROWBAR_TEST_DIR/opt/dell/barclamps/"*; do
+        [[ -d $d/chef/cookbooks ]] || continue
+        (    cd "$CROWBAR_TEST_DIR/chef/cookbooks"
+             rm README
+             echo "Running rspec tests with rcov"
+             bundle exec rspec *) || final_result=fail
+    done
     [[ $final_result = pass ]]
 )
 

@@ -21,8 +21,6 @@ require 'json'
 require 'fileutils'
 require 'pp'
 
-CROWBAR_PATH='/opt/dell/crowbar_framework'
-
 def debug(msg)
   STDERR.puts "DEBUG: " + msg if ENV['DEBUG'] == "true"
 end
@@ -141,7 +139,7 @@ class BarclampFS
 
   def install_migrations
     return if @skip_migrations
-    FileUtils.cd(CROWBAR_PATH) do
+    FileUtils.cd(File.join(@target,"crowbar_framework")) do
       debug "Installing migrations for #{bc}"
       system "RAILS_ENV=production bundle exec rake railties:install:migrations"
       debug "Running migrations for #{bc}"
