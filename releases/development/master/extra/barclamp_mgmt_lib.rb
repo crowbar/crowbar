@@ -196,7 +196,7 @@ class BarclampFS
     FileUtils.cd(setup_dir) do
       Dir.glob("*.#{stage}").sort.each do |action|
         next unless File.executable?(action)
-        next if system("CROWBAR_DIR=\"#{@target}\" BC_PATH=\"#{@barclamp_dir}\" #{action}")
+        next if system("CROWBAR_DIR=\"#{@target}\" BC_PATH=\"#{@barclamp_dir}\" ./#{action}")
         fatal("#{action} exited with non-zero status.")
       end
     end

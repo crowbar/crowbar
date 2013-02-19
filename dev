@@ -4043,9 +4043,9 @@ run_unit_tests() (
     # Run chef unit tests
     for d in "$CROWBAR_TEST_DIR/opt/dell/barclamps/"*; do
         [[ -d $d/chef/cookbooks ]] || continue
-        (    cd "$CROWBAR_TEST_DIR/chef/cookbooks"
-             rm README
-             echo "Running rspec tests with rcov"
+        (    cd "$d/chef/cookbooks"
+             rm README &>/dev/null
+             echo "Running rspec tests for ${d##*/} with rcov"
              bundle exec rspec *) || final_result=fail
     done
     [[ $final_result = pass ]]
