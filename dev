@@ -2068,7 +2068,7 @@ __fetch_all() {
             remote_available "$remote" && \
             git_remote_exists "$remote" || \
             continue
-	if git fetch -q "$remote" &>/dev/null; then
+	if { git fetch -q "$remote" && git fetch -q -t "$remote"; } &>/dev/null; then
             debug "  Fetched from $remote." 2>>"$results_dir/$logfile"
             printf '.'
             if [[ $PWD = */barclamps/* ]]; then
