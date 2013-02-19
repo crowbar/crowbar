@@ -270,7 +270,7 @@ any branches, we don't have to worry about changing them back.
 From here, we can run unit tests:
 
 victor@system76:~/crowbar$ ./dev clear-unit-tests
-victor@system76:~/crowbar$ ./dev run-unit-tests
+victor@system76:~/crowbar$ ./dev run-tests
 ... lots of output ...
 victor@system76:~/crowbar$
 

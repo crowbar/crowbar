@@ -4018,6 +4018,11 @@ reload_unit_tests() (
   ./linux_compile.sh
 )
 
+run_tests() {
+    run_unit_tests
+    run_BDD_tests
+}
+
 run_unit_tests() (
     local barclamps=($(barclamps_needing_reinstall "$@"))
     local final_result=pass
@@ -4045,14 +4050,7 @@ run_unit_tests() (
     echo "Running unit tests ..."
     bundle exec "${unit_runner[@]}" || final_result=fail
 
-    # Start rails
-    echo "Starting Rails app"
-    bundle exec script/rails s Puma >> log/test.out 2>> log/test.err &
-    sleep 10
-    (echo "Running BDD"; cd "$CROWBAR_TEST_DIR/opt/dell/BDD"; erl -s bdd test devtool -s init stop -noshell) || final_result=fail
-    echo "Stopping Rails app"
-    kill $(ps -ef | grep Puma | grep ruby | awk '{ print $2 }')
-
+    echo "Running chef unit tests ..."
     # Run chef unit tests
     for d in "$CROWBAR_TEST_DIR/opt/dell/barclamps/"*; do
         [[ -d $d/chef/cookbooks ]] || continue
@@ -4061,6 +4059,18 @@ run_unit_tests() (
              echo "Running rspec tests for ${d##*/} with rcov"
              bundle exec rspec *) || final_result=fail
     done
+    [[ $final_result = pass ]]
+)
+
+run_BDD_tests() (
+    local final_result=pass
+    cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
+    echo "Starting Rails app"
+    bundle exec script/rails s Puma >> log/test.out 2>> log/test.err &
+    sleep 10
+    (echo "Running BDD"; cd "$CROWBAR_TEST_DIR/opt/dell/BDD"; erl -s bdd test devtool -s init stop -noshell) || final_result=fail
+    echo "Stopping Rails app"
+    kill $(ps -ef | grep Puma | grep ruby | awk '{ print $2 }')
     [[ $final_result = pass ]]
 )
 
@@ -4293,6 +4303,8 @@ DEV_COMMANDS["reload-unit-tests"]="reload_unit_tests"
 DEV_COMMANDS["remote"]="remote_wrapper"
 DEV_COMMANDS["remotes"]="remote_wrapper show"
 DEV_COMMANDS["reset-release"]="reset_release"
+DEV_COMMANDS["run-tests"]="run_tests"
+DEV_COMMANDS["run-BDD-tests"]="run_BDD_tests"
 DEV_COMMANDS["run-unit-tests"]="run_unit_tests"
 DEV_COMMANDS["scrub-merged-pulls"]="scrub_merged_pulls"
 DEV_COMMANDS["setup"]="setup"
@@ -4346,7 +4358,9 @@ DEV_SHORT_HELP["reload-unit-tests"]="  Reload the data for the unit test environ
 DEV_SHORT_HELP["remote"]="             Manage remotes across all Crowbar repositories."
 DEV_SHORT_HELP["remotes"]="            Show all remotes."
 DEV_SHORT_HELP["reset-release"]="      Resets a release to upstream or your last backup."
-DEV_SHORT_HELP["run-unit-tests"]="     Run unit and BDD tests."
+DEV_SHORT_HELP["run-tests"]="          Run all tests."
+DEV_SHORT_HELP["run-unit-tests"]="     Run unit tests and specs (including for Chef)."
+DEV_SHORT_HELP["run-BDD-tests"]="      Run BDD tests."
 DEV_SHORT_HELP["scrub-merged-pulls"]=" Scrub merged pull request branches."
 DEV_SHORT_HELP["setup-unit-tests"]="   Sets up unit test environment."
 DEV_SHORT_HELP["setup"]="              Sets up a Crowbar checkout for use with dev."
@@ -4538,7 +4552,9 @@ DEV_LONG_HELP["setup-unit-tests"]="Sets up a unit test environment.
     --offline will force bundler to use the files saved bu --update-gem-cache
         instead of trying to use gems from the Internet."
 DEV_LONG_HELP["reload-unit-tests"]="Reload the code and database for the units.  Does not re-bundle."
-DEV_LONG_HELP["run-unit-tests"]="Run BDD and unit tests from the /tmp/crowbar environment."
+DEV_LONG_HELP["run-tests"]="Run all tests from the /tmp/crowbar environment."
+DEV_LONG_HELP["run-BDD-tests"]="Run BDD tests from the /tmp/crowbar environment."
+DEV_LONG_HELP["run-unit-tests"]="Run unit tests and specs from the /tmp/crowbar environment."
 DEV_LONG_HELP["clear-unit-tests"]="Removes a unit test environment in /tmp/crowbar."
 DEV_LONG_HELP["refresh-tracking"]="Update remote tracking information for all the branches.
   Update remote tracking information for local branches in all the
