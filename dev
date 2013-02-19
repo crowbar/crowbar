@@ -4027,16 +4027,23 @@ run_unit_tests() (
     cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
     rm -rf coverage
     mkdir coverage
-    rcov=(
-        rcov
-        --aggregate coverage/testing.data
-        -Ispec:lib
-        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,/config/,/lib/rspec/,/lib/rspec-,spec
-    )
-    echo "Running spec tests with rcov"
-    bundle exec "${rcov[@]}" spec/*/*.rb    || final_result=fail
-    echo "Running units with rcov"        
-    bundle exec "${rcov[@]}" test/unit/*.rb || final_result=fail
+    if gem list | grep -q '^rcov '; then
+        test_runner=(
+            rcov
+            --aggregate coverage/testing.data
+            -Ispec:lib
+            --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,/config/,/lib/rspec/,/lib/rspec-,spec
+        )
+        spec_runner=( "${test_runner[@]}" spec/*/*.rb    )
+        unit_runner=( "${test_runner[@]}" test/unit/*.rb )
+    else
+        spec_runner=( rake spec )
+        unit_runner=( rake test )
+    fi
+    echo "Running specs ..."
+    bundle exec "${spec_runner[@]}" || final_result=fail
+    echo "Running unit tests ..."
+    bundle exec "${unit_runner[@]}" || final_result=fail
 
     # Start rails
     echo "Starting Rails app"
