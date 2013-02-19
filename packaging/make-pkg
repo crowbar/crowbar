@@ -41,6 +41,7 @@ class Barclamp
     @requires << "crowbar-barclamp-crowbar" unless @requires.member?("crowbar-barclamp-crowbar")
     # Revisit once we get a real versioning scheme.
     @version = Time.now.utc.strftime('%Y%m%d.%H%M%S')
+    @barclamp_install = "#{ENV['CROWBAR_DIR']}/extra/barclamp_install.rb"
     @pkg = "crowbar-barclamp-#@name"
   end
 

@@ -1,8 +1,7 @@
 #!/usr/bin/make -f
 
 override SRC := <%= @path %>
-override DELL_DIR := debian/crowbar-barclamp-<%= @name %>/opt/dell
-override BC_DIR := $(DELL_DIR)/barclamps/<%= @name %>
+override DELL_DIR := debian/crowbar-barclamp-<%= @name %>
 override PATH := /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 %:
 	dh $@
@@ -15,14 +14,7 @@ clean::
 binary::
 	dh_testroot
 	dh_prep
-	install -d -m 755 $(BC_DIR)
-	for d in *; do \
-	    case $$d in \
-	        bin|chef|crowbar_framework) mv "$$d" "$(DELL_DIR)";; \
-	        debian) : ;; \
-	        *) mv "$$d" "$(BC_DIR)";; \
-	    esac \
-	done
+	"<%= @barclamp_install %>" --root $(DELL_DIR) $(SRC)
 	dh_fixperms
 	dh_installdeb
 	dh_gencontrol

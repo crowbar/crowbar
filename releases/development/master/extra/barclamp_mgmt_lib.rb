@@ -99,7 +99,7 @@ class BarclampFS
     dirs = Dir.entries(@source)
     use_engine = dirs.include?("crowbar_engine")
     dirs.sort.each do |ent|
-      next if /^\./ =~ ent
+      next if /^\./ =~ ent or ent == "debian"
       case ent
       when "crowbar_framework"
         next if use_engine || @skip_files
