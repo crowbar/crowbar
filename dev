@@ -3481,7 +3481,7 @@ cut_release() {
     debug "You can switch to it with $0 switch $1"
 }
 
-cut_feature() {
+new_feature() {
     [[ $1 ]] || die "Please give your new feature a name!"
     cut_release "feature/$1"
 }
@@ -4255,7 +4255,7 @@ DEV_COMMANDS["help"]="dev_help"
 DEV_COMMANDS["is_clean"]="crowbar_is_clean"
 DEV_COMMANDS["local-changes"]="find_local_changed_branches_for_release"
 DEV_COMMANDS["missing-barclamps"]="find_missing_barclamps"
-DEV_COMMANDS["new-feature"]="cut_feature"
+DEV_COMMANDS["new-feature"]="new_feature"
 DEV_COMMANDS["orphaned-barclamps"]="find_orphaned_barclamps"
 DEV_COMMANDS["pin"]="pin_release"
 DEV_COMMANDS["pull-requests"]="pull_request_handler"
