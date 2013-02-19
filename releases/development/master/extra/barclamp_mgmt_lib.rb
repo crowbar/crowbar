@@ -27,7 +27,8 @@ MODEL_SUBSTRING_HUMAN = '==*BC-MODEL=='
 MODEL_SUBSTRING_CAPSS = '==%BC-MODEL=='
 
 def update_paths
-  @BASE_PATH = @@base_dir
+  @ROOT_PATH = @@root_dir
+  @BASE_PATH = File.join @ROOT_PATH, @@base_dir
   @CROWBAR_PATH = File.join @BASE_PATH, 'crowbar_framework'
   if ENV["CROWBAR_DIR"]
     @MODEL_SOURCE = File.join ENV["CROWBAR_DIR"], "barclamps","crowbar","crowbar_framework",'barclamp_model'
@@ -38,11 +39,11 @@ def update_paths
   end
   @BIN_PATH = File.join @BASE_PATH, 'bin'
   @SETUP_PATH = File.join @BASE_PATH, 'setup'
-  @UPDATE_PATH = '/updates'
-  @ROOT_PATH = '/'
+  @UPDATE_PATH = File.join @ROOT_PATH, 'updates'
 end
 
 @@debug = ENV['DEBUG'] === "true"
+@@root_dir = "/"
 @@base_dir = "/opt/dell"
 @@deploy = false
 @@no_install_actions = false

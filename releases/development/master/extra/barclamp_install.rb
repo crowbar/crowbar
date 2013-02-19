@@ -29,13 +29,14 @@ opts = GetoptLong.new(
   [ '--no-files', '-x', GetoptLong::NO_ARGUMENT ],
   [ '--no-install-actions', '-a', GetoptLong::NO_ARGUMENT ],
   [ '--no-chef', '-c', GetoptLong::NO_ARGUMENT ],
+  [ '--install-root', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--base-dir', '-b', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--force', '-f', GetoptLong::NO_ARGUMENT ]
 )
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-install-actions] [--deploy] [--build] [--base-dir <dir>] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-install-actions] [--deploy] [--build] [--install-root <dir>] [--base-dir <dir>] /path/to/new/barclamp"
   exit
 end
 
@@ -65,6 +66,9 @@ opts.each do |opt, arg|
   when "--no-chef"
     @@no_chef = true
     debug "no-chef is enabled"
+  when "--install-root"
+    @@root_dir = arg
+    debug "root-dir is #{@@root_dir}"
   when "--base-dir"
     @@base_dir = arg
     debug "base-dir is #{@@base_dir}"
