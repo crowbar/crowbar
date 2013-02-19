@@ -3483,6 +3483,8 @@ cut_release() {
 
 new_feature() {
     [[ $1 ]] || die "Please give your new feature a name!"
+    [[ $2 ]] && die "new-feature only takes one parameter."
+
     cut_release "feature/$1"
 }
 
@@ -3522,6 +3524,7 @@ erase_release() {
     # $1 = release refix
     local bc build whine=false current_br parent_br template_br
     local -A branches
+    [[ $2 ]] && die "erase-feature only takes one argument"
     [[ $1 = development ]] && die "Cannot erase the development release."
     release_exists "$1" || die "$1 is not a release we can erase!"
     parent=$(find_best_parent "$1")
