@@ -45,13 +45,9 @@ class Barclamp
     @pkg = "crowbar-barclamp-#@name"
   end
 
-  def validate
-    data_bags = File.join(@path,"chef","data_bags")
-    return unless File.directory?(data_bags)
-    schemas = {}
-    # First, make a list of all the schemas we know, and
-    # validate that they are correct.
-    Dir.glob(File.join(data_bags,"*","*.schema")).each do |s|
+  def make_schemas(schemas)
+    res = {}
+    schemas.each do |s|
       validator = Kwalify::MetaValidator.instance
       parser = Kwalify::Yaml::Parser.new(validator)
       document = parser.parse_file(s)
@@ -61,10 +57,13 @@ class Barclamp
         end
         exit(1)
       end
-      schemas[s.gsub(/\.schema$/,'')] = Kwalify::Validator.new(Kwalify::Yaml.load_file(s))
+      res[s.gsub(/\.schema$/,'')] = Kwalify::Validator.new(Kwalify::Yaml.load_file(s))
     end
-    # Next, use the known-validated schemas to validate the data bags.
-    Dir.glob(File.join(data_bags,"*","*.json")).each do |f|
+    res
+  end
+
+  def validate_bags(schemas,bags)
+    bags.each do |f|
       schema=f.gsub(/\.json$/,'')
       next unless schemas[schema]
       parser = Kwalify::Yaml::Parser.new(schemas[schema])
@@ -75,6 +74,18 @@ class Barclamp
       end
       exit(1)
     end
+    true
+  end
+
+  def validate
+    data_bags = File.join(@path,"chef","data_bags")
+    if File.directory?(data_bags)
+      schemas = make_schemas(Dir.glob(File.join(data_bags,"*","*.schema")))
+      # Next, use the known-validated schemas to validate the data bags.
+      validate_bags(schemas,Dir.glob(File.join(data_bags,"*","*.json")))
+    end
+    schemas = make_schemas(Dir.glob(File.join(@path,'bc-template-*.schema')))
+    validate_bags(schemas,Dir.glob(File.join(@path,'bc-template-*.json')))
   end
 
   def make_rpm
