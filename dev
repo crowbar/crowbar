@@ -3047,8 +3047,22 @@ pull_requests_prep() {
     remote_available personal && remote_is_github personal || \
 	die "No personal remote available at Github.  Cannot do pull requests."
     barclamps_are_clean || exit 1
-    fetch_all && sync_everything || \
-	die "Unable to synchronize remotes for pull requests"
+    local skip_sync merge
+    while (( $# > 0)); do
+	case $1 in
+	    --skip-sync)
+		skip_sync=true
+		shift;;
+	    --merge)
+		merge=true
+		shift;;
+        esac
+    done
+
+    if ! [[ $skip_sync ]]; then
+	fetch_all && sync_everything || \
+	    die "Unable to synchronize remotes for pull requests"
+    fi
     local barclamps_to_push=()
     local to_remote="$(origin_remote)"
     [[ $DEV_TO_REMOTES ]] && to_remote="$DEV_TO_REMOTES"
@@ -3056,7 +3070,7 @@ pull_requests_prep() {
 	die "Cannot issue pull requests for $to_remote, it is not from github."
     local branch bc build release=$(current_release)
     local target_release="$release"
-    if [[ $1 = --merge ]]; then
+    if [[ $merge ]]; then
         target_release="$(find_best_parent "$release")" || \
             die "No parent release to merge into!"
         echo "Will generate pull requests for merge $release into $target_release" >&2
