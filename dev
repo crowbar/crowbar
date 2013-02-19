@@ -3201,8 +3201,11 @@ pull_requests_gen() {
                 release_exists "$1" || die "$1 is not a release"
                 release="$1"
                 shift;;
-            --merge) shift; merge_into_parent=true;;
-	    *) die "Unknown option $1 to $0 pull-requests-gen!";;
+	    --merge)
+		shift
+		merge_into_parent=true;;
+	    *)
+		die "Unknown option $1 to $0 pull-requests-gen!";;
 	esac
     done
 
