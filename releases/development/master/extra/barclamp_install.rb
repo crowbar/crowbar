@@ -30,50 +30,45 @@ opts = GetoptLong.new(
   [ '--no-install-actions', '-a', GetoptLong::NO_ARGUMENT ],
   [ '--no-chef', '-c', GetoptLong::NO_ARGUMENT ],
   [ '--base-dir', '-b', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--root', '-r', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--force', '-f', GetoptLong::NO_ARGUMENT ]
 )
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-install-actions] [--deploy] [--build] [--base-dir <dir>] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-install-actions] [--deploy] [--build] [--base-dir <dir>] [--root <dir>] /path/to/new/barclamp"
   exit
 end
 
 force_install = false
 
+@@base_dir = "/opt/dell"
+@@root = nil
+@@no_install_actions = false
+@@no_chef = false
+@@no_migrations = false
+@@no_rsync = false
+@@no_files = false
+
 opts.each do |opt, arg|
   case opt
-    when "--help"
-    usage
-    when "--debug"
-    @@debug = true
-    debug "debug mode is enabled"
-    when "--build"
+  when "--help" then usage
+  when "--debug" then ENV['DEBUG']="true"; debug "debug mode is enabled"
+  when "--build"
     @@no_install_actions = true
     @@no_chef = true
     @@no_migrations = true
     @@no_rsync = true
-    when "--no-framework-install"
-    @@no_framework = true
-    when "--no-install-actions"
-    @@no_install_actions = true
-    when "--deploy"
-    @@deploy = true
-    when "--no-files"
-    @@no_files = true
-    debug "no-files is enabled"
-    when "--no-chef"
-    @@no_chef = true
-    debug "no-chef is enabled"
-    when "--base-dir"
-    @@base_dir = arg
-    debug "base-dir is #{@@base_dir}"
-    when "--force"
-    force_install = true
+  when "--no-framework-install" then @@no_framework = true
+  when "--no-install-actions" then @@no_install_actions = true
+  when "--deploy" then @@deploy = true
+  when "--no-files" then @@no_files = true; debug "no-files is enabled"
+  when "--no-chef" then @@no_chef = true; debug "no-chef is enabled"
+  when "--base-dir" then @@base_dir = arg; debug "base-dir is #{@@base_dir}"
+  when "--force" then force_install = true
+  when "--root" then @@root = arg
   end
 end
-
-update_paths
 
 usage if ARGV.length < 1
 
@@ -91,6 +86,7 @@ end
 
 ARGV.each do |src|
   debug "src: #{src}"
+  bc=nil
   case
   when /tar\.gz|tgz$/ =~ src
     # This might be a barclamp tarball.  Expand it into a temporary location.
@@ -98,123 +94,87 @@ ARGV.each do |src|
     system "tar xzf \"#{src}\" -C \"#{tmpdir}\""
     target="#{tmpdir}/#{src.split("/")[-1].split(".")[0]}"
     if File.exists?(File.join(target,"crowbar.yml"))
-      candidates << target
+      bc = BarclampFS.new(target,@@base_dir,@@root)
     else
       puts "#{src} is not a barclamp tarball, ignoring."
+      next
     end
   when File.exists?(File.join(src,"crowbar.yml"))
     # We were handed something that looks like a path to a barclamp
-    candidates << File.expand_path(src)
+    bc = BarclampFS.new(File.expand_path(src),@@base_dir,@@root)
   when File.exists?(File.join(@@base_dir,"barclamps",src,"crowbar.yml"))
-    candidates << File.join(@@base_dir,"barclamps",src)
+    bc = BarclampFS.new(File.join(@@base_dir,"barclamps",src),@@base_dir,@@root)
   else
     debug "base directory is #{@@base_dir}"
     puts "#{src} is not a barclamp, ignoring."
-  end
-end
-
-debug "checking candidates: #{candidates.to_s}"
-
-barclamps = Hash.new
-candidates.each do |bc|
-  # We have already verified that each of the candidates has crowbar.yml
-  begin
-    yaml = File.join(bc,"crowbar.yml")
-    debug "trying to parse #{yaml}"
-    barclamp = YAML.load_file(yaml)
-  rescue
-    puts "Exception occured while parsing crowbar.yml in #{bc}, skiping"
     next
   end
-  
-  if barclamp["barclamp"] and barclamp["barclamp"]["name"]
-    name = barclamp["barclamp"]["name"]
-  else
-    puts "Barclamp at #{bc} has no name, skipping"
+  unless bc && bc.bc
+    puts "Barclamp at #{src} has no name, skipping"
     next
   end
-  order = 9999
-  if barclamp["crowbar"] and barclamp["crowbar"]["order"] and \
-    barclamp["crowbar"]["order"].to_i 
-    order = barclamp["crowbar"]["order"].to_i
-  end
-  barclamps[name] = { :src => bc, :name => name, :order => order, :yaml => barclamp }
-  debug "barclamp[#{name}] = #{barclamps[name].pretty_inspect}"
+  bc.skip_chef = @@no_chef
+  bc.skip_files = @@no_files
+  bc.skip_install_actions = @@no_install_actions
+  bc.skip_migrations = @@no_migrations
+  candidates << bc if bc
 end
 
 debug "installing barclamps:"
-barclamps.values.sort_by{|v| v[:order]}.each do |bc|
-  debug "bc = #{bc.pretty_inspect}"
+candidates.sort_by{|c| c["crowbar"]["order"].to_i rescue 9999}.each do |bc|
+  debug bc.bc
   begin
-    unless /^#{@@base_dir}\/barclamps\// =~ bc[:src]
-      target="#{@@base_dir}/barclamps/#{bc[:name]}"
-      if File.directory? target
-        debug "target directory #{target} exists"
-        if File.exists? "#{target}/crowbar.yml"
-          debug "#{target}/crowbar.yml file exists"
-          if File.exists? "#{target}/sha1sums"
-            debug "#{target}/sha1sums file exists"
-            unless force_install or system "cd \"#{target}\"; sha1sum --status -c sha1sums"
+    unless bc.source == bc.dir
+      if File.directory?(bc.dir)
+        debug("target directory #{bc.dir} exists")
+        if File.exists?("#{bc.dir}/crowbar.yml")
+          debug("#{bc.dir}/crowbar.yml file exists")
+          if File.exists?("#{bc.dir}/sha1sums")
+            debug("#{bc.dir}/sha1sums file exists")
+            unless force_install or system "cd \"#{bc.dir}\"; sha1sum --status -c sha1sums"
               debug "force_install mode is disabled and not all file checksums do match"
-              puts "Refusing to install over non-pristine target #{target}"
+              puts "Refusing to install over non-pristine target #{bc.dir}"
               puts "Please back up the following files:"
-              system "cd \"#{target}\"; sha1sum -c sha1sums |grep -v OK"
+              system "cd \"#{bc.dir}\"; sha1sum -c sha1sums |grep -v OK"
               puts "and rerun the install after recreating the checksum file with:"
-              puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
+              puts "  cd \"#{bc.dir}\"; find -type f -not -name sha1sums -print0 | \\"
               puts "       xargs -0 sha1sum -b >sha1sums"
               puts "(or use the --force switch)"
               debug "temporary directory #{tmpdir} will be removed if it exists"
               system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
-              exit -1
+              exit 1
             end
           elsif not force_install
-            debug "force_install mode is disabled and #{target}/sha1sums file does not exist"
-            puts "#{target} already exists, but it does not have checksums."
+            debug "force_install mode is disabled and #{bc.dir}/sha1sums file does not exist"
+            puts "#{bc.dir} already exists, but it does not have checksums."
             puts "Please back up any local changes you may have made, and then"
             puts "create a checksums file with:"
-            puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
+            puts "  cd \"#{bc.dir}\"; find -type f -not -name sha1sums -print0 | \\"
             puts "       xargs -0 sha1sum -b >sha1sums"
             puts "(or use the --force switch)"
             debug "temporary directory #{tmpdir} will be removed if it exists"
             system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
-            exit -1
+            exit 1
           end
         else
-          debug "#{target}/crowbar.yml does not exist"
-          puts "#{target} exists, but it is not a barclamp."
+          debug "#{bc.dir}/crowbar.yml does not exist"
+          puts "#{bc.dir} exists, but it is not a barclamp."
           puts "Cowardly refusing to overwrite it."
           debug "temporary directory #{tmpdir} will be removed if it exists"
           system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
-          exit -1
+          exit 1
         end
-      else
-        debug "target directory \"#{target}\" does not exist"
-        debug "creating directory \"#{target}\""
-        system "mkdir -p \"#{target}\""
-      end
-      unless @@no_rsync
-        # Only rsync over the changes if this is a different install
-        # from the POV of the sha1sums files
-        unless File.exists?("#{bc[:src]}/sha1sums") and \
-          File.exists?("#{target}/sha1sums") and \
-          system "/bin/bash -c 'diff -q <(sort \"#{bc[:src]}/sha1sums\") <(sort \"#{target}/sha1sums\")'"
-          debug "syncing \"#{bc[:src]}\" directory and \"#{target}\" directory"
-          system "rsync -r \"#{bc[:src]}/\" \"#{target}\""
-        end
-        bc[:src] = target
-      else
-        FileUtils.cp File.join(bc[:src],"crowbar.yml") , File.join(target, "crowbar.yml")
       end
     end
     debug "installing barclamp"
     begin
-      bc_install bc[:name], bc[:src], bc[:yaml]
+      bc.install
     rescue StandardError => e
       debug "exception occurred while installing barclamp"
       raise e
     end
   rescue StandardError => e
-    if @@debug
+    if ENV['DEBUG'] == "true"
       debug "temporary directory #{tmpdir} will be left for debugging if it exists"
     else
       rm_tmpdir(tmpdir)
