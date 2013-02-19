@@ -3379,7 +3379,7 @@ find_best_parent() {
     local best_candidates=()
     if [[ $1 ]]; then
 	release_exists "$1" || \
-	    die "find_best_parents: $1 is not a release"
+	    die "find_best_parent: $1 is not a release"
 	release="$1"
     else
 	release="$(current_release)"
