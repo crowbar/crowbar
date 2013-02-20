@@ -234,9 +234,9 @@ class BarclampFS
   def install
     install_app
     install_migrations
-    install_chef
     install_cache
     run_actions("install")
+    install_chef
   end
 end
 
