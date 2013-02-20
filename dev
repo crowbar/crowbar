@@ -3917,7 +3917,7 @@ test_env_needs_reset() {
 
 setup_test_env() (
     local gem f bc barclamps=()
-    local gem_offline=true update_gem_cache=false use_gem_cache=true
+    local update_gem_cache=false use_gem_cache=true
     for f in "$@"; do
         case $f in
             --update-gem-cache) update_gem_cache=true;;
@@ -4569,8 +4569,8 @@ DEV_LONG_HELP["tests"]="Various tasks related to running tests.
         --update-gem-cache will copy the contents of /var/lib/gems/1.8 into
             $CACHE_DIR/unit_tests/gems.  If you are managing your build cache
             with git, these files will be automatically committed.
-        --offline will force bundler to use the files saved bu --update-gem-cache
-            instead of trying to use gems from the Internet.
+        --no-gem-cache will force bundler to use gems from the internet
+            instead of trying to use files saved by --update-gem-cache.
     reload
       Reload the code and database for the units.  Does not re-bundle.
     run
