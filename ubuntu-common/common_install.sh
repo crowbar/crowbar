@@ -77,10 +77,16 @@ done < <(find /opt/dell/barclamps -type d -name cache -maxdepth 2)
 apt-get -y update
 apt-get -y remove apparmor
 apt-get -y install dpkg-dev
-mkdir -p /opt/dell/debs
-cp "$BASEDIR/dell/barclamps/"*.deb /opt/dell/debs
-(cd /opt/dell/debs; dpkg-scanpackages . |gzip -9 >Packages.gz)
-echo "deb file:///opt/dell/debs /" >/etc/apt/sources.list.d/20-barclamps.list
+
+for bc in "$BASEDIR/dell/barclamps/"*.deb; do
+    [[ -f $bc ]] || continue
+    mkdir -p /opt/dell/debs
+    cp  "$bc" /opt/dell/debs
+done
+if [[ -d /opt/dell/debs ]]; then
+    (cd /opt/dell/debs; dpkg-scanpackages . |gzip -9 >Packages.gz)
+    echo "deb file:///opt/dell/debs /" >/etc/apt/sources.list.d/20-barclamps.list
+fi
 apt-get -y update
 
 

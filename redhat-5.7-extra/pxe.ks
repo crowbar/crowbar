@@ -66,4 +66,4 @@ while read file dest; do
   (cd "${BASEDIR}/$L_DIR" ; ln -s "$T_FILE" "$L_FILE")
 done < "${BASEDIR}/crowbar_links.list"
 
-. /tftpboot/redhat_dvd/extra/redhat-common-post.sh
+. /tftpboot/redhat_dvd/extra/common_install.sh

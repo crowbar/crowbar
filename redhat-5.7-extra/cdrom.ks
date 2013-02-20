@@ -58,4 +58,4 @@ export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 set -x
 exec &>/root/post-install.log
 
-. /tftpboot/redhat_dvd/extra/redhat-common-post.sh
+. /tftpboot/redhat_dvd/extra/common_install.sh
