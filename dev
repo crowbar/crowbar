@@ -3047,8 +3047,22 @@ pull_requests_prep() {
     remote_available personal && remote_is_github personal || \
 	die "No personal remote available at Github.  Cannot do pull requests."
     barclamps_are_clean || exit 1
-    fetch_all && sync_everything || \
-	die "Unable to synchronize remotes for pull requests"
+    local skip_sync merge
+    while (( $# > 0)); do
+	case $1 in
+	    --skip-sync)
+		skip_sync=true
+		shift;;
+	    --merge)
+		merge=true
+		shift;;
+        esac
+    done
+
+    if ! [[ $skip_sync ]]; then
+	fetch_all && sync_everything || \
+	    die "Unable to synchronize remotes for pull requests"
+    fi
     local barclamps_to_push=()
     local to_remote="$(origin_remote)"
     [[ $DEV_TO_REMOTES ]] && to_remote="$DEV_TO_REMOTES"
@@ -3056,7 +3070,7 @@ pull_requests_prep() {
 	die "Cannot issue pull requests for $to_remote, it is not from github."
     local branch bc build release=$(current_release)
     local target_release="$release"
-    if [[ $1 = --merge ]]; then
+    if [[ $merge ]]; then
         target_release="$(find_best_parent "$release")" || \
             die "No parent release to merge into!"
         echo "Will generate pull requests for merge $release into $target_release" >&2
@@ -3187,8 +3201,11 @@ pull_requests_gen() {
                 release_exists "$1" || die "$1 is not a release"
                 release="$1"
                 shift;;
-            --merge) shift; merge_into_parent=true;;
-	    *) die "Unknown option $1 to $0 pull-requests-gen!";;
+	    --merge)
+		shift
+		merge_into_parent=true;;
+	    *)
+		die "Unknown option $1 to $0 pull-requests-gen!";;
 	esac
     done
 
@@ -3362,7 +3379,7 @@ find_best_parent() {
     local best_candidates=()
     if [[ $1 ]]; then
 	release_exists "$1" || \
-	    die "find_best_parents: $1 is not a release"
+	    die "find_best_parent: $1 is not a release"
 	release="$1"
     else
 	release="$(current_release)"
@@ -3464,8 +3481,10 @@ cut_release() {
     debug "You can switch to it with $0 switch $1"
 }
 
-cut_feature() {
+new_feature() {
     [[ $1 ]] || die "Please give your new feature a name!"
+    [[ $2 ]] && die "new-feature only takes one parameter."
+
     cut_release "feature/$1"
 }
 
@@ -3505,6 +3524,7 @@ erase_release() {
     # $1 = release refix
     local bc build whine=false current_br parent_br template_br
     local -A branches
+    [[ $2 ]] && die "erase-feature only takes one argument"
     [[ $1 = development ]] && die "Cannot erase the development release."
     release_exists "$1" || die "$1 is not a release we can erase!"
     parent=$(find_best_parent "$1")
@@ -4238,7 +4258,7 @@ DEV_COMMANDS["help"]="dev_help"
 DEV_COMMANDS["is_clean"]="crowbar_is_clean"
 DEV_COMMANDS["local-changes"]="find_local_changed_branches_for_release"
 DEV_COMMANDS["missing-barclamps"]="find_missing_barclamps"
-DEV_COMMANDS["new-feature"]="cut_feature"
+DEV_COMMANDS["new-feature"]="new_feature"
 DEV_COMMANDS["orphaned-barclamps"]="find_orphaned_barclamps"
 DEV_COMMANDS["pin"]="pin_release"
 DEV_COMMANDS["pull-requests"]="pull_request_handler"
