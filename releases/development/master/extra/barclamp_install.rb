@@ -29,13 +29,14 @@ opts = GetoptLong.new(
   [ '--no-files', '-x', GetoptLong::NO_ARGUMENT ],
   [ '--no-install-actions', '-a', GetoptLong::NO_ARGUMENT ],
   [ '--no-chef', '-c', GetoptLong::NO_ARGUMENT ],
+  [ '--install-root', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--base-dir', '-b', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--force', '-f', GetoptLong::NO_ARGUMENT ]
 )
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-install-actions] [--deploy] [--build] [--base-dir <dir>] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-install-actions] [--deploy] [--build] [--install-root <dir>] [--base-dir <dir>] /path/to/new/barclamp"
   exit
 end
 
@@ -43,32 +44,35 @@ force_install = false
 
 opts.each do |opt, arg|
   case opt
-    when "--help"
+  when "--help"
     usage
-    when "--debug"
+  when "--debug"
     @@debug = true
     debug "debug mode is enabled"
-    when "--build"
+  when "--build"
     @@no_install_actions = true
     @@no_chef = true
     @@no_migrations = true
     @@no_rsync = true
-    when "--no-framework-install"
+  when "--no-framework-install"
     @@no_framework = true
-    when "--no-install-actions"
+  when "--no-install-actions"
     @@no_install_actions = true
-    when "--deploy"
+  when "--deploy"
     @@deploy = true
-    when "--no-files"
+  when "--no-files"
     @@no_files = true
     debug "no-files is enabled"
-    when "--no-chef"
+  when "--no-chef"
     @@no_chef = true
     debug "no-chef is enabled"
-    when "--base-dir"
+  when "--install-root"
+    @@root_dir = arg
+    debug "root-dir is #{@@root_dir}"
+  when "--base-dir"
     @@base_dir = arg
     debug "base-dir is #{@@base_dir}"
-    when "--force"
+  when "--force"
     force_install = true
   end
 end
@@ -105,10 +109,10 @@ ARGV.each do |src|
   when File.exists?(File.join(src,"crowbar.yml"))
     # We were handed something that looks like a path to a barclamp
     candidates << File.expand_path(src)
-  when File.exists?(File.join(@@base_dir,"barclamps",src,"crowbar.yml"))
-    candidates << File.join(@@base_dir,"barclamps",src)
+  when File.exists?(File.join(@BASE_PATH,"barclamps",src,"crowbar.yml"))
+    candidates << File.join(@BASE_PATH,"barclamps",src)
   else
-    debug "base directory is #{@@base_dir}"
+    debug "base directory is #{@BASE_PATH}"
     puts "#{src} is not a barclamp, ignoring."
   end
 end
@@ -146,8 +150,8 @@ debug "installing barclamps:"
 barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   debug "bc = #{bc.pretty_inspect}"
   begin
-    unless /^#{@@base_dir}\/barclamps\// =~ bc[:src]
-      target="#{@@base_dir}/barclamps/#{bc[:name]}"
+    unless /^#{@BASE_PATH}\/barclamps\// =~ bc[:src]
+      target="#{@BASE_PATH}/barclamps/#{bc[:name]}"
       if File.directory? target
         debug "target directory #{target} exists"
         if File.exists? "#{target}/crowbar.yml"

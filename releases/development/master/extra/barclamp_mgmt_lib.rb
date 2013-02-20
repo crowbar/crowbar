@@ -27,7 +27,8 @@ MODEL_SUBSTRING_HUMAN = '==*BC-MODEL=='
 MODEL_SUBSTRING_CAPSS = '==%BC-MODEL=='
 
 def update_paths
-  @BASE_PATH = @@base_dir
+  @ROOT_PATH = @@root_dir
+  @BASE_PATH = File.join @ROOT_PATH, @@base_dir
   @CROWBAR_PATH = File.join @BASE_PATH, 'crowbar_framework'
   if ENV["CROWBAR_DIR"]
     @MODEL_SOURCE = File.join ENV["CROWBAR_DIR"], "barclamps","crowbar","crowbar_framework",'barclamp_model'
@@ -38,11 +39,11 @@ def update_paths
   end
   @BIN_PATH = File.join @BASE_PATH, 'bin'
   @SETUP_PATH = File.join @BASE_PATH, 'setup'
-  @UPDATE_PATH = '/updates'
-  @ROOT_PATH = '/'
+  @UPDATE_PATH = File.join @ROOT_PATH, 'updates'
 end
 
 @@debug = ENV['DEBUG'] === "true"
+@@root_dir = "/"
 @@base_dir = "/opt/dell"
 @@deploy = false
 @@no_install_actions = false
@@ -271,7 +272,7 @@ def bc_do_install_action(bc, bc_path, stage)
   debug("actions to perform: #{actions.join(' ')}")
   actions.each { |action| 
     fatal("action #{action} not found for #{bc}") unless File.exists?(action)
-    output = `CROWBAR_DIR=#{@@base_dir} BC_PATH=#{bc_path} #{action} 2>&1`
+    output = `CROWBAR_DIR=#{@BASE_PATH} BC_PATH=#{bc_path} #{action} 2>&1`
     fatal("action #{action} failed for #{bc}:\n #{output}") unless $? == 0
     debug("install action:#{action} output: #{output}")
   }   
@@ -295,8 +296,8 @@ def bc_install_layout_2_app(bc, bc_path, yaml)
 
   if dirs.include? 'crowbar_engine'
     debug "path entries include \"crowbar_engine\""
-    system "perl -pi -e 's|engine mounts|engine mounts\n  mount Barclamp" + camelize(bc) + "::Engine, :at => \"" + bc + "\"|' " + @BASE_PATH + "/crowbar_framework/config/routes.rb"
-    system "perl -pi -e 's|engine mounts|engine mounts\ngem \"barclamp_" + bc + "\", :path => \"" + bc_path + "/crowbar_engine/barclamp_" + bc + "\"|' " + @BASE_PATH + "/crowbar_framework/Gemfile" 
+    system "perl -pi -e 's|engine mounts|engine mounts\n  mount Barclamp" + camelize(bc) + "::Engine, :at => \"" + bc + "\"|' " + @CROWBAR_PATH + "/config/routes.rb"
+    system "perl -pi -e 's|engine mounts|engine mounts\ngem \"barclamp_" + bc + "\", :path => \"" + bc_path + "/crowbar_engine/barclamp_" + bc + "\"|' " + @CROWBAR_PATH + "/Gemfile"
 
   elsif dirs.include? 'crowbar_framework'
     debug "path entries include \"crowbar_framework\""
