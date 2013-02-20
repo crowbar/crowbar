@@ -162,7 +162,7 @@ class BarclampFS
     cookbooks = File.join(chef,'cookbooks')
     if File.directory?(cookbooks)
       debug("Uploading chef cookbooks for #{bc}")
-      unless knife("cookbook upload -o \"#{cookbooks}\"")
+      unless knife("cookbook upload -o \"#{cookbooks}\" --all")
         fatal("Could not upload cookbooks from #{cookbooks}")
       end
     end
