@@ -464,7 +464,8 @@ do_crowbar_build() {
             deb) package_opts+=("--deb");;
             rpm) package_opts+=("--rpm");;
         esac
-        "$CROWBAR_DIR/package_barclamp.sh" "${package_opts[@]}" "$bc"
+        "$CROWBAR_DIR/package_barclamp.sh" "${package_opts[@]}" "$bc" || \
+            die "Could not package $bc into a $BC_PKG_TYPE"
 	echo "barclamps/rclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
     
