@@ -11,6 +11,10 @@ instance/environment in a qemu-kvm virtual machine (VM), with a SUSE based
 system as the VM host. There is no hard requirement for this - you just need to
 adapt the steps and commands listed here accordingly.
 
+If you are using Fedora 18, the scripts in
+https://github.com/cwolferh/crowbar-virt-for-f18 may save you a bit of
+time setting up a qemu-kvm/virsh environment for Crowbar.
+
 If you prefer to use another hypervisor other than qemu-kvm, see [Crowbar in
 VirtualBox](https://github.com/crowbar/crowbar/wiki/Running-Crowbar-in-VirtualBox-VMs)
 or [Crowbar in VMWare](https://github.com/crowbar/crowbar/wiki/Running-Crowbar-in-VMWare-VMs).
