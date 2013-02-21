@@ -4,7 +4,7 @@
   "attributes": {
     "network": {
       "start_up_delay": 30,
-      "mode": "team",
+      "mode": "single",
       "teaming": {
         "mode": 6
       },
@@ -57,7 +57,7 @@
       ],
       "conduit_map": [
       {
-       "pattern": "team/.*/crowbar-config-default",
+       "pattern": "single/.*/crowbar-config-default",
        "conduit_list": { 
         "prod": {
            "if_list": [ "10g1"]
@@ -71,7 +71,7 @@
            }
      },
      {
-          "pattern": "team/.*/.*edgenode",
+          "pattern": "single/.*/.*edgenode",
           "conduit_list": { 
            "prod": {
               "if_list": [ "10g1" ]
@@ -81,15 +81,7 @@
             }
                }
      },
-     {
-          "pattern": "team/.*/.*",
-          "conduit_list": { 
-             "prod": {
-              "if_list": [ "10g1" ]
-            }
-           }
-        },
-        {
+         {
           "pattern": ".*/.*/.*",
           "conduit_list": { 
             "prod": {

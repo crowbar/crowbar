@@ -60,7 +60,7 @@
        "pattern": "team/.*/crowbar-config-default",
        "conduit_list": { 
         "prod": {
-           "if_list": [ "1g2", "1g4" ],
+           "if_list": [ "1g2", "1g3" ],
            "team_mode": 6
          },
             "public": {
@@ -97,25 +97,25 @@
           }
         },
      {
-          "pattern": "team/.*/.*/.*filernode",
+          "pattern": "team/.*/.*filernode",
           "conduit_list": { 
              "prod": {
-              "if_list": [ "1g2", "1g4" ],
+              "if_list": [ "1g1", "1g3" ],
               "team_mode": 6
             }
           }
         },
      {
-          "pattern": "team/.*/.*/.*journalingnode",
+          "pattern": "team/.*/.*journalingnode",
           "conduit_list": { 
              "prod": {
-              "if_list": [ "1g2", "1g4" ],
+              "if_list": [ "1g1", "1g3" ],
               "team_mode": 6
             }
           }
         },    
      {
-          "pattern": "team/.*/.*/.*datanode",
+          "pattern": "team/.*/.*datanode",
           "conduit_list": { 
              "prod": {
               "if_list": [ "1g1", "1g2" ],
