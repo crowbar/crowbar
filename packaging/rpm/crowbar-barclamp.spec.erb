@@ -43,29 +43,13 @@ functioning operating systems using Chef.
 
 %install
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-cd "<%= @path %>"
-dell_dir="%{buildroot}%{dell_dir}"
-bc_dir="$dell_dir/barclamps/%{barclamp}"
-install -d -m 755 "$bc_dir"
-install -d -m 755 "$dell_dir"
-
-find . -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\|erb\|spec\)$' | xargs chmod a-x || :
-find . -regex '.+/README.*\|.+/chef/cookbooks/.+/recipes/.+.rb' | xargs chmod a-x || :
-chmod a+x bin/*
-
-for d in *; do
-   case $d in
-       bin|chef|crowbar_framework) mv "$d" "$dell_dir";;
-       *) mv "$d" "$bc_dir";;
-   esac
-done
+"<%= @barclamp_install %>" --root "%{buildroot}" "<%= @path %>"
 
 %files
 %defattr(-,root,root,-)
-%dir %{dell_dir}
-%{dell_dir}/*
+%dir /
+/*
 # FIXME: FHS violation, should not have config files in /opt
 # https://github.com/dellcloudedge/crowbar/issues/833
-%config(noreplace) %{dell_dir}/chef/data_bags/crowbar/bc-template-%{barclamp}.json
 
 %changelog

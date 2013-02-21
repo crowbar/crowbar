@@ -689,6 +689,7 @@ update_barclamp_raw_pkg_cache() {
         [[ $CURRENT_CACHE_BRANCH ]] && in_cache git add "$bc_cache/${pkg##*/}"
     done
     touch "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    make_barclamp_pkg_metadata "$1"
 }
 
 # Fetch any bare files that we do not already have.

@@ -18,7 +18,11 @@
 #
 
 export OS_TOKEN=redhat-6.2
-
+if [[ -d /opt/dell/rpms ]]; then
+    installer="./install-crowbar-native.sh"
+else
+    installer="./install-chef.sh"
+fi
 cd /tftpboot/redhat_dvd/extra
 if screen -ls |grep -q crowbar-install; then
     echo "Crowbar install is already running."
@@ -26,7 +30,7 @@ if screen -ls |grep -q crowbar-install; then
     exit 0
 fi
 screen -d -m -S crowbar-install -t 'Crowbar Install' \
-    script -f -c "./install-chef.sh $1" /var/log/install.log
+    script -f -c "$installer $1" /var/log/install.log
 echo "Crowbar install started under screen."
 echo "You can attach to it by running:"
 echo "    sudo screen -r -S crowbar-install"

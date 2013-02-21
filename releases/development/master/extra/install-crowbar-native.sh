@@ -24,8 +24,11 @@ unset p
 
 if [[ -f /etc/redhat-release || -f /etc/centos-release ]]; then
     OS=redhat
+    yum -y install ruby rubygems ruby-devel libxml2-devel zlib-devel gcc make
 elif [[ -d /etc/apt ]]; then
     OS=ubuntu
+    apt-get -y install ruby1.9.1 ruby1.9.1-dev \
+        libxml2-dev libxslt1-dev zlib1g-dev
 elif [[ -f /etc/SuSE-release ]]; then
     OS=suse
 else
@@ -98,6 +101,13 @@ else
     service rsyslog restart || :
 fi
 
+# Set up initial SSH keys if we don't have them
+[[ -f $HOME/.ssh/id_rsa ]] || {
+    mkdir -p "$HOME/.ssh"
+    ssh-keygen -q -b 2048 -P '' -f "$HOME/.ssh/id_rsa"
+    cat "$HOME/.ssh/id_rsa.pub" >> "$HOME/.ssh/authorized_keys"
+}
+
 # Hack up sshd_config to kill delays
 sed -i -e 's/^\(GSSAPI\)/#\1/' \
     -e 's/#\(UseDNS.*\)yes/\1no/' /etc/ssh/sshd_config
@@ -107,32 +117,7 @@ if [[ $OS != suse ]]; then
     # Link the discovery image to an off-DVD location.
     # On SUSE the image is part of the crowbar-sledgehammer package
     [[ -d ${DVD_PATH}/discovery ]] && mv "${DVD_PATH}/discovery" "/tftpboot"
-fi
 
-if [[ $OS = ubuntu ]]; then
-    if ! dpkg-query -S /opt/dell/bin/crowbar_crowbar; then
-        (   cd "$DVD_PATH/extra"
-            rabbit_chef_password=$( dd if=/dev/urandom count=1 bs=16 2>/dev/null | base64 | tr -d / )
-            sed -i "s/__HOSTNAME__/$FQDN/g" ./debsel.conf
-            sed -i "/^chef-solr/ s/password\$/${rabbit_chef_password}/" ./debsel.conf
-            /usr/bin/debconf-set-selections ./debsel.conf)
-        apt-get update
-        apt-get -y install 'crowbar-barclamp-*'
-    fi
-elif [[ $OS = redhat ]]; then
-    yum -y makecache
-    yum -y install 'crowbar-barclamp-*'
-elif [[ $OS = suse ]]; then
-    zypper -n in -t pattern Crowbar_Admin
-else
-    die "Cannot install onto unknown OS $OS!"
-fi
-
-# all this can be skipped on SUSE based installs:
-#  * all gems are available as packages
-#  * the chef packages contain init scripts, no need to create
-#    bluepill config and initscript here
-if [[ $OS != suse ]]; then
     # Lift the gems off the install media for easy file serving.
     mkdir -p /tftpboot/gemsite/gems
     find "/opt/dell/barclamps" -path '*/gems/*.gem' \
@@ -204,25 +189,29 @@ EOF
         fi
         chmod 755 /etc/init.d/bluepill
     fi
-fi # [[ $OS != suse ]]
+fi
 
-# Set up initial SSH keys if we don't have them
-[[ -f $HOME/.ssh/id_rsa ]] || {
-    mkdir -p "$HOME/.ssh"
-    ssh-keygen -q -b 2048 -P '' -f "$HOME/.ssh/id_rsa"
-    cat "$HOME/.ssh/id_rsa.pub" >> "$HOME/.ssh/authorized_keys"
-}
+if [[ $OS = ubuntu ]]; then
+    if ! dpkg-query -S /opt/dell/bin/crowbar_crowbar; then
+        (   cd "$DVD_PATH/extra"
+            rabbit_chef_password=$( dd if=/dev/urandom count=1 bs=16 2>/dev/null | base64 | tr -d / )
+            sed -i "s/__HOSTNAME__/$FQDN/g" ./debsel.conf
+            sed -i "/^chef-solr/ s/password\$/${rabbit_chef_password}/" ./debsel.conf
+            /usr/bin/debconf-set-selections ./debsel.conf)
+        apt-get update
+        apt-get -y install 'crowbar-barclamp-*'
+    fi
+elif [[ $OS = redhat ]]; then
+    yum -y makecache
+    yum -y install 'crowbar-barclamp-*'
+elif [[ $OS = suse ]]; then
+    zypper -n in -t pattern Crowbar_Admin
+else
+    die "Cannot install onto unknown OS $OS!"
+fi
 
 # Run the rest of the barclamp install actions.
 (cd /opt/dell/barclamps && /opt/dell/bin/barclamp_install.rb --deploy *)
 
-for role in crowbar deployer-client "crowbar-${FQDN//./_}"; do
-    knife node run_list add "$FQDN" role["$role"] || \
-        die "Could not add $role to Chef. Crowbar bringup will fail."
-done
-
-# aaand... Go!
-chef-client
-
-# Make sure we have CROWBAR_KEY
-export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
+# This is as far as we expect to get for now.
+exit 0

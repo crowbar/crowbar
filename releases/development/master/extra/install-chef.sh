@@ -65,40 +65,6 @@ log_to() {
 }
 
 
-
-chef_or_die() {
-    if [ -e /opt/dell/bin/blocking_chef_client.sh ]; then
-        log_to chef blocking_chef_client.sh && return
-    else
-        log_to chef chef-client && return
-    fi
-    # If we were left without an IP address, rectify that.
-    ip link set eth0 up
-    ip addr add 192.168.124.10/24 dev eth0
-    die "$@"
-}
-
-# Run knife in a loop until it doesn't segfault.
-knifeloop() {
-    local RC=0
-    while { log_to knife knife "$@" -u chef-webui -k /etc/chef/webui.pem
-        RC=$?
-        (($RC == 139)); }; do
-        :
-    done
-}
-
-# Sometimes the machine role (crowbar-${FQDN//./_}) does not get properly
-# attached to the admin node.  We are in deep trouble if that happens.
-check_machine_role() {
-    local count
-    for ((count=0; count <= 5; count++)); do
-        grep -q "crowbar-${FQDN//./_}" < <(knife node show "$FQDN" ) && return 0
-        sleep 10
-    done
-    die "Node machine-specific role got lost.  Deploy failed."
-}
-
 # Include OS specific functionality
 . chef_install_lib.sh || die "Could not include OS specific functionality"
 
@@ -120,14 +86,11 @@ fi
     ssh-keygen -q -b 2048 -P '' -f "$HOME/.ssh/id_rsa"
     cat "$HOME/.ssh/id_rsa.pub" >> "$HOME/.ssh/authorized_keys"
     cp "$HOME/.ssh/authorized_keys" "/tftpboot/authorized_keys"
-    cat "$HOME/.ssh/id_rsa.pub" >> /opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/templates/default/authorized_keys.erb
-
 }
 
 # Copy over the framework docs into their final location
 mkdir -p /opt/dell/doc
 cp -a "$DVD_PATH/doc/framework" /opt/dell/doc
-
 
 fqdn_re='^[0-9a-zA-Z.-]+$'
 # Make sure there is something of a domain name
@@ -288,26 +251,6 @@ if [[ -e $DVD_PATH/extra/config/crowbar.json ]]; then
   CROWBAR_FILE="$DVD_PATH/extra/config/crowbar.json"
 fi
 mkdir -p /opt/dell/crowbar_framework
-CROWBAR_REALM=$(parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
-CROWBAR_REALM=${CROWBAR_REALM##*=}
-if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
-    dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
-        (read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
-fi
-
-# Set the default OS for the provisioner
-sed -i "s/%default_os%/$OS_TOKEN/g" \
-    /opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
-if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
-    export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" /opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json 
-    sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" "$DVD_PATH"/extra/config/crowbar.json
-fi
-
-# Crowbar will hack up the pxeboot files appropriatly.
-# Set Version in Crowbar UI
-sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \
-    /opt/dell/barclamps/crowbar/crowbar_framework/config/environments/production.rb
 
 # Installing Barclamps (uses same library as rake commands, but before rake is ready)
 
@@ -324,6 +267,9 @@ log_to bcinstall /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/* || \
 echo "$(date '+%F %T %z'): Validating data bags..."
 log_to validation validate_bags.rb /opt/dell/chef/data_bags || \
     die "Crowbar configuration has errors.  Please fix and rerun install."
+
+exit 0
+# We don't really expect anything after here to work in any case.
 
 NODE_ROLE="crowbar-${FQDN//./_}" 
 if ! knife role list |grep -qF "$NODE_ROLE"; then
