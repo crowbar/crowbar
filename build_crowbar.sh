@@ -268,14 +268,19 @@ while [[ $1 ]]; do
 	--no-iso) shift; NO_GENERATE_ISO=true;;
 	--skip-lock) shift; __skip_lock=true;;
         --do-not-clean) shift; NO_CLEAN_DIRS=true;;
-        --native-packages) shift;
-            case $OS_TO_STAGE in
-                ubuntu*|debian*) BC_PKG_TYPE="deb";;
-                redhat*|centos*|suse*|opensuse*) BC_PKG_TYPE="rpm";;
-            esac;;
+        --native-packages) shift; BUILD_NATIVE_PACKAGES=true;;
 	*)          die "Unknown command line parameter $1";;
     esac
 done
+
+if [[ $BUILD_NATIVE_PACKAGES = true || \
+    -f $CROWBAR_DIR/extra/install-crowbar-native.sh ]]; then
+    debug "Building native OS packages"
+    case $OS_TO_STAGE in
+        ubuntu*|debian*) BC_PKG_TYPE="deb";;
+        redhat*|centos*|suse*|opensuse*) BC_PKG_TYPE="rpm";;
+    esac
+fi
 
 do_crowbar_build() {
     # Make sure only one instance of the ISO build runs at a time.
