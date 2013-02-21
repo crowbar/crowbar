@@ -17,6 +17,7 @@
 # Arguments for having a single spec file with a sub-package per barclamp:
 #   - can't think of any right now
 
+require 'rubygems'
 require 'erb'
 require 'yaml'
 require 'kwalify'

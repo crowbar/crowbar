@@ -43,7 +43,7 @@ functioning operating systems using Chef.
 
 %install
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-"<%= @barclamp_install %>" --root "%{buildroot}" "<%= @path %>"
+"<%= @barclamp_install %>" --no-engines --root "%{buildroot}" "<%= @path %>"
 
 %files
 %defattr(-,root,root,-)

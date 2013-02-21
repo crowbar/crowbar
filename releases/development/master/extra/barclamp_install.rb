@@ -75,10 +75,13 @@ class BarclampFS
     @skip_files = !!t
   end
 
+  def skip_engines=(t)
+    @skip_engines = !!t
+  end
+
   def skip_migrations=(t)
     @skip_migrations = !!t | @chroot
   end
-
   def skip_install_actions=(t)
     @skip_install_actions = !!t | @chroot
   end
@@ -107,11 +110,14 @@ class BarclampFS
         debug("Copying crowbar_framework files over for #{bc}")
         FileUtils.cp_r(File.join(@source,'crowbar_framework'),@target)
       when "crowbar_engine"
-        next if @chroot
-        debug("#{name} is implemented using a Rails Engine.")
+        FileUtils.cp_r(File.join(@source,ent),@barclamp_dir) unless @source == @barclamp_dir
+        #FileUtils.mkdir_p(@target,"crowbar_framework/test/unit")
+        #system("cp -r \"#{File.join(@barclamp_dir,ent,"barclamp_"+bc,"/test/unit")}\"/* \"#{File.join(@target,"crowbar_framework/test/unit")}\"")
+        next if @skip_engines 
+        debug("#{bc} is implemented using a Rails Engine.")
         debug("Linking in routes and Gemfile entries.")
-        system("perl -pi -e 's|engine mounts|engine mounts\n  mount Barclamp" + camelize(bc) + "::Engine, :at => \"" + name + "\"|' " + File.join(@target,'crowbar_framework','config','routes.rb'))
-        system("perl -pi -e 's|engine mounts|engine mounts\ngem \"barclamp_" + bc + "\", :path => \"" + File.join(@source,'crowbar_engine',"barclamp_#{bc}") + "\"|' " + File.join(@target,'crowbar_framework','Gemfile'))
+        system("perl -pi -e 's|engine mounts|engine mounts\n  mount Barclamp" + camelize(bc) + "::Engine, :at => \"" + bc + "\"|' " + File.join(@target,'crowbar_framework','config','routes.rb'))
+        system("perl -pi -e 's|engine mounts|engine mounts\ngem \"barclamp_" + bc + "\", :path => \"" + File.join(@barclamp_dir,'crowbar_engine',"barclamp_#{bc}") + "\"|' " + File.join(@target,'crowbar_framework','Gemfile'))
       when 'bin'
         debug("Installing commands for #{bc}")
         FileUtils.mkdir_p(File.join(@target,'bin'))
@@ -249,10 +255,12 @@ opts = GetoptLong.new(
   [ '--build', GetoptLong::NO_ARGUMENT ],
   [ '--deploy', '-i', GetoptLong::NO_ARGUMENT ],
   [ '--no-files', '-x', GetoptLong::NO_ARGUMENT ],
+  [ '--no-engines', '-e', GetoptLong::NO_ARGUMENT ],
   [ '--no-install-actions', '-a', GetoptLong::NO_ARGUMENT ],
   [ '--no-chef', '-c', GetoptLong::NO_ARGUMENT ],
   [ '--base-dir', '-b', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--root', '-r', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--test', '-t', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--force', '-f', GetoptLong::NO_ARGUMENT ]
 )
 
@@ -271,6 +279,7 @@ force_install = false
 @@no_migrations = false
 @@no_rsync = false
 @@no_files = false
+@@no_engines = false
 
 opts.each do |opt, arg|
   case opt
@@ -281,10 +290,12 @@ opts.each do |opt, arg|
     @@no_chef = true
     @@no_migrations = true
     @@no_rsync = true
+    @@no_engines = true
   when "--no-framework-install" then @@no_framework = true
   when "--no-install-actions" then @@no_install_actions = true
   when "--deploy" then @@deploy = true
   when "--no-files" then @@no_files = true; debug "no-files is enabled"
+  when "--no-engines" then @@no_engines = true; debug "no-engine is enabled"
   when "--no-chef" then @@no_chef = true; debug "no-chef is enabled"
   when "--base-dir" then @@base_dir = arg; debug "base-dir is #{@@base_dir}"
   when "--force" then force_install = true
@@ -339,6 +350,7 @@ ARGV.each do |src|
   bc.skip_files = @@no_files
   bc.skip_install_actions = @@no_install_actions
   bc.skip_migrations = @@no_migrations
+  bc.skip_engines = @@no_engines
   candidates << bc if bc
 end
 
