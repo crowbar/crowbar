@@ -37,14 +37,14 @@ bring_up_chef() {
 
     ## JMALTIN
     ## append to /etc/chef/client.rb to enable report handlers
-    cat >> /etc/chef/client.rb <<EOF
-
-## JMALTIN
-## append to /etc/chef/client.rb to enable report handlers - also needs an LWRP
-require 'chef/handler/json_file'
-report_handlers << Chef::Handler::JsonFile.new(:path => "/var/chef/reports")
-exception_handlers << Chef::Handler::JsonFile.new(:path => "/var/chef/reports")
-EOF
+#    cat >> /etc/chef/client.rb <<EOF
+#
+### JMALTIN
+### append to /etc/chef/client.rb to enable report handlers - also needs an LWRP
+#require 'chef/handler/json_file'
+#report_handlers << Chef::Handler::JsonFile.new(:path => "/var/chef/reports")
+#exception_handlers << Chef::Handler::JsonFile.new(:path => "/var/chef/reports")
+#EOF
 
     log_to svc service chef-server restart
 }
