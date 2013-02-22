@@ -111,8 +111,10 @@ class BarclampFS
         FileUtils.cp_r(File.join(@source,'crowbar_framework'),@target)
       when "crowbar_engine"
         FileUtils.cp_r(File.join(@source,ent),@barclamp_dir) unless @source == @barclamp_dir
-        #FileUtils.mkdir_p(@target,"crowbar_framework/test/unit")
-        #system("cp -r \"#{File.join(@barclamp_dir,ent,"barclamp_"+bc,"/test/unit")}\"/* \"#{File.join(@target,"crowbar_framework/test/unit")}\"")
+        if FileTest.exists?(File.join(@barclamp_dir,ent,"barclamp_"+bc+"/test/unit"))
+          FileUtils.mkdir_p(File.join(@target,"crowbar_framework/test/unit"))
+          FileUtils.cp_r(File.join(@barclamp_dir,ent,"barclamp_"+bc+"/test/unit"),File.join(@target,"crowbar_framework/test/"))
+        end
         next if @skip_engines 
         debug("#{bc} is implemented using a Rails Engine.")
         debug("Linking in routes and Gemfile entries.")
