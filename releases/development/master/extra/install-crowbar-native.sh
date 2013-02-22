@@ -205,7 +205,7 @@ elif [[ $OS = redhat ]]; then
     yum -y makecache
     yum -y install 'crowbar-barclamp-*'
 elif [[ $OS = suse ]]; then
-    zypper -n in -t pattern Crowbar_Admin
+    zypper --gpg-auto-import-keys -n in -t pattern Crowbar_Admin
 else
     die "Cannot install onto unknown OS $OS!"
 fi
