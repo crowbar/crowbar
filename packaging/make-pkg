@@ -21,25 +21,42 @@ require 'rubygems'
 require 'erb'
 require 'yaml'
 require 'kwalify'
+require 'getoptlong'
+require 'fileutils'
+
+def debug(msg)
+  STDERR.puts "DEBUG: " + msg if ENV['DEBUG'] == "true"
+end
+
+def die(msg)
+  STDERR.puts(msg)
+  exit(1)
+end
 
 class Barclamp
-  attr_reader :name, :displayname, :requires, :pkg
-
+  attr_reader :rawname, :name, :displayname, :requires, :pkg
+  @@groups = Hash.new
   def initialize(path, name, dest)
     yaml_path = File.join(path,'crowbar.yml')
     @yaml = YAML.load_file(yaml_path)
 
     bcy = @yaml['barclamp']
 
-    @name = bcy['name']
+    @rawname = bcy['name']
+    @name = @rawname.tr('_','-')
     @path = path
     @dest = dest
-    raise "name mismatch: #{name} != #{@name}" unless name == @name
+    die("name mismatch: #{name} != #{@rawname}") unless name == @rawname
 
     @displayname = bcy['display']
-    @requires = (bcy['requires'] || [])
-    # All barclamps have an implicit dependency on the Crowbar barclamp.
-    @requires << "crowbar-barclamp-crowbar" unless @requires.member?("crowbar-barclamp-crowbar")
+    if bcy['member']
+      bcy['member'].each do |grp|
+        debug("Adding #{@name} to group #{grp}")
+        @@groups[grp] ||= Array.new
+        @@groups[grp] << @name
+      end
+    end
+
     # Revisit once we get a real versioning scheme.
     @version = Time.now.utc.strftime('%Y%m%d.%H%M%S')
     @barclamp_install = "#{ENV['CROWBAR_DIR']}/extra/barclamp_install.rb"
@@ -54,13 +71,36 @@ class Barclamp
       document = parser.parse_file(s)
       if parser.errors && ! parser.errors.empty?
         parser.errors.each do |err|
-          puts "#{s}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
+          STDERR.puts "#{s}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
         end
         exit(1)
       end
       res[s.gsub(/\.schema$/,'')] = Kwalify::Validator.new(Kwalify::Yaml.load_file(s))
     end
     res
+  end
+
+  def solve_requires
+    debug("Soving requirements for #{name}")
+    @requires = Array.new
+    bc_requires = (@yaml['barclamp']['requires'] rescue Array.new)
+    if bc_requires.nil? || bc_requires.empty?
+      @requires << 'crowbar-barclamp-crowbar' unless @name == "crowbar"
+      return
+    end
+    reqs = Array.new
+    bc_requires.each do |req|
+      if /^@/ =~ req
+        die "#{name}: invalid group #{req}" unless @@groups[req[1..-1]]
+        reqs << @@groups[req[1..-1]]
+      else
+        reqs << req
+      end
+    end
+    @requires = reqs.flatten.compact.sort.uniq.map{|e|
+      "crowbar-barclamp-#{e}".tr('_','-')
+    }
+    debug("#{name} requires #{@requires.join(', ')}")
   end
 
   def validate_bags(schemas,bags)
@@ -71,7 +111,7 @@ class Barclamp
       document = parser.parse_file(f)
       next unless parser.errors && !parser.errors.empty?
       parser.errors.each do |err|
-        puts "#{f}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
+        STDERR.puts "#{f}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
       end
       exit(1)
     end
@@ -90,84 +130,112 @@ class Barclamp
   end
 
   def make_rpm
-    Dir.chdir(@path)
-    @requires += @yaml['rpms']['required_pkgs'] if (@yaml['rpms']['required_pkgs'] rescue nil)
-    outfile="#{@pkg}.spec"
-    tmpl = File.join(ENV["CROWBAR_DIR"],"packaging","rpm","crowbar-barclamp.spec.erb")
-
-    unless File.exists?(tmpl)
-      die("Cannot find the spec template at #{spec_template}")
-    end
-    template=ERB.new(File.read(tmpl))
-    File.open(outfile.to_s, 'w') do |f|
-      f.puts template.result(binding)
-    end
-    system("rpmbuild -bb #{outfile}")
-    exit($?)
-  end
-
-  def make_deb
-    Dir.chdir(@path)
-    # All of our Debian packages need these.
-    @requires += @yaml['debs']['required_pkgs'] if (@yaml['debs']['required_pkgs'] rescue nil)
-    @requires += ['${shlibs:Depends}', '${misc:Depends}']
-    tmpls = {}
-    ["control","rules"].each do |tmpl|
-      t = File.join("debian",tmpl + '.erb')
-      unless File.exists?(t)
-        die("Cannot find the template at #{t}")
+    res = true
+    FileUtils.cd(@path) do
+      @requires += @yaml['rpms']['required_pkgs'] if (@yaml['rpms']['required_pkgs'] rescue nil)
+      outfile="#{@pkg}.spec"
+      tmpl = File.join(ENV["CROWBAR_DIR"],"packaging","rpm","crowbar-barclamp.spec.erb")
+      unless File.exists?(tmpl)
+        die("Cannot find the spec template at #{spec_template}")
       end
-      template=ERB.new(File.read(t))
-      outfile=File.join("debian",tmpl)
+      template=ERB.new(File.read(tmpl))
       File.open(outfile.to_s, 'w') do |f|
         f.puts template.result(binding)
       end
+      out = %x{rpmbuild -bb "#{outfile}" 2>&1}
+      res = ($? == 0)
+      die(out) unless res
     end
-    system("dpkg-buildpackage -b -uc")
-    exit($?)
+    return res
+  end
+
+  def make_deb
+    res = true
+    FileUtils.cd(@path) do
+      debug("In #{Dir.pwd}")
+      # All of our Debian packages need these.
+      @requires += @yaml['debs']['required_pkgs'] if (@yaml['debs']['required_pkgs'] rescue nil)
+      @requires << '${misc:Depends}'
+      debug(@requires.inspect)
+      tmpls = {}
+      ["control","rules"].each do |tmpl|
+        t = File.join("debian",tmpl + '.erb')
+        unless File.exists?(t)
+          die("Cannot find the template at #{t}")
+        end
+        template=ERB.new(File.read(t))
+        outfile=File.join("debian",tmpl)
+        File.open(outfile.to_s, 'w') do |f|
+          f.puts template.result(binding)
+        end
+      end
+      out = %x{dpkg-buildpackage -b -uc 2>&1}
+      res = ($? == 0)
+      die(out) unless res
+    end
+    return res
+  end
+
+  def make_tar
+    res = true
+    FileUtils.cd(File.join(@path,'..')) do
+      res = system("tar chf - \"#{@name}\" |gzip -9 > \"#{@dest}/#{@name}-barclamp.tar.gz\"")
+    end
+    return res
   end
 end
 
-
-def die(msg)
-  STDERR.puts(msg)
-  exit(1)
+def usage()
+  puts "Usage:"
+  puts "#{__FILE__} [--type <tar|deb|rpm>] [--dest <dir>] /path/to/barclamp ..."
+  exit 1
 end
 
-def usage
-  me = File.basename($0)
-  puts <<EOUSAGE
-Usage: #{me} BARCLAMP_PATH DEST TYPE
+opts = GetoptLong.new(
+  [ '--type', '-t', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--dest', '-d', GetoptLong::REQUIRED_ARGUMENT ],
+  [ '--help', '-h', GetoptLong::NO_ARGUMENT ]
+)
 
-BARCLAMP_PATH is a path to barclamp source code.
-DEST is the location you want the generated package to wind up in
-TYPE is the type of the package to generate.  Either deb or rpm will work.
+@@dest = Dir.pwd
+@@type = "tar"
 
-EOUSAGE
-  exit 0
+opts.each do |opt,arg|
+  case opt
+  when "--help" then usage
+  when "--type" then @@type = arg
+  when "--dest" then @@dest = arg
+  end
 end
 
-usage if ARGV[0] =~ /^(-h|--help)$/ or ARGV.count < 2
-barclamp_dir = ARGV[0]
-barclamp = barclamp_dir.split(File::Separator)[-1]
-
-unless File.exists?(File.join(barclamp_dir,"crowbar.yml"))
-  die("#{ARGV[0]} does not point to a barclamp")
-end
+usage if ARGV.length < 1
 
 unless ENV["CROWBAR_DIR"]
   die("CROWBAR_DIR is not in the environment.  Are you running me directly?")
 end
 
-unless ARGV[1] && File.directory?(ARGV[1])
-  die("Destination directory does not exist.")
+unless File.directory?(@@dest)
+  die("Destination directory #{@@dest} does not exist.")
 end
-dest=ARGV[1]
 
-bc = Barclamp.new(barclamp_dir, barclamp, dest)
-bc.validate
-case ARGV[2]
-when "rpm" then bc.make_rpm
-when "deb" then bc.make_deb
-else die "Unknown package type #{ARGV[2]}"
+barclamps = Array.new
+
+ARGV.each do |bc_dir|
+  bc_name = bc_dir.split(File::Separator)[-1]
+  unless File.exists?(File.join(bc_dir,"crowbar.yml"))
+    die("#{bc_dir} does not point to a barclamp")
+  end
+  barclamps << Barclamp.new(bc_dir, bc_name, @@dest)
+end
+
+barclamps.each do |bc|
+  bc.validate
+  bc.solve_requires
+  case @@type
+  when "rpm" then bc.make_rpm
+  when "deb" then bc.make_deb
+  when "tar" then bc.make_tar
+  else die("Unknown package type #{@@type}")
+  end || die("Could not build #{@@type} for #{bc.rawname}")
+  STDERR.puts("Built #{@@type} for #{bc.rawname}")
 end

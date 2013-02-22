@@ -8,7 +8,7 @@ Homepage: https://github.com/crowbar/barclamp-<%= @name %>
 
 Package: crowbar-barclamp-<%= @name %>
 Architecture: all
-Depends: <%= @requires.join(", ") %>
+Depends: <%= @requires.compact.flatten.sort.uniq.join(', ') %>
 Description: This is the <%= @displayname %> barclamp for Crowbar.
  Crowbar is a platform for server provisioning and deployment from bare
  metal.  It provides server discovery, firmware upgrades, and operating

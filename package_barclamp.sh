@@ -69,6 +69,7 @@ while [[ $1 ]]; do
 done
 
 tmpdir="$(mktemp -d /tmp/package-bk-XXXXX)"
+barclamps=()
 cd "$tmpdir"
 for barclamp in "${BARCLAMPS[@]}"; do
     bc=${barclamp##*/}
@@ -106,24 +107,28 @@ for barclamp in "${BARCLAMPS[@]}"; do
 	    xargs -0 sha1sum -b >sha1sums
     )
     case $BUILD_TYPE in
-        tar) tar chf - "$bc" |gzip -9 >"$DEST/$bc-barclamp.tar.gz";;
         deb) cp -a "$CROWBAR_DIR/packaging/deb/debian" "$tmpdir/$bc"
             # Make a potentially hideous changelog
             (   cd "$CROWBAR_DIR/barclamps/$bc"
-                git log --pretty=format:"crowbar-barclamp-$bc (%ct.%h) unstable; urgency=low%n%n  * %s%n%n -- %an <%ae>  %aD%n" \
-                    --no-merges >"$tmpdir/$bc/debian/changelog"
-            )
-            "$CROWBAR_DIR/packaging/make-pkg" "$tmpdir/$bc" "$tmpdir" deb || \
-                die "Cannot create .deb for $bc"
-                find "$tmpdir" -name "crowbar-barclamp-$bc_*.deb" \
-                    -exec mv '{}' "$DEST" ';';;
-        rpm) mkdir -p "$tmpdir/BUILD" "$tmpdir/RPMS" 
-            "$CROWBAR_DIR/packaging/make-pkg" "$tmpdir/$bc" "$tmpdir" rpm || \
-            die "Cannot create .rpm for $bc"
-            find "$tmpdir/RPMS" -name "crowbar-barclamp-$bc-*.rpm" \
-                -exec mv '{}' "$DEST" ';';;
-        *) die "Unknown package type $BUILD_TYPE";;
+                git log --pretty=format:"crowbar-barclamp-${bc//_/-} (%ct.%h) unstable; urgency=low%n%n  * %s%n%n -- %an <%ae>  %aD%n" \
+                    --no-merges >"$tmpdir/$bc/debian/changelog");;
     esac
+    barclamps+=("$tmpdir/$bc")
 done
 
-
+case $BUILD_TYPE in
+    deb)
+        "$CROWBAR_DIR/packaging/make-pkg" --type deb --dest "$tmpdir" "${barclamps[@]}" || \
+            die "Cannot create .deb packages!"
+            find "$tmpdir" -name "crowbar-barclamp-*.deb" \
+                -exec mv '{}' "$DEST" ';';;
+    rpm)
+        mkdir -p "$tmpdir/BUILD" "$tmpdir/RPMS"
+        "$CROWBAR_DIR/packaging/make-pkg" --type rpm --dest "$tmpdir" "${barclamps[@]}" || \
+            die "Cannot create .rpm packages!"
+            find "$tmpdir/RPMS" -name "crowbar-barclamp-*.rpm" \
+                -exec mv '{}' "$DEST" ';';;
+    tar)
+        "$CROWBAR_DIR/packaging/make-pkg" --type tar --dest "$DEST" "${barclamps[@]}" || \
+            die "Cannot create .tar packages!";;
+esac

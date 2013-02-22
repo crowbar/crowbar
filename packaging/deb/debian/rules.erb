@@ -8,7 +8,7 @@ override PATH := /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 clean::
 	test -d .git && rm -rf .git || true
-	chmod a+x bin/*
+	chmod a+x bin/* || true
 	find . -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\|erb\|spec\)$$' | xargs chmod a-x
 	find . -regex '.+/README.*\|.+/chef/cookbooks/.+/recipes/.+.rb' | xargs chmod a-x
 binary::
