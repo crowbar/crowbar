@@ -54,8 +54,7 @@ functioning operating systems using Chef.
 dell_dir=%{buildroot}%{dell_dir}
 find . -regex '.+\.\(haml\|yml\|json\|tar\.gz\|schema\|erb\)$' | xargs chmod a-x
 find . -regex '.+/README.*\|.+/chef/cookbooks/.+/recipes/.+.rb' | xargs chmod a-x
-/opt/dell/bin/barclamp_install.rb --build --base-dir $dell_dir .
-rm $dell_dir/barclamps/*-filelist.txt
+%crowbar_barclamp_install
 %crowbar_barclamp_extract_locale $bc_dir $dell_dir/crowbar_framework/config/locales
 
 %pre
@@ -74,14 +73,8 @@ rm $dell_dir/barclamps/*-filelist.txt
 %defattr(-,crowbar,crowbar,-)
 %{dell_dir}/barclamps/%{barclamp}/
 %{dell_dir}/bin/*
-%{dell_dir}/chef/cookbooks/*
-%{dell_dir}/chef/roles/*
 %{dell_dir}/crowbar_framework/*
 %{dell_dir}/doc/*
 %{dell_dir}/BDD/*
-%{dell_dir}/chef/data_bags/crowbar/*.schema
-# FIXME: FHS violation, should not have config files in /opt
-# https://github.com/dellcloudedge/crowbar/issues/833
-%config(noreplace) %{dell_dir}/chef/data_bags/crowbar/*.json
 
 %changelog
