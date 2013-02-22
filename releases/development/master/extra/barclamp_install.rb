@@ -168,34 +168,30 @@ class BarclampFS
       return
     end
     cookbooks = File.join(chef,'cookbooks')
-    if File.directory?(cookbooks)
+    FileUtils.cd(cookbooks) do
       debug("Uploading chef cookbooks for #{bc}")
-      unless knife("cookbook upload -o \"#{cookbooks}\" --all")
+      unless knife("cookbook upload -o . --all")
         fatal("Could not upload cookbooks from #{cookbooks}")
       end
-    end
+    end if File.directory?(cookbooks)
     data_bags = File.join(chef,'data_bags')
-    if File.directory?(data_bags)
+    FileUtils.cd(data_bags) do
       debug("Uploading chef data bags for #{bc}")
-      Dir.entries(data_bags).each do |bag|
+      Dir.entries(".").each do |bag|
         next if bag == '.' or bag == '..'
         knife("data bag create \"#{bag}\"")
-        Dir.glob(File.join(data_bags,bag,'*.json')).each do |ent|
-          unless knife("data bag from file \"#{bag}\" \"#{ent}\"")
-            fatal("Could not upload data bag #{ent}")
-          end
+        unless knife("data bag from file \"#{bag}\" \"#{bag}\"")
+          fatal("Could not upload data bag #{bag}")
         end
       end
-    end
+    end if File.directory?(data_bags)
     roles = File.join(chef,'roles')
-    if File.directory?(roles)
+    FileUtils.cd(roles) do
       debug("Uploading chef roles for #{bc}")
-      Dir.glob(File.join(roles,'*.rb')).each do |role|
-        unless knife("role from file \"#{role}\"")
-          fatal("Could not upload role #{role}")
-        end
+      unless knife("role from file *.rb")
+        fatal("Could not upload role #{role}")
       end
-    end
+    end if File.directory?(roles)
   end
 
   def run_actions(stage)
