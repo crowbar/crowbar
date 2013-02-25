@@ -42,11 +42,10 @@ class Barclamp
 
     bcy = @yaml['barclamp']
 
-    @rawname = bcy['name']
-    @name = @rawname.tr('_','-')
+    @rawname = name
+    @name = bcy['name'].tr('_','-')
     @path = path
     @dest = dest
-    die("name mismatch: #{name} != #{@rawname}") unless name == @rawname
 
     @displayname = bcy['display']
     if bcy['member']
@@ -179,7 +178,7 @@ class Barclamp
   def make_tar
     res = true
     FileUtils.cd(File.join(@path,'..')) do
-      res = system("tar chf - \"#{@name}\" |gzip -9 > \"#{@dest}/#{@name}-barclamp.tar.gz\"")
+      res = system("tar chf - \"#{@rawname}\" |gzip -9 > \"#{@dest}/#{@name}-barclamp.tar.gz\"")
     end
     return res
   end
