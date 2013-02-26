@@ -4058,6 +4058,7 @@ run_unit_tests() (
              rm README &>/dev/null
              echo "Running rspec tests for ${d##*/} with rcov"
              bundle exec rspec *) || final_result=fail
+        )
     done
     [[ $final_result = pass ]]
 )
