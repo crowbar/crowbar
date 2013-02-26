@@ -11,6 +11,11 @@ On Ubuntu, run the following commands to ensure all pre-requisites are installed
 
 Run with `--update-gem-cache` on your first `./dev tests run` to make sure you have the necessary gems.
 
+#### Setup on openSUSE
+
+The dependencies (gems, etc.) should already be installed as packages.
+When you run `./dev setup-test-env`, add the `--no-gem-cache` option.
+
 #### Running the tests
 
 The following commands work for Unix environments:
