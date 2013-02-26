@@ -294,7 +294,7 @@ is_in() {
 }
 
 # Run a command in our chroot environment.
-in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" /bin/bash -l -c "$*"; }
+in_chroot() { sudo -H chroot "$CHROOT" /bin/bash -l -c "$*"; }
 
 # A little helper function for doing bind mounts.
 bind_mount() {
