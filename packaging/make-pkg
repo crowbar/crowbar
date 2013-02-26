@@ -157,7 +157,7 @@ class Barclamp
       @requires << '${misc:Depends}'
       debug(@requires.inspect)
       tmpls = {}
-      ["control","rules"].each do |tmpl|
+      ["control","rules","postinst"].each do |tmpl|
         t = File.join("debian",tmpl + '.erb')
         unless File.exists?(t)
           die("Cannot find the template at #{t}")

@@ -42,56 +42,91 @@ def knife(args)
 end
 
 class BarclampFS
-  attr_reader :source, :target, :chroot, :root
-  attr_reader :skip_chef, :skip_files, :skip_migrations, :skip_install_actions
-  attr_reader :metadata
-  def initialize(src, tgt, root)
-    if root
-      @chroot=true
-      @root=root
-    else
-      @root='/'
-      @target=tgt
-    end
-    @skip_chef=false | @chroot
-    @skip_migrations=false | @chroot
-    @skip_install_actions=false | @chroot
+  attr_reader :source, :metadata, :name
+  attr_accessor :installed
+  @@groups = Hash.new
+  def initialize(src)
+    @installed = false
+    @chroot = false
     @skip_files=false
+    @root = '/'
     @source = src
-    @target=File.join(@root,tgt)
     begin
       @metadata=YAML.load_file(File.join(@source,"crowbar.yml"))
     rescue
       fatal("#{@source} is not an unpacked barclamp!")
     end
-    @barclamp_dir=File.join(@target,'barclamps',bc)
+    @name = @metadata['barclamp']['name']
+    if (@metadata['barclamp']['member'] rescue nil)
+      @metadata['barclamp']['member'].each do |grp|
+        @@groups[grp] ||= Array.new
+        @@groups[grp] << @name
+      end
+    end
+  end
+
+  def root=(rootdir)
+    @chroot=true
+    FileUtils.mkdir_p(rootdir)
+    @root=rootdir
+  end
+
+  def target=(tgt)
+    @target=tgt
+  end
+
+  def target
+    File.expand_path(File.join(@root,@target))
+  end
+
+  def dir
+    File.join(target,"barclamps",@name)
   end
 
   def skip_chef=(t)
     @skip_chef = !!t | @chroot
   end
 
+  def skip_chef
+    @skip_chef | @chroot
+  end
+
   def skip_files=(t)
     @skip_files = !!t
+  end
+
+  def skip_files
+    @skip_files
   end
 
   def skip_engines=(t)
     @skip_engines = !!t
   end
 
+  def skip_engines
+    @skip_engines
+  end
+
   def skip_migrations=(t)
     @skip_migrations = !!t | @chroot
   end
+
+  def skip_migrations
+    @skip_migrations | @chroot
+  end
+
   def skip_install_actions=(t)
     @skip_install_actions = !!t | @chroot
   end
 
-  def bc
-    @metadata['barclamp']['name'] rescue nil
+  def skip_install_actions
+    @skip_install_actions | @chroot
   end
 
-  def dir
-    @barclamp_dir
+  def requires
+    (@metadata['barclamp']['requires'] rescue []).map do |d|
+      if /^@/ =~ d then @@groups[d[1..-1]] else d end
+    end.flatten.uniq
   end
 
   def [](k)
@@ -99,84 +134,84 @@ class BarclampFS
   end
 
   def install_app
-    STDERR.puts "Installing #{bc} from #{@source} into #{@target}"
+    STDERR.puts "Installing #{@name} from #{@source} into #{target}"
     dirs = Dir.entries(@source)
     use_engine = dirs.include?("crowbar_engine")
     dirs.sort.each do |ent|
       next if /^\./ =~ ent or ent == "debian"
       case ent
       when "crowbar_framework"
-        next if use_engine || @skip_files
-        debug("Copying crowbar_framework files over for #{bc}")
-        FileUtils.cp_r(File.join(@source,'crowbar_framework'),@target)
+        next if use_engine || skip_files
+        debug("Copying crowbar_framework files over for #{@name}")
+        FileUtils.cp_r(File.join(@source,'crowbar_framework'),target)
       when "crowbar_engine"
-        FileUtils.cp_r(File.join(@source,ent),@barclamp_dir) unless @source == @barclamp_dir
-        if FileTest.exists?(File.join(@barclamp_dir,ent,"barclamp_"+bc+"/test/unit"))
-          FileUtils.mkdir_p(File.join(@target,"crowbar_framework/test/unit"))
-          FileUtils.cp_r(File.join(@barclamp_dir,ent,"barclamp_"+bc+"/test/unit"),File.join(@target,"crowbar_framework/test/"))
+        FileUtils.cp_r(File.join(@source,ent),dir) unless @source == dir
+        if FileTest.exists?(File.join(dir,ent,"barclamp_"+@name+"/test/unit"))
+          FileUtils.mkdir_p(File.join(target,"crowbar_framework/test/unit"))
+          FileUtils.cp_r(File.join(dir,ent,"barclamp_"+@name+"/test/unit"),File.join(target,"crowbar_framework/test/"))
         end
-        next if @skip_engines 
-        debug("#{bc} is implemented using a Rails Engine.")
+        next if skip_engines 
+        debug("#{@name} is implemented using a Rails Engine.")
         debug("Linking in routes and Gemfile entries.")
-        system("perl -pi -e 's|engine mounts|engine mounts\n  mount Barclamp" + camelize(bc) + "::Engine, :at => \"" + bc + "\"|' " + File.join(@target,'crowbar_framework','config','routes.rb'))
-        system("perl -pi -e 's|engine mounts|engine mounts\ngem \"barclamp_" + bc + "\", :path => \"" + File.join(@barclamp_dir,'crowbar_engine',"barclamp_#{bc}") + "\"|' " + File.join(@target,'crowbar_framework','Gemfile'))
+        system("perl -pi -e 's|engine mounts|engine mounts\n  mount Barclamp" + camelize(@name) + "::Engine, :at => \"" + @name + "\"|' " + File.join(target,'crowbar_framework','config','routes.rb'))
+        system("perl -pi -e 's|engine mounts|engine mounts\ngem \"barclamp_" + @name + "\", :path => \"" + File.join(dir,'crowbar_engine',"barclamp_#{@name}") + "\"|' " + File.join(target,'crowbar_framework','Gemfile'))
       when 'bin'
-        debug("Installing commands for #{bc}")
-        FileUtils.mkdir_p(File.join(@target,'bin'))
-        FileUtils.cp_r(File.join(@source,'bin'),@target)
-        FileUtils.chmod_R(0755,File.join(@target,'bin'))
+        debug("Installing commands for #{@name}")
+        FileUtils.mkdir_p(File.join(target,'bin'))
+        FileUtils.cp_r(File.join(@source,'bin'),target)
+        FileUtils.chmod_R(0755,File.join(target,'bin'))
       when 'updates'
-        debug("Installing Sledgehammer updates for #{bc}")
+        debug("Installing Sledgehammer updates for #{@name}")
         FileUtils.mkdir_p(File.join(@root,'updates'))
         FileUtils.cp_r(File.join(@source,'updates'),@root)
       when 'BDD'
-        debug("Installing BDD framework components for #{bc}")
-        FileUtils.mkdir_p(File.join(@target,'BDD'))
-        FileUtils.cp_r(File.join(@source,'BDD'),@target)
+        debug("Installing BDD framework components for #{@name}")
+        FileUtils.mkdir_p(File.join(target,'BDD'))
+        FileUtils.cp_r(File.join(@source,'BDD'),target)
       when 'doc'
-        debug("Installing documentation for #{bc}")
-        FileUtils.mkdir_p(File.join(@target,'doc',bc))
-        FileUtils.cp_r(File.join(@source,'doc','.'),File.join(@target,'doc',bc))
+        debug("Installing documentation for #{@name}")
+        FileUtils.mkdir_p(File.join(target,'doc',@name))
+        FileUtils.cp_r(File.join(@source,'doc','.'),File.join(target,'doc',@name))
       else
-        next if @source == @barclamp_dir
-        debug("Copying #{ent} into #{@barclamp_dir}")
-        FileUtils.mkdir_p(@barclamp_dir)
-        FileUtils.cp_r(File.join(@source,ent),@barclamp_dir)
+        next if @source == dir
+        debug("Copying #{ent} into #{dir}")
+        FileUtils.mkdir_p(dir)
+        FileUtils.cp_r(File.join(@source,ent),dir)
       end
     end
   end
 
   def install_migrations
-    return if @skip_migrations
-    FileUtils.cd(File.join(@target,"crowbar_framework")) do
-      debug "#{Dir.pwd}: Installing migrations for #{bc}"
+    return if skip_migrations
+    FileUtils.cd(File.join(target,"crowbar_framework")) do
+      debug "#{Dir.pwd}: Installing migrations for #{@name}"
       system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake railties:install:migrations' crowbar"
-      debug "Running migrations for #{bc}"
+      debug "Running migrations for #{@name}"
       db = system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake db:migrate' crowbar"
     end
   end
 
   def install_chef
-    return if @skip_chef
+    return if skip_chef
     unless File.exists?('/root/.chef/knife.rb')
-      STDERR.puts("Knife not configured. Not installing #{bc} Chef Components.")
+      STDERR.puts("Knife not configured. Not installing #{@name} Chef Components.")
       return
     end
-    chef=File.join(@barclamp_dir,'chef')
+    chef=File.join(dir,'chef')
     unless File.directory?(chef)
       STDERR.puts("No chef components to upload")
       return
     end
     cookbooks = File.join(chef,'cookbooks')
     FileUtils.cd(cookbooks) do
-      debug("Uploading chef cookbooks for #{bc}")
+      debug("Uploading chef cookbooks for #{@name}")
       unless knife("cookbook upload -o . --all")
         fatal("Could not upload cookbooks from #{cookbooks}")
       end
     end if File.directory?(cookbooks)
     data_bags = File.join(chef,'data_bags')
     FileUtils.cd(data_bags) do
-      debug("Uploading chef data bags for #{bc}")
+      debug("Uploading chef data bags for #{@name}")
       Dir.entries(".").each do |bag|
         next if bag == '.' or bag == '..'
         knife("data bag create \"#{bag}\"")
@@ -187,7 +222,7 @@ class BarclampFS
     end if File.directory?(data_bags)
     roles = File.join(chef,'roles')
     FileUtils.cd(roles) do
-      debug("Uploading chef roles for #{bc}")
+      debug("Uploading chef roles for #{@name}")
       unless knife("role from file *.rb")
         fatal("Could not upload role #{role}")
       end
@@ -195,13 +230,13 @@ class BarclampFS
   end
 
   def run_actions(stage)
-    return if @skip_install_actions
-    setup_dir = File.join(@barclamp_dir,'setup')
+    return if skip_install_actions
+    setup_dir = File.join(dir,'setup')
     return unless File.directory?(setup_dir)
     FileUtils.cd(setup_dir) do
       Dir.glob("*.#{stage}").sort.each do |action|
         next unless File.executable?(action)
-        next if system("CROWBAR_DIR=\"#{@target}\" BC_PATH=\"#{@barclamp_dir}\" ./#{action}")
+        next if system("CROWBAR_DIR=\"#{target}\" BC_PATH=\"#{dir}\" ./#{action}")
         fatal("#{action} exited with non-zero status.")
       end
     end
@@ -228,7 +263,7 @@ class BarclampFS
         src=File.join(cache,ent,'pkgs')
         tgt=File.join('/tftpboot',ent,'crowbar-extra')
         FileUtils.mkdir_p(tgt)
-        tgt=File.join(tgt,bc)
+        tgt=File.join(tgt,@name)
         next if File.symlink?(tgt)
         FileUtils.ln_s(src,tgt)
       end
@@ -241,11 +276,9 @@ class BarclampFS
     install_cache
     run_actions("install")
     install_chef
+    @installed = true
   end
 end
-
-
-@@no_rsync = false
 
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
@@ -268,107 +301,98 @@ def usage()
   exit
 end
 
-force_install = false
+class Barclamps < Hash
+  attr_accessor :no_rsync, :base_dir, :root, :no_install_actions, :no_chef
+  attr_accessor :no_migrations, :no_rsync, :no_files, :no_engines
+  attr_accessor :force_install, :tmpdir
 
-@@base_dir = "/opt/dell"
-@@root = nil
-@@no_install_actions = false
-@@no_chef = false
-@@no_migrations = false
-@@no_rsync = false
-@@no_files = false
-@@no_engines = false
-
-opts.each do |opt, arg|
-  case opt
-  when "--help" then usage
-  when "--debug" then ENV['DEBUG']="true"; debug "debug mode is enabled"
-  when "--build"
-    @@no_install_actions = true
-    @@no_chef = true
-    @@no_migrations = true
-    @@no_rsync = true
-    @@no_engines = true
-  when "--no-framework-install" then @@no_framework = true
-  when "--no-install-actions" then @@no_install_actions = true
-  when "--deploy" then @@deploy = true
-  when "--no-files" then @@no_files = true; debug "no-files is enabled"
-  when "--no-engines" then @@no_engines = true; debug "no-engine is enabled"
-  when "--no-chef" then @@no_chef = true; debug "no-chef is enabled"
-  when "--base-dir" then @@base_dir = arg; debug "base-dir is #{@@base_dir}"
-  when "--force" then force_install = true
-  when "--root" then @@root = arg
+  def initialize
+    @force_install = false
+    @base_dir = "/opt/dell"
+    @root = nil
+    @no_install_actions = false
+    @no_chef = false
+    @no_migrations = false
+    @no_rsync = false
+    @no_files = false
+    @no_engines = false
+    @tmpdir = "/tmp/bc_install-#{Process.pid}-#{Kernel.rand(65535)}"
+    debug "tarball tmpdir: #{@tmpdir}"
+    FileUtils.mkdir_p(@tmpdir)
   end
-end
 
-usage if ARGV.length < 1
-
-tmpdir = "/tmp/bc_install-#{Process.pid}-#{Kernel.rand(65535)}"
-debug "tarball tmpdir: #{tmpdir}"
-Dir.mkdir(tmpdir)
-candidates = Array.new
-
-def rm_tmpdir(tmpdir)
-  if File.directory?(tmpdir)
-    debug "temporary directory #{tmpdir} will be removed"
-    system "rm -rf #{tmpdir}"
+  def rm_tmpdir
+    if File.directory?(@tmpdir)
+      debug "temporary directory #{@tmpdir} will be removed"
+      system "rm -rf #{@tmpdir}"
+    end
   end
-end
 
-ARGV.each do |src|
-  debug "src: #{src}"
-  bc=nil
-  case
-  when /tar\.gz|tgz$/ =~ src
+  def set_bc_opts(bc)
+    bc.target = @base_dir
+    bc.root = @root if @root
+    bc.skip_chef = @no_chef
+    bc.skip_files = @no_files
+    bc.skip_install_actions = @no_install_actions
+    bc.skip_migrations = @no_migrations
+    bc.skip_engines = @no_engines
+  end
+
+  def add_dir(src)
+    bc = BarclampFS.new(File.expand_path(src))
+    debug("Will install #{bc.name} from #{src}")
+    set_bc_opts(bc)
+    self[bc.name] = bc
+  end
+
+  def add_installed(src)
+    bc = BarclampFS.new(File.expand_path(src))
+    bc.installed = true
+    return if self[bc.name]
+    debug("Noting that #{bc.name} is already installed.")
+    self[bc.name] = bc
+  end
+
+  def add_tarball(tarball)
     # This might be a barclamp tarball.  Expand it into a temporary location.
-    src=File.expand_path(src)
+    src=File.expand_path(tarball)
     system "tar xzf \"#{src}\" -C \"#{tmpdir}\""
     target="#{tmpdir}/#{src.split("/")[-1].split(".")[0]}"
     if File.exists?(File.join(target,"crowbar.yml"))
-      bc = BarclampFS.new(target,@@base_dir,@@root)
+      add_dir(target)
     else
       puts "#{src} is not a barclamp tarball, ignoring."
-      next
     end
-  when File.exists?(File.join(src,"crowbar.yml"))
-    # We were handed something that looks like a path to a barclamp
-    bc = BarclampFS.new(File.expand_path(src),@@base_dir,@@root)
-  when File.exists?(File.join(@@base_dir,"barclamps",src,"crowbar.yml"))
-    bc = BarclampFS.new(File.join(@@base_dir,"barclamps",src),@@base_dir,@@root)
-  else
-    debug "base directory is #{@@base_dir}"
-    puts "#{src} is not a barclamp, ignoring."
-    next
   end
-  unless bc && bc.bc
-    puts "Barclamp at #{src} has no name, skipping"
-    next
-  end
-  bc.skip_chef = @@no_chef
-  bc.skip_files = @@no_files
-  bc.skip_install_actions = @@no_install_actions
-  bc.skip_migrations = @@no_migrations
-  bc.skip_engines = @@no_engines
-  candidates << bc if bc
-end
 
-debug "installing barclamps:"
-candidates.sort_by{|c| c["crowbar"]["order"].to_i rescue 9999}.each do |bc|
-  debug bc.bc
-  begin
-    unless bc.source == bc.dir
-      if File.directory?(bc.dir)
-        debug("target directory #{bc.dir} exists")
-        if File.exists?("#{bc.dir}/crowbar.yml")
-          debug("#{bc.dir}/crowbar.yml file exists")
-          if File.exists?("#{bc.dir}/sha1sums")
-            debug("#{bc.dir}/sha1sums file exists")
-            unless force_install or system "cd \"#{bc.dir}\"; sha1sum --status -c sha1sums"
-              debug "force_install mode is disabled and not all file checksums do match"
-              puts "Refusing to install over non-pristine target #{bc.dir}"
-              puts "Please back up the following files:"
-              system "cd \"#{bc.dir}\"; sha1sum -c sha1sums |grep -v OK"
-              puts "and rerun the install after recreating the checksum file with:"
+  def sanity_check
+    values.each do |bc|
+      next if bc.installed
+      unless bc.source == bc.dir
+        if File.directory?(bc.dir)
+          debug("target directory #{bc.dir} exists")
+          if File.exists?("#{bc.dir}/crowbar.yml")
+            debug("#{bc.dir}/crowbar.yml file exists")
+            if File.exists?("#{bc.dir}/sha1sums")
+              debug("#{bc.dir}/sha1sums file exists")
+              unless force_install or system "cd \"#{bc.dir}\"; sha1sum --status -c sha1sums"
+                debug "force_install mode is disabled and not all file checksums do match"
+                puts "Refusing to install over non-pristine target #{bc.dir}"
+                puts "Please back up the following files:"
+                system "cd \"#{bc.dir}\"; sha1sum -c sha1sums |grep -v OK"
+                puts "and rerun the install after recreating the checksum file with:"
+                puts "  cd \"#{bc.dir}\"; find -type f -not -name sha1sums -print0 | \\"
+                puts "       xargs -0 sha1sum -b >sha1sums"
+                puts "(or use the --force switch)"
+                debug "temporary directory #{tmpdir} will be removed if it exists"
+                system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
+                exit 1
+              end
+            elsif not force_install
+              debug "force_install mode is disabled and #{bc.dir}/sha1sums file does not exist"
+              puts "#{bc.dir} already exists, but it does not have checksums."
+              puts "Please back up any local changes you may have made, and then"
+              puts "create a checksums file with:"
               puts "  cd \"#{bc.dir}\"; find -type f -not -name sha1sums -print0 | \\"
               puts "       xargs -0 sha1sum -b >sha1sums"
               puts "(or use the --force switch)"
@@ -376,48 +400,100 @@ candidates.sort_by{|c| c["crowbar"]["order"].to_i rescue 9999}.each do |bc|
               system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
               exit 1
             end
-          elsif not force_install
-            debug "force_install mode is disabled and #{bc.dir}/sha1sums file does not exist"
-            puts "#{bc.dir} already exists, but it does not have checksums."
-            puts "Please back up any local changes you may have made, and then"
-            puts "create a checksums file with:"
-            puts "  cd \"#{bc.dir}\"; find -type f -not -name sha1sums -print0 | \\"
-            puts "       xargs -0 sha1sum -b >sha1sums"
-            puts "(or use the --force switch)"
+          else
+            debug "#{bc.dir}/crowbar.yml does not exist"
+            puts "#{bc.dir} exists, but it is not a barclamp."
+            puts "Cowardly refusing to overwrite it."
             debug "temporary directory #{tmpdir} will be removed if it exists"
             system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
             exit 1
           end
-        else
-          debug "#{bc.dir}/crowbar.yml does not exist"
-          puts "#{bc.dir} exists, but it is not a barclamp."
-          puts "Cowardly refusing to overwrite it."
-          debug "temporary directory #{tmpdir} will be removed if it exists"
-          system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
-          exit 1
         end
       end
     end
-    debug "installing barclamp"
-    begin
-      bc.install
-    rescue StandardError => e
-      debug "exception occurred while installing barclamp"
-      raise e
+  end
+
+  def install_bc(bc)
+    return true if bc.installed
+    bc.requires.each do |prereq|
+      next unless self.has_key?(prereq)
+      install_bc(self[prereq])
     end
-  rescue StandardError => e
-    if ENV['DEBUG'] == "true"
-      debug "temporary directory #{tmpdir} will be left for debugging if it exists"
-    else
-      rm_tmpdir(tmpdir)
+    bc.install
+  end
+
+  def install
+    values.sort_by{|c| c["crowbar"]["order"].to_i rescue 9999}.each do |bc|
+      next if bc.installed
+      begin
+        debug "installing barclamp #{bc.name}"
+        bc.install
+      rescue StandardError => e
+        if ENV['DEBUG'] == "true"
+          debug "temporary directory #{tmpdir} will be left for debugging if it exists"
+        else
+          rm_tmpdir
+        end
+        puts e
+        puts e.backtrace
+        puts "Install of #{bc[:name]} failed."
+        exit 3
+      end
     end
-    puts e
-    puts e.backtrace
-    puts "Install of #{bc[:name]} failed."
-    exit -3
+    rm_tmpdir
   end
 end
 
-rm_tmpdir(tmpdir)
+candidates = Barclamps.new
+
+opts.each do |opt, arg|
+  case opt
+  when "--help" then usage
+  when "--debug" then ENV['DEBUG']="true"; debug "debug mode is enabled"
+  when "--build"
+    candidates.no_install_actions = true
+    candidates.no_chef = true
+    candidates.no_migrations = true
+    candidates.no_rsync = true
+    candidates.no_engines = true
+  when "--no-framework-install" then candidates.no_framework = true
+  when "--no-install-actions" then candidates.no_install_actions = true
+  when "--deploy" then true
+  when "--no-files" then candidates.no_files = true; debug "no-files is enabled"
+  when "--no-engines" then candidates.no_engines = true; debug "no-engine is enabled"
+  when "--no-chef" then candidates.no_chef = true; debug "no-chef is enabled"
+  when "--base-dir" then candidates.base_dir = arg; debug "base-dir is #{candidates.base_dir}"
+  when "--force" then force_install = true
+  when "--root" then candidates.root = arg
+  end
+end
+
+usage if ARGV.length < 1
+
+ARGV.each do |src|
+  bc=nil
+  case
+  # We were handed a tarball.
+  when /tar\.gz|tgz$/ =~ src then candidates.add_tarball(src)
+  # We were handed something that looks like a path to a barclamp
+  when File.exists?(File.join(src,"crowbar.yml")) then candidates.add_dir(src)
+  when File.exists?(File.join(candidates.base_dir,"barclamps",src,"crowbar.yml"))
+    candidates.add_dir(File.join(candidates.base_dir,"barclamps",src))
+  else
+    puts "#{src} is not a barclamp, ignoring."
+    next
+  end
+end
+
+# Load up any previously-installed barclamps from our install target.
+# This will help ensure that our dependencies get solved correctly.
+Dir.glob(File.join((candidates.root || ''),candidates.base_dir, "barclamps","*")).each do |d|
+  next unless File.directory?(d) &&
+    File.exists?(File.join(d,"crowbar.yml"))
+  candidates.add_installed(d)
+end
+
+candidates.sanity_check
+candidates.install
 
 exit 0
