@@ -16,6 +16,10 @@ Before you start developing a barclamp, we recommend that you do the following:
 *	Write down the manual steps needed to install your software
 *	Create Chef Cookbooks to deploy your software
 
+## Getting started
+
+* [How to set up a development environment in a VM](devguide/dev-vm.md)
+
 ## Guidelines for contributors
 
 See the [Contributor Guide](devguide/contributing.md).
