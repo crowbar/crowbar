@@ -11,7 +11,7 @@ The RSpec tests reside under the `spec/` directory.  They should focus on model 
 #### Running the tests outside the dev tool
 
 On an installed admin node, first `cd` to `/opt/dell/crowbar_framework`.
-In a [development environment](../dev-vm.md), instead `cd` to `/tmp/crowbar-dev-test/crowbar_framework`.
+In a [development environment](../dev-vm.md), instead `cd` to `/tmp/crowbar-dev-test/opt/dell/crowbar_framework`.
 
 Then run the following commands:
 

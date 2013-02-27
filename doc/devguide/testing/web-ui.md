@@ -5,7 +5,7 @@ Firstly [set up your development environment](devtool.md).
 #### Starting the Crowbar web interface
 
    ````
-   cd /tmp/crowbar-dev-test/crowbar_framework
+   cd /tmp/crowbar-dev-test/opt/dell/crowbar_framework
    bundle exec rails s puma
    ````
 
