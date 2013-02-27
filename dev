@@ -3957,7 +3957,7 @@ setup_test_env() (
         debug "** Installing gems via bundler ..."
         bundle install --path "$CROWBAR_TEST_DIR/gems" || \
             die "Not all required gems are present." \
-            "Please run again with --update-gem-cache." \
+            "Please run again with --no-gem-cache or --update-gem-cache." \
             "If that does not work, then you will need to add the missing gems to:" \
             "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
         debug
