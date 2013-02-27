@@ -1,36 +1,50 @@
 ### Dev Tool Helpers 
 
-The dev tool has been updated to allow for running these tests from in a build environment.  
+The dev tool allows you to set up a test environment and run tests
+from it.
 
-#### Setup on Ubuntu
+Firstly ensure you have [set up a development VM](../dev-vm.md) which has
+the correct dependencies installed.
 
-On Ubuntu, run the following commands to ensure all pre-requisites are installed:
+The following commands work for UNIX environments.  When you first run
+`./dev tests run`, use the `--update-gem-cache` option to make sure you
+have the gems.
 
-    sudo apt-get install sqlite3
-    sudo gem install rake bundler sqlite3
+#### Setting up the test environment
 
-Run with `--update-gem-cache` on your first `./dev tests run` to make sure you have the necessary gems.
+`./dev tests setup` builds a test environment in `/tmp/crowbar-dev-test`.
+On openSUSE, you should use the `--no-gem-cache` option.
 
-#### Setup on openSUSE
+Setup includes the following tasks:
 
-The dependencies (gems, etc.) should already be installed as packages.
-When you run `./dev setup-test-env`, add the `--no-gem-cache` option.
+* copying the sources into the right locations under
+  `/tmp/crowbar-dev-test/opt/dell`
+* running bundler to install required gems
+* compiling the BDD tests
 
 #### Running the tests
 
-The following commands work for Unix environments:
+    ./dev tests run       # executes the Rails specs, Chef specs, unit tests, and BDD tests
 
-1. `./dev tests setup`     # builds a unit test environment in /tmp/crowbar-dev-test
-1. `./dev tests reload`    # builds fixtures and migrates data for /tmp/crowbar-dev-test
-1. `./dev tests run`       # executes the chef-spec, unit tests and BDD tests
-1. `./dev tests clear`     # Removes the /tmp/crowbar-dev-test environment
+You can also run them with finer granularity:
 
-For debugging, the `/tmp/crowbar-dev-test/crowbar_framework` environment can be used as a rails app.  
+    ./dev tests run-unit  # executes the Rails specs, Chef specs, and unit tests
+    ./dev tests run-BDD   # executes the BDD tests
 
-The crowbar webserver can be run by running:
-* `bundle exec rails s`
+After changing code, you can re-run the above command after first
+rebuilding fixtures and performing any required data base migrations via:
 
-You must do this if you want to debug the BDD tests!  Once the server is running on localhost, you can run the BDD tests interactively from erlang (`erl`) in from the code area (not just the test area) using commands like `bdd:test(crowbar).` and `bdd:debug(crowbar, myfeature, mytestid, debug).`  
+    ./dev tests reload    # builds fixtures and migrates data for /tmp/crowbar-dev-test
 
-> Note: only the `crowbar-dev-test` area will have all the tests available because of the barclamp rollup.
+For debugging, the `/tmp/crowbar-dev-test/crowbar_framework`
+environment can be used as a Rails app for [manual UI testing](web-ui.md).
 
+Note: only the `/tmp/crowbar-dev-test` area will have all the tests available because of the barclamp rollup.
+
+#### Cleaning up
+
+    ./dev tests clear     # Removes the /tmp/crowbar-dev-test environment
+
+#### More information
+
+See the [Testing page](../testing.md) for more information on each set of tests.
