@@ -20,6 +20,9 @@ Setup includes the following tasks:
 * copying the sources into the right locations under
   `/tmp/crowbar-dev-test/opt/dell`
 * running bundler to install required gems
+* creating a `coverage` symlink under the Rails app's `public/`
+  directory so that the web server will serve up the HTML coverage
+  reports
 * compiling the BDD tests
 
 #### Running the tests
