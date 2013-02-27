@@ -116,7 +116,7 @@ You should now have a working VM that you can SSH into from the qemu-kvm host.
 1. Setup the test and development environment:
 
    ````
-   crowbar-dev> ./dev setup-unit-tests --no-gem-cache
+   crowbar-dev> ./dev tests setup --no-gem-cache
    crowbar-dev> cd /tmp/crowbar-dev-test && bundle install
    ````
 

@@ -9,16 +9,16 @@ On Ubuntu, run the following commands to ensure all pre-requisites are installed
     sudo apt-get install sqlite3
     sudo gem install rake bundler sqlite3
 
-Run with `--update-gem-cache` on your first `run-tests` to make sure you have the necessary gems.
+Run with `--update-gem-cache` on your first `./dev tests run` to make sure you have the necessary gems.
 
 #### Running the tests
 
 The following commands work for Unix environments:
 
-1. `./dev setup-unit-tests`   # builds a unit test environment in /tmp/crowbar-dev-test
-1. `./dev reload-unit-tests`  # builds fixtures and migrates data for /tmp/crowbar-dev-test
-1. `./dev run-tests`          # executes the chef-spec, unit tests and BDD tests
-1. `./dev clear-unit-tests`   # Removes the /tmp/crowbar-dev-test environment
+1. `./dev tests setup`     # builds a unit test environment in /tmp/crowbar-dev-test
+1. `./dev tests reload`    # builds fixtures and migrates data for /tmp/crowbar-dev-test
+1. `./dev tests run`       # executes the chef-spec, unit tests and BDD tests
+1. `./dev tests clear`     # Removes the /tmp/crowbar-dev-test environment
 
 For debugging, the `/tmp/crowbar-dev-test/crowbar_framework` environment can be used as a rails app.  
 

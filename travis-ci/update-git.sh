@@ -42,8 +42,8 @@ function update_with_dev_tool() {
   cd ..
   run "./dev fetch" "Running ./dev fetch..."
   run "./dev sync"  "Running ./dev sync..."
-  run "./dev setup-unit-tests --no-gem-cache" \
-      "Running ./dev setup-unit-tests --no-gem-cache"
+  run "./dev tests setup --no-gem-cache" \
+      "Running ./dev tests setup --no-gem-cache"
 }
 
 function rsync_files() {

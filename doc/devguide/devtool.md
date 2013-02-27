@@ -17,9 +17,9 @@ Prerequs
 1. Ubuntu 12.04.01 as the OS for DevTool
 1. `sudo gem install i18n active_support builder rails`
 
-To run the tests with DevTool, you must first setup the tests using `./dev setup-unit-tests`.  DevTool will prompt you to install any missing components.
+To run the tests with DevTool, you must first setup the tests using `./dev tests setup`.  DevTool will prompt you to install any missing components.
 
 
-After you have completed setup, use `./dev run-tests` ro run the tests.
+After you have completed setup, use `./dev tests run` to run the tests.
 
 If you want to troubleshoot the tests, all the files are in `/tmp/crowbar-dev-test/crowbar_framework/`.  You can manually run the DevTool rails application by running `bundle exec rails s` from the dev test directory.
