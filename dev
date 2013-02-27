@@ -4336,7 +4336,7 @@ DEV_SHORT_HELP["build"]="              Show the current build or build Crowbar"
 DEV_SHORT_HELP["builds"]="             Show the builds in the current release."
 DEV_SHORT_HELP["build-refs"]="         Show the Git commits that would be used in a build."
 DEV_SHORT_HELP["checkout"]="           Check out a branch in the current release."
-DEV_SHORT_HELP["ci"]="                 Heper for Continuous Intergration subcommands."
+DEV_SHORT_HELP["ci"]="                 Helper for Continuous Integration subcommands."
 DEV_SHORT_HELP["clear-unit-tests"]="   [deprecated] same as ./dev tests clear"
 DEV_SHORT_HELP["clone-barclamps"]="    Clone barclamps."
 DEV_SHORT_HELP["create-barclamp"]="    Create a new barclamp."
@@ -4710,7 +4710,7 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
 
       Please note that this will put any trees that have changes to be pulled
       into a detached HEAD state.  You can use dev switch to get back to normal."
-DEV_LONG_HELP["ci"]="Crowbar Continuous Intergration Helper.
+DEV_LONG_HELP["ci"]="Crowbar Continuous Integration Helper.
   Any of the CI subcommands that take an ID can either take a raw ID as
   returned by dev ci all-ids,
   or a pull request number as returned by dev pull-requests list, although the
