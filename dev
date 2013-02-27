@@ -4053,14 +4053,8 @@ run_unit_tests() (
     bundle exec "${unit_runner[@]}" || final_result=fail
 
     echo "Running chef unit tests ..."
-    # Run chef unit tests
-    for d in "$CROWBAR_TEST_DIR/opt/dell/barclamps/"*; do
-        [[ -d $d/chef/cookbooks ]] || continue
-        (    cd "$d/chef/cookbooks"
-             echo "Running rspec tests for ${d##*/}"
-             find * -maxdepth 0 -type d | xargs bundle exec rspec || final_result=fail
-        )
-    done
+    find -path '*/chef/cookbooks' | xargs -r bundle exec rspec || final_result=fail
+
     [[ $final_result = pass ]]
 )
 
