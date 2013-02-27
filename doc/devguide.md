@@ -24,6 +24,16 @@ Before you start developing a barclamp, we recommend that you do the following:
 
 See the [Contributor Guide](devguide/contributing.md).
 
+## Technical topics
+
+* [2.0 API reference guide](devguide/API.md)
+* [Barclamps](devguide/barclamps.md)
+* [Browser support matrix](devguide/browser-support.md)
+* [Building ISOs](devguide/building.md)
+* [Using the ./dev tool](devguide/devtool.md)
+* [Testing](devguide/testing.md)
+* [UI development](devguide/ui.md)
+
 ## Authors
 
 * Rob Hirschfeld
