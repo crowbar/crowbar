@@ -18,6 +18,13 @@ We have several mechanisms for testing and the following sections will help you 
 
 It is recommended to [run these automated tests via the `./dev` tool](testing/devtool.md).
 
+### Code coverage reports
+
+Code coverage reports are automatically generated when the tests are
+run, and can be accessed via the Rails app's webserver at e.g.
+http://192.168.124.10:3000/coverage/ - see [here](testing/web-ui.md)
+for how to start the web server.
+
 ### Manual tests
 
 * [Testing the web UI](testing/web-ui.md)

@@ -3976,7 +3976,10 @@ setup_test_env() (
     mkdir -p "$CROWBAR_TEST_DIR/doc/framework"
     echo "Copying base docs from $CROWBAR_DIR/doc/. to $CROWBAR_TEST_DIR/opt/dell/doc/framework"
     cp -r "$CROWBAR_DIR/doc/." "$CROWBAR_TEST_DIR/opt/dell/doc/framework"
-            
+
+    debug "Setting up public/coverage symlink"
+    ln -sf ../coverage "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework/public"
+
     cd "$CROWBAR_TEST_DIR/opt/dell/BDD"
     sudo "$CROWBAR_TEST_DIR/opt/dell/BDD/linux_install.sh"
     ./linux_compile.sh
