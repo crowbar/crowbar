@@ -4,7 +4,11 @@ The BDD (Behaviour-Driven Development) tests reside under the `BDD/` directory, 
 
 The BDD tests are written in a "Cucumber-like" domain specific language (DSL), and the testing framework is written in Erlang.
 
-#### Running the BDD tests
+#### Running the tests via the dev tool
+
+[Running the tests via the dev tool](devtool.md) is the recommended approach.
+
+#### Running the tests outside the dev tool
 
 *NOTE:* Unfortunately the BDD tests (written in Erlang) currently do not work
 on openSUSE yet.
