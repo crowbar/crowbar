@@ -4227,8 +4227,10 @@ pull_request_handler() {
         comment) pull_request_comment "$@";;
         close)   pull_request_close "$@";;
         '')      show_open_pull_requests "$@";;
-        *) die "$req is not a valid pull-request subcommand!" \
-            "Try $0 help pull-requests.";;
+        *)       dev_help 'pull-requests';;
+    esac
+}
+
 tests_handler() {
     local req=$1
     shift
@@ -4268,7 +4270,9 @@ ci_helper() {
         fail-intent) ci_fail_intent "$@";;
         kill-stale-intents)
 	    ci_do_and_push ci_kill_stale_intents "$@";;
-        *) die "Not a valid CI command.  Run $0 help ci for valid CI commands.";;
+        *)
+            dev_help 'ci'
+            exit 1 ;;
     esac
 }
 # Hash for handling command -> function mapping.
