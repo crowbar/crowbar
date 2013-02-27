@@ -36,7 +36,7 @@ rebuilding fixtures and performing any required data base migrations via:
 
     ./dev tests reload    # builds fixtures and migrates data for /tmp/crowbar-dev-test
 
-For debugging, the `/tmp/crowbar-dev-test/crowbar_framework`
+For debugging, the `/tmp/crowbar-dev-test/opt/dell/crowbar_framework`
 environment can be used as a Rails app for [manual UI testing](web-ui.md).
 
 Note: only the `/tmp/crowbar-dev-test` area will have all the tests available because of the barclamp rollup.

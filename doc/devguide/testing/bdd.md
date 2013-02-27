@@ -10,7 +10,7 @@ The BDD tests are written in a "Cucumber-like" domain specific language (DSL), a
 on openSUSE yet.
 
    ````
-   cd /tmp/crowbar-dev-test/crowbar_framework/BDD
+   cd /tmp/crowbar-dev-test/opt/dell/crowbar_framework/BDD
    ./linux_compile.sh
    ./linux_run.sh
    ````
