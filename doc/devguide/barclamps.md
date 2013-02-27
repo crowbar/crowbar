@@ -2,9 +2,8 @@
 
 > NOTE: This is from the wiki and needs to be reviewed, RAH 11/9/2012
 
-The Crowbar Barclamp provides the roles and recipes to set up the barclamp framework.
-
-The crowbar clamp initializes the system, creates initial instances of other barclamps defined in its configuration, and creates the users to access the crowbar API and UI. Any number of barclamp instances can be started. By default, the system starts a network, ganglia, nagios, ntp, dns, provisioner, deployer, ipmi, raid, and BIOS barclamp based upon their default configurations. The initialization function of the crowbar barclamp works exactly like the other barclamps. A proposal is created and can be committed during installation.
+The Crowbar barclamp provides the roles and recipes to set up the barclamp framework.
+It initializes the system, creates initial instances of other barclamps defined in its configuration, and creates the users to access the crowbar API and UI. Any number of barclamp instances can be started. By default, the system starts a network, ganglia, nagios, ntp, dns, provisioner, deployer, ipmi, raid, and BIOS barclamp based upon their default configurations. The initialization function of the crowbar barclamp works exactly like the other barclamps. A proposal is created and can be committed during installation.
 
 The main post-installation function is to provide the main transition entry point for the system. All barclamps' transition functions can be called directly, but the crowbar barclamp calls these in an order specified each barclamps' crowbar.yml file. The default unspecified priority is 1000. 
 
