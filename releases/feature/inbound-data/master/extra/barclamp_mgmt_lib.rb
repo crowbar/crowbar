@@ -62,7 +62,7 @@ end
 def bc_install(bc, bc_path, yaml)
   case yaml["crowbar"]["layout"].to_s
   when "1"
-    throw "ERROR: Crowbar 1.x barclamp formats are not supported in Crowbar 2.x"
+    raise "ERROR: Crowbar 1.x barclamp formats are not supported in Crowbar 2.x"
   when "1.9","2"
     debug "Installing app components"
     bc_install_layout_2_app bc, bc_path, yaml
@@ -73,7 +73,7 @@ def bc_install(bc, bc_path, yaml)
     debug "Performing install actions"
     bc_do_install_action bc, bc_path, :install
   else
-    throw "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
+    raise "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
   end
   catalog bc_path
 end
