@@ -15,7 +15,7 @@ SMOKETEST_RESULTS=()
 # Commands we have to run under sudo -n
 SUDO_CMDS="brctl ip umount mount make_cgroups.sh"
 # Commands we need to run as $USER
-NEEDED_CMDS="ruby gem kvm screen qemu-img sudo"
+NEEDED_CMDS="ruby gem screen qemu-img sudo"
 # Gems we have to have installed.
 NEEDED_GEMS="json net-http-digest_auth"
 declare -a SMOKETEST_VLANS
@@ -23,6 +23,11 @@ SMOKETEST_VLANS[200]="192.168.125.1/24"
 SMOKETEST_VLANS[300]="192.168.126.1/24"
 SMOKETEST_VLANS[500]="192.168.127.1/24"
 SMOKETEST_VLANS[600]="192.168.128.1/24"
+
+for KVM in kvm qemu-kvm ''; do
+    type $KVM &>/dev/null && break
+done
+[[ $KVM ]] || die "Cannot find kvm!  Are you sure it is installed?"
 
 # THis lock is held whenever we are running tests.  It exists to
 # prevent multiple instances of the smoketest from running at once.
@@ -541,13 +546,13 @@ run_kvm() {
     # We use unsafe caching if we can on the vms because we will just
     # rebuild the filesystems from scratch if anything goes wrong.
     if ! [[ $drive_cache ]]; then
-        if kvm --help |grep -q 'cache.*unsafe'; then
+        if "$KVM" --help |grep -q 'cache.*unsafe'; then
             drive_cache=unsafe
         else
             drive_cache=writeback
         fi
-        if kvm -device \? 2>&1 |grep -q ahci && \
-            [[ $(kvm -version) =~ kvm-1 ]]; then
+        if "$KVM" -device \? 2>&1 |grep -q ahci && \
+            [[ $("$KVM" -version) =~ kvm-1 ]]; then
             kvm_use_ahci=true
         fi
     fi
@@ -621,12 +626,12 @@ run_kvm() {
         # If we are running under X, then use a graphical display.
         if [[ $DISPLAY ]]; then
             kvmargs+=( -sdl -daemonize )
-            kvm "${kvmargs[@]}" "$@"
+            "$KVM" "${kvmargs[@]}" "$@"
         else
             # otherwise, launch ourselves under screen.
             kvmargs+=( -curses )
             screen -S "$SMOKETEST_SCREEN" -X screen \
-                -t "$vm_gen" kvm "${kvmargs[@]}" "$@"
+                -t "$vm_gen" "$KVM" "${kvmargs[@]}" "$@"
             screen -S "$SMOKETEST_SCREEN" -p "$vm_gen" -X log on
         fi
         # wait up to 10 seconds for a PID file
