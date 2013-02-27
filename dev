@@ -3814,23 +3814,20 @@ purge_submodule_metadata() (
 
 # Unit testing functions:
 
-unit_prereqs_installed() {
+test_prereqs_installed() {
     local f gem
-    f=true
-    if ! command -v markdown >/dev/null 2>&1; then
-        debug "Please make sure markdown is installed."
-        f=false
-    fi
+
     if [[ ! $(find /usr/include -name 'sqlite3.h') ]]; then
         debug "sqlite development headers not installed."
-        f=false
+        return 1
     fi
-    for gem in kwalify bundler rake rcov rspec; do
-        gem list |grep -q "$gem" && continue
-        debug "Please install the $gem gem."
-        f=false
-    done
-    [[ $f = true ]]
+
+    local rvm=/usr/local/rvm/scripts/rvm
+    [ -f $rvm ] && source $rvm
+
+    if ! command -v bundle >/dev/null 2>&1; then
+        die "Please make sure bundler is installed. Eg. 'sudo gem install bundler'"
+    fi
 }
 
 paths_same() {
@@ -3925,20 +3922,7 @@ setup_test_env() (
             *) barclamps+=("$f");;
         esac
     done
-     if [[ $use_gem_cache = true ]]; then
-        unit_prereqs_installed || exit 1
-    else
-        local rvm=/usr/local/rvm/scripts/rvm
-        [ -f $rvm ] && source $rvm
-        if command -v bundle >/dev/null 2>&1; then
-            debug "** Installing minimal dev setup dependencies..."
-            bundle install --gemfile=dev-setup/Gemfile
-            [ $? -eq 0 ] || die "Failed to install gem dependencies"
-            debug
-        else
-            die "Please make sure bundler is installed. Eg. 'sudo gem install bundler'"
-        fi
-    fi
+    test_prereqs_installed || exit 1
     rm -rf "$CROWBAR_TEST_DIR"
     mkdir "$CROWBAR_TEST_DIR"
     reinstall_barclamps "${barclamps[@]}" || exit 1
@@ -3970,18 +3954,25 @@ setup_test_env() (
             gem generate_index)
         sed -ie "s@^source .*@source \"file://$CROWBAR_TEST_DIR/gemsite\"@" "Gemfile"
 
+        debug "** Installing gems via bundler ..."
         bundle install --path "$CROWBAR_TEST_DIR/gems" || \
             die "Not all required gems are present." \
             "Please run again with --update-gem-cache." \
             "If that does not work, then you will need to add the missing gems to:" \
             "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
+        debug
     else
         sed -ie "s@^source .*@source \"http://rubygems.org\"@" "Gemfile"
         echo "NOTE: Using the --no-gem-cache option means that the gems used to"\
         "run the unit tests may not be the same as the ones used to build and"\
         "install Crowbar, so results may differ."
+
+        debug "** Installing gems via bundler ..."
+        bundle install --path "$CROWBAR_TEST_DIR/gems" || \
+            die "Not all required gems are present."
+        debug
     fi
-    
+
     mkdir -p "$CROWBAR_TEST_DIR/doc/framework"
     echo "Copying base docs from $CROWBAR_DIR/doc/. to $CROWBAR_TEST_DIR/opt/dell/doc/framework"
     cp -r "$CROWBAR_DIR/doc/." "$CROWBAR_TEST_DIR/opt/dell/doc/framework"
