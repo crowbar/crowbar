@@ -96,4 +96,7 @@
   <repository type='rpm-md'>
     <source path='http://download.opensuse.org/repositories/systemsmanagement:crowbar:2.0/openSUSE_12.2/'/>
   </repository>
+  <repository type='rpm-md'>
+    <source path='http://download.opensuse.org/repositories/systemsmanagement:crowbar:2.0:staging/openSUSE_12.2/'/>
+  </repository>
 </image>
