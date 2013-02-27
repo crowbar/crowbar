@@ -55,7 +55,7 @@ def bc_install(bc, path, barclamp, options={})
     puts "DEBUG: Installing cache components" if debug
     bc_install_layout_1_cache bc, path, barclamp, :debug => debug
   else
-    throw "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
+    raise "ERROR: could not install barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
   end
   catalog path, :debug => debug
 end
