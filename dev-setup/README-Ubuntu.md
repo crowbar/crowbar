@@ -123,7 +123,7 @@ with setting up the Crowbar development environment.
    `/tmp/crowbar-dev-test`:
 
    ````
-   ./dev setup-unit-tests
+   ./dev tests setup
    ````
 
 1. Running the unit and Rspec tests:
