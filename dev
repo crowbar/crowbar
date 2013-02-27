@@ -4014,11 +4014,16 @@ run_tests() {
     run_BDD_tests
 }
 
-run_unit_tests() (
-    local barclamps=($(barclamps_needing_reinstall "$@"))
-    local final_result=pass
+auto_reload_test_env() {
     test_env_needs_reset && clear_test_env
     reload_test_env "$@" || exit 1
+}
+
+run_unit_tests() (
+    local final_result=pass
+
+    auto_reload_test_env
+
     # Run unit tests
     cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
     rm -rf coverage
@@ -4055,6 +4060,7 @@ run_unit_tests() (
 
 run_BDD_tests() (
     local final_result=pass
+    auto_reload_test_env
     cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
     echo "Starting Rails app"
     bundle exec script/rails s Puma >> log/test.out 2>> log/test.err &
