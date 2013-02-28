@@ -463,7 +463,7 @@ opts.each do |opt, arg|
   when "--no-engines" then candidates.no_engines = true; debug "no-engine is enabled"
   when "--no-chef" then candidates.no_chef = true; debug "no-chef is enabled"
   when "--base-dir" then candidates.base_dir = arg; debug "base-dir is #{candidates.base_dir}"
-  when "--force" then force_install = true
+  when "--force" then candidates.force_install = true
   when "--root" then candidates.root = arg
   end
 end
