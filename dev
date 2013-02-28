@@ -3911,6 +3911,37 @@ test_env_needs_reset() {
         $(cat "$CROWBAR_TEST_DIR/.build") = $(current_build) ]]
 }
 
+install_gems() {
+    if [[ $use_gem_cache = true ]]; then
+        maybe_checkout_build_cache_branch
+        [[ -d $CROWBAR_TEST_DIR/gemsite ]] && \
+            rm -rf "$CROWBAR_TEST_DIR/gemsite/gems"
+        mkdir -p "$CROWBAR_TEST_DIR/gemsite/gems"
+        find "$CACHE_DIR/barclamps" -type f -name '*.gem' \
+            -exec cp '{}' "$CROWBAR_TEST_DIR/gemsite/gems" ';'
+        (   cd "$CROWBAR_TEST_DIR/gemsite/"
+            gem generate_index)
+        sed -ie "s@^source .*@source \"file://$CROWBAR_TEST_DIR/gemsite\"@" "Gemfile"
+
+        debug "** Installing gems via bundler ..."
+        bundle install --path "$CROWBAR_TEST_DIR/gems" || \
+            die "Not all required gems are present." \
+            "Please run again with --update-gem-cache." \
+            "If that does not work, then you will need to add the missing gems to:" \
+            "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
+        debug
+    else
+        sed -ie "s@^source .*@source \"http://rubygems.org\"@" "Gemfile"
+        echo "NOTE: Using the --no-gem-cache option means that the gems used to"\
+        "run the unit tests may not be the same as the ones used to build and"\
+        "install Crowbar, so results may differ."
+
+        debug "** Installing gems via bundler ..."
+        bundle install --path "$CROWBAR_TEST_DIR/gems" || \
+            die "Not all required gems are present."
+        debug
+    fi
+}
 
 setup_test_env() (
     local gem f bc barclamps=()
@@ -3943,35 +3974,7 @@ setup_test_env() (
     fi
     unset update_gem_cache
 
-    if [[ $use_gem_cache = true ]]; then
-        maybe_checkout_build_cache_branch
-        [[ -d $CROWBAR_TEST_DIR/gemsite ]] && \
-            rm -rf "$CROWBAR_TEST_DIR/gemsite/gems"
-        mkdir -p "$CROWBAR_TEST_DIR/gemsite/gems"
-        find "$CACHE_DIR/barclamps" -type f -name '*.gem' \
-            -exec cp '{}' "$CROWBAR_TEST_DIR/gemsite/gems" ';'
-        (   cd "$CROWBAR_TEST_DIR/gemsite/"
-            gem generate_index)
-        sed -ie "s@^source .*@source \"file://$CROWBAR_TEST_DIR/gemsite\"@" "Gemfile"
-
-        debug "** Installing gems via bundler ..."
-        bundle install --path "$CROWBAR_TEST_DIR/gems" || \
-            die "Not all required gems are present." \
-            "Please run again with --update-gem-cache." \
-            "If that does not work, then you will need to add the missing gems to:" \
-            "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
-        debug
-    else
-        sed -ie "s@^source .*@source \"http://rubygems.org\"@" "Gemfile"
-        echo "NOTE: Using the --no-gem-cache option means that the gems used to"\
-        "run the unit tests may not be the same as the ones used to build and"\
-        "install Crowbar, so results may differ."
-
-        debug "** Installing gems via bundler ..."
-        bundle install --path "$CROWBAR_TEST_DIR/gems" || \
-            die "Not all required gems are present."
-        debug
-    fi
+    install_gems
 
     mkdir -p "$CROWBAR_TEST_DIR/doc/framework"
     echo "Copying base docs from $CROWBAR_DIR/doc/. to $CROWBAR_TEST_DIR/opt/dell/doc/framework"
