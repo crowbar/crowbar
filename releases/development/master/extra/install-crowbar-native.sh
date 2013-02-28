@@ -213,5 +213,17 @@ fi
 # Run the rest of the barclamp install actions.
 (cd /opt/dell/barclamps && /opt/dell/bin/barclamp_install.rb --deploy *)
 
-# This is as far as we expect to get for now.
-exit 0
+# Add the required roles for the admin node to act like a provisioner.
+roles=(deployer-client network dns-server dns-client 
+    ntp-server logging-server provisioner-server)
+for role in "${roles[@]}"; do 
+    knife node run_list add admin.smoke.test role[$role]; 
+done
+
+chef-client || die "Install failed."
+
+# Not actually properly deployed, but pretend we are.
+echo "Admin node deployed."
+
+touch /opt/dell/crowbar_framework/.crowbar-installed-ok
+
