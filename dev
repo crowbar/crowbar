@@ -3897,11 +3897,15 @@ reinstall_barclamps() {
     sudo chown -R "$USER.$group" "${CROWBAR_TEST_DIR}"
 
     find "$CROWBAR_TEST_DIR" -type d -exec chmod a+x '{}' ';'
+}
 
+validate_data_bags() {
+    # This requires the gems to be installed
     for d in "$CROWBAR_TEST_DIR/opt/dell/barclamps/"*; do
         [[ -d $d/chef/data_bags ]] || continue
-        "$CROWBAR_TEST_DIR/opt/dell/bin/validate_bags.rb" \
-        "$d/chef/data_bags" || \
+        debug "Validating data bags for $d ..."
+        bundle exec "$CROWBAR_TEST_DIR/opt/dell/bin/validate_bags.rb" \
+            "$d/chef/data_bags" || \
         die "Crowbar configuration in barclamp ${d##*/} has errors.  Please fix and rerun install."
     done
 }
@@ -3975,6 +3979,7 @@ setup_test_env() (
     unset update_gem_cache
 
     install_gems
+    validate_data_bags
 
     mkdir -p "$CROWBAR_TEST_DIR/doc/framework"
     echo "Copying base docs from $CROWBAR_DIR/doc/. to $CROWBAR_TEST_DIR/opt/dell/doc/framework"
@@ -4002,6 +4007,7 @@ reload_test_env() (
       return 0
   fi
   reinstall_barclamps "${barclamps[@]}" || exit 1
+  validate_data_bags
   rm "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework/Gemfile"* &>/dev/null
   if [[ $dbs_need_reload ]]; then
       cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
