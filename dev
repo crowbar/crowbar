@@ -3897,7 +3897,7 @@ reinstall_barclamps() {
     sudo chown -R "$USER.$group" "${CROWBAR_TEST_DIR}"
 
     find "$CROWBAR_TEST_DIR" -type d -exec chmod a+x '{}' ';'
-    # Clean up the filelists.
+
     for d in "$CROWBAR_TEST_DIR/opt/dell/barclamps/"*; do
         [[ -d $d/chef/data_bags ]] || continue
         "$CROWBAR_TEST_DIR/opt/dell/bin/validate_bags.rb" \
