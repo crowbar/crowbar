@@ -5,7 +5,10 @@
 #
 # */5 * * * * cd ~/crowbar/travis-ci && ./update-git.sh >>update-git.log 2>&1
 
-TRAVIS_GIT_DIR=~/travis-ci-crowbar
+# This variable must point to the check-out of the "combined" Travis CI
+# repository which is to be updated:
+: ${TRAVIS_GIT_DIR:=~/travis-ci-crowbar}
+# It can be cloned from: https://github.com/crowbar/travis-ci-crowbar
 
 function load_rvm() {
   if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
