@@ -33,7 +33,7 @@ function die() { log "$*"; exit 1; }
 
 function run() {
   local cmd="$1" msg="$2" output=""
-  [ "$msg" ] && log "$msg"
+  log "${msg:-Running '$cmd' ...}"
   output=`$cmd 2>&1`
   if [ $? -ne 0 ]; then
     log "Command failed: $cmd"
@@ -43,10 +43,9 @@ function run() {
 
 function update_with_dev_tool() {
   cd ..
-  run "./dev fetch" "Running ./dev fetch..."
-  run "./dev sync"  "Running ./dev sync..."
-  run "./dev tests setup --no-gem-cache" \
-      "Running ./dev tests setup --no-gem-cache"
+  run "./dev fetch"
+  run "./dev sync"
+  run "./dev tests setup --no-gem-cache"
 }
 
 function rsync_files() {
