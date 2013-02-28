@@ -3929,7 +3929,7 @@ install_gems() {
             -exec cp '{}' "$CROWBAR_TEST_DIR/gemsite/gems" ';'
         (   cd "$CROWBAR_TEST_DIR/gemsite/"
             gem generate_index)
-        sed -ie "s@^source .*@source \"file://$CROWBAR_TEST_DIR/gemsite\"@" "Gemfile"
+        sed -i -e "s@^source .*@source \"file://$CROWBAR_TEST_DIR/gemsite\"@" "Gemfile"
 
         debug "** Installing gems via bundler ..."
         bundle install --path "$CROWBAR_TEST_DIR/gems" || \
@@ -3939,7 +3939,7 @@ install_gems() {
             "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
         debug
     else
-        sed -ie "s@^source .*@source \"http://rubygems.org\"@" "Gemfile"
+        sed -i -e "s@^source .*@source \"http://rubygems.org\"@" "Gemfile"
         echo "NOTE: Using the --no-gem-cache option means that the gems used to"\
         "run the unit tests may not be the same as the ones used to build and"\
         "install Crowbar, so results may differ."
