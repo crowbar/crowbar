@@ -34,10 +34,8 @@ function die() { log "$*"; exit 1; }
 function run() {
   local cmd="$1" msg="$2" output=""
   log "${msg:-Running '$cmd' ...}"
-  output=`$cmd 2>&1`
-  if [ $? -ne 0 ]; then
-    log "Command failed: $cmd"
-    die "Output: $output"
+  if ! $cmd; then
+    die "Command '$cmd' failed"
   fi
 }
 
