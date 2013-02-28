@@ -10,8 +10,10 @@ repositories - the main Crowbar framework and its required barclamps.
 Hence we use a cron job that runs the `dev` tool every 5 minutes to assemble
 the application, and pushes that to a [separate Git repository]
 (https://github.com/crowbar/travis-ci-crowbar). This repository is
-then [linked to Travis CI]
-(https://travis-ci.org/crowbar/travis-ci-crowbar).
+then [linked to Travis CI](https://travis-ci.org/crowbar/travis-ci-crowbar).
+
+The application is assembled from a subset of the tree which './dev
+tests setup' creates in /tmp/crowbar-dev-test.
 
 ## Setup details
 
