@@ -3,7 +3,7 @@
 # Script to update the combined Git repository for running Travis CI. Intended
 # to be called by a cron job, like so:
 #
-# */5 * * * * cd ~/crowbar/travis-ci && ./update-git.sh >>update-git.log 2>&1
+# */5 * * * * /path/to/crowbar/travis-ci/update-git.sh >>update-git.log 2>&1
 
 # This variable must point to the check-out of the "combined" Travis CI
 # repository which is to be updated:
@@ -42,15 +42,17 @@ function run() {
 }
 
 function update_with_dev_tool() {
-  cd ..
+  cd "$CROWBAR_DIR"
+  log "Updating $CROWBAR_DIR ..."
   run "./dev fetch"
   run "./dev sync"
+  log "Setting up test environment using $CROWBAR_DIR ..."
   run "./dev tests setup --no-gem-cache"
 }
 
 function rsync_files() {
   local DEV_TEST=/tmp/crowbar-dev-test
-  cd $TRAVIS_GIT_DIR
+  cd "$TRAVIS_GIT_DIR"
   log "Copying files..."
   git reset -q --hard HEAD
   git clean -f -d -q
@@ -62,11 +64,11 @@ function rsync_files() {
 # undeterministic nature of the serialization.
 function remove_unchanged_files() {
   log "Checking changed files..."
-  cd $TRAVIS_GIT_DIR
+  cd "$TRAVIS_GIT_DIR"
   for file in `git diff --name-only --diff-filter=M | egrep "\.(yml|yaml|json)$"`; do
     cp $file{,.tmp}
     git checkout HEAD $file
-    $curr_dir/compare $file{,.tmp}
+    "$TRAVIS_CI_DIR/compare" $file{,.tmp}
     if [ $? -eq 0 ]; then
       # File didn't really change, so remove it
       rm $file.tmp
@@ -79,7 +81,7 @@ function remove_unchanged_files() {
 
 function commit_and_push() {
   local output="" git_hash=""
-  cd $TRAVIS_GIT_DIR
+  cd "$TRAVIS_GIT_DIR"
   log "Committing files..."
   git pull
   git add *
@@ -114,7 +116,9 @@ if [ ! -d $TRAVIS_GIT_DIR ]; then
   die "$TRAVIS_GIT_DIR does not exist"
 fi
 
-curr_dir=`pwd`
+CROWBAR_DIR=$( cd `dirname $0` && cd .. && pwd ) || \
+    die "Couldn't determine location of Crowbar repository"
+TRAVIS_CI_DIR="$CROWBAR_DIR/travis-ci"
 
 load_rvm
 update_with_dev_tool
@@ -122,4 +126,3 @@ rsync_files
 remove_unchanged_files
 commit_and_push
 
-cd $curr_dir
