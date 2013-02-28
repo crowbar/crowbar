@@ -3814,23 +3814,20 @@ purge_submodule_metadata() (
 
 # Unit testing functions:
 
-unit_prereqs_installed() {
+test_prereqs_installed() {
     local f gem
-    f=true
-    if ! command -v markdown >/dev/null 2>&1; then
-        debug "Please make sure markdown is installed."
-        f=false
-    fi
+
     if [[ ! $(find /usr/include -name 'sqlite3.h') ]]; then
         debug "sqlite development headers not installed."
-        f=false
+        return 1
     fi
-    for gem in kwalify bundler rake rcov rspec; do
-        gem list |grep -q "$gem" && continue
-        debug "Please install the $gem gem."
-        f=false
-    done
-    [[ $f = true ]]
+
+    local rvm=/usr/local/rvm/scripts/rvm
+    [ -f $rvm ] && source $rvm
+
+    if ! command -v bundle >/dev/null 2>&1; then
+        die "Please make sure bundler is installed. Eg. 'sudo gem install bundler'"
+    fi
 }
 
 paths_same() {
@@ -3909,15 +3906,15 @@ reinstall_barclamps() {
     done
 }
 
-unit_tests_need_reset() {
+test_env_needs_reset() {
     ! [[ -f $CROWBAR_TEST_DIR/.build && \
         $(cat "$CROWBAR_TEST_DIR/.build") = $(current_build) ]]
 }
 
 
-setup_unit_tests() (
+setup_test_env() (
     local gem f bc barclamps=()
-    local gem_offline=true update_gem_cache=false use_gem_cache=true
+    local update_gem_cache=false use_gem_cache=true
     for f in "$@"; do
         case $f in
             --update-gem-cache) update_gem_cache=true;;
@@ -3925,20 +3922,7 @@ setup_unit_tests() (
             *) barclamps+=("$f");;
         esac
     done
-     if [[ $use_gem_cache = true ]]; then
-        unit_prereqs_installed || exit 1
-    else
-        local rvm=/usr/local/rvm/scripts/rvm
-        [ -f $rvm ] && source $rvm
-        if command -v bundle >/dev/null 2>&1; then
-            debug "** Installing minimal dev setup dependencies..."
-            bundle install --gemfile=dev-setup/Gemfile
-            [ $? -eq 0 ] || die "Failed to install gem dependencies"
-            debug
-        else
-            die "Please make sure bundler is installed. Eg. 'sudo gem install bundler'"
-        fi
-    fi
+    test_prereqs_installed || exit 1
     rm -rf "$CROWBAR_TEST_DIR"
     mkdir "$CROWBAR_TEST_DIR"
     reinstall_barclamps "${barclamps[@]}" || exit 1
@@ -3970,32 +3954,42 @@ setup_unit_tests() (
             gem generate_index)
         sed -ie "s@^source .*@source \"file://$CROWBAR_TEST_DIR/gemsite\"@" "Gemfile"
 
+        debug "** Installing gems via bundler ..."
         bundle install --path "$CROWBAR_TEST_DIR/gems" || \
             die "Not all required gems are present." \
-            "Please run again with --update-gem-cache." \
+            "Please run again with --no-gem-cache or --update-gem-cache." \
             "If that does not work, then you will need to add the missing gems to:" \
             "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
+        debug
     else
         sed -ie "s@^source .*@source \"http://rubygems.org\"@" "Gemfile"
         echo "NOTE: Using the --no-gem-cache option means that the gems used to"\
         "run the unit tests may not be the same as the ones used to build and"\
         "install Crowbar, so results may differ."
+
+        debug "** Installing gems via bundler ..."
+        bundle install --path "$CROWBAR_TEST_DIR/gems" || \
+            die "Not all required gems are present."
+        debug
     fi
-    
+
     mkdir -p "$CROWBAR_TEST_DIR/doc/framework"
     echo "Copying base docs from $CROWBAR_DIR/doc/. to $CROWBAR_TEST_DIR/opt/dell/doc/framework"
     cp -r "$CROWBAR_DIR/doc/." "$CROWBAR_TEST_DIR/opt/dell/doc/framework"
-            
+
+    debug "Setting up public/coverage symlink"
+    ln -sf ../coverage "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework/public"
+
     cd "$CROWBAR_TEST_DIR/opt/dell/BDD"
     sudo "$CROWBAR_TEST_DIR/opt/dell/BDD/linux_install.sh"
     ./linux_compile.sh
     current_build >"$CROWBAR_TEST_DIR/.build"
 )
 
-reload_unit_tests() (
+reload_test_env() (
   local rake_task barclamps dbs_need_reload
-  if unit_tests_need_reset; then
-      setup_unit_tests || exit 1
+  if test_env_needs_reset; then
+      setup_test_env || exit 1
   fi
   barclamps=($(barclamps_needing_reinstall "$@"))
 
@@ -4018,44 +4012,69 @@ reload_unit_tests() (
   ./linux_compile.sh
 )
 
+run_tests() {
+    run_unit_tests
+    run_BDD_tests
+}
+
+auto_reload_test_env() {
+    test_env_needs_reset && clear_test_env
+    reload_test_env "$@" || exit 1
+}
+
 run_unit_tests() (
-    local barclamps=($(barclamps_needing_reinstall "$@"))
     local final_result=pass
-    unit_tests_need_reset && clear_unit_tests
-    reload_unit_tests "$@" || exit 1
+
+    auto_reload_test_env
+
     # Run unit tests
     cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
     rm -rf coverage
     mkdir coverage
-    echo "Running spec tests with rcov"
-    bundle exec rcov --aggregate coverage/testing.data -Ispec:lib \
-        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,/config/,/lib/rspec/,/lib/rspec-,spec \
-        spec/*/*.rb || final_result=fail
-    echo "Running units with rcov"        
-    bundle exec rcov --aggregate coverage/testing.data -Itest:lib \
-        --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,/config/,/lib/rspec/,/lib/rspec-,spec \
-        test/unit/*.rb || final_result=fail
+    if gem list | grep -q '^rcov '; then
+        test_runner=(
+            rcov
+            --aggregate coverage/testing.data
+            -Ispec:lib
+            --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,/config/,/lib/rspec/,/lib/rspec-,spec
+        )
+        spec_runner=( "${test_runner[@]}" spec/*/*.rb    )
+        unit_runner=( "${test_runner[@]}" test/unit/*.rb )
+    else
+        spec_runner=( rake spec )
+        unit_runner=( rake test )
+    fi
+    echo "Running specs ..."
+    bundle exec "${spec_runner[@]}" || final_result=fail
+    echo "Running unit tests ..."
+    bundle exec "${unit_runner[@]}" || final_result=fail
 
-    # Start rails
+    echo "Running chef unit tests ..."
+    # Run chef unit tests
+    for d in "$CROWBAR_TEST_DIR/opt/dell/barclamps/"*; do
+        [[ -d $d/chef/cookbooks ]] || continue
+        (    cd "$d/chef/cookbooks"
+             echo "Running rspec tests for ${d##*/}"
+             find * -maxdepth 0 -type d | xargs bundle exec rspec || final_result=fail
+        )
+    done
+    [[ $final_result = pass ]]
+)
+
+run_BDD_tests() (
+    local final_result=pass
+    auto_reload_test_env
+    cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
     echo "Starting Rails app"
     bundle exec script/rails s Puma >> log/test.out 2>> log/test.err &
     sleep 10
     (echo "Running BDD"; cd "$CROWBAR_TEST_DIR/opt/dell/BDD"; erl -s bdd test devtool -s init stop -noshell) || final_result=fail
     echo "Stopping Rails app"
-    kill $(ps -ef | grep Puma | grep ruby | awk '{ print $2 }')
-
-    # Run chef unit tests
-    for d in "$CROWBAR_TEST_DIR/opt/dell/barclamps/"*; do
-        [[ -d $d/chef/cookbooks ]] || continue
-        (    cd "$d/chef/cookbooks"
-             rm README &>/dev/null
-             echo "Running rspec tests for ${d##*/} with rcov"
-             bundle exec rspec *) || final_result=fail
-    done
+    pkill -ef 'ruby.*rails.*Puma'
     [[ $final_result = pass ]]
 )
 
-clear_unit_tests() { rm -rf "$CROWBAR_TEST_DIR"; }
+clear_test_env() { rm -rf "$CROWBAR_TEST_DIR"; }
 
 # Create a new barclamp.
 create_barclamp() {
@@ -4208,8 +4227,21 @@ pull_request_handler() {
         comment) pull_request_comment "$@";;
         close)   pull_request_close "$@";;
         '')      show_open_pull_requests "$@";;
-        *) die "$req is not a valid pull-request subcommand!" \
-            "Try $0 help pull-requests.";;
+        *)       dev_help 'pull-requests';;
+    esac
+}
+
+tests_handler() {
+    local req=$1
+    shift
+    case $req in
+        setup)     setup_test_env          "$@" ;;
+        run)       run_tests               "$@" ;;
+        run-units) run_unit_tests          "$@" ;;
+        run-BDD)   run_BDD_tests           "$@" ;;
+        reload)    reload_test_env         "$@" ;;
+        clear)     clear_test_env          "$@" ;;
+        *)         dev_help tests               ;;
     esac
 }
 
@@ -4238,7 +4270,9 @@ ci_helper() {
         fail-intent) ci_fail_intent "$@";;
         kill-stale-intents)
 	    ci_do_and_push ci_kill_stale_intents "$@";;
-        *) die "Not a valid CI command.  Run $0 help ci for valid CI commands.";;
+        *)
+            dev_help 'ci'
+            exit 1 ;;
     esac
 }
 # Hash for handling command -> function mapping.
@@ -4251,7 +4285,7 @@ DEV_COMMANDS["build-refs"]="refs_for_build"
 DEV_COMMANDS["builds"]="builds_in_release"
 DEV_COMMANDS["checkout"]="checkout"
 DEV_COMMANDS["ci"]="ci_helper"
-DEV_COMMANDS["clear-unit-tests"]="clear_unit_tests"
+DEV_COMMANDS["clear-unit-tests"]="clear_test_env"
 DEV_COMMANDS["clone-barclamps"]="clone_barclamps"
 DEV_COMMANDS["create-barclamp"]="create_barclamp"
 DEV_COMMANDS["crowbar-version"]="crowbar_version"
@@ -4280,17 +4314,20 @@ DEV_COMMANDS["redundant-barclamps"]="show_duplicate_barclamps"
 DEV_COMMANDS["refresh-tracking"]="update_all_tracking_branches"
 DEV_COMMANDS["release"]="current_release"
 DEV_COMMANDS["releases"]="show_releases"
-DEV_COMMANDS["reload-unit-tests"]="reload_unit_tests"
+DEV_COMMANDS["reload-unit-tests"]="reload_test_env"
 DEV_COMMANDS["remote"]="remote_wrapper"
 DEV_COMMANDS["remotes"]="remote_wrapper show"
 DEV_COMMANDS["reset-release"]="reset_release"
+DEV_COMMANDS["run-tests"]="run_tests"
+DEV_COMMANDS["run-BDD-tests"]="run_BDD_tests"
 DEV_COMMANDS["run-unit-tests"]="run_unit_tests"
 DEV_COMMANDS["scrub-merged-pulls"]="scrub_merged_pulls"
 DEV_COMMANDS["setup"]="setup"
-DEV_COMMANDS["setup-unit-tests"]="setup_unit_tests"
+DEV_COMMANDS["setup-unit-tests"]="setup_test_env"
 DEV_COMMANDS["switch"]="switch_release"
 DEV_COMMANDS["sync"]="sync_everything"
 DEV_COMMANDS["tag-build"]="tag_build"
+DEV_COMMANDS["tests"]="tests_handler"
 DEV_COMMANDS["unpin"]="unpin_release"
 DEV_COMMANDS["upstream-changes"]="find_remote_changed_branches_for_release"
 
@@ -4303,8 +4340,8 @@ DEV_SHORT_HELP["build"]="              Show the current build or build Crowbar"
 DEV_SHORT_HELP["builds"]="             Show the builds in the current release."
 DEV_SHORT_HELP["build-refs"]="         Show the Git commits that would be used in a build."
 DEV_SHORT_HELP["checkout"]="           Check out a branch in the current release."
-DEV_SHORT_HELP["ci"]="                 Heper for Continuous Intergration subcommands."
-DEV_SHORT_HELP["clear-unit-tests"]="   Remove unit test environment."
+DEV_SHORT_HELP["ci"]="                 Helper for Continuous Integration subcommands."
+DEV_SHORT_HELP["clear-unit-tests"]="   [deprecated] same as ./dev tests clear"
 DEV_SHORT_HELP["clone-barclamps"]="    Clone barclamps."
 DEV_SHORT_HELP["create-barclamp"]="    Create a new barclamp."
 DEV_SHORT_HELP["crowbar-version"]="    Print out a probably-unique ordered version string."
@@ -4333,17 +4370,20 @@ DEV_SHORT_HELP["redundant-barclamps"]="Show redundant barclamp metadata in a rel
 DEV_SHORT_HELP["refresh-tracking"]="   Update git branch tracking metadata."
 DEV_SHORT_HELP["release"]="            Show the current release or feature you are on."
 DEV_SHORT_HELP["releases"]="           Show all releases and features in your local repos."
-DEV_SHORT_HELP["reload-unit-tests"]="  Reload the data for the unit test environment"
+DEV_SHORT_HELP["reload-unit-tests"]="  [deprecated] same as ./dev tests reload"
 DEV_SHORT_HELP["remote"]="             Manage remotes across all Crowbar repositories."
 DEV_SHORT_HELP["remotes"]="            Show all remotes."
 DEV_SHORT_HELP["reset-release"]="      Resets a release to upstream or your last backup."
-DEV_SHORT_HELP["run-unit-tests"]="     Run unit and BDD tests."
+DEV_SHORT_HELP["run-tests"]="          [deprecated] same as ./dev tests run"
+DEV_SHORT_HELP["run-unit-tests"]="     [deprecated] same as ./dev tests run-units"
+DEV_SHORT_HELP["run-BDD-tests"]="      [deprecated] same as ./dev tests run-BDD"
 DEV_SHORT_HELP["scrub-merged-pulls"]=" Scrub merged pull request branches."
-DEV_SHORT_HELP["setup-unit-tests"]="   Sets up unit test environment."
+DEV_SHORT_HELP["setup-unit-tests"]="   [deprecated] same as ./dev tests setup"
 DEV_SHORT_HELP["setup"]="              Sets up a Crowbar checkout for use with dev."
 DEV_SHORT_HELP["switch"]="             Switch to a different release."
 DEV_SHORT_HELP["sync"]="               Synchronize fetched updates with the local repos."
 DEV_SHORT_HELP["tag-build"]="          Add annotated tags to all components of a particular build."
+DEV_SHORT_HELP["tests"]="              Various tasks relating to running tests."
 DEV_SHORT_HELP["unpin"]="              Unpin a release, build, or barclamp in a build."
 DEV_SHORT_HELP["upstream-changes"]="   Find unmerged changes from upstream for a release"
 
@@ -4517,20 +4557,36 @@ DEV_LONG_HELP["scrub-merged-pulls"]="Scrub merged pull request tracking branches
   for pull requests that have already been merged.  If --all is passed
   as an option, then all pull request tracking branches will be
   deleted."
-DEV_LONG_HELP["setup-unit-tests"]="Sets up a unit test environment.
-  This will create the environment with all barclamps in /tmp/crowbar-dev-test.
-  Requires sudo access to install Ubuntu packages.  By passing in names of barclamps, the
-  setup command will only add those barclamps to the test environment.
+DEV_LONG_HELP["tests"]="Various tasks related to running tests.
+  Subcommands:
+    setup
+      This will create the environment with all barclamps in
+      /tmp/crowbar-dev-test.  Requires sudo access to install Ubuntu
+      packages.  By passing in names of barclamps, the setup command
+      will only add those barclamps to the test environment.
 
-  setup-unit-tests also takes two optional arguments:
-    --update-gem-cache will copy the contents of /var/lib/gems/1.8 into
-        $CACHE_DIR/unit_tests/gems.  If you are managing your build cache
-        with git, these files will be automatically committed.
-    --offline will force bundler to use the files saved bu --update-gem-cache
-        instead of trying to use gems from the Internet."
-DEV_LONG_HELP["reload-unit-tests"]="Reload the code and database for the units.  Does not re-bundle."
-DEV_LONG_HELP["run-unit-tests"]="Run BDD and unit tests from the /tmp/crowbar environment."
-DEV_LONG_HELP["clear-unit-tests"]="Removes a unit test environment in /tmp/crowbar."
+      setup also takes two optional arguments:
+        --update-gem-cache will copy the contents of /var/lib/gems/1.8 into
+            $CACHE_DIR/unit_tests/gems.  If you are managing your build cache
+            with git, these files will be automatically committed.
+        --no-gem-cache will force bundler to use gems from the internet
+            instead of trying to use files saved by --update-gem-cache.
+    reload
+      Reload the code and database for the units.  Does not re-bundle.
+    run
+      Run all tests from the /tmp/crowbar environment.
+    run-BDD
+      Run BDD tests from the /tmp/crowbar environment.
+    run-units
+      Run unit tests and specs from the /tmp/crowbar environment.
+    clear
+      Removes a test environment in /tmp/crowbar."
+DEV_LONG_HELP["setup-unit-tests"]="Deprecated; please see help for ./dev tests setup"
+DEV_LONG_HELP["reload-unit-tests"]="Deprecated; please see help for ./dev tests reload"
+DEV_LONG_HELP["run-tests"]="Deprecated; please see help for ./dev tests run"
+DEV_LONG_HELP["run-BDD-tests"]="Deprecated; please see help for ./dev tests run-BDD"
+DEV_LONG_HELP["run-unit-tests"]="Deprecated; please see help for ./dev tests run-units"
+DEV_LONG_HELP["clear-unit-tests"]="Deprecated; please see help for ./dev tests clear"
 DEV_LONG_HELP["refresh-tracking"]="Update remote tracking information for all the branches.
   Update remote tracking information for local branches in all the
   repos.  This command is run internally whenever dev does anything that
@@ -4658,7 +4714,7 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
 
       Please note that this will put any trees that have changes to be pulled
       into a detached HEAD state.  You can use dev switch to get back to normal."
-DEV_LONG_HELP["ci"]="Crowbar Continuous Intergration Helper.
+DEV_LONG_HELP["ci"]="Crowbar Continuous Integration Helper.
   Any of the CI subcommands that take an ID can either take a raw ID as
   returned by dev ci all-ids,
   or a pull request number as returned by dev pull-requests list, although the
