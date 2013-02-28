@@ -3826,7 +3826,11 @@ test_prereqs_installed() {
     [ -f $rvm ] && source $rvm
 
     if ! command -v bundle >/dev/null 2>&1; then
-        die "Please make sure bundler is installed. Eg. 'sudo gem install bundler'"
+        die "Please make sure bundler is installed, e.g. 'sudo gem install bundler'"
+    fi
+
+    if ! command -v erlc >/dev/null 2>&1; then
+        die "Please make sure erlang is installed."
     fi
 }
 
