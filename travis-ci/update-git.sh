@@ -54,7 +54,7 @@ function rsync_files() {
   log "Copying files..."
   git reset -q --hard HEAD
   git clean -f -d -q
-  rsync -aq --delete --exclude=.git/ $DEV_TEST/{barclamps,crowbar_framework,Gemfile} .
+  rsync -aq --delete --exclude=.git/ $DEV_TEST/{Gemfile,opt/dell/{barclamps,crowbar_framework}} .
 }
 
 # A number of JSON files are generated during barclamp installation. These
