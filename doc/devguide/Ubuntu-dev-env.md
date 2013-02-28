@@ -115,8 +115,6 @@ with setting up the Crowbar development environment.
 
    ````
    sudo apt-get install libsqlite3-dev
-   sudo gem install sqlite3 markdown kwalify rake bundler rcov rspec --no-ri --no-rdoc
-   sudo gem install rails -v 3.2.10 --no-ri --no-rdoc
    ````
 
 Now see the [testing page](testing.md) for how to run the tests.
