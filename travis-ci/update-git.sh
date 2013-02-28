@@ -5,7 +5,7 @@
 #
 # */5 * * * * cd ~/crowbar/travis-ci && ./update-git.sh >>update-git.log 2>&1
 
-GIT_DIR=~/travis-ci-crowbar
+TRAVIS_GIT_DIR=~/travis-ci-crowbar
 
 function load_rvm() {
   if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
@@ -48,7 +48,7 @@ function update_with_dev_tool() {
 
 function rsync_files() {
   local DEV_TEST=/tmp/crowbar-dev-test
-  cd $GIT_DIR
+  cd $TRAVIS_GIT_DIR
   log "Copying files..."
   git reset -q --hard HEAD
   git clean -f -d -q
@@ -60,7 +60,7 @@ function rsync_files() {
 # undeterministic nature of the serialization.
 function remove_unchanged_files() {
   log "Checking changed files..."
-  cd $GIT_DIR
+  cd $TRAVIS_GIT_DIR
   for file in `git diff --name-only --diff-filter=M | egrep "\.(yml|yaml|json)$"`; do
     cp $file{,.tmp}
     git checkout HEAD $file
@@ -77,7 +77,7 @@ function remove_unchanged_files() {
 
 function commit_and_push() {
   local output="" git_hash=""
-  cd $GIT_DIR
+  cd $TRAVIS_GIT_DIR
   log "Committing files..."
   git pull
   git add *
@@ -108,8 +108,8 @@ for opt in "$@"; do
   esac
 done
 
-if [ ! -d $GIT_DIR ]; then
-  die "$GIT_DIR does not exist"
+if [ ! -d $TRAVIS_GIT_DIR ]; then
+  die "$TRAVIS_GIT_DIR does not exist"
 fi
 
 curr_dir=`pwd`
