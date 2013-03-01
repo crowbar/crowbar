@@ -3905,6 +3905,7 @@ reinstall_barclamps() {
 
 validate_data_bags() {
     # This requires the gems to be installed
+    cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
     for d in "$CROWBAR_TEST_DIR/opt/dell/barclamps/"*; do
         [[ -d $d/chef/data_bags ]] || continue
         debug "Validating data bags for $d ..."
@@ -3920,6 +3921,7 @@ test_env_needs_reset() {
 }
 
 install_gems() {
+    local gemfile="$CROWBAR_TEST_DIR/opt/dell/crowbar_framework/Gemfile"
     if [[ $use_gem_cache = true ]]; then
         maybe_checkout_build_cache_branch
         [[ -d $CROWBAR_TEST_DIR/gemsite ]] && \
@@ -3929,23 +3931,23 @@ install_gems() {
             -exec cp '{}' "$CROWBAR_TEST_DIR/gemsite/gems" ';'
         (   cd "$CROWBAR_TEST_DIR/gemsite/"
             gem generate_index)
-        sed -i -e "s@^source .*@source \"file://$CROWBAR_TEST_DIR/gemsite\"@" "Gemfile"
+        sed -i -e "s@^source .*@source \"file://$CROWBAR_TEST_DIR/gemsite\"@" "$gemfile"
 
         debug "** Installing gems via bundler ..."
-        bundle install --path "$CROWBAR_TEST_DIR/gems" || \
+        bundle install --path "$CROWBAR_TEST_DIR/gems" --gemfile "$gemfile" || \
             die "Not all required gems are present." \
             "Please run again with --no-gem-cache or --update-gem-cache." \
             "If that does not work, then you will need to add the missing gems to:" \
             "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
         debug
     else
-        sed -i -e "s@^source .*@source \"http://rubygems.org\"@" "Gemfile"
+        sed -i -e "s@^source .*@source \"http://rubygems.org\"@" "$gemfile"
         echo "NOTE: Using the --no-gem-cache option means that the gems used to"\
         "run the unit tests may not be the same as the ones used to build and"\
         "install Crowbar, so results may differ."
 
         debug "** Installing gems via bundler ..."
-        bundle install --path "$CROWBAR_TEST_DIR/gems" || \
+        bundle install --path "$CROWBAR_TEST_DIR/gems" --gemfile "$gemfile" || \
             die "Not all required gems are present."
         debug
     fi
@@ -3966,7 +3968,6 @@ setup_test_env() (
     mkdir "$CROWBAR_TEST_DIR"
     reinstall_barclamps "${barclamps[@]}" || exit 1
     cd "$CROWBAR_TEST_DIR"
-    mv opt/dell/crowbar_framework/Gemfile* .
     if [[ $update_gem_cache = true ]]; then
         maybe_checkout_build_cache_branch
         local crowbar_yml
@@ -4012,7 +4013,7 @@ reload_test_env() (
   fi
   reinstall_barclamps "${barclamps[@]}" || exit 1
   validate_data_bags
-  rm "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework/Gemfile"* &>/dev/null
+
   if [[ $dbs_need_reload ]]; then
       cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
       for rake_task in db:drop railties:install:migrations db:migrate db:fixtures:dump; do
