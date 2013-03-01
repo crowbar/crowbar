@@ -16,6 +16,7 @@ In a [development environment](../dev-vm.md), instead `cd` to `/tmp/crowbar-dev-
 Then run the following commands:
 
 1. `rake db:drop`
+1. `rake railties:install:migrations`
 1. `rake db:migrate`
 1. `rake spec`
 
