@@ -1012,7 +1012,7 @@ builds_for_one_pull_request() {
 # Returns a list of builds in the order in which they should be built.
 builds_for_pull_request() {
     local idx pr_id b p release build os repo prq builds_for_release=() all_oses=()
-    local -A oses build_tmp PULL_REQUEST_BARCLAMPS barclamp_oses build_oses _t _r
+    local -A oses valid_builds PULL_REQUEST_BARCLAMPS barclamp_oses build_oses _t _r
     idx=$1
     pr_id=$(pull_request_number_to_id "$idx") || exit 1
     prq="$OPEN_PULL_REQUESTS/$pr_id"
@@ -1024,7 +1024,7 @@ builds_for_pull_request() {
                 PULL_REQUEST_BARCLAMPS[${prq_local_repo#barclamp-}]="$prq_local_branch"
             fi
             for b in $(builds_for_one_pull_request "$prq"); do
-                build_tmp[$b]="build"
+                valid_builds[$b]="build"
             done;;
         bundles/*)
             for repo in "$prq"/*; do
@@ -1033,7 +1033,7 @@ builds_for_pull_request() {
                 [[ $prq_local_repo = barclamp-* ]] && \
                     PULL_REQUEST_BARCLAMPS[${prq_local_repo#barclamp-}]="$prq_local_branch"
                 for b in $(builds_for_one_pull_request "$repo"); do
-                    build_tmp[$b]="build"
+                    valid_builds[$b]="build"
                 done
             done;;
     esac
@@ -1041,7 +1041,7 @@ builds_for_pull_request() {
     # Get all the possible OSes for all possible barclamps in those builds, and use
     # it to derive all the OSes applicable to a build.
     all_oses=($(all_supported_oses))
-    for build in "${!build_tmp[@]}"; do
+    for build in "${!valid_builds[@]}"; do
         # Start off assuming that all builds can use all OSes
         unset _t
         local -A _t
@@ -1075,7 +1075,7 @@ builds_for_pull_request() {
     # Filter out the builds that will be masked.
     local id
     for id in "${builds_for_release[@]}"; do
-        [[ ${build_tmp[$id]} ]] || continue
+        [[ ${valid_builds[$id]} ]] || continue
         # Find the parent for this build.
         p="${DEV_BRANCHES[$id]}"
         # Special case for the master build.
@@ -1083,14 +1083,14 @@ builds_for_pull_request() {
         # If we wanted to build the parent for the current build, don't.
         # It will be implicitly tested when we build this build.
         if [[ $p ]]; then
-            ${build_tmp[$p]} && build_tmp[$p]=skip
+            ${valid_builds[$p]} && valid_builds[$p]=skip
         else
             echo "WARNING: DEV_BRANCHES had no entry for $id"
         fi
     done
     # Display the ones that did not get masked
     for id in "${builds_for_release[@]}"; do
-        [[ ${build_tmp[$id]} && ${build_tmp[$id]} = build ]] || continue
+        [[ ${valid_builds[$id]} && ${valid_builds[$id]} = build ]] || continue
         echo "$release/$id: ${build_oses[$id]}"
     done
 }
