@@ -1081,7 +1081,11 @@ builds_for_pull_request() {
         [[ $p = $id ]] && continue
         # If we wanted to build the parent for the current build, don't.
         # It will be implicitly tested when we build this build.
-        [[ ${build_tmp[$p]} ]] && build_tmp[$p]=skip
+        if [[ $p ]]; then
+            ${build_tmp[$p]} && build_tmp[$p]=skip
+        else
+            echo "WARNING: DEV_BRANCHES had no entry for $id"
+        fi
     done
     # Display the ones that did not get masked
     for id in "${res[@]}"; do
