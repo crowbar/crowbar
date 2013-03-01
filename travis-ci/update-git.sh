@@ -22,6 +22,9 @@ function usage() {
   echo "
   Script to update the combined git repository.
 
+    --no-fetch  Don't run ./dev fetch
+    --no-sync   Don't run ./dev sync
+    --reload    Run ./dev tests reload not ./dev tests setup
     --no-push   Do not push to remote.
     --help      Display this help message.
   "
@@ -42,10 +45,16 @@ function run() {
 function update_with_dev_tool() {
   cd "$CROWBAR_DIR"
   log "Updating $CROWBAR_DIR ..."
-  run "./dev fetch"
-  run "./dev sync"
+  [[ $dev_fetch = true ]] && run "./dev fetch"
+  [[ $dev_sync  = true ]] && run "./dev sync"
   log "Setting up test environment using $CROWBAR_DIR ..."
-  run "./dev tests setup --no-gem-cache"
+  if [[ $dev_test_mode = setup ]]; then
+      run "./dev tests setup --no-gem-cache"
+  elif [[ $dev_test_mode = reload ]]; then
+      run "./dev tests reload"
+  else
+      die "BUG: invalid mode $dev_test_mode"
+  fi
 }
 
 function rsync_files() {
@@ -101,11 +110,17 @@ function commit_and_push() {
   [[ $git_push = true ]] && git push -q
 }
 
+dev_sync=true
+dev_fetch=true
+dev_test_mode=setup
 git_push=true
 for opt in "$@"; do
   case $opt in
-    --no-push) git_push=false;;
-    --help)    usage;;
+    --no-fetch) dev_fetch=false;;
+    --no-sync)  dev_sync=false;;
+    --reload)   dev_test_mode=reload;;
+    --no-push)  git_push=false;;
+    --help)     usage;;
     *) die "Unknown option: $opt";;
   esac
 done
