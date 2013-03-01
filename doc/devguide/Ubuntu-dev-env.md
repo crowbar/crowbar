@@ -98,14 +98,15 @@ with setting up the Crowbar development environment.
 1. Check out the Crowbar git repo and run the dev tool:
 
    ````
-   git clone git://github.com/crowbar/crowbar.git
+   git clone https://github.com/crowbar/crowbar.git
    cd crowbar
    ./dev setup
    ````
 
    The `./dev setup` script will ask for your Github username and password. It
    will fork the Crowbar and corresponding barclamp repositories to your
-   account and clone them into `crowbar/barclamps/`. See [dev-and-workflow]
+   account and clone them into `crowbar/barclamps/`. Make sure you have curl installed.
+   See [dev-and-workflow]
    (https://github.com/crowbar/crowbar/blob/master/README.dev-and-workflow)
    and [dev-and-code-review]
    (https://github.com/crowbar/crowbar/blob/master/README.dev-and-code-review)
