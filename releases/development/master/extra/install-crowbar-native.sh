@@ -214,10 +214,11 @@ fi
 (cd /opt/dell/barclamps && /opt/dell/bin/barclamp_install.rb --deploy *)
 
 # Add the required roles for the admin node to act like a provisioner.
+HOSTNAME=$(hostname --fqdn)
 roles=(deployer-client network dns-server dns-client 
     ntp-server logging-server provisioner-server)
 for role in "${roles[@]}"; do 
-    knife node run_list add admin.smoke.test role[$role]; 
+    knife node run_list add $HOSTNAME role[$role]; 
 done
 
 chef-client || die "Install failed."
