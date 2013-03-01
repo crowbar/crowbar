@@ -71,6 +71,7 @@ VERBOSE=true
 # Location of the Crowbar checkout we are building from.
 [[ $CROWBAR_DIR ]] || CROWBAR_DIR="${0%/*}"
 [[ $CROWBAR_DIR = /* ]] || CROWBAR_DIR="$currdir/$CROWBAR_DIR"
+. "$CROWBAR_DIR/build_lib.sh" || exit 1
 [[ -f $CROWBAR_DIR/build_crowbar.sh && -d $CROWBAR_DIR/.git ]] || \
     die "$CROWBAR_DIR is not a git checkout of Crowbar!"
 [[ $CI_TRACKING_REPO ]] || CI_TRACKING_REPO=ci-tracking
@@ -80,7 +81,6 @@ VERBOSE=true
 export CROWBAR_DIR CROWBAR_TEST_DIR LOCAL_PULL_TRACKING
 export OPEN_PULL_REQUESTS
 
-. "$CROWBAR_DIR/build_lib.sh" || exit 1
 trap - 0 INT QUIT TERM
 trap 'rm -rf "$CROWBAR_TMP"' 0 INT QUIT TERM
 which gem &>/dev/null || \
