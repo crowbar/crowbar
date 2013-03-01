@@ -1011,7 +1011,7 @@ builds_for_one_pull_request() {
 # This is based on barclamp membership.
 # Returns a list of builds in the order in which they should be built.
 builds_for_pull_request() {
-    local idx pr_id b p release build os repo prq builds_for_release=() all_oses=()
+    local idx pr_id b release build os repo prq builds_for_release=() all_oses=()
     local -A oses valid_builds PULL_REQUEST_BARCLAMPS barclamp_oses build_oses _t _r
     idx=$1
     pr_id=$(pull_request_number_to_id "$idx") || exit 1
@@ -1073,17 +1073,17 @@ builds_for_pull_request() {
     # Now, filter the per-OS lists down to leaf nodes.
     builds_for_release=($(builds_in_release "$release"))
     # Filter out the builds that will be masked.
-    local build
+    local build parent_build
     for build in "${builds_for_release[@]}"; do
         [[ ${valid_builds[$build]} ]] || continue
         # Find the parent for this build.
-        p="${DEV_BRANCHES[$build]}"
+        parent_build="${DEV_BRANCHES[$build]}"
         # Special case for the master build.
-        [[ $p = $build ]] && continue
+        [[ $parent_build = $build ]] && continue
         # If we wanted to build the parent for the current build, don't.
         # It will be implicitly tested when we build this build.
-        if [[ $p ]]; then
-            ${valid_builds[$p]} && valid_builds[$p]=skip
+        if [[ $parent_build ]]; then
+            ${valid_builds[$parent_build]} && valid_builds[$parent_build]=skip
         else
             echo "WARNING: DEV_BRANCHES had no entry for $build"
         fi
