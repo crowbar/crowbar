@@ -1011,13 +1011,13 @@ builds_for_one_pull_request() {
 # This is based on barclamp membership.
 # Returns a list of builds in the order in which they should be built.
 builds_for_pull_request() {
-    local idx id b p release build os repo prq builds_for_release=() all_oses=()
+    local idx pr_id b p release build os repo prq builds_for_release=() all_oses=()
     local -A oses build_tmp PULL_REQUEST_BARCLAMPS barclamp_oses build_oses _t _r
     idx=$1
-    id=$(pull_request_number_to_id "$idx") || exit 1
-    prq="$OPEN_PULL_REQUESTS/$id"
+    pr_id=$(pull_request_number_to_id "$idx") || exit 1
+    prq="$OPEN_PULL_REQUESTS/$pr_id"
     read release <"$prq/release"
-    case $id in
+    case $pr_id in
         singletons/*)
             . <(source_prq_vars "$prq" "local")
             if [[ $prq_local_repo = barclamp-* ]]; then
@@ -1073,6 +1073,7 @@ builds_for_pull_request() {
     # Now, filter the per-OS lists down to leaf nodes.
     builds_for_release=($(builds_in_release "$release"))
     # Filter out the builds that will be masked.
+    local id
     for id in "${builds_for_release[@]}"; do
         [[ ${build_tmp[$id]} ]] || continue
         # Find the parent for this build.
