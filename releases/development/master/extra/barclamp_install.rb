@@ -153,8 +153,24 @@ class BarclampFS
         next if skip_engines 
         debug("#{@name} is implemented using a Rails Engine.")
         debug("Linking in routes and Gemfile entries.")
-        system("perl -pi -e 's|engine mounts|engine mounts\n  mount Barclamp" + camelize(@name) + "::Engine, :at => \"" + @name + "\"|' " + File.join(target,'crowbar_framework','config','routes.rb'))
-        system("perl -pi -e 's|engine mounts|engine mounts\ngem \"barclamp_" + @name + "\", :path => \"" + File.join(dir,'crowbar_engine',"barclamp_#{@name}") + "\"|' " + File.join(target,'crowbar_framework','Gemfile'))
+        gem_name       = "barclamp_#{@name}"
+        engine_class   = "Barclamp%s::Engine" % camelize(@name)
+        # N.B. the run-time path to the engine could be different from
+        # the install-time path referenced by our 'dir' variable, so
+        # instead we use a 'crowbar_path' variable set at runtime by
+        # the main Gemfile.
+        engine_path    = File.join('crowbar_engine', gem_name)
+        framework_dir  = File.join(target, 'crowbar_framework')
+        routes_dir     = File.join(framework_dir, 'config', 'routes.d')
+        gemfile_dir    = File.join(framework_dir, 'Gemfile.d')
+        FileUtils.mkdir_p(routes_dir)
+        FileUtils.mkdir_p(gemfile_dir)
+        routes_plugin  = File.join(routes_dir,  "barclamp-#{@name}-engine.routes")
+        gemfile_plugin = File.join(gemfile_dir, "barclamp-#{@name}.gemfile")
+        File.new(routes_plugin,  'w').puts \
+          "mount #{engine_class}, :at => '#{@name}'"
+        File.new(gemfile_plugin, 'w').puts \
+          "gem '#{gem_name}', :path => File.join(crowbar_path, '..', 'barclamps', '#{@name}', '#{engine_path}')"
       when 'bin'
         debug("Installing commands for #{@name}")
         FileUtils.mkdir_p(File.join(target,'bin'))

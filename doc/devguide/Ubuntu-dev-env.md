@@ -111,63 +111,10 @@ with setting up the Crowbar development environment.
    (https://github.com/crowbar/crowbar/blob/master/README.dev-and-code-review)
    for details. This will take a while so get some coffee.
 
-1. Install more dependencies for setting up and running the tests:
+1. Install dependencies required by the test suite:
 
    ````
-   sudo apt-get install libsqlite3-dev
-   sudo gem install markdown kwalify rake bundler rcov rspec --no-ri --no-rdoc
-   sudo gem install rails -v 3.2.10 --no-ri --no-rdoc
+   sudo apt-get install libsqlite3-dev erlang-base erlang-inets
    ````
 
-1. Running the dev tool to setup the Crowbar run-time environment at
-   `/tmp/crowbar-dev-test`:
-
-   ````
-   ./dev setup-unit-tests
-   ````
-
-1. Running the unit and Rspec tests:
-
-   ````
-   cd /tmp/crowbar-dev-test/crowbar_framework
-   bundle exec rake db:drop db:migrate db:fixtures:dump test:units spec
-   ````
-
-1. Running the BDD tests:
-
-   ````
-   cd /tmp/crowbar-dev-test/crowbar_framework/BDD
-   ./linux_compile.sh
-   ./linux_run.sh
-   ````
-
-   Note that the BDD tests require a running instance of Crowbar, which is
-   started by `linux_run.sh`. If it fails with an error message like:
-
-   ````
-   ERROR: step run found error:{badmatch,{error,econnrefused}}
-   ...
-   ````
-
-   This means that the Crowbar server is not running and can usually be fixed
-   by running `linux_run.sh` again. Refer to the [BDD dev guide]
-   (https://github.com/crowbar/barclamp-crowbar/blob/master/crowbar_framework/doc/default/crowbar/devguide/testing/bdd.md)
-   for more details.
-
-1. Starting the Crowbar web interface:
-
-   ````
-   cd /tmp/crowbar-dev-test/crowbar_framework
-   bundle exec rails s puma
-   ````
-
-   You will want to keep this terminal open to see the Rails logs, which will
-   come in very handy during development and debugging. The server can be
-   terminated with `Ctrl-c`.
-
-   The Crowbar web interface should now be accessible from your host web
-   browser, eg. at `http://192.168.124.10:3000`.
-
-Happy hacking! We will be updating this document regularly as we expand the
-supported distros and evolve the code base. Pull requests are very much
-appreciated!
+Now see the [testing page](testing.md) for how to run the tests.

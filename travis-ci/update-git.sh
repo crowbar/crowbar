@@ -3,9 +3,12 @@
 # Script to update the combined Git repository for running Travis CI. Intended
 # to be called by a cron job, like so:
 #
-# */5 * * * * cd ~/crowbar/travis-ci && ./update-git.sh >>update-git.log 2>&1
+# */5 * * * * /path/to/crowbar/travis-ci/update-git.sh >>update-git.log 2>&1
 
-GIT_DIR=~/travis-ci-crowbar
+# This variable must point to the check-out of the "combined" Travis CI
+# repository which is to be updated:
+: ${TRAVIS_GIT_DIR:=~/travis-ci-crowbar}
+# It can be cloned from: https://github.com/crowbar/travis-ci-crowbar
 
 function load_rvm() {
   if [[ -s "$HOME/.rvm/scripts/rvm" ]]; then
@@ -30,29 +33,28 @@ function die() { log "$*"; exit 1; }
 
 function run() {
   local cmd="$1" msg="$2" output=""
-  [ "$msg" ] && log "$msg"
-  output=`$cmd 2>&1`
-  if [ $? -ne 0 ]; then
-    log "Command failed: $cmd"
-    die "Output: $output"
+  log "${msg:-Running '$cmd' ...}"
+  if ! $cmd; then
+    die "Command '$cmd' failed"
   fi
 }
 
 function update_with_dev_tool() {
-  cd ..
-  run "./dev fetch" "Running ./dev fetch..."
-  run "./dev sync"  "Running ./dev sync..."
-  run "./dev setup-unit-tests --no-gem-cache" \
-      "Running ./dev setup-unit-tests --no-gem-cache"
+  cd "$CROWBAR_DIR"
+  log "Updating $CROWBAR_DIR ..."
+  run "./dev fetch"
+  run "./dev sync"
+  log "Setting up test environment using $CROWBAR_DIR ..."
+  run "./dev tests setup --no-gem-cache"
 }
 
 function rsync_files() {
   local DEV_TEST=/tmp/crowbar-dev-test
-  cd $GIT_DIR
+  cd "$TRAVIS_GIT_DIR"
   log "Copying files..."
   git reset -q --hard HEAD
   git clean -f -d -q
-  rsync -aq --delete --exclude=.git/ $DEV_TEST/{barclamps,crowbar_framework,Gemfile} .
+  rsync -aq --delete --exclude=.git/ $DEV_TEST/opt/dell/{barclamps,crowbar_framework} .
 }
 
 # A number of JSON files are generated during barclamp installation. These
@@ -60,11 +62,11 @@ function rsync_files() {
 # undeterministic nature of the serialization.
 function remove_unchanged_files() {
   log "Checking changed files..."
-  cd $GIT_DIR
+  cd "$TRAVIS_GIT_DIR"
   for file in `git diff --name-only --diff-filter=M | egrep "\.(yml|yaml|json)$"`; do
     cp $file{,.tmp}
     git checkout HEAD $file
-    $curr_dir/compare $file{,.tmp}
+    "$TRAVIS_CI_DIR/compare" $file{,.tmp}
     if [ $? -eq 0 ]; then
       # File didn't really change, so remove it
       rm $file.tmp
@@ -77,7 +79,7 @@ function remove_unchanged_files() {
 
 function commit_and_push() {
   local output="" git_hash=""
-  cd $GIT_DIR
+  cd "$TRAVIS_GIT_DIR"
   log "Committing files..."
   git pull
   git add *
@@ -108,11 +110,13 @@ for opt in "$@"; do
   esac
 done
 
-if [ ! -d $GIT_DIR ]; then
-  die "$GIT_DIR does not exist"
+if [ ! -d $TRAVIS_GIT_DIR ]; then
+  die "$TRAVIS_GIT_DIR does not exist"
 fi
 
-curr_dir=`pwd`
+CROWBAR_DIR=$( cd `dirname $0` && cd .. && pwd ) || \
+    die "Couldn't determine location of Crowbar repository"
+TRAVIS_CI_DIR="$CROWBAR_DIR/travis-ci"
 
 load_rvm
 update_with_dev_tool
@@ -120,4 +124,3 @@ rsync_files
 remove_unchanged_files
 commit_and_push
 
-cd $curr_dir
