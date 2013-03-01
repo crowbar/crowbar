@@ -4021,6 +4021,8 @@ reload_test_env() (
 
   if [[ $dbs_need_reload ]]; then
       cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
+      # If you change these, don't forget to also update .travis.yml and
+      # doc/devguide/testing!
       for rake_task in db:drop railties:install:migrations db:migrate db:fixtures:dump; do
           for RAILS_ENV in test development; do
               (export RAILS_ENV; bundle exec rake "$rake_task")
