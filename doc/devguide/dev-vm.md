@@ -46,8 +46,8 @@ kernel modules.
 Currently two Linux distributions are supported as development enviromnents,
 though others should also work:
 
-1. openSUSE - Refer to the [openSUSE setup steps](https://github.com/crowbar/crowbar/blob/master/dev-setup/README-openSUSE.md) for
+1. openSUSE - Refer to the [openSUSE setup steps](openSUSE-dev-env.md) for
    detailed instructions on how to proceed
 
-1. Ubuntu - Refer to the [Ubuntu setup steps](https://github.com/crowbar/crowbar/blob/master/dev-setup/README-Ubuntu.md) if you prefer
+1. Ubuntu - Refer to the [Ubuntu setup steps](Ubuntu-dev-env.md) if you prefer
    using Ubuntu.

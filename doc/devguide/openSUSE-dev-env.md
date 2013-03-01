@@ -91,7 +91,7 @@ Installation steps:
 
 You should now have a working VM that you can SSH into from the qemu-kvm host.
 
-1. Copy your .gitconfig and other configuration files to the VM, eg:
+1. Copy your .gitconfig and other configuration files to the VM, e.g.:
 
    ````
    crowbar-dev> scp -r <your-usual-dev-host>:.{gitconfig,vimrc,vim,profile,ssh} .
@@ -113,51 +113,4 @@ You should now have a working VM that you can SSH into from the qemu-kvm host.
    (https://github.com/crowbar/crowbar/blob/master/README.dev-and-code-review)
    for details. This will take a while so get some coffee.
 
-1. Setup the test and development environment:
-
-   ````
-   crowbar-dev> ./dev setup-unit-tests --no-gem-cache
-   crowbar-dev> cd /tmp/crowbar-dev-test && bundle install
-   ````
-
-   This setups a Crowbar run-time environment at
-   `/tmp/crowbar-dev-test/crowbar_framework`.
-
-1. You should now be able to run the unit and Rspec tests:
-
-   ````
-   cd /tmp/crowbar-dev-test/crowbar_framework
-   bundle exec rake db:drop db:migrate db:fixtures:dump test:units spec
-   ````
-
-1. [Broken] Running the BDD tests:
-
-   ````
-   cd /tmp/crowbar-dev-test/crowbar_framework/BDD
-   ./linux_compile.sh
-   ./linux_run.sh
-   ````
-
-   Unfortunately the BDD tests (written in Erlang) currently do not work on
-   openSUSE. We are working to resolve this. Meanwhile you can refer to the
-   [BDD dev guide]
-   (https://github.com/crowbar/barclamp-crowbar/blob/master/crowbar_framework/doc/default/crowbar/devguide/testing/bdd.md)
-   for more details on how it works.
-
-1. Starting the Crowbar web interface:
-
-   ````
-   cd /tmp/crowbar-dev-test/crowbar_framework
-   bundle exec rails s puma
-   ````
-
-   You will want to keep this terminal open to see the Rails logs, which will
-   come in very handy during development and debugging. The server can be
-   terminated with `Ctrl-c`.
-
-   The Crowbar web interface should now be accessible from your host web
-   browser, eg. at `http://192.168.124.10:3000`.
-
-Happy hacking! We will be updating this document regularly as we expand the
-supported distros and evolve the code base. Pull requests are very much
-appreciated!
+Now see the [testing page](testing.md) for how to run the tests.

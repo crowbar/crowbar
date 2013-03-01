@@ -10,3 +10,5 @@ The Crowbar UI framework provides some services including
 1. default routes
 
 It is important to understand how barclamps leverage the UI.  
+
+There is a separate document on [how to test the web UI](testing/web-ui.md).
