@@ -27,7 +27,6 @@ SMOKETEST_VLANS[600]="192.168.128.1/24"
 for KVM in kvm qemu-kvm ''; do
     type $KVM &>/dev/null && break
 done
-[[ $KVM ]] || die "Cannot find kvm!  Are you sure it is installed?"
 
 # THis lock is held whenever we are running tests.  It exists to
 # prevent multiple instances of the smoketest from running at once.
@@ -1087,6 +1086,7 @@ EOF
 run_test() {
     # If something already holds the testing lock, it is not safe to continue.
     flock -n -x 100 || die "Could not grab $SMOKETEST_LOCK in run_test"
+    [[ $KVM ]] || die "Cannot find kvm!  Are you sure it is installed?"
     for cmd in $NEEDED_CMDS $SUDO_CMDS; do
         which $cmd &>/dev/null && continue
         echo "Missing required command $cmd (or it is not in \$PATH)."
