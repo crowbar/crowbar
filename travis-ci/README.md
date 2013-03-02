@@ -1,6 +1,10 @@
-# Crowbar and Travis CI [![Build Status](https://travis-ci.org/crowbar/travis-ci-crowbar.png?branch=master)](https://travis-ci.org/crowbar/travis-ci-crowbar) [![Coverage Status](https://coveralls.io/repos/crowbar/travis-ci-crowbar/badge.png?branch=master)](https://coveralls.io/r/crowbar/travis-ci-crowbar)
+# Crowbar and Travis CI [![Build Status](https://travis-ci.org/crowbar/travis-ci-crowbar.png?branch=master)](https://travis-ci.org/crowbar/travis-ci-crowbar) [![Coverage Status](https://coveralls.io/repos/crowbar/travis-ci-crowbar/badge.png?branch=master)](https://coveralls.io/r/crowbar/travis-ci-crowbar) [![Code Climate](https://codeclimate.com/github/crowbar/travis-ci-crowbar.png)](https://codeclimate.com/github/crowbar/travis-ci-crowbar)
 
 Crowbar uses Travis CI (among other things) to perform continuous integration.
+The badges above represent (left to right):
+   * Travis CI - are the unit test passing
+   * Coverage status - what % of the code is covered by the units above
+   * Code Climate - how's the code doing in terms of complexity and static analysis scoring
 
 This is usually pretty easy to setup and Travis CI will automatically run the
 tests on every commit. Unfortunately, the current project design prevents this,
