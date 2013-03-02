@@ -150,7 +150,6 @@ class BarclampFS
           FileUtils.mkdir_p(File.join(target,"crowbar_framework/test/unit"))
           FileUtils.cp_r(File.join(dir,ent,"barclamp_"+@name+"/test/unit"),File.join(target,"crowbar_framework/test/"))
         end
-        next if skip_engines 
         debug("#{@name} is implemented using a Rails Engine.")
         debug("Linking in routes and Gemfile entries.")
         gem_name       = "barclamp_#{@name}"
@@ -167,10 +166,8 @@ class BarclampFS
         FileUtils.mkdir_p(gemfile_dir)
         routes_plugin  = File.join(routes_dir,  "barclamp-#{@name}-engine.routes")
         gemfile_plugin = File.join(gemfile_dir, "barclamp-#{@name}.gemfile")
-        File.new(routes_plugin,  'w').puts \
-          "mount #{engine_class}, :at => '#{@name}'"
-        File.new(gemfile_plugin, 'w').puts \
-          "gem '#{gem_name}', :path => File.join(crowbar_path, '..', 'barclamps', '#{@name}', '#{engine_path}')"
+        File.new(routes_plugin,  'w').puts("mount #{engine_class}, :at => '#{@name}'") unless File.exists?(routes_plugin)
+        File.new(gemfile_plugin, 'w').puts("gem '#{gem_name}', :path => File.join(crowbar_path, '..', 'barclamps', '#{@name}', '#{engine_path}')") unless File.exists?(gemfile_plugin)
       when 'bin'
         debug("Installing commands for #{@name}")
         FileUtils.mkdir_p(File.join(target,'bin'))
