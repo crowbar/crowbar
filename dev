@@ -4056,7 +4056,7 @@ run_unit_tests() (
         test_runner=(
             rcov
             --aggregate coverage/testing.data
-            -Ispec:lib
+            -Ispec:lib:test
             --exclude /gems/,/Library/,/usr/,lib/tasks,.bundle,/config/,/lib/rspec/,/lib/rspec-,spec
         )
         spec_runner=( "${test_runner[@]}" spec/*/*.rb    )
