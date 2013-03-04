@@ -4085,7 +4085,7 @@ run_BDD_tests() (
     sleep 10
     (echo "Running BDD"; cd "$CROWBAR_TEST_DIR/opt/dell/BDD"; erl -s bdd test devtool -s init stop -noshell) || final_result=fail
     echo "Stopping Rails app"
-    pkill -ef 'ruby.*rails.*Puma'
+    pkill -f 'ruby.*rails.*Puma'
     [[ $final_result = pass ]]
 )
 
