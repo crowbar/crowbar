@@ -168,7 +168,7 @@ class Barclamp
           f.puts template.result(binding)
         end
       end
-      out = %x{dpkg-buildpackage -b -uc 2>&1}
+      out = %x{dpkg-buildpackage -d -b -uc 2>&1}
       res = ($? == 0)
       die(out) unless res
     end
