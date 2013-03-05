@@ -24,6 +24,7 @@ function usage() {
 
     --no-fetch  Don't run ./dev fetch
     --no-sync   Don't run ./dev sync
+    --gem-cache Use gem cache
     --reload    Run ./dev tests reload not ./dev tests setup
     --no-push   Do not push to remote.
     --help      Display this help message.
@@ -49,7 +50,11 @@ function update_with_dev_tool() {
   [[ $dev_sync  = true ]] && run "./dev sync"
   log "Setting up test environment using $CROWBAR_DIR ..."
   if [[ $dev_test_mode = setup ]]; then
-      run "./dev tests setup --no-gem-cache"
+      if [[ $use_gem_cache = true ]]; then
+          run "./dev tests setup"
+      else
+          run "./dev tests setup --no-gem-cache"
+      fi
   elif [[ $dev_test_mode = reload ]]; then
       run "./dev tests reload"
   else
@@ -112,14 +117,16 @@ function commit_and_push() {
 
 dev_sync=true
 dev_fetch=true
+use_gem_cache=false
 dev_test_mode=setup
 git_push=true
 for opt in "$@"; do
   case $opt in
-    --no-fetch) dev_fetch=false;;
-    --no-sync)  dev_sync=false;;
-    --reload)   dev_test_mode=reload;;
-    --no-push)  git_push=false;;
+    --no-fetch)  dev_fetch=false;;
+    --no-sync)   dev_sync=false;;
+    --gem-cache) use_gem_cache=true;;
+    --reload)    dev_test_mode=reload;;
+    --no-push)   git_push=false;;
     --help)     usage;;
     *) die "Unknown option: $opt";;
   esac
