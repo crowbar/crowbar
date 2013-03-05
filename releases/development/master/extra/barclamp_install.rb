@@ -173,6 +173,10 @@ class BarclampFS
         FileUtils.mkdir_p(File.join(target,'bin'))
         FileUtils.cp_r(File.join(@source,'bin'),target)
         FileUtils.chmod_R(0755,File.join(target,'bin'))
+      when 'etc'
+        debug("Installing configs for #{@name}")
+        FileUtils.mkdir_p(File.join(@root,'etc'))
+        FileUtils.cp_r(File.join(@source,'etc'),@root)
       when 'updates'
         debug("Installing Sledgehammer updates for #{@name}")
         FileUtils.mkdir_p(File.join(@root,'updates'))
