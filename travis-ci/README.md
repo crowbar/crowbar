@@ -13,11 +13,11 @@ repositories - the main Crowbar framework and its required barclamps.
 
 Hence we use a cron job that runs the `dev` tool every 5 minutes to assemble
 the application, and pushes that to a [separate Git repository]
-(https://github.com/crowbar/travis-ci-crowbar). This repository is
-then [linked to Travis CI](https://travis-ci.org/crowbar/travis-ci-crowbar).
+(https://github.com/crowbar/travis-ci-crowbar) which is
+[linked to Travis CI](https://travis-ci.org/crowbar/travis-ci-crowbar).
 
 The application is assembled from a subset of the tree which './dev
-tests setup' creates in /tmp/crowbar-dev-test.
+tests setup' creates in `/tmp/crowbar-dev-test`.
 
 ## Setup details
 
@@ -63,7 +63,7 @@ each barclamp repository will then be fully unit testable on their own.
 
 Test pass/fail notifications are sent to our IRC channel (#crowbar on
 irc.freenode.net). There's also a build status image in the [main README]
-(https://github.com/crowbar/crowbar#readme)
+(https://github.com/crowbar/crowbar#readme).
 
 ## What's next / TODO / Wish list
 
@@ -76,3 +76,45 @@ irc.freenode.net). There's also a build status image in the [main README]
   is complete.
 * Run ChefSpec tests.
 * Get the HTML code coverage reports out and put them somewhere public visible.
+
+## How to set up an openSUSE 12.2 node to run this job
+
+First install the dependencies listed in [the instructions for setting
+up an openSUSE development environment](../doc/devguide/openSUSE-dev-env.md).
+
+Create a new `crowbar` user account and switch to it.
+
+    useradd -m crowbar
+    su - crowbar
+
+Now ensure you have ssh keys set up for whichever github account
+you want to commit from, then configure git with the corresponding
+identity (--global is required to cover the multiple repositories
+we are about to clone), e.g.:
+
+    git config --global user.name "Crowbar Travis Bot"
+    git config --global user.email "crowbar.gravatar+travis@gmail.com"
+
+Check out and configure the various Crowbar repositories:
+
+    git clone git://github.com/crowbar/crowbar.git
+    cd crowbar
+    # GIT_ASKPASS works around a bug in ./dev where it tries to do stuff
+    # with Dell-proprietary barclamps.
+    GIT_ASKPASS=true ./dev setup --no-github
+
+Check out the `travis-ci-crowbar` repository which the Jenkins job
+will keep updated:
+
+    cd
+    git clone git://github.com/crowbar/travis-ci-crowbar.git
+    cd travis-ci-crowbar
+
+Set up a remote from which we can issue pull requests:
+
+    git remote add personal git@github.com:crowbar-travis/travis-ci-crowbar.git
+
+Perform a dummy push to ensure that the server's ssh key fingerprint
+is in `.ssh/known_hosts`:
+
+    git push -n personal HEAD
