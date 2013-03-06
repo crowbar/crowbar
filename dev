@@ -3901,10 +3901,6 @@ reinstall_barclamps() {
             --force --root "$CROWBAR_TEST_DIR" "${barclamps[@]}") || \
             die "Failed to install some barclamps."
 
-    local group=$USER
-    [ -f /etc/SuSE-release ] && group=users
-    sudo chown -R "$USER.$group" "${CROWBAR_TEST_DIR}"
-
     find "$CROWBAR_TEST_DIR" -type d -exec chmod a+x '{}' ';'
 }
 
