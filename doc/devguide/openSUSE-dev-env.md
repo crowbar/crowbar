@@ -113,4 +113,10 @@ You should now have a working VM that you can SSH into from the qemu-kvm host.
    (https://github.com/crowbar/crowbar/blob/master/README.dev-and-code-review)
    for details. This will take a while so get some coffee.
 
+1. Install dependencies required by the test suite:
+
+   ````
+   sudo zypper install ruby-devel rubygem-bundler sqlite3-devel gcc-c++ erlang
+   ````
+
 Now see the [testing page](testing.md) for how to run the tests.

@@ -114,7 +114,7 @@ with setting up the Crowbar development environment.
 1. Install dependencies required by the test suite:
 
    ````
-   sudo apt-get install libsqlite3-dev erlang-base erlang-inets
+   sudo apt-get install ruby-dev ruby-bundler libsqlite3-dev g++ erlang-base erlang-inets
    ````
 
 Now see the [testing page](testing.md) for how to run the tests.
