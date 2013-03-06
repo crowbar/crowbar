@@ -3820,23 +3820,28 @@ purge_submodule_metadata() (
 # Unit testing functions:
 
 test_prereqs_installed() {
-    local f gem
+    local -a missing
 
     if [[ ! $(find /usr/include -name 'sqlite3.h') ]]; then
-        debug "sqlite development headers not installed."
-        return 1
+        missing+=("sqlite development headers not installed.")
     fi
 
     local rvm=/usr/local/rvm/scripts/rvm
     [ -f $rvm ] && source $rvm
 
-    if ! command -v bundle >/dev/null 2>&1; then
-        die "Please make sure bundler is installed, e.g. 'sudo gem install bundler'"
+    for cmd in bundle erlc; do
+        if ! command -v $cmd >/dev/null 2>&1; then
+            missing+=("$cmd not installed")
+        fi
+    done
+
+    if [[ $missing ]]; then
+        warn "Missing dependencies: ${missing[@]}"
+        warn "Please see: https://github.com/crowbar/crowbar/blob/master/doc/devguide/dev-vm.md#setting-up-the-virtual-machine"
+        return 1
     fi
 
-    if ! command -v erlc >/dev/null 2>&1; then
-        die "Please make sure erlang is installed."
-    fi
+    return 0
 }
 
 paths_same() {
