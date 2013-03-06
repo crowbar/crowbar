@@ -112,7 +112,9 @@ function commit_and_push() {
     log "Commited $git_hash!"
   fi
 
-  [[ $git_push = true ]] && git push -q
+  if [[ $git_push = true ]]; then
+      git push -q
+  fi
 }
 
 dev_sync=true
