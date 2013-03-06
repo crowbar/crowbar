@@ -3995,7 +3995,6 @@ setup_test_env() (
     ln -sf ../coverage "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework/public"
 
     cd "$CROWBAR_TEST_DIR/opt/dell/BDD"
-    sudo "$CROWBAR_TEST_DIR/opt/dell/BDD/linux_install.sh"
     ./linux_compile.sh
     current_build >"$CROWBAR_TEST_DIR/.build"
 )
@@ -4571,9 +4570,9 @@ DEV_LONG_HELP["tests"]="Various tasks related to running tests.
   Subcommands:
     setup
       This will create the environment with all barclamps in
-      /tmp/crowbar-dev-test.  Requires sudo access to install Ubuntu
-      packages.  By passing in names of barclamps, the setup command
-      will only add those barclamps to the test environment.
+      /tmp/crowbar-dev-test.  By passing in names of barclamps, the
+      setup command will only add those barclamps to the test
+      environment.
 
       setup also takes two optional arguments:
         --update-gem-cache will copy the contents of /var/lib/gems/1.8 into
