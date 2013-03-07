@@ -65,18 +65,6 @@ Test pass/fail notifications are sent to our IRC channel (#crowbar on
 irc.freenode.net). There's also a build status image in the [main README]
 (https://github.com/crowbar/crowbar#readme).
 
-## What's next / TODO / Wish list
-
-* Currently only the unit and spec tests are executed. Will try to get the
-  Erlang BDD tests running too.
-* Move the cron job that executes `update-git.sh` to a proper continuous
-  integration server (instead of a VM on my workstation). For example,
-  http://ci.opensuse.org/.
-* Revert to standard setup once the epic barclamps to Rails Engine refactoring
-  is complete.
-* Run ChefSpec tests.
-* Get the HTML code coverage reports out and put them somewhere public visible.
-
 ## How to set up an openSUSE 12.2 node to run this job
 
 First install the dependencies listed in [the instructions for setting
