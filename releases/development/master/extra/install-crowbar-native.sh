@@ -52,7 +52,10 @@ export FQDN="$1"
 export DEBUG=true
 
 if [[ $OS != suse ]]; then
-    export PATH="/opt/dell/bin:/usr/local/bin:$PATH"
+    [[ $PATH != */opt/dell/bin* ]] || export PATH="$PATH:/opt/dell/bin"
+    if [[ -f /etc/environment ]] && ! grep -q '/opt/dell/bin' /etc/environment; then
+        sed -i -e "/^PATH/ s@\"\(.*\)\"@\"$PATH\"@" /etc/environment 
+    fi
     [[ ! $HOME || $HOME = / ]] && export HOME="/root"
     mkdir -p "$HOME"
 
