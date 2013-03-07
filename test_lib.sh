@@ -24,6 +24,14 @@ SMOKETEST_VLANS[300]="192.168.126.1/24"
 SMOKETEST_VLANS[500]="192.168.127.1/24"
 SMOKETEST_VLANS[600]="192.168.128.1/24"
 
+ADMIN_HOSTNAMES=("cr0wbar.pwns.joo"
+    "vltima.ratio.regvm"
+    "admin.smoke.test"
+    "bork.bork.bork")
+
+ADMIN_HOSTNAME=${ADMIN_HOSTNAMES[$(($RANDOM % ${#ADMIN_HOSTNAMES[@]}))]}
+debug "Picked $ADMIN_HOSTNAME"
+
 for KVM in kvm qemu-kvm ''; do
     type $KVM &>/dev/null && break
 done
@@ -710,7 +718,7 @@ run_admin_node() {
         [[ $DISPLAY ]] || kernel_params+=" console=ttyS1,115200n81"
         [[ -r $HOME/.ssh/id_rsa.pub ]] && kernel_params+=" crowbar.authkey=$(sed 's/ /\\040/g' <"$HOME/.ssh/id_rsa.pub")"
         if ! [[ $manual_deploy = true ]]; then
-            kernel_params+=" crowbar.hostname=admin.smoke.test"
+            kernel_params+=" crowbar.hostname=$ADMIN_HOSTNAME"
         fi
         if [[ $develop_mode ]]; then
             kernel_params+=" crowbar.debug"
@@ -764,7 +772,7 @@ run_admin_node() {
     # If we want to manually deploy, then exit now.
     [[ $manual_deploy ]] && return 0
     # Otherwise, kick off the install.
-    ssh root@192.168.124.10 /opt/dell/bin/install-crowbar admin.smoke.test
+    ssh root@192.168.124.10 /opt/dell/bin/install-crowbar $ADMIN_HOSTNAME
     sleep 5
     # Wait for the screen session to terminate
     printf "Waiting for crowbar to install: "
