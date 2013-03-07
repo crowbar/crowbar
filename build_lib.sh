@@ -802,11 +802,15 @@ barclamp_file_cache_needs_update() {
 
 # Some helper functions
 
+log() { printf "$(date '+%F %T %z'): %s\n" "$@" >&2; }
+
+warn() { log "$@"; }
+
 # Print a message to stderr and exit.  cleanup will be called.
-die() { printf "$(date '+%F %T %z'): %s\n" "$@" >&2; res=1; exit 1; }
+die() { log "$@" >&2; res=1; exit 1; }
 
 # Print a message to stderr and keep going.
-debug() { [[ $VERBOSE ]] && printf "$(date '+%F %T %z'): %s\n" "$@" >&2; }
+debug() { [[ $VERBOSE ]] && log "$@"; }
 
 # Clean up any cruft that we might have left behind from the last run.
 clean_dirs() {
