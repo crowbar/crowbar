@@ -28,6 +28,10 @@ for how to start the web server.
 They are also [tracked online via Coveralls](https://coveralls.io/r/crowbar/travis-ci-crowbar)
 which is seriously cool - check it out!
 
+### Automated code analysis
+
+See the [analysis](analysis.md) page.
+
 ### Manual tests
 
 * [Testing the web UI](testing/web-ui.md)
