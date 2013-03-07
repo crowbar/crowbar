@@ -25,6 +25,13 @@ run, and can be accessed via the Rails app's webserver at e.g.
 http://192.168.124.10:3000/coverage/ - see [here](testing/web-ui.md)
 for how to start the web server.
 
+They are also [tracked online via Coveralls](https://coveralls.io/r/crowbar/travis-ci-crowbar)
+which is seriously cool - check it out!
+
+### Automated code analysis
+
+See the [analysis](analysis.md) page.
+
 ### Manual tests
 
 * [Testing the web UI](testing/web-ui.md)
