@@ -51,3 +51,6 @@ though others should also work:
 
 1. Ubuntu - Refer to the [Ubuntu setup steps](Ubuntu-dev-env.md) if you prefer
    using Ubuntu.
+
+1. Fedora - Refer to the [Fedora setup steps](fedora-dev-env.md) if you prefer
+   using Fedora.
