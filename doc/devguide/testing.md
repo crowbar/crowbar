@@ -18,6 +18,8 @@ We have several mechanisms for testing and the following sections will help you 
 
 It is recommended to [run these automated tests via the `./dev` tool](testing/devtool.md).
 
+Some of these tests are [automatically run on a regular basis by Travis CI](testing/travis.md).
+
 ### Code coverage reports
 
 Code coverage reports are automatically generated when the tests are
