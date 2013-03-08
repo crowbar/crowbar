@@ -4,7 +4,7 @@ The Dell Crowbar team believes in testing!  We want you to write tests for your 
 
 We have several mechanisms for testing and the following sections will help you understand them, use them and love them.
 
-### Automated tests
+### Automated tests [![Build Status](https://travis-ci.org/crowbar/travis-ci-crowbar.png?branch=master)](https://travis-ci.org/crowbar/travis-ci-crowbar)
 
 * Unit tests - these validate core logic assumptions in the models and controllers
    * they are written in Ruby and are integrated with the Rails framework
@@ -18,9 +18,10 @@ We have several mechanisms for testing and the following sections will help you 
 
 It is recommended to [run these automated tests via the `./dev` tool](testing/devtool.md).
 
-Some of these tests are [automatically run on a regular basis by Travis CI](testing/travis.md).
+Some of these tests are [automatically run on a regular basis by Travis CI](testing/travis.md),
+and the badge above shows the latest result.
 
-### Code coverage reports
+### Code coverage reports [![Coverage Status](https://coveralls.io/repos/crowbar/travis-ci-crowbar/badge.png?branch=master)](https://coveralls.io/r/crowbar/travis-ci-crowbar)
 
 Code coverage reports are automatically generated when the tests are
 run, and can be accessed via the Rails app's webserver at e.g.
