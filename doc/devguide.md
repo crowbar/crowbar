@@ -32,6 +32,7 @@ See the [Contributor Guide](devguide/contributing.md).
 * [Building ISOs](devguide/building.md)
 * [Using the ./dev tool](devguide/devtool.md)
 * [Testing](devguide/testing.md)
+* [Code analysis](devguide/analysis.md)
 * [UI development](devguide/ui.md)
 
 ## Authors
