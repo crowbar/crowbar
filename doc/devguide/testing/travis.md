@@ -61,6 +61,32 @@ Test pass/fail notifications are sent to our IRC channel (#crowbar on
 irc.freenode.net). There's also a build status image in the [main README]
 (https://github.com/crowbar/crowbar#readme).
 
+## Trouble-shooting failures
+
+Since this Travis repository is assembled from a subset of the tree
+which './dev tests setup' creates in `/tmp/crowbar-dev-test`, in
+theory you should be able to reproduce any failures seen on the
+[Travis CI](https://travis-ci.org/crowbar/travis-ci-crowbar) site by
+running the unit tests locally from your Crowbar tree via [./dev
+tests](devtool.md).  However it's possible that failures may be due to
+the subtle differences between the two environments.  To more closely
+mimic the Travis CI environment, you can do the following:
+
+    git clone git://github.com/crowbar/travis-ci-crowbar.git
+    cd travis-ci-crowbar/crowbar_framework
+
+    # If you have rvm installed, you can optionally create a dedicated
+    # rvm gemset here:
+    rvm gemset create crowbar-travis-ci
+    rvm use @crowbar-travis-ci
+
+    # If not, you can add a --path=... parameter to the below to ensure
+    # that the gems get installed to a clean dedicated environment:
+    bundle install --without development
+
+    # Now run the tests
+    bundle exec rake db:drop railties:install:migrations db:migrate db:fixtures:dump test:units spec
+
 ## How to set up an openSUSE 12.2 node to run this job
 
 First install the dependencies listed in [the instructions for setting
