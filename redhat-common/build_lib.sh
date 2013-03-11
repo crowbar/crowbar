@@ -128,6 +128,17 @@ add_offline_repos() (
     done
 )
 
+# For Fedora 17 and later packages are stored in subdirectories bucketed by
+# the first letter of the package name and lower cased
+__pkg_location() {
+    if [ "$OS" = "fedora" -a $OS_VERSION = 18 ]; then
+	lowercase_pkg=${pkg,,}
+        echo "$(find_cd_pool)/${lowercase_pkg:0:1}/$pkg"
+    else
+	echo "$(find_cd_pool)/$pkg"
+    fi
+}
+
 # This function makes a functional centos chroot environment.
 # We do this so that we can build an install DVD that has Crowbar staged
 # on it without having to have a handy Redhat/CentOS environment to build from.
@@ -136,14 +147,14 @@ add_offline_repos() (
 __make_chroot() {
     postcmds=()
     # Install basic packages.
-    for pkg in "${OS_BASIC_PACKAGES[@]}"; do
-        for f in "$(find_cd_pool)/$pkg"-[0-9]*+(noarch|x86_64).rpm; do
+      for pkg in "${OS_BASIC_PACKAGES[@]}"; do
+         for f in "$(__pkg_location)"-[0-9]*+(noarch|x86_64).rpm; do
             rpm2cpio "$f" | \
                 (cd "$CHROOT"; sudo cpio --extract \
                 --make-directories --no-absolute-filenames \
                 --preserve-modification-time)
         done
-        if [[ $pkg =~ (centos|redhat)-release ]]; then
+        if [[ $pkg =~ (centos|redhat|fedora)-release ]]; then
             sudo mkdir -p "$CHROOT/tmp"
             sudo cp "$f" "$CHROOT/tmp/${f##*/}"
             postcmds+=("/bin/rpm -ivh --force --nodeps /tmp/${f##*/}")
