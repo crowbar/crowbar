@@ -101,8 +101,8 @@ git() {
             [[ $(git config --get user.name) && $(git config --get user.email) ]] || \
                 die "Git not setup." \
                 "Please run" \
-                "git config user.name \"your name\"" \
-                "git config user.email \"you@your.domain\"";;
+                "git config --global user.name \"your name\"" \
+                "git config --global user.email \"you@your.domain\"";;
     esac
     command git "$@"
 }
