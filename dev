@@ -3947,7 +3947,7 @@ install_gems() {
             "$CROWBAR_DIR/barclamps/crowbar/crowbar.yml"
         debug
     else
-        sed -i -e "s@^source .*@source \"http://rubygems.org\"@" "$gemfile"
+        sed -i -e "s@^source .*@source \"https://rubygems.org\"@" "$gemfile"
         echo "NOTE: Using the --no-gem-cache option means that the gems used to"\
         "run the unit tests may not be the same as the ones used to build and"\
         "install Crowbar, so results may differ."
