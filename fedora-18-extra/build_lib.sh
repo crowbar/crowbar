@@ -37,6 +37,7 @@ OS_BASIC_PACKAGES=(filesystem audit-libs basesystem bash binutils \
 
 OS_REPO_POOL=""
 
+ISO_MIRROR=http://mirrors.kernel.org/fedora/releases/$OS_VERSION/Fedora/x86_64/iso/
 # The name of the OS iso we are using as a base.
 [[ $ISO ]] || ISO="Fedora-18-x86_64-DVD.iso"
 
@@ -47,9 +48,12 @@ SHRINK_ISO=true
 # The location of OS packages on $ISO
 find_cd_pool() ( echo "$IMAGE_DIR/Packages" )
 
-# There is no public location to fetch the RHEL .iso from.  If you have one,
-# you can change this function.
 fetch_os_iso() {
+    # Try and download our ISO if we don't already have it
+    echo "$(date '+%F %T %z'): Downloading and caching $ISO"
+    curl -o "$ISO_LIBRARY/$ISO" \
+        "$ISO_MIRROR/$ISO" || \
+        die "Missing our source image.  Please install $ISO in $ISO_LIBRARY."
     die "Cannot download download $ISO.  Please manually install it in $ISO_LIBRARY."
 }
 
