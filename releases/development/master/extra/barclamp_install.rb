@@ -150,6 +150,9 @@ class BarclampFS
           FileUtils.mkdir_p(File.join(target,"crowbar_framework/test/unit"))
           FileUtils.cp_r(File.join(dir,ent,"barclamp_"+@name+"/test/unit"),File.join(target,"crowbar_framework/test/"))
         end
+        if FileTest.exists?(File.join(dir,ent,"barclamp_"+@name+"/test/"+@name+"_test_helper.rb"))
+          FileUtils.cp(File.join(dir,ent,"barclamp_"+@name+"/test/"+@name+"_test_helper.rb"),File.join(target,"crowbar_framework/test/"))
+        end
         debug("#{@name} is implemented using a Rails Engine.")
         debug("Linking in routes and Gemfile entries.")
         gem_name       = "barclamp_#{@name}"
