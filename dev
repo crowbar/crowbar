@@ -1266,8 +1266,9 @@ pull_request_merge_one () {
         "https://api.github.com/repos/$prq_target_account/$prq_local_repo/pulls/$prq_number/merge" &>/dev/null; then
         return 0
     fi
+    json="{\"commit_message\": \"$prq_github_url\n\nMerged by devtool for $DEV_GITHUB_ID\"}"
     if curl_and_res -f -X PUT \
-	-d "{\"commit_message\": \"Merged by devtool for $DEV_GITHUB_ID\"}" \
+	-d "$json" \
         "https://api.github.com/repos/$prq_target_account/$prq_local_repo/pulls/$prq_number/merge" &>/dev/null; then
         debug "$prq_github_url merged."
         return 0
