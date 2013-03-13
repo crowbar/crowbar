@@ -205,9 +205,13 @@ class BarclampFS
     return if skip_migrations
     FileUtils.cd(File.join(target,"crowbar_framework")) do
       debug "#{Dir.pwd}: Installing migrations for #{@name}"
-      system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake railties:install:migrations' crowbar"
+      unless system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake railties:install:migrations' crowbar"
+        fatal("Installing migrations failed.")
+      end
       debug "Running migrations for #{@name}"
-      db = system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake db:migrate' crowbar"
+      unless system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake db:migrate' crowbar"
+        fatal("Running migrations failed.")
+      end
     end
   end
 
