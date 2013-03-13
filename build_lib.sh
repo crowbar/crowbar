@@ -714,7 +714,7 @@ update_barclamp_file_cache() {
 barclamp_pkg_cache_needs_update() {
     local pkg pkgname arch bcs=() bc ret=1
     local -A pkgs
-
+    [[ ${BC_PKGS["$1"]} || ${BC_BUILD_PKGS["$1"]} ]] || return 1
     [[ $need_update = true || ${FORCE_BARCLAMP_UPDATE["$1"]} = true ]] && return 0
     [[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs ]] && \
         touch "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
@@ -774,6 +774,7 @@ barclamp_gem_cache_needs_update() {
 # CHeck to see if we are missing any raw packages.
 barclamp_raw_pkg_cache_needs_update() {
     local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" ret=1
+    [[ ${BC_RAW_PKGS["$1"]} || ${BC_PKG_SOURCES["$1"]} ]] || return 1
     mkdir -p "$bc_cache"
     # Third, check to see if we have all the raw_pkgs we need.
     for pkg in ${BC_RAW_PKGS["$1"]} ${BC_PKG_SOURCES["$1"]}; do
@@ -787,6 +788,7 @@ barclamp_raw_pkg_cache_needs_update() {
 # Check to see if we are missing any raw files.
 barclamp_file_cache_needs_update() {
     local pkg dest bc_cache="$CACHE_DIR/barclamps/$1/files" ret=1
+    [[ "${BC_EXTRA_FILES[$1]}" ]] || return 1
     mkdir -p "$bc_cache"
     # Fourth, check to make sure we have all the extra_pkgs we need.
     while read pkg; do
