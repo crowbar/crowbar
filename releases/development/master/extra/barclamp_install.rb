@@ -66,6 +66,7 @@ class BarclampFS
   end
 
   def root=(rootdir)
+    return if rootdir == '/'
     @chroot=true
     FileUtils.mkdir_p(rootdir)
     @root=rootdir
@@ -124,7 +125,7 @@ class BarclampFS
   end
 
   def requires
-    (@metadata['barclamp']['requires'] rescue []).map do |d|
+    (@metadata['barclamp']['requires'] || [] rescue []).map do |d|
       if /^@/ =~ d then @@groups[d[1..-1]] else d end
     end.flatten.uniq
   end
@@ -134,7 +135,6 @@ class BarclampFS
   end
 
   def install_app
-    STDERR.puts "Installing #{@name} from #{@source} into #{target}"
     dirs = Dir.entries(@source)
     use_engine = dirs.include?("crowbar_engine")
     dirs.sort.each do |ent|
@@ -198,16 +198,6 @@ class BarclampFS
         FileUtils.mkdir_p(dir)
         FileUtils.cp_r(File.join(@source,ent),dir)
       end
-    end
-  end
-
-  def install_migrations
-    return if skip_migrations
-    FileUtils.cd(File.join(target,"crowbar_framework")) do
-      debug "#{Dir.pwd}: Installing migrations for #{@name}"
-      system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake railties:install:migrations' crowbar"
-      debug "Running migrations for #{@name}"
-      db = system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake db:migrate' crowbar"
     end
   end
 
@@ -329,7 +319,7 @@ class Barclamps < Hash
   def initialize
     @force_install = false
     @base_dir = "/opt/dell"
-    @root = nil
+    @root = '/'
     @no_install_actions = false
     @no_chef = false
     @no_migrations = false
@@ -385,6 +375,10 @@ class Barclamps < Hash
     end
   end
 
+  def target
+    File.expand_path(File.join(@root,@base_dir))
+  end
+
   def sanity_check
     values.each do |bc|
       next if bc.installed
@@ -433,32 +427,70 @@ class Barclamps < Hash
     end
   end
 
-  def install_bc(bc)
-    return true if bc.installed
-    bc.requires.each do |prereq|
-      next unless self.has_key?(prereq)
-      install_bc(self[prereq])
+  # My kingdom for real lexical scoping...
+  def __install_order(candidate,res,seen)
+    prereqs = candidate.requires
+    prereqs.each do |p|
+      next unless self[p]
+      prq = self[p]
+      next if seen[prq]
+      __install_order(prq,res,seen)
+      seen[prq]=true
+      res << prq
+    end unless prereqs.nil?
+    return if seen[candidate]
+    seen[candidate]=true
+    res << candidate
+  end
+
+  def install_order
+    res = Array.new
+    seen = Hash.new
+    values.sort_by{|c| c["crowbar"]["order"].to_i rescue 9999}.each do |bc|
+      __install_order(bc,res,seen)
     end
-    bc.install
+    res
+  end
+
+  def install_migrations
+    return if @no_migrations
+    FileUtils.cd(File.join(target,"crowbar_framework")) do
+      system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake railties:install:migrations' crowbar"
+      system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake db:migrate' crowbar"
+    end
+  end
+
+  def __install(barclamps)
+    debug "installing barclamp files"
+    barclamps.each do |bc| bc.install_app end
+    debug "installing migrations"
+    install_migrations
+    debug "installing cache"
+    barclamps.each do |bc| bc.install_cache end
+    debug "running install actions"
+    barclamps.each do |bc| bc.run_actions("install") end
+    debug "installing Chef components"
+    barclamps.each do |bc| bc.install_chef end
   end
 
   def install
-    values.sort_by{|c| c["crowbar"]["order"].to_i rescue 9999}.each do |bc|
-      next if bc.installed
-      begin
-        debug "installing barclamp #{bc.name}"
-        bc.install
-      rescue StandardError => e
-        if ENV['DEBUG'] == "true"
-          debug "temporary directory #{tmpdir} will be left for debugging if it exists"
-        else
-          rm_tmpdir
-        end
-        puts e
-        puts e.backtrace
-        puts "Install of #{bc[:name]} failed."
-        exit 3
+    begin
+      serial,parallel = install_order.reject{|b|b.installed}.partition do |b|
+        %w{crowbar chef}.member?(b.name)
       end
+      serial.each do |b|
+        __install([b])
+      end
+      __install(parallel)
+    rescue StandardError => e
+      if ENV['DEBUG'] == "true"
+        debug "temporary directory #{tmpdir} will be left for debugging if it exists"
+      else
+        rm_tmpdir
+      end
+      puts e
+      puts e.backtrace
+      exit 3
     end
     rm_tmpdir
   end
