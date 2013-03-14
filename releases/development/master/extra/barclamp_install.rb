@@ -169,7 +169,7 @@ class BarclampFS
         FileUtils.mkdir_p(gemfile_dir)
         routes_plugin  = File.join(routes_dir,  "barclamp-#{@name}-engine.routes")
         gemfile_plugin = File.join(gemfile_dir, "barclamp-#{@name}.gemfile")
-        File.new(routes_plugin,  'w') do |f|
+        File.open(routes_plugin,  'w') do |f|
           f.puts("mount #{engine_class}, :at => '#{@name}'")
         end unless File.exists?(routes_plugin)
         File.open(gemfile_plugin, 'w') do |f|
