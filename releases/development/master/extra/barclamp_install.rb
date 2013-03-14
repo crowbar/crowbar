@@ -144,6 +144,9 @@ class BarclampFS
         next if use_engine || skip_files
         debug("Copying crowbar_framework files over for #{@name}")
         FileUtils.cp_r(File.join(@source,'crowbar_framework'),target)
+        # The rake tasks running later on as crowbar, need to be able to write
+        # to the db directory
+        FileUtils.chown_R('crowbar', 'crowbar', File.join(target, 'crowbar_framework', 'db'))
       when "crowbar_engine"
         FileUtils.cp_r(File.join(@source,ent),dir) unless @source == dir
         if FileTest.exists?(File.join(dir,ent,"barclamp_"+@name+"/test/unit"))
