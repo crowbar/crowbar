@@ -31,6 +31,7 @@ ADMIN_HOSTNAMES=("cr0wbar.pwns.joo"
 
 ADMIN_HOSTNAME=${ADMIN_HOSTNAMES[$(($RANDOM % ${#ADMIN_HOSTNAMES[@]}))]}
 debug "Picked $ADMIN_HOSTNAME"
+export SMOKETEST_DOMAIN=${ADMIN_HOSTNAME#*.}
 
 for KVM in kvm qemu-kvm ''; do
     type $KVM &>/dev/null && break
@@ -338,7 +339,7 @@ makenics() {
             local nic_name="$1-${idx}-${bridge##*-}"
             getmac
             if [[ $nic_name =~ virt-.-0-pub ]]; then
-                SMOKETEST_SLAVES["$1"]="d${MACADDR//:/-}.smoke.test"
+                SMOKETEST_SLAVES["$1"]="d${MACADDR//:/-}.${SMOKETEST_DOMAIN}"
             fi
             vm_nics+=("$MACADDR,$nic_name")
         done
@@ -918,7 +919,7 @@ create_slaves() {
     local mac
     for mac in "${PHYSICAL_MACS[@]}"; do
         nodename="physical-$((i++))"
-        SMOKETEST_SLAVES["$nodename"]="d${mac//:/-}.smoke.test"
+        SMOKETEST_SLAVES["$nodename"]="d${mac//:/-}.${SMOKETEST_DOMAIN}"
         > "$smoketest_dir/$nodename.status"
     done
 }
