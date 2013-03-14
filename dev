@@ -4046,6 +4046,13 @@ reload_test_env() (
   ./linux_compile.sh
 )
 
+run_server() {
+  auto_reload_test_env
+  cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
+  echo "Starting Rails app"
+  bundle exec script/rails s Puma
+}
+
 run_tests() {
     run_unit_tests
     run_BDD_tests
@@ -4267,6 +4274,7 @@ tests_handler() {
         run)       run_tests               "$@" ;;
         run-units) run_unit_tests          "$@" ;;
         run-BDD)   run_BDD_tests           "$@" ;;
+        server)    run_server              "$@" ;;
         reload)    reload_test_env         "$@" ;;
         clear)     clear_test_env          "$@" ;;
         *)         dev_help tests               ;;
@@ -4607,6 +4615,8 @@ DEV_LONG_HELP["tests"]="Various tasks related to running tests.
       Run BDD tests from the /tmp/crowbar environment.
     run-units
       Run unit tests and specs from the /tmp/crowbar environment.
+    server
+      Run the dev web server interactively
     clear
       Removes a test environment in /tmp/crowbar."
 DEV_LONG_HELP["setup-unit-tests"]="Deprecated; please see help for ./dev tests setup"
