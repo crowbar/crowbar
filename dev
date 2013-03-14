@@ -4022,12 +4022,24 @@ reload_test_env() (
 
   if [[ $dbs_need_reload ]]; then
       cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
+
+      # For some bizarre reason, rake db:drop in development
+      # also drops the test database.
+      # https://github.com/rails/rails/pull/2419
+      export RAILS_ENV=development
+      bundle exec rake db:drop
+
       # If you change these, don't forget to also update .travis.yml and
       # doc/devguide/testing!
-      for rake_task in db:drop railties:install:migrations db:migrate db:fixtures:dump; do
-          for RAILS_ENV in test development; do
-              (export RAILS_ENV; bundle exec rake "$rake_task")
-          done
+      for RAILS_ENV in test development; do
+          debug "Setting up DB for $RAILS_ENV environment ..."
+          (
+              export RAILS_ENV
+              bundle exec rake \
+                  railties:install:migrations \
+                  db:migrate \
+                  db:fixtures:dump
+          )
       done
   fi
   cd "$CROWBAR_TEST_DIR/opt/dell/BDD"
