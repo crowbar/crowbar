@@ -8,35 +8,11 @@ and operating system support policy, inspired by [Yahoo's GBS]
 
 Browser support grades:
 
-<table>
-  <tr>
-    <th>Grade</th>
-    <th>QA</th>
-    <th>Bug priority</th>
-    <th>Browser and version combinations</th>
-  </tr>
-  <tr>
-    <td>A</td>
-    <td>Yes</td>
-    <td>Normal</td>
-    <td>Current and previous major releases of Firefox, Firefox ESR (used in
-        SLES/D), Chrome and Internet Explorer.</td>
-  </tr>
-  <tr>
-    <td>B</td>
-    <td>No</td>
-    <td>Low, possibly WONT_FIX</td>
-    <td>Current major release of Safari.</td>
-  </tr>
-  <tr>
-    <td>C</td>
-    <td>No</td>
-    <td>WONT_FIX</td>
-    <td>All browser and version combinations that are not in grades A or B.
-      This includes old versions of A grade browsers and A grade browsers on
-      unsupported operating systems.</td>
-  </tr>
-</table>
+| Grade | QA  | Bug priority         | Browser and version combinations |
+|-------|-----|----------------------|----------------------------------|
+| A     | Yes | Normal               | Current and previous major releases of Firefox, Firefox ESR (used in SLES/D), Chrome and Internet Explorer. |
+| B     | No  | Low, likely WONT_FIX | Current major release of Safari. |
+| C     | No  | WONT_FIX             | All browser and version combinations that are not in grades A or B. This includes old versions of A grade browsers and A grade browsers on unsupported operating systems. |
 
 This does not mean that Crowbar will only work on A-grade browsers - we expect
 it to work in all modern browsers and do make an effort to provide graceful
