@@ -13,7 +13,7 @@ The /api/v2 URIs provide access to crowbar framework resources: attribs, attrib_
 
 The /<barclamp>/v2 provide access to barclamp specific resources.
 
-The content returned to the client has a media type of **application/vnd.crowbar+json; version=x.y** unless otherwise noted. (*a little googling turned up: 
+The content returned to the client has a media type of **application/vnd.crowbar+json; version=x.y** unless otherwise noted. (*a little googling turned up:
 http://tools.ietf.org/html/draft-kelly-json-hal-05 "a generic media type with with Web APIs can be developed and exposed as a series of links", perhaps we should
 use it rather than defining our own. Regardless, we should steal their link syntax.*)
 
@@ -29,22 +29,22 @@ There are three possible types of client errors on API calls that receive reques
 
 Where possible the Crowbar API strives to use the appropriate HTTP verbs for each action.
 
-**HEAD** 
+**HEAD**
 : can be issued against any resource to get just the HTTP header info
 
-**GET** 
+**GET**
 : used for retrieving resources
 
-**POST** 
+**POST**
 : used for creating resources, or performing custom actions
 
-**PATCH** 
+**PATCH**
 : used for updating resources with partial JSON data
 
-**PUT** 
+**PUT**
 : used for replacing resources or collection; *body less* PUT requests should always set Content-Length header to zero
 
-**DELETE** 
+**DELETE**
 : used for deleting resources
 
 ### Hypermedia Controls

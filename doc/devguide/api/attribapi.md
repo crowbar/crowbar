@@ -62,7 +62,7 @@ This resource provides access to all the Crowbar *attribs*
 	    "name": "forwarders",
             "state": "empty",
 	    "node_id": null,
-	    "attrib_type_id": 36, 
+	    "attrib_type_id": 36,
 	    " escription": "dns Created Attribute",
 	    "value": null,
 	    "updated_at": "2013-03-11T14:59:33Z",
