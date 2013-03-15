@@ -14,7 +14,7 @@ clean::
 binary::
 	dh_testroot
 	dh_prep
-	"<%= @barclamp_install %>" --no-engines --root $(DELL_DIR) $(SRC)
+	"<%= @barclamp_install %>" --build --root $(DELL_DIR) $(SRC)
 	dh_fixperms
 	dh_installdeb
 	dh_gencontrol
