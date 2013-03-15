@@ -213,8 +213,63 @@ else
     die "Cannot install onto unknown OS $OS!"
 fi
 
+###
+# All this should migrate to being part of the crowbar metapackage!
+###
+
+# Install prerequisite gems
+if [[ $OS = suse ]]; then
+    BUNDLE_INSTALL_ARGS="--local"
+else
+    gem install bundler rake
+    BUNDLE_INSTALL_ARGS="--path vendor/bundle"
+fi
+
+(cd /opt/dell/crowbar_framework; bundle install $BUNDLE_INSTALL_ARGS)
+
+if ! grep -q crowbar /etc/sudoers; then
+    chmod u+w /etc/sudoers
+    echo 'crowbar ALL=(ALL:ALL) NOPASSWD: ALL' >>/etc/sudoers
+    chmod u-w /etc/sudoers
+fi
+
+mkdir -p /var/run/crowbar/
+chmod 0700 /var/run/crowbar
+
+# Fix up /etc/environment
+if ! grep -q '/opt/dell/bin' /etc/environment; then
+    export PATH="$PATH:/opt/dell/bin"
+    sed -i -e "/^PATH/ s@\"\(.*\)\"@\"$PATH\"@" /etc/environment 
+fi
+
+# make sure RAILS_ENV is set to production
+if ! grep -q 'RAILS_ENV' /etc/environment; then
+    echo "export RAILS_ENV=production" >> /etc/environment
+fi
+
+# Make our /etc/profile/crowbar.sh
+if [[ ! -f /etc/profile.d/crowbar.sh ]]; then
+    mkdir -p /etc/profile.d
+    cat > /etc/profile.d/crowbar.sh <<EOF
+# Make sure that CROWBAR_KEY is in the environment
+if [ -f /etc/crowbar.install.key ] ; then
+    export CROWBAR_KEY=\$(cat /etc/crowbar.install.key)
+fi
+EOF
+fi
+cd /opt/dell/crowbar_framework
+
+for d in /var/run/crowbar /opt/dell/crowbar_framework; do
+    chown -R crowbar:crowbar "$d"
+done
+
 # Run the rest of the barclamp install actions.
 (cd /opt/dell/barclamps && /opt/dell/bin/barclamp_install.rb --deploy *)
+
+###
+# This should vanish once we have a real bootstrapping story.
+###
+
 # Create the admin node entry.
 curl --digest -u $(cat /etc/crowbar.install.key) \
     -X POST http://localhost:3000/api/v2/nodes -d "name=$FQDN" -d 'admin=true'
