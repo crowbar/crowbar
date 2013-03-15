@@ -263,6 +263,10 @@ for d in /var/run/crowbar /opt/dell/crowbar_framework; do
     chown -R crowbar:crowbar "$d"
 done
 
+# Put framework docs in place
+mkdir -p /opt/dell/doc
+[[ -d $DVD_PATH/doc/framework ]] && cp -a $DVD_PATH/doc/framework /opt/dell/doc
+
 # Run the rest of the barclamp install actions.
 (cd /opt/dell/barclamps && /opt/dell/bin/barclamp_install.rb --deploy *)
 
