@@ -3904,7 +3904,7 @@ reinstall_barclamps() {
     debug "${barclamps[*]} barclamps have changed, reloading."
     (   cd "$CROWBAR_TEST_DIR/opt/dell/barclamps"
         "${CROWBAR_DIR}/releases/$build/extra/barclamp_install.rb" \
-            --force --root "$CROWBAR_TEST_DIR" "${barclamps[@]}") || \
+            --build --force --root "$CROWBAR_TEST_DIR" "${barclamps[@]}") || \
             die "Failed to install some barclamps."
 
     find "$CROWBAR_TEST_DIR" -type d -exec chmod a+x '{}' ';'
