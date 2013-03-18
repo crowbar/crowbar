@@ -46,11 +46,11 @@ kernel modules.
 Currently two Linux distributions are supported as development enviromnents,
 though others should also work:
 
-1. openSUSE - Refer to the [openSUSE setup steps](openSUSE-dev-env.md) for
+1. openSUSE - Refer to the [openSUSE setup steps](dev-vm-openSUSE.md) for
    detailed instructions on how to proceed
 
-1. Ubuntu - Refer to the [Ubuntu setup steps](Ubuntu-dev-env.md) if you prefer
+1. Ubuntu - Refer to the [Ubuntu setup steps](dev-vm-Ubuntu.md) if you prefer
    using Ubuntu.
 
-1. Fedora - Refer to the [Fedora setup steps](fedora-dev-env.md) if you prefer
+1. Fedora - Refer to the [Fedora setup steps](dev-vm-Fedora.md) if you prefer
    using Fedora.
