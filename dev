@@ -4038,7 +4038,8 @@ reload_test_env() (
               bundle exec rake \
                   railties:install:migrations \
                   db:migrate \
-                  db:fixtures:dump
+                  db:fixtures:dump \
+                  RAILS_ENV=$RAILS_ENV
           )
       done
   fi
@@ -4050,7 +4051,7 @@ run_server() {
   auto_reload_test_env
   cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
   echo "Starting Rails app"
-  bundle exec script/rails s Puma
+  RAILS_ENV=development bundle exec script/rails s Puma development
 }
 
 run_tests() {
