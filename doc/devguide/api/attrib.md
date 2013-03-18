@@ -50,7 +50,8 @@ Body:
     "id": 47
     "created_at": "2013-03-11T15:43:38Z",
     "_links": {
-      "self": { "href": "/api/v2/attribs/47" }
+      "self": { "href": "/api/v2/attribs/47" },
+      "attrib_type": { "href": "/api/v2/attrib_types/42" }
     }
   },
   {
@@ -65,7 +66,8 @@ Body:
     "id": 46,
     "created_at": "2013-03-11T15:04:44Z"
     "_links": {
-      "self": { "href": "/api/v2/attribs/46" }
+      "self": { "href": "/api/v2/attribs/46" },
+      "attrib_type": { "href": "/api/v2/attrib_types/28" }
     }
   },
   ...
@@ -81,7 +83,8 @@ Body:
     "id": 42,
     "created_at": "2013-03-11T14:59:33Z",
     "_links": {
-      "self": { "href": "/api/v2/atttribs/42" }
+      "self": { "href": "/api/v2/atttribs/42" },
+      "attrib_type": { "href": "/api/v2/attrib_types/36" }
     }
   }
 ]
