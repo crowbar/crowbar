@@ -4067,6 +4067,8 @@ auto_reload_test_env() {
 run_unit_tests() (
     local final_result=pass
 
+    clear # Arkady added this line to fix failing unit tests. Probably better to beef up test_env_needs_reset.
+    
     auto_reload_test_env
 
     # Run unit tests
