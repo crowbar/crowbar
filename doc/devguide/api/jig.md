@@ -38,7 +38,10 @@ Body:
     "created_at": "2013-03-12T16:04:34Z",
     "description": null,
     "updated_at": "2013-03-12T16:04:34Z",
-    "order": 9999
+    "order": 9999,
+    "_links": {
+      "self": { "href": "/api/v2/jigs/1" }
+    }
   },
   {
     "id": 2,
@@ -47,7 +50,10 @@ Body:
     "created_at": "2013-03-12T16:04:41Z",
     "description": null,
     "updated_at": "2013-03-12T16:04:41Z",
-    "order": 100
+    "order": 100,
+    "_links": {
+      "self": { "href": "/api/v2/jigs/2" }
+    }
   },
   {
     "id": 3,
@@ -56,7 +62,10 @@ Body:
     "created_at": "2013-03-12T16:04:41Z",
     "description": null,
     "updated_at": "2013-03-12T16:04:41Z",
-    "order": 200
+    "order": 200,
+    "_links": {
+      "self": { "href": "/api/v2/jigs/3" }
+    }
   },
   {
     "id": 4,
@@ -65,7 +74,10 @@ Body:
     "created_at": "2013-03-12T16:11:23Z",
     "description": "BDD Testing Only - should be automatically removed",
     "updated_at": "2013-03-12T16:11:23Z",
-    "order": 100
+    "order": 100,
+    "_links": {
+      "self": { "href": "/api/v2/jigs/4" }
+    }
   }
 ]
 ```
@@ -102,6 +114,9 @@ Body:
   "created_at": "2013-03-12T16:11:23Z",
   "description": "BDD Testing Only - should be automatically removed",
   "updated_at": "2013-03-12T16:11:23Z",
-  "order": 100
+  "order": 100,
+  "_links": {
+    "self": { "href": "/api/v2/jigs/4" }
+  }
 }
 ```

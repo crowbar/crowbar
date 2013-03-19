@@ -38,7 +38,10 @@ Body:
     "updated_at": "2013-03-12T16:09:50Z",
     "category": "ui",
     "id": 1,
-    "order": 10000
+    "order": 10000,
+    "_links": {
+      "self": { "href": "/api/v2/groups/1" }
+    }
   },
   {
     "name": "bddthings",
@@ -47,7 +50,10 @@ Body:
     "updated_at": "2013-03-12T16:11:15Z",
     "category": "ui",
     "id": 2,
-    "order": 100
+    "order": 100,
+    "_links": {
+      "self": { "href": "/api/v2/groups/2" }
+    }
   },
   {
     "name": "bdddelete",
@@ -56,7 +62,10 @@ Body:
     "updated_at": "2013-03-12T16:11:16Z",
     "category": "ui",
     "id": 3,
-    "order": 200
+    "order": 200,
+    "_links": {
+      "self": { "href": "/api/v2/groups/3" }
+    }
   }
 ]
 ```
@@ -93,7 +102,10 @@ Body:
   "updated_at": "2013-03-12T16:11:16Z",
   "category": "ui",
   "id": 3,
-  "order": 200
+  "order": 200,
+  "_links": {
+    "self": { "href": "/api/v2/groups/3" }
+  }
 }
 ```
 
