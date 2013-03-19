@@ -1042,17 +1042,24 @@ builds_for_pull_request() {
     # it to derive all the OSes applicable to a build.
     all_oses=($(all_supported_oses))
     for build in "${!valid_builds[@]}"; do
-        # Start off assuming that all builds can use all OSes
-        unset _t
-        local -A _t
-        for os in "${all_oses[@]}"; do _t[$os]=build; done
+        build_oses[$build]="${all_oses[*]}"
         for b in $(barclamps_in_build "$release/$build"); do
+            if [[ ! -d $CROWBAR_DIR/barclamps/$b/.git ]]; then
+                echo "You are missing the $b barclamp needed for $release/$build. Skipping." >&2
+                valid_builds[$build]=skip
+                continue 2
+            fi
             if ! [[ ${barclamp_oses[$b]} ]]; then
                 local br
                 if [[ ${PULL_REQUEST_BARCLAMPS[$b]} ]]; then
                     br="${PULL_REQUEST_BARCLAMPS[$b]}"
                 else
                     br="$(barclamp_branch_for_build "$release/$build" "$b")"
+                fi
+                if ! in_barclamp "$b" branch_exists "$br"; then
+                    echo "Your $b barclamp in $release/$build does not have branch $br.Skipping." >&2
+                    valid_builds[$build]=skip
+                    continue 2
                 fi
                 p=$(extract_barclamp_metadata "$b" "$br")
                 barclamp_oses[$b]=$(read_barclamp_metadata "$p" "barclamp" "os_support")
@@ -1062,13 +1069,13 @@ builds_for_pull_request() {
                 unset _r
                 local -A _r
                 for os in ${barclamp_oses[$b]}; do _r[$os]=$b; done
-                for os in "${!_t[@]}"; do
+                for os in ${build_oses[$build]}; do
                     [[ ${_r[$os]} ]] && continue
-                    unset _t[$os]
+                    unset _r[$os]
                 done
+                build_oses[$build]="${!_r[*]}"
             fi
         done
-        build_oses[$build]="${!_t[*]}"
     done
     # Now, filter the per-OS lists down to leaf nodes.
     builds_for_release=($(builds_in_release "$release"))
@@ -1077,15 +1084,13 @@ builds_for_pull_request() {
     for build in "${builds_for_release[@]}"; do
         [[ ${valid_builds[$build]} ]] || continue
         # Find the parent for this build.
-        parent_build="${DEV_BRANCHES[$build]}"
+        parent_build="$(parent_build "$build")"
         # Special case for the master build.
         [[ $parent_build = $build ]] && continue
         # If we wanted to build the parent for the current build, don't.
         # It will be implicitly tested when we build this build.
-        if [[ $parent_build ]]; then
-            ${valid_builds[$parent_build]} && valid_builds[$parent_build]=skip
-        else
-            echo "WARNING: DEV_BRANCHES had no entry for $build"
+        if [[ $parent_build && ${valid_builds[$parent_build]} ]]; then
+             valid_builds[$parent_build]=skip
         fi
     done
     # Display the ones that did not get masked
