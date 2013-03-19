@@ -1633,7 +1633,7 @@ ci_all_next_states() {
         merge-tested)
             while read build oses; do
                 build="${build%:}"
-                if [[ ${unit_test_whitelist["$release"]} && $build = master ]]; then
+                if [[ ${unit_test_whitelist["$release"]} && $build = $release/master ]]; then
                     next+=("unit-testing $build")
                 else
                     for os in $oses; do
@@ -1646,11 +1646,13 @@ ci_all_next_states() {
             build="${current_state#* }"
             next=("unit-tested $build");;
         unit-tested*)
-            build="${current_state#* }"
+            b="${current_state#* }"
             while read build oses; do
                 build=${build%:}
                 if [[ $build != $b ]]; then continue; fi
-                next+=("build-testing $build $os")
+                for os in $oses; do
+                    next+=("build-testing $build $os")
+                done
             done < <(builds_for_pull_request "$id");;
         # Build and smoke tests happen on a release/build/os basis.
         build-testing*)
@@ -1676,7 +1678,7 @@ ci_all_next_states() {
         merged|closed) next=();;
         *) die "Unknown state $current_state!";;
     esac
-    printf "%s\n" "${next[@]}"
+    [[ $next ]] && printf "%s\n" "${next[@]}"
 }
 
 # Print any passed args in pseudo-random order
@@ -1820,13 +1822,6 @@ ci_register_intent() {
         debug "$id already has state $3"
         return 1
     }
-    while read state; do
-        [[ $state = $2 ]] || continue
-        state_ok=true
-        break
-    done < <(ci_get_current_states "$1")
-    [[ $state_ok = true ]] || \
-        die "$id is not in state $2, cannot register an intent for it."
     state_ok=false
     while read state; do
         [[ $state = $3 ]] || continue
