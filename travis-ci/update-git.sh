@@ -1,9 +1,6 @@
 #!/bin/bash
 #
-# Script to update the combined Git repository for running Travis CI. Intended
-# to be called by a cron job, like so:
-#
-# */5 * * * * /path/to/crowbar/travis-ci/update-git.sh >>update-git.log 2>&1
+# Script to update the combined Git repository for running Travis CI.
 
 # This variable must point to the check-out of the "combined" Travis CI
 # repository which is to be updated:
@@ -150,4 +147,3 @@ update_with_dev_tool
 rsync_files
 remove_unchanged_files
 commit_and_push
-

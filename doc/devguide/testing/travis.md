@@ -2,129 +2,132 @@
 
 Crowbar uses Travis CI (among other things) to perform continuous integration.
 The badges above represent (left to right):
-   * Travis CI - are the unit test passing
-   * Coverage status - what % of the code is covered by the units above
-   * Code Climate - how's the code doing in terms of complexity and static analysis scoring
 
-This is usually pretty easy to setup and Travis CI will automatically run the
-tests on every commit. Unfortunately, the current project design prevents this,
-because the working Crowbar application must be assembled from several Git
-repositories - the main Crowbar framework and its required barclamps.
+  * Travis CI - Are the unit and RSpec tests passing?
+  * Coverage status - What % of the code is covered by our tests above?
+  * Code Climate - How's the code in terms of complexity and static analysis
+    scoring?
 
-Hence we use a cron job that runs the `dev` tool every 5 minutes to assemble
-the application, and pushes that to a [separate Git repository]
-(https://github.com/crowbar/travis-ci-crowbar) which is
-[linked to Travis CI](https://travis-ci.org/crowbar/travis-ci-crowbar).
+Clicking on the each badge will bring you to the respective detailed reports,
+which all developers should look at perodically to see where and how we can
+improve our code quality. These badges (and others) are also on the [main
+project page](../../../#readme).
 
-The application is assembled from a subset of the tree which './dev
-tests setup' creates in `/tmp/crowbar-dev-test`.
-
-## Setup details
-
-The cron job calls the `update-git.sh` script every 5 minutes:
-
-    */5 * * * * cd ~/crowbar/travis-ci && ./update-git.sh >>update-git.log 2>&1
-
-This logs all output to `~/crowbar/travis-ci/update-git.log`, which looks like:
-
-    2013-01-13 01:30:01 +0100: Running ./dev fetch...
-    2013-01-13 01:31:29 +0100: Running ./dev sync...
-    2013-01-13 01:31:49 +0100: Running ./dev tests setup --no-gem-cache
-    2013-01-13 01:32:08 +0100: Copying files...
-    2013-01-13 01:32:08 +0100: Checking changed files...
-    2013-01-13 01:32:09 +0100: Committing files...
-    2013-01-13 01:32:09 +0100: Nothing to commit
-
-The last line returns the git commit hash if there are changes, and
-automatically pushes to new commit to Github. The script accepts a `--no-push`
-option which is useful when testing changes to the setup or script.
+Test failure notifications are sent to the Crowbar mailing and IRC (#crowbar on
+irc.freenode.net).
 
 ## Limitations
 
-While it is great to have public continuous integration, there are a couple of
-issues with the current setup:
+The current setup works pretty nicely, but there are some limitations due to the
+Crowbar architecture:
 
-* Tests run on batches of commits (5 minute groups due to the cron job),
-  instead of on every commit. This makes it potentially harder to find the
-  commit that broke the tests.
-* Travis CI's killer feature is the ability to automatically test every open
-  pull request, so one can see if it breaks the tests before merging it. This
-  doesn't work with our current setup.
+  * Tests run on batches of squashed commits instead of on every commit. This
+    makes it harder to find offending commits.
+  * Can't easily test each pull request before they are merged in.
 
-We will have to live with these limitations until the refactoring of barclamps
-to use Rails Engines is complete. The Crowbar framework Git repository and
-each barclamp repository will then be fully unit testable on their own.
+The goal is to ultimately use barclamps like regular gems, then Crowbar can
+adopt a standard Rails setup that doesn't have these limitations.
 
-## Notifications
+## Setup details
 
-Test pass/fail notifications are sent to our IRC channel (#crowbar on
-irc.freenode.net). There's also a build status image in the [main README]
-(https://github.com/crowbar/crowbar#readme).
+It's usually easy to setup Travis CI, but Crowbar needs to be assembled from
+several Git repositories. So we use the [update-git.sh]
+(../../../travis-ci/update-git.sh) script to do this and push changes to the
+[Travis CI repo](https://github.com/crowbar/travis-ci-crowbar). Each run of the
+script looks like this:
 
-## Trouble-shooting failures
+```
+2013-01-13 01:30:01 +0100: Running ./dev fetch...
+2013-01-13 01:31:29 +0100: Running ./dev sync...
+2013-01-13 01:31:49 +0100: Running ./dev tests setup --no-gem-cache
+2013-01-13 01:32:08 +0100: Copying files...
+2013-01-13 01:32:08 +0100: Checking changed files...
+2013-01-13 01:32:09 +0100: Committing files...
+2013-01-13 01:32:09 +0100: Nothing to commit
+```
 
-Since this Travis repository is assembled from a subset of the tree
-which './dev tests setup' creates in `/tmp/crowbar-dev-test`, in
-theory you should be able to reproduce any failures seen on the
-[Travis CI](https://travis-ci.org/crowbar/travis-ci-crowbar) site by
-running the unit tests locally from your Crowbar tree via [./dev
-tests](devtool.md).  However it's possible that failures may be due to
-the subtle differences between the two environments.  To more closely
-mimic the Travis CI environment, you can do the following:
+This is script is run every 5 minutes by our public [Jenkins server]
+(https://ci.opensuse.org/job/crowbar-travis_ci-trackupstream/).
 
-    git clone git://github.com/crowbar/travis-ci-crowbar.git
-    cd travis-ci-crowbar/crowbar_framework
+### Debugging test failures
 
-    # If you have rvm installed, you can optionally create a dedicated
-    # rvm gemset here:
-    rvm gemset create crowbar-travis-ci
-    rvm use @crowbar-travis-ci
+You should be able to reproduce all test failures in your local dev environment,
+as Travis CI simply launches a fresh Ubuntu VM, sets up the environment and runs
+the tests. For example, you can see the [exact commands and output]
+(https://travis-ci.org/crowbar/travis-ci-crowbar/jobs/5616682#L1) for each run.
+Refer to the [Travis configuration]
+(https://github.com/crowbar/travis-ci-crowbar/blob/master/.travis.yml) for
+details.
 
-    # If not, you can add a --path=... parameter to the below to ensure
-    # that the gems get installed to a clean dedicated environment:
-    bundle install --without development
+However it's possible that failures may be due to the subtle differences between
+the two environments. To more closely mimic the Travis CI environment, you can
+do the following:
 
-    # Now run the tests
-    bundle exec rake db:drop railties:install:migrations db:migrate db:fixtures:dump test:units spec
+```bash
+git clone git://github.com/crowbar/travis-ci-crowbar.git
+cd travis-ci-crowbar/crowbar_framework
 
-## How to set up an openSUSE 12.2 node to run this job
+# If you have rvm installed, you can optionally create a dedicated
+# rvm gemset here:
+rvm gemset create crowbar-travis-ci
+rvm use @crowbar-travis-ci
 
-First install the dependencies listed in [the instructions for setting
-up an openSUSE development environment](../doc/devguide/openSUSE-dev-env.md).
+# If not, you can add a --path=... parameter to the below to ensure
+# that the gems get installed to a clean dedicated environment:
+bundle install --without development
 
-Create a new `crowbar` user account and switch to it.
+# Now run the tests
+bundle exec rake db:drop railties:install:migrations db:migrate db:fixtures:dump test:units spec
+```
 
-    useradd -m crowbar
-    su - crowbar
+### Setting up the openSUSE Jenkins node
 
-Now ensure you have ssh keys set up for whichever github account
-you want to commit from, then configure git with the corresponding
-identity (--global is required to cover the multiple repositories
-we are about to clone), e.g.:
+Here's how the openSUSE Jenkins node was setup:
 
-    git config --global user.name "Crowbar Travis Bot"
-    git config --global user.email "crowbar.gravatar+travis@gmail.com"
+1. Setup the system as described in the [openSUSE dev guide]
+   (../dev-vm-openSUSE.md).
 
-Check out and configure the various Crowbar repositories:
+1. Create a new `crowbar` user account and switch to it.
+   ```
+   useradd -m crowbar
+   su - crowbar
+   ```
 
-    git clone git://github.com/crowbar/crowbar.git
-    cd crowbar
-    # GIT_ASKPASS works around a bug in ./dev where it tries to do stuff
-    # with Dell-proprietary barclamps.
-    GIT_ASKPASS=true ./dev setup --no-github
+1. Now ensure you have ssh keys set up for whichever github account you want to
+   commit from, then configure git with the corresponding identity (--global is
+   required to cover the multiple repositories we are about to clone),
+   e.g.:
+   ```
+   git config --global user.name "Crowbar Travis Bot"
+   git config --global user.email "crowbar.gravatar+travis@gmail.com"
+   ```
 
-Check out the `travis-ci-crowbar` repository which the Jenkins job
-will keep updated:
+1. Check out and configure the various Crowbar repositories:
+   ```
+   git clone git://github.com/crowbar/crowbar.git
+   cd crowbar
+   # GIT_ASKPASS works around a bug in ./dev where it tries to do stuff
+   # with Dell-proprietary barclamps.
+   GIT_ASKPASS=true ./dev setup --no-github
+   ```
 
-    cd
-    git clone git://github.com/crowbar/travis-ci-crowbar.git
-    cd travis-ci-crowbar
+1. Check out the `travis-ci-crowbar` repository which the Jenkins job will keep
+   updated:
+   ```
+   cd
+   git clone git://github.com/crowbar/travis-ci-crowbar.git
+   cd travis-ci-crowbar
+   ```
 
-Set up a remote from which we can issue pull requests:
+1. Set up a remote from which we can issue pull requests:
+   ```
+   git remote add personal git@github.com:crowbar-travis/travis-ci-crowbar.git
+   ```
 
-    git remote add personal git@github.com:crowbar-travis/travis-ci-crowbar.git
+1. Perform a dummy push to ensure that the server's ssh key fingerprint
+   is in `.ssh/known_hosts`:
+   ```
+   git push -n personal HEAD
+   ```
 
-Perform a dummy push to ensure that the server's ssh key fingerprint
-is in `.ssh/known_hosts`:
-
-    git push -n personal HEAD
+Now you're done!

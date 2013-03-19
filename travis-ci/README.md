@@ -1,1 +1,1 @@
-This document has been [moved to the development guide](../doc/devguide/testing/travis.md).
+See [devguide: Travis CI](../doc/devguide/testing/travis.md) for details.
