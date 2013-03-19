@@ -1832,6 +1832,7 @@ ci_register_intent() {
         die "$id: State $2 does not have a next state of $3, cannot register an intent."
     # See if we need to expire intents on the current state.
     if [[ -f $prq/ci_state/$2/intents/$3/timeout ]]; then
+        [[ $timeout = 0 ]] && return 1
         ci_kill_stale_intents "$id" && push_ci_tracking && \
             [[ ! -f $prq/ci_state/$2/intents/$3/timeout ]] || return 1
     fi
