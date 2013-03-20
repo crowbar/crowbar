@@ -1,0 +1,98 @@
+#
+# /etc/inittab
+#
+# Copyright (c) 1996-2002 SuSE Linux AG, Nuernberg, Germany.  All rights reserved.
+#
+# Author: Florian La Roche, 1996
+# Please send feedback to http://www.suse.de/feedback
+#
+# This is the main configuration file of /sbin/init, which
+# is executed by the kernel on startup. It describes what
+# scripts are used for the different run-levels.
+#
+# All scripts for runlevel changes are in /etc/init.d/.
+#
+# This file may be modified by SuSEconfig unless CHECK_INITTAB
+# in /etc/sysconfig/suseconfig is set to "no"
+#
+
+# The default runlevel is defined here
+id:3:initdefault:
+
+# First script to be executed, if not booting in emergency (-b) mode
+si::bootwait:/etc/init.d/boot
+
+# /etc/init.d/rc takes care of runlevel handling
+#
+# runlevel 0  is  System halt   (Do not use this for initdefault!)
+# runlevel 1  is  Single user mode
+# runlevel 2  is  Local multiuser without remote network (e.g. NFS)
+# runlevel 3  is  Full multiuser with network
+# runlevel 4  is  Not used
+# runlevel 5  is  Full multiuser with network and xdm
+# runlevel 6  is  System reboot (Do not use this for initdefault!)
+#
+l0:0:wait:/etc/init.d/rc 0
+l1:1:wait:/etc/init.d/rc 1
+l2:2:wait:/etc/init.d/rc 2
+l3:3:wait:/etc/init.d/rc 3
+#l4:4:wait:/etc/init.d/rc 4
+l5:5:wait:/etc/init.d/rc 5
+l6:6:wait:/etc/init.d/rc 6
+
+# what to do in single-user mode
+ls:S:wait:/etc/init.d/rc S
+~~:S:respawn:/sbin/sulogin
+
+# what to do when CTRL-ALT-DEL is pressed
+ca::ctrlaltdel:/sbin/shutdown -r -t 4 now
+
+# special keyboard request (Alt-UpArrow)
+# look into the kbd-0.90 docs for this
+kb::kbrequest:/bin/echo "Keyboard Request -- edit /etc/inittab to let this work."
+
+# what to do when power fails/returns
+pf::powerwait:/etc/init.d/powerfail start
+pn::powerfailnow:/etc/init.d/powerfail now
+#pn::powerfail:/etc/init.d/powerfail now
+po::powerokwait:/etc/init.d/powerfail stop
+
+# for ARGO UPS
+sh:12345:powerfail:/sbin/shutdown -h now THE POWER IS FAILING
+
+# getty-programs for the normal runlevels
+# <id>:<runlevels>:<action>:<process>
+# The "id" field  MUST be the same as the last
+# characters of the device (after "tty").
+1:2345:respawn:/sbin/mingetty --noclear tty1
+2:2345:respawn:/sbin/mingetty tty2
+3:2345:respawn:/sbin/mingetty tty3
+4:2345:respawn:/sbin/mingetty tty4
+5:2345:respawn:/sbin/mingetty tty5
+6:2345:respawn:/sbin/mingetty tty6
+#
+#S0:12345:respawn:/sbin/agetty -L 9600 ttyS0 vt102
+#cons:1235:respawn:/sbin/smart_agetty -L 38400 console
+
+#
+#  Note: Do not use tty7 in runlevel 3, this virtual line
+#  is occupied by the programm xdm.
+#
+
+#  This is for the package xdmsc, after installing and
+#  and configuration you should remove the comment character
+#  from the following line:
+#7:3:respawn:+/etc/init.d/rx tty7
+
+
+# modem getty.
+# mo:235:respawn:/usr/sbin/mgetty -s 38400 modem
+
+# fax getty (hylafax)
+# mo:35:respawn:/usr/lib/fax/faxgetty /dev/modem
+
+# vbox (voice box) getty
+# I6:35:respawn:/usr/sbin/vboxgetty -d /dev/ttyI6
+# I7:35:respawn:/usr/sbin/vboxgetty -d /dev/ttyI7
+
+# end of /etc/inittab

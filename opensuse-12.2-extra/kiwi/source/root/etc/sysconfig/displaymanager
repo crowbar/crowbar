@@ -1,0 +1,102 @@
+## Path:	Desktop/Display manager
+## Description:	settings to generate a proper displaymanager config
+## Type:	string(kdm,xdm,gdm,wdm,console)
+## Default:	""
+## Config:      xdm,kdm,gdm
+#
+# Here you can set the default Display manager (kdm/xdm/gdm/wdm/console).
+# all changes in this file require a restart of the displaymanager
+#
+DISPLAYMANAGER=""
+
+## Type:	yesno
+## Default:	no
+#
+# Allow remote access to your display manager (kdm only for now)
+#
+DISPLAYMANAGER_REMOTE_ACCESS="no"
+
+## Type:	yesno
+## Default:	no
+#
+# Allow remote access of the user root to your display manager
+#
+DISPLAYMANAGER_ROOT_LOGIN_REMOTE="no"
+
+## Type:	yesno
+## Default:	yes
+#
+# let the displaymanager start a local Xserver
+# set to "no" for remote-access only
+# set to "no" on architectures without any Xserver (e.g. s390/s390x)
+#
+DISPLAYMANAGER_STARTS_XSERVER="yes"
+## Path:	Desktop/Display manager
+## Description: settings to generate a proper displaymanager config
+## Type:    string
+## Default: 
+## Config:      kdm3
+#
+# space separated list of users for which icons should be shown in KDM
+# if empty, then take system defaults
+#
+KDM_USERS=""
+
+## Type:    string
+## Default: 
+#
+# Special greeting words in kdm
+#
+KDM_GREETSTRING=""
+
+## Type:    string
+## Default:
+#
+# define the user whom should get logged in without request
+#
+DISPLAYMANAGER_AUTOLOGIN=""
+
+## Type:        yesno
+## Default:     no
+#
+# Allow all users to login without password, but ask for the user
+#
+DISPLAYMANAGER_PASSWORD_LESS_LOGIN="no"
+
+## Type:        yesno
+## Default:     no
+## Config:      xdm
+#
+# Tcp port 6000 of Xserver. When set to "no" (default) Xserver is 
+# started with "-nolisten tcp". Only set this to "yes" if you really 
+# need to. Use ssh X11 port forwarding whenever possible.
+#
+DISPLAYMANAGER_XSERVER_TCP_PORT_6000_OPEN="no"
+
+## Type:        string
+## Default:     SUSE
+#
+# Define the theme to be used by kdm. If empty, the traditional login
+# window is used (which lacks some features)
+# 
+DISPLAYMANAGER_KDM_THEME="SUSE"
+
+## Type:        yesno
+## Default:     no
+#
+# Display a combobox for Active Directory domains.
+#
+DISPLAYMANAGER_AD_INTEGRATION="no"
+
+## Type:    list(root,all,none,auto)
+## Default: auto
+#
+# Determine who will be able to shutdown or reboot the system in kdm
+# and gdm. Valid values are: "root" (only root can shutdown), "all"
+# (everybody can shutdown), "none" (nobody can shutdown from
+# displaymanager), "auto" (follow
+# System/Security/Permissions/PERMISSION_SECURITY to decide: "easy
+# local" is equal to "all", everything else is equal to "root"). Note
+# that remote user can never shutdown in GDM.
+#
+DISPLAYMANAGER_SHUTDOWN="auto"
