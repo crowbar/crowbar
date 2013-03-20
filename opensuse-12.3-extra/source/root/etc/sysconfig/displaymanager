@@ -1,0 +1,135 @@
+## Type:        string(Xorg)
+## Path:        Desktop/Display manager
+## Default:     "Xorg"
+#
+DISPLAYMANAGER_XSERVER="Xorg"
+## Path:	Desktop/Display manager
+## Description:	settings to generate a proper displaymanager config
+
+## Type:	string(kdm,kdm3,kdm4,xdm,gdm,wdm,entrance,console)
+## Default:	""
+#
+# Here you can set the default Display manager (kdm/xdm/gdm/wdm/entrance/console).
+# all changes in this file require a restart of the displaymanager
+#
+DISPLAYMANAGER=""
+
+## Type:	yesno
+## Default:	no
+#
+# Allow remote access (XDMCP) to your display manager (xdm/kdm/gdm). Please note
+# that a modified kdm or xdm configuration, e.g. by KDE control center
+# will not be changed. For gdm, values will be updated after change.
+# XDMCP service should run only on trusted networks and you have to disable
+# firewall for interfaces, where you want to provide this service.
+#
+DISPLAYMANAGER_REMOTE_ACCESS="no"
+
+## Type:	yesno
+## Default:	no
+#
+# Allow remote access of the user root to your display manager. Note
+# that root can never login if DISPLAYMANAGER_SHUTDOWN is "auto" and
+# System/Security/Permissions/PERMISSION_SECURITY is "paranoid"
+#
+DISPLAYMANAGER_ROOT_LOGIN_REMOTE="no"
+
+## Type:	yesno
+## Default:	yes
+#
+# Let the displaymanager start a local Xserver.
+# Set to "no" for remote-access only.
+# Set to "no" on architectures without any Xserver (e.g. s390/s390x).
+#
+DISPLAYMANAGER_STARTS_XSERVER="yes"
+
+## Type:        yesno
+## Default:     no
+#
+# TCP port 6000 of Xserver. When set to "no" (default) Xserver is
+# started with "-nolisten tcp". Only set this to "yes" if you really
+# need to. Remote X service should run only on trusted networks and
+# you have to disable firewall for interfaces, where you want to
+# provide this service. Use ssh X11 port forwarding whenever possible.
+#
+DISPLAYMANAGER_XSERVER_TCP_PORT_6000_OPEN="no"
+
+## Type:    string
+## Default:
+#
+# Define the user whom should get logged in without request. If string
+# is empty, display standard login dialog.
+#
+DISPLAYMANAGER_AUTOLOGIN=""
+
+## Type:        yesno
+## Default:     no
+#
+# Allow all users to login without password, but ask for the user, if
+# DISPLAYMANAGER_AUTOLOGIN is empty.
+#
+DISPLAYMANAGER_PASSWORD_LESS_LOGIN="no"
+
+## Type:        yesno
+## Default:     no
+#
+# Display a combobox for Active Directory domains.
+#
+DISPLAYMANAGER_AD_INTEGRATION="no"
+
+## Type:    list(root,all,none,auto)
+## Default: auto
+#
+# Determine who will be able to shutdown or reboot the system in kdm.  Valid
+# values are: "root" (only root can shutdown), "all" (everybody can shutdown),
+# "none" (nobody can shutdown from displaymanager), "auto" (follow
+# System/Security/Permissions/PERMISSION_SECURITY to decide: "easy local" is
+# equal to "all", everything else is equal to "root").  gdm respects the
+# PolicyKit settings for ConsoleKit. Shutdown configuration can be done via
+# the polkit-default-privs mechanism.
+#
+DISPLAYMANAGER_SHUTDOWN="auto"
+## Path:	Desktop/Display manager
+## Description: settings to generate a proper displaymanager config
+## Config:      kdm3
+
+## Type:    string
+## Default: 
+#
+# space separated list of users for which icons should be shown in KDM
+# if empty, then take system defaults
+#
+KDM_USERS=""
+
+## Type:    string
+## Default: 
+#
+# Special greeting words in kdm
+#
+KDM_GREETSTRING=""
+
+## Type:        string
+## Default: 
+#
+# Defines extra Server Arguments given to the kdm display manager when
+# starting a local display. Useful to override e.g. the -dpi setting.
+# 
+DISPLAYMANAGER_KDM_LOCALARGS=""
+
+## Type:        string
+## Default:     openSUSE
+#
+# Define the theme to be used by kdm. If empty, the traditional login
+# window is used (which lacks some features)
+# 
+DISPLAYMANAGER_KDM_THEME="openSUSE"
+
+## Type:	yesno
+## Default:	yes
+#
+# Allow local access of the user root to your display manager. Note
+# that root can never login if DISPLAYMANAGER_SHUTDOWN is "auto" and
+# System/Security/Permissions/PERMISSION_SECURITY is "paranoid".
+# This settings currently works only with KDM.
+#
+DISPLAYMANAGER_ROOT_LOGIN_LOCAL="yes"

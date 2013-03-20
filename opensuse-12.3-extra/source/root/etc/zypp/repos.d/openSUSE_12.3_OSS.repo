@@ -1,0 +1,7 @@
+[openSUSE_12.3_OSS]
+name=openSUSE_12.3_OSS
+baseurl=http://download.opensuse.org/distribution/12.3/repo/oss/
+type=yast2
+enabled=1
+autorefresh=1
+gpgcheck=1

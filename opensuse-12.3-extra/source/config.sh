@@ -34,17 +34,7 @@ suseConfig
 
 echo "** Running ldconfig..."
 /sbin/ldconfig
-
-#======================================
-# RPM GPG Keys Configuration
-#--------------------------------------
-echo '** Importing GPG Keys...'
-rpm --import /studio/studio_rpm_key_0
-rm /studio/studio_rpm_key_0
-rpm --import /studio/studio_rpm_key_1
-rm /studio/studio_rpm_key_1
-rpm --import /studio/studio_rpm_key_2
-rm /studio/studio_rpm_key_2
+baseSetRunlevel 3
 
 sed --in-place -e 's/# solver.onlyRequires.*/solver.onlyRequires = true/' /etc/zypp/zypp.conf
 

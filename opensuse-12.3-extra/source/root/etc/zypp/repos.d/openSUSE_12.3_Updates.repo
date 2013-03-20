@@ -1,0 +1,7 @@
+[openSUSE_12.3_Updates]
+name=openSUSE_12.3_Updates
+baseurl=http://download.opensuse.org/update/12.3/
+type=rpm-md
+enabled=1
+autorefresh=1
+gpgcheck=1

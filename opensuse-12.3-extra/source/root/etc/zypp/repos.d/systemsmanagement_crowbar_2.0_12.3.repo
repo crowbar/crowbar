@@ -1,0 +1,7 @@
+[systemsmanagement:crowbar:2.0_12.3]
+name=systemsmanagement:crowbar:2.0_12.3
+baseurl=http://download.opensuse.org/repositories/systemsmanagement:/crowbar:/2.0/openSUSE_12.3/
+type=rpm-md
+enabled=1
+autorefresh=1
+gpgcheck=1

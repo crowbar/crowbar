@@ -4,7 +4,7 @@ ConditionPathExists=/etc/init.d/suse_studio_firstboot
 
 # This line is required so that Xorg.conf hacks in the script are performed
 # before X starts.
-Before=graphical.target
+Before=xdm.service
 
 [Service]
 Type=oneshot

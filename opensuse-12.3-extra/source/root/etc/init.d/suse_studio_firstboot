@@ -1,42 +1,8 @@
 # This script is called from /etc/init.d/boot.local. It is intended to run
 # only on first boot so it deletes itself after running.
 
-# Fix our xorg.conf.testdrive according to the local keyboard settings
-setup_keyboard() {
-  # Because we're running before the keyboard selection, we need to hack into the
-  # kdb script and do the replacement there. Once we did it, let's restore the
-  # original script
-  cp /etc/init.d/kbd{,.bkp}
-  sed -i "s/rc_exit//" /etc/init.d/kbd
-  cat >> /etc/init.d/kbd <<-'EOF'
-    if [ -f /etc/X11/xorg.conf -a -x /usr/sbin/sysp ]; then
-      echo -n "  -> Setting keyboard layout..."
-      /usr/sbin/sysp -s keyboard &> /dev/null
-      MODEL=$(/usr/sbin/sysp -q keyboard | grep XkbModel | sed 's/.*: //')
-      LAYOUT=$(/usr/sbin/sysp -q keyboard | grep XkbLayout | sed 's/.*: //')
-      VARIANT=$(/usr/sbin/sysp -q keyboard | grep XkbVariant | sed 's/.*: //')
-      sed -i "s/{XKBLAYOUT}/$LAYOUT/;s/{XKBMODEL}/$MODEL/;s/{XKBVARIANT}/$VARIANT/" /etc/X11/xorg.conf
-      echo "done"
-    fi
-    mv /etc/init.d/kbd{.bkp,}
-    rc_exit
-EOF
-}
-
-# Use the evtouch driver when in testdrive so that the mouse cursor works properly.
-setup_evtouch() {
-  # use xorg.conf.testdrive
-  if [ -f /etc/X11/xorg.conf.testdrive ]; then
-    echo -n "  -> Copying '/etc/X11/xorg.conf.testdrive' to '/etc/X11/xorg.conf'... "
-    if [ -f /etc/X11/xorg.conf ]; then
-      cp /etc/X11/xorg.conf /etc/X11/xorg.conf.tdsave
-    fi
-    cp /etc/X11/xorg.conf.testdrive /etc/X11/xorg.conf
-    echo "done"
-  else
-    echo "  -> WARNING: '/etc/X11/xorg.conf.testdrive' not found! X startup may fail."
-  fi
-}
+# Activate NetworkManager?
+NETWORKMANAGER=no
 
 # Always use DHCP when in Testdrive.
 use_dhcp() {
@@ -44,6 +10,14 @@ use_dhcp() {
   sed -i '/^BOOTPROTO/c BOOTPROTO=dhcp' etc/sysconfig/network/ifcfg-eth0
   sed -i '/^IPADDR/c IPADDR=' etc/sysconfig/network/ifcfg-eth0
   sed -i '/^NETMASK/c NETMASK=' etc/sysconfig/network/ifcfg-eth0
+}
+
+enable_network_manager_if_required() {
+  if [ "$NETWORKMANAGER" == "yes" ]; then
+    systemctl is-active network.service && systemctl stop network.service
+    systemctl --force enable NetworkManager.service
+    systemctl restart network.service
+  fi
 }
 
 # Disable selected KDE desktop effects for Testdrive so it is not slow over the
@@ -76,23 +50,37 @@ disable_vmtoolsd() {
   [ -x /usr/bin/vmtoolsd ] && insserv -r vmtoolsd
 }
 
+# enable console autologin for systemd distributions
+enable_autologin_if_required() {
+  if [ -e /etc/systemd/system/autologin@.service ]; then
+    systemctl disable getty@tty1
+    systemctl -f enable autologin@tty1
+    # workaround for the fix of bnc#804158 (check bnc#807289 for further details)
+    ln -s /etc/systemd/system/autologin@.service /etc/systemd/system/getty@tty1.service
+    systemctl restart autologin@tty1
+  fi
+}
+
 # ===========================================
 # Check if we are in testdrive 
 # -------------------------------------------
 
 echo -n "Checking if we are in SUSE Studio TestDrive... "
-if [ -e /dev/input/qemu_tablet ]; then
+if dmesg | grep -q "DMI: SUSE Studio Testdrive"; then
     echo "yes"
     disable_vmtoolsd
-    setup_keyboard
-    setup_evtouch
     use_dhcp
     disable_kde_desktop_effects
 else
     echo "no"
-    rm /etc/X11/xorg.conf.testdrive
+    rm /etc/X11/xorg.conf.d/50-*-testdrive.conf
 fi 
 
+enable_network_manager_if_required
+enable_autologin_if_required
+
 # delete itself, as we only need this to run on first boot
+systemctl disable suse-studio-firstboot
+rm -f /etc/systemd/system/suse-studio-firstboot.service
 rm -f /etc/init.d/suse_studio_firstboot
 

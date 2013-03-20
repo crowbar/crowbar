@@ -1,0 +1,107 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<image name='Crowbar_2.0' displayname='Crowbar_2.0' schemaversion='5.2'>
+  <description type='system'>
+    <author>Adam Spiers</author>
+    <contact>studio-devel@suse.de</contact>
+    <specification>Tiny, minimalistic appliances</specification>
+  </description>
+  <preferences>
+    <type checkprebuilt='true' boot='vmxboot/suse-12.3' fsnocheck='true' filesystem='ext3' bootloader='grub2' format='qcow2' kernelcmdline='quiet' image='vmx'>
+      <size unit='M' additive='false'>16384</size>
+    </type>
+    <version>0.0.5</version>
+    <packagemanager>zypper</packagemanager>
+    <rpm-check-signatures>false</rpm-check-signatures>
+    <rpm-force>false</rpm-force>
+    <boot-theme>studio</boot-theme>
+    <timezone>Europe/London</timezone>
+    <hwclock>localtime</hwclock>
+    <locale>en_GB</locale>
+  </preferences>
+  <users group='root'>
+    <user name='root' pwd='$1$jjXOZ7LZ$pPHaW9fxbUv9SN4R5fS7P1' home='/root' shell='/bin/bash'/>
+  </users>
+  <packages type='image' patternType='onlyRequired'>
+    <opensusePattern name='Crowbar_Admin'/>
+    <opensusePattern name='devel_basis'/>
+    <opensusePattern name='devel_C_C++'/>
+    <package name='man-pages-posix'/>
+    <package name='libyui-qt4'/>
+    <package name='yast2'/>
+    <package name='libyui-ncurses4'/>
+    <package name='openssh-askpass'/>
+    <package name='net-tools'/>
+    <package name='plymouth'/>
+    <package name='acpi'/>
+    <package name='permissions'/>
+    <package name='fillup'/>
+    <package name='aaa_base-extras'/>
+    <package name='aaa_base'/>
+    <package name='branding-openSUSE'/>
+    <package name='grub2'/>
+    <package name='grub'/>
+    <package name='hwinfo'/>
+    <package name='iputils'/>
+    <package name='kernel-default'/>
+    <package name='netcfg'/>
+    <package name='openSUSE-build-key'/>
+    <package name='openssh'/>
+    <package name='polkit-default-privs'/>
+    <package name='rpcbind'/>
+    <package name='syslog-ng'/>
+    <package name='vim'/>
+    <package name='zypper'/>
+    <package name='ruby'/>
+    <package name='sqlite3-devel'/>
+    <package name='erlang'/>
+    <package name='tmux'/>
+    <package name='htop'/>
+    <package name='sudo'/>
+    <package name='vim-data'/>
+    <package name='rsync'/>
+    <package name='git'/>
+    <package name='strace'/>
+    <package name='aria2'/>
+    <package name='wget'/>
+    <package name='ntp'/>
+    <package name='ca-certificates-mozilla'/>
+    <package name='libjson-devel'/>
+    <package name='ruby-devel'/>
+    <package name='gcc-c++'/>
+    <package name='rubygem-bundler'/>
+    <package name='curl'/>
+    <package name='man'/>
+    <package name='yast2-country'/>
+    <package name='emacs'/>
+    <package name='iotop'/>
+    <package name='man-pages'/>
+    <package name='less'/>
+    <package name='ltrace'/>
+    <package name='lsof'/>
+    <package name='tcpdump'/>
+    <package name='wireshark'/>
+    <package name='glibc-locale'/>
+    <package name='patch'/>
+    <package name='yast2-firewall'/>
+    <package name='yast2-network'/>
+    <package name='nfs-client'/>
+    <package name='screen'/>
+    <package name='telnet'/>
+    <package name='acpid'/>
+    <package name='xauth'/>
+    <archive name='plymouth.tar' bootinclude='true'/>
+  </packages>
+  <packages type='bootstrap'>
+    <package name='filesystem'/>
+    <package name='glibc-locale'/>
+  </packages>
+  <repository type='yast2'>
+    <source path='http://download.opensuse.org/distribution/12.3/repo/oss/'/>
+  </repository>
+  <repository type='rpm-md'>
+    <source path='http://download.opensuse.org/update/12.3/'/>
+  </repository>
+  <repository type='rpm-md'>
+    <source path='http://download.opensuse.org/repositories/systemsmanagement:/crowbar:/2.0/openSUSE_12.3/'/>
+  </repository>
+</image>
