@@ -94,6 +94,7 @@
   <packages type='bootstrap'>
     <package name='filesystem'/>
     <package name='glibc-locale'/>
+    <package name='module-init-tools'/>
   </packages>
   <repository type='yast2'>
     <source path='http://download.opensuse.org/distribution/12.3/repo/oss/'/>
