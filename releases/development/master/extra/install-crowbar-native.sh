@@ -297,3 +297,5 @@ echo "Admin node deployed."
 
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 
+# this will install the admin node
+# curl --digest crowbar:crowbar -X POST http://localhost:3000/api/v2/nodes -d "name=$FQDN" -d 'admin=true'
