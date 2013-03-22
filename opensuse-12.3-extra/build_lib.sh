@@ -2,7 +2,7 @@
 
 # OS information for the OS we are building crowbar on to.
 OS=opensuse
-OS_VERSION=12.2
+OS_VERSION=12.3
 OS_TOKEN="$OS-$OS_VERSION"
 
 # This replaces the do_crowbar_build function that is defined in $CROWBAR_DIR/build_lib.sh which
