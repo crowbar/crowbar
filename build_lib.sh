@@ -1094,6 +1094,298 @@ all_supported_oses() {
     done
 }
 
+do_crowbar_build() {
+    # Make sure only one instance of the ISO build runs at a time.
+    # Otherwise you can easily end up with a corrupted image.
+    # Check and see if our local build repository is a git repo. If it is,
+    # we may need to do the same sort of merging in it that we might do in the
+    # Crowbar repository.
+    if [[ -d $CACHE_DIR/.git ]] && \
+	(cd "$CACHE_DIR"; branch_exists master) then
+	CURRENT_CACHE_BRANCH=master
+    fi
+
+    if [[ $BRANCHES_TO_MERGE ]]; then
+	THROWAWAY_BRANCH="build-throwaway-$$-$RANDOM"
+	REPO_PWD="$PWD"
+	in_repo git checkout -b "$THROWAWAY_BRANCH"
+	for br in "${BRANCHES_TO_MERGE[@]}"; do
+
+	    # Merge the requested branch into the throwaway branch.
+	    # Die if the merge failed -- there must have been a
+	    # conflict, and the user needs to fix it up.
+	    in_repo git merge "$1" || \
+		die "Merge of $1 failed, fix things up and continue"
+	done
+	unset br
+    fi
+    # Finalize where we expect to find our caches and out chroot.
+    # If they were set in one of the conf files, don't touch them.
+
+    # The directory we perform a minimal install into if we need
+    # to refresh our gem or pkg caches
+    [[ $CHROOT ]] || CHROOT="$CACHE_DIR/$OS_TOKEN/chroot"
+
+    # Make sure that the $OS_TOKEN directory exist.
+    mkdir -p "$CACHE_DIR/$OS_TOKEN"
+
+    # The directory we will stage the build into.
+    [[ $BUILD_DIR ]] || \
+	BUILD_DIR="$CACHE_DIR/$OS_TOKEN/build"
+    # The directory that we will mount the OS .ISO on .
+    [[ $IMAGE_DIR ]] || \
+	IMAGE_DIR="$CACHE_DIR/$OS_TOKEN/image"
+
+    # Directory where we will look for our package lists
+    [[ $PACKAGE_LISTS ]] || PACKAGE_LISTS="$BUILD_DIR/extra/packages"
+
+    # Proxy Variables
+    [[ $USE_PROXY ]] || USE_PROXY=0
+    [[ $PROXY_HOST ]] || PROXY_HOST=""
+    [[ $PROXY_PORT ]] || PROXY_PORT=""
+    [[ $PROXY_USER ]] || PROXY_USER=""
+    [[ $PROXY_ESC_USER ]] || PROXY_ESC_USER=""
+    [[ $PROXY_PASSWORD ]] || PROXY_PASSWORD=""
+
+    # Version for ISO
+    [[ $VERSION ]] || VERSION="$(crowbar_version).dev"
+
+    # Name of the built iso we will build
+    [[ $BUILT_ISO ]] || BUILT_ISO="crowbar-${VERSION}.iso"
+
+    # If we were not passed a list of barclamps to include,
+    # pull in all of the ones declared as submodules.
+    [[ $BARCLAMPS ]] || BARCLAMPS=($(barclamps_in_build))
+    # Pull in barclamp information
+    get_barclamp_info
+
+    # Make any directories we don't already have
+    for d in "$ISO_LIBRARY" "$ISO_DEST" "$IMAGE_DIR" "$BUILD_DIR" \
+	"$SLEDGEHAMMER_PXE_DIR" "$CHROOT"; do
+	mkdir -p "$d"
+    done
+
+    debug "Checking for Sledgehammer."
+    # Make sure Sledgehammer has already been built and pre-staged.
+    if ! [[ -f $SLEDGEHAMMER_PXE_DIR/initrd0.img ]]; then
+	debug "Slegehammer TFTP image missing!"
+	debug "Attempting to build Sledgehammer:"
+	"$CROWBAR_DIR/build_sledgehammer.sh" || \
+	    die "Unable to build Sledgehammer. Cannot build Crowbar."
+    fi
+
+    # Fetch the OS ISO if we need to.
+    [[ -f $ISO_LIBRARY/$ISO ]] || fetch_os_iso
+
+    # Start with a clean slate.
+    clean_dirs "$IMAGE_DIR" "$BUILD_DIR" "$CHROOT"
+
+    if [[ $NO_CLEAN_DIRS = true ]]; then
+        debug "Skipping clean by user request."
+    else
+        debug "Cleaning up any VCS cruft."
+        # Clean up any cruft that the editor may have left behind.
+        (for d in "$CROWBAR_DIR" "$CROWBAR_DIR/barclamps/"*; do
+	    cd "$d"; $VCS_CLEAN_CMD
+	    done)
+    fi
+
+    # Make additional directories we will need.
+    for d in discovery extra/pkgs extra/files doc/framework; do
+	mkdir -p "$BUILD_DIR/$d"
+    done
+
+    # Mount our ISO for the build process.
+    debug "Mounting $ISO"
+    sudo mount -t iso9660 -o loop "$ISO_LIBRARY/$ISO" "$IMAGE_DIR" || \
+	die "Could not mount $ISO"
+    debug "Indexing CD package pool."
+    index_cd_pool
+
+    # Copy over the Crowbar bits and their prerequisites
+    # The ordering here is designed to always have the most specific
+    # version of the file for a build wind up staged on the DVD, without
+    # having to walk the whole directory tree.
+    d="$(build_cfg_dir)" && [[ -d $d/extra && -d $d/change-image ]] || \
+        die "Cannot find extra and change-image directories for $(current_build)!"
+    cp -r "$d/extra"/* "$BUILD_DIR/extra"
+    cp -r "$CROWBAR_DIR/doc"/* "$BUILD_DIR/doc/framework"
+    cp -r "$d/change-image/"* "$BUILD_DIR"
+    for d in "$OS-common" "$OS_TOKEN-extra"; do
+	[[ -d $CROWBAR_DIR/$d ]] || continue
+	cp -r "$CROWBAR_DIR/$d"/* "$BUILD_DIR/extra"
+    done
+
+    # Add critical build meta information to build-info
+    echo "build-timestamp: $(date '+%F %T %z')" > "$BUILD_DIR/build-info"
+    echo "build-os: $OS_TOKEN" >>"$BUILD_DIR/build-info"
+    echo "build-os-iso: $ISO" >>"$BUILD_DIR/build-info"
+    echo "crowbar: $(get_rev "$CROWBAR_DIR")" >>"$BUILD_DIR/build-info"
+
+    # Make sure that all our barclamps are properly staged.
+    for bc in "${BARCLAMPS[@]}"; do
+	is_barclamp "$bc" || die "Cannot find barclamp $bc!"
+	debug "Staging $bc barclamp."
+	for cache in pkg gem raw_pkg file; do
+	    checker="barclamp_${cache}_cache_needs_update"
+	    updater="update_barclamp_${cache}_cache"
+	    [[ $(type $checker) = "$checker is a function"* ]] || \
+		die "Asked to check $cache cache, but no checker function!"
+	    [[ $(type $updater) = "$updater is a function"* ]] || \
+		die "Might need to update $cache cache, but no updater!"
+	    if $checker "$bc"; then
+		[[ $ALLOW_CACHE_UPDATE = true ]] || {
+		    echo "Need up update $cache cache for $bc, but updates are disabled."
+		    echo "Please rerun the build with the --update-cache option."
+		    exit 1
+		} >&2
+		debug "Updating $cache cache for $bc"
+		[[ $cache =~ ^(pkg|gem)$ ]] && make_chroot
+                MAYBE_UPDATE_GIT_CACHE=true
+		$updater "$bc"
+	    fi
+	done
+	# Handle building any requests if we call for a custom build
+	if [[ ${BC_BUILD_CMDS["$bc"]} ]]; then
+	    [[ -x $CROWBAR_DIR/barclamps/$bc/${BC_BUILD_CMDS["$bc"]%% *} ]] || \
+		die "Asked to do a custom build for $bc, but build script ${BC_BUILD_CMDS["$bc"]%% *} not found!"
+	    # Make sure the actual build runs in a subshell.  This prevents
+	    # cross-barclamp namespace collisions.
+	    (   export BC_DIR=$CROWBAR_DIR/barclamps/$bc
+		export BC_CACHE=$CACHE_DIR/barclamps/$bc
+		. "$BC_DIR"/${BC_BUILD_CMDS["$bc"]}
+		if bc_needs_build; then
+		    # Make sure we have a chroot set up and that it is ready
+		    # to do whatever bc_build needs.
+		    make_chroot
+		    bind_mount "$CACHE_DIR/barclamps/$bc" "$CHROOT/mnt"
+		    install_build_packages "$bc"
+		    in_chroot ln -s /mnt/$OS_TOKEN /mnt/current_os
+		    bc_build || die "External builder for $bc failed"
+		    in_chroot rm -f /mnt/current_os
+		    sudo umount "$CHROOT/mnt"
+		fi
+	    )
+	fi
+	make_barclamp_pkg_metadata "$bc"
+        # Once all our barclamps have had their packages staged, create tarballs of them.
+        mkdir -p "$BUILD_DIR/dell/barclamps"
+        package_opts=(--destdir "$BUILD_DIR/dell/barclamps" --os "$OS_TOKEN")
+        case $BC_PKG_TYPE in
+            tar) : ;;
+            deb) package_opts+=("--deb");;
+            rpm) package_opts+=("--rpm");;
+        esac
+	echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
+    done
+    "$CROWBAR_DIR/package_barclamp.sh" "${package_opts[@]}" "${BARCLAMPS[@]}" || \
+        die "Could not package $bc into a $BC_PKG_TYPE"
+
+    [[ $NO_GENERATE_ISO = true ]] && return 0
+
+    if [[ $ALLOW_CACHE_UPDATE != true && $CURRENT_CACHE_BRANCH ]]; then
+	echo "build-cache: $(get_rev "$CACHE_DIR")" >> "$BUILD_DIR/build-info"
+    fi
+
+    (cd "$BUILD_DIR"
+	find extra dell -type f -print | \
+	    sort >> "build-info")
+    # Make sure we still provide the legacy ami location
+    (cd "$BUILD_DIR"; ln -sf extra/files/ami)
+    # Store off the version
+    echo "$VERSION" >> "$BUILD_DIR/dell/Version"
+
+    # Custom start-up in place
+    BUILD_CFG_DIR="$(build_cfg_dir)" && {
+	for f in "$BUILD_CFG_DIR"/*.json ; do
+	    [[ -f $f ]] || continue
+	    mkdir -p "$BUILD_DIR/extra/config"
+	    cp "$f" "$BUILD_DIR/extra/config"
+	done
+    }
+
+    final_build_fixups
+
+    # Copy over the bits that Sledgehammer will look for.
+    debug "Copying over Sledgehammer bits"
+    cp -a "$SLEDGEHAMMER_PXE_DIR"/* "$BUILD_DIR/discovery"
+
+    # Make our image
+    debug "Creating new ISO"
+    # mkisofs can merge multiple directory trees into a single iso
+    # file system.  However, these trees must be disjoint -- if
+    # any of the filesystem trees collide, mkisofs dies.
+    # To work around that, we merge any colliding top-level trees
+    # and take care to prefer stuff from $BUILD_DIR, and then
+    # bind-mount empty trees on top of the colliding trees in $IMAGE_DIR
+    for d in $(cat <(cd "$BUILD_DIR"; find -maxdepth 1 -type d) \
+	<(cd "$IMAGE_DIR"; find -maxdepth 1 -type d) | \
+	sort |uniq -d); do
+	[[ $d = . ]] && continue
+	d=${d#./}
+	# Copy contents of the found directories into $BUILD_DIR, taking care
+	# to not clobber existing files.
+	mkdir -p "$BUILD_DIR/$d"
+	chmod u+wr "$BUILD_DIR/$d"
+	# We could also use cp -n, but rhel5 and centos5 do not understand it.
+	rsync -rl --ignore-existing --inplace "$IMAGE_DIR/$d" "$BUILD_DIR"
+	chmod -R u+wr "$BUILD_DIR/$d"
+	# Bind mount an empty directory on the $IMAGE_DIR instance.
+	sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/$d"
+    done
+    mkdir -p "$BUILD_DIR/isolinux"
+    chmod u+wr "$BUILD_DIR/isolinux"
+    rsync -rl --ignore-existing --inplace \
+	"$IMAGE_DIR/isolinux" "$BUILD_DIR"
+    chmod -R u+wr "$BUILD_DIR/isolinux"
+    sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/isolinux"
+
+    [[ $SHRINK_ISO && ! $GENERATE_MINIMAL_ISO ]] && shrink_iso
+    # Make a file list and a link list.
+    ( cd $BUILD_DIR
+	find . -type f | \
+	    sort > crowbar_files.list
+	find . -type l | \
+	    xargs ls -ld | \
+	    awk '{ print $8 " " $10 }' | \
+	    sort > crowbar_links.list
+    )
+    ( cd $IMAGE_DIR
+	find . -type f | \
+	    sort >> $BUILD_DIR/crowbar_files.list
+	find . -type l | \
+	    xargs ls -ld | \
+	    awk '{ print $8 " " $10 }' | \
+	    sort >> $BUILD_DIR/crowbar_links.list
+    )
+
+    # Make an ISO
+    build_iso || die "There was a problem building our ISO."
+    if [[ $GENERATE_MINIMAL_INSTALL = true ]]; then
+	if [[ ! -f "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install" ]]; then
+	    if [[ ! -f "$HOME/admin-installed.list" ]]; then
+		SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
+		test_iso admin-only
+	    fi
+	    [[ -f "$HOME/admin-installed.list" ]] || \
+		die "Could not generate minimal install list!"
+	    mv "$HOME/admin-installed.list" \
+		"$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install"
+	    debug "Minimal install generated and saved to $CROWBAR_DIR/$OS_TOKEN-extra/minimal-install."
+	    debug "Please commit it and rerun the build with --shrink."
+	fi
+    fi
+    echo "$(date '+%F %T %z'): Image at $ISO_DEST/$BUILT_ISO"
+    if [[ $NEED_TEST = true ]]; then
+	echo "$(date '+%F %T %z'): Testing new iso"
+	SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
+	test_iso "${test_params[@]}" && \
+	    echo "$(date '+%F %T %z'): Test passed" || \
+	    die "Test failed."
+    fi
+    echo "$(date '+%F %T %z'): Finished."
+}
+
 if [[ $http_proxy ]]; then
     export USE_PROXY=1
     raw_proxy="${http_proxy#*://}"
