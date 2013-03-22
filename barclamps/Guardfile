@@ -1,0 +1,34 @@
+# Guard configuration file
+#
+# Run the following command to activate Guard:
+#
+#   bundle install && bundle exec guard -i
+#
+# Replace 'guard' with 'guard1.9' in the command above if it doesn't work.
+
+# Push modified files in each barclamp's crowbar_framework directory to where
+# we run our dev instance. This allows changes to show up immediately as we
+# work with the files in git.
+guard :shell do
+  TARGET_DIR = '/tmp/crowbar-dev-test/opt/dell/crowbar_framework/'
+  ignore /\.swp|~|\.gitignore$/
+  watch /^(.*\/crowbar_framework)\/(.+)$/ do |m|
+    source     = m[0]
+    source_dir = m[1]
+    file       = m[2]
+    target = TARGET_DIR + file
+    type   = 'Updated'
+
+    if File.exists? source
+      `cd #{source_dir} && cp --parents #{file} #{TARGET_DIR}`
+      if file == 'Gemfile'
+        `sed -i -e "s@^source .*@source 'https://rubygems.org'@" "#{target}"`
+      end
+    else
+      FileUtils.rm target
+      type = 'Deleted'
+    end
+
+    puts "#{Time.now.strftime("%H:%M:%S")} #{type} #{target}"
+  end
+end
