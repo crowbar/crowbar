@@ -2500,6 +2500,7 @@ migrate() {
 # Perform initial setup.  If you make any changes to this function, take
 # care to make sure it stays idempotent.
 setup() {
+    dev_bash_completion
     local p remote release br head
     local -A touched_branches barclamps
     [[ $(in_repo git symbolic-ref HEAD) = refs/heads/master ]] || \
@@ -2965,6 +2966,32 @@ dev_short_help() {
     echo 'README.dev-and-workflow has a general overview of the dev tool.'
     echo 'To see all the help at once, run dev help all'
 }
+
+
+dev_bash_completion() { 
+  cmds=$(printf "%s" "${!DEV_COMMANDS[*]}"; )
+cat > ~/.bash_completion <<EOF
+_dev()
+{
+  local cur prev opts
+  COMPREPLY=()
+  cur="\${COMP_WORDS[COMP_CWORD]}"
+  prev="\${COMP_WORDS[COMP_CWORD-1]}"
+  opts="${cmds}"
+    
+  #opts="--help --verbose --version"
+      
+  #if [[ \${cur} == -* ]] ; then
+  COMPREPLY=( \$(compgen -W "\${opts}" -- \${cur}) )
+  return 0
+  #fi
+}
+complete -F _dev dev
+EOF
+
+  
+}
+
 
 dev_help () {
     (
@@ -4370,6 +4397,7 @@ DEV_COMMANDS["tag-build"]="tag_build"
 DEV_COMMANDS["tests"]="tests_handler"
 DEV_COMMANDS["unpin"]="unpin_release"
 DEV_COMMANDS["upstream-changes"]="find_remote_changed_branches_for_release"
+DEV_COMMANDS["bash_completion"]="dev_bash_completion"
 
 # Hash for short help
 DEV_SHORT_HELP["backup"]="             Back up changes without merging them into upstream."
@@ -4426,8 +4454,13 @@ DEV_SHORT_HELP["tag-build"]="          Add annotated tags to all components of a
 DEV_SHORT_HELP["tests"]="              Various tasks relating to running tests."
 DEV_SHORT_HELP["unpin"]="              Unpin a release, build, or barclamp in a build."
 DEV_SHORT_HELP["upstream-changes"]="   Find unmerged changes from upstream for a release"
+DEV_SHORT_HELP["bash_completion"]="    Make tab ~/.bash_completion for dev (overwrites)"
 
 # Hash for long help
+DEV_LONG_HELP["bash_completion"]="Enable tab command completion.
+  Overwrites /\$HOME/.bash_completion every time you run it. Inserts
+  all the implemented commands.  Not yet subcommands.  You need to
+  logout and login for it to function."
 DEV_LONG_HELP["setup"]="Perform initial setup of Crowbar.
   Sets up your local Crowbar repositories for working with the new
   Github regime.  By default, This command will prompt for your Github
