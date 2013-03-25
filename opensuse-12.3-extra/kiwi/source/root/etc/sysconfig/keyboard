@@ -10,7 +10,7 @@
 # (/usr/share/kbd/keymaps/)
 # e.g. KEYTABLE="de-latin1-nodeadkeys", "us" or empty for US settings
 #
-KEYTABLE="uk.map.gz"
+KEYTABLE="us.map.gz"
 
 ## Type:        integer
 ## Default:
