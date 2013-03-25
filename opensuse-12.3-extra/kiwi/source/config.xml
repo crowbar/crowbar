@@ -10,6 +10,7 @@
       <oemconfig>
         <oem-swap>true</oem-swap>
         <oem-swapsize>512</oem-swapsize>
+        <oem-unattended>true</oem-unattended>
       </oemconfig>
     </type>
     <version>0.0.1</version>
