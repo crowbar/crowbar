@@ -271,16 +271,17 @@ mkdir -p /opt/dell/doc
 # Run the rest of the barclamp install actions.
 (cd /opt/dell/barclamps && /opt/dell/bin/barclamp_install.rb --deploy *)
 
+# Get out of bootstrap mode
+rm -f /tmp/.crowbar_in_bootstrap
+service crowbar restart
+
 ###
 # This should vanish once we have a real bootstrapping story.
 ###
 
 # Create the admin node entry.
-curl -X POST http://localhost:3000/api/v2/nodes -d "name=$FQDN" -d 'admin=true'
-
-# Get out of bootstrap mode
-rm -f /tmp/.crowbar_in_bootstrap
-service crowbar restart
+curl --digest -u $(cat /etc/crowbar.install.key) \
+    -X POST http://localhost:3000/api/v2/nodes -d "name=$FQDN" -d 'admin=true'
 
 # Add the required roles for the admin node to act like a provisioner.
 HOSTNAME=$(hostname --fqdn)
