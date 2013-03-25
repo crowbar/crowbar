@@ -107,7 +107,7 @@
             "admin": {
               "if_list": [ "10g1" ]
             },
-            "mgmt":{
+            "mgmt": {
                "if_list": [ "10g2" ]
             },
             "public": {
