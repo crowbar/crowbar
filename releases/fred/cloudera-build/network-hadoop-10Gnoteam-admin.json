@@ -1,6 +1,6 @@
 {
   "id": "bc-template-network",
-  "description": "Instantiates network interfaces on the crowbar managed systems. Also manages the address pool",
+  "description": "Instantiates network interfaces on the crowbar managed systems. Also manages the address pools",
   "attributes": {
     "network": {
       "start_up_delay": 30,
