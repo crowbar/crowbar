@@ -1,22 +1,25 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<image name='Crowbar_2.0' displayname='Crowbar_2.0' schemaversion='5.2'>
+<image name='Crowbar_Dev' displayname='Crowbar_Dev' schemaversion='5.2'>
   <description type='system'>
-    <author>Adam Spiers</author>
+    <author>John Terpstra</author>
     <contact>studio-devel@suse.de</contact>
     <specification>Tiny, minimalistic appliances</specification>
   </description>
   <preferences>
-    <type checkprebuilt='true' boot='vmxboot/suse-12.3' fsnocheck='true' filesystem='ext3' bootloader='grub2' format='qcow2' kernelcmdline='quiet' image='vmx'>
-      <size unit='M' additive='false'>16384</size>
+    <type checkprebuilt='true' boot='oemboot/suse-12.3' fsnocheck='true' filesystem='ext3' bootloader='grub2' installiso='true' installboot='install' kernelcmdline='quiet' image='oem'>
+      <oemconfig>
+        <oem-swap>true</oem-swap>
+        <oem-swapsize>512</oem-swapsize>
+      </oemconfig>
     </type>
-    <version>0.0.5</version>
+    <version>0.0.1</version>
     <packagemanager>zypper</packagemanager>
     <rpm-check-signatures>false</rpm-check-signatures>
     <rpm-force>false</rpm-force>
     <boot-theme>studio</boot-theme>
-    <timezone>Europe/London</timezone>
+    <timezone>America/Chicago</timezone>
     <hwclock>localtime</hwclock>
-    <locale>en_GB</locale>
+    <locale>en_US</locale>
   </preferences>
   <users group='root'>
     <user name='root' pwd='$1$jjXOZ7LZ$pPHaW9fxbUv9SN4R5fS7P1' home='/root' shell='/bin/bash'/>
@@ -32,8 +35,8 @@
     <package name='openssh-askpass'/>
     <package name='net-tools'/>
     <package name='plymouth'/>
-    <package name='acpi'/>
     <package name='permissions'/>
+    <package name='nfs-client'/>
     <package name='fillup'/>
     <package name='aaa_base-extras'/>
     <package name='aaa_base'/>
@@ -72,6 +75,8 @@
     <package name='curl'/>
     <package name='man'/>
     <package name='yast2-country'/>
+    <package name='libopenssl-devel'/>
+    <package name='ccache'/>
     <package name='emacs'/>
     <package name='iotop'/>
     <package name='man-pages'/>
@@ -84,11 +89,11 @@
     <package name='patch'/>
     <package name='yast2-firewall'/>
     <package name='yast2-network'/>
-    <package name='nfs-client'/>
     <package name='screen'/>
     <package name='telnet'/>
     <package name='acpid'/>
     <package name='xauth'/>
+    <package name='gfxboot-devel'/>
     <archive name='plymouth.tar' bootinclude='true'/>
   </packages>
   <packages type='bootstrap'>

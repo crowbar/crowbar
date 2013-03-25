@@ -1,29 +1,32 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <manifest>
   <studio_uuid>8466bd24-fd59-11df-9f90-475ae2f5345b</studio_uuid>
-  <appliance_uuid>e2c21e3e-6573-11e2-07ba-a3ea8e03589c</appliance_uuid>
+  <appliance_uuid>d09cb0fc-93ef-11e2-18a2-93ea96d7c3b5</appliance_uuid>
   <config>
-    <image name="Crowbar_2.0" displayname="Crowbar_2.0" schemaversion="5.2">
+    <image name="Crowbar_Dev" displayname="Crowbar_Dev" schemaversion="5.2">
       <description type="system">
-        <author>Adam Spiers</author>
+        <author>John Terpstra</author>
         <contact>studio-devel@suse.de</contact>
         <specification>Tiny, minimalistic appliances</specification>
       </description>
       <preferences>
-        <type checkprebuilt="true" boot="vmxboot/suse-12.3" fsnocheck="true" filesystem="ext3" bootloader="grub2" format="qcow2" kernelcmdline="quiet" image="vmx">
-          <size unit="M" additive="false">16384</size>
+        <type checkprebuilt="true" boot="oemboot/suse-12.3" fsnocheck="true" filesystem="ext3" bootloader="grub2" installiso="true" installboot="install" kernelcmdline="quiet" image="oem">
+          <oemconfig>
+            <oem-swap>true</oem-swap>
+            <oem-swapsize>512</oem-swapsize>
+          </oemconfig>
         </type>
-        <version>0.0.5</version>
+        <version>0.0.1</version>
         <packagemanager>ensconce</packagemanager>
         <rpm-check-signatures>false</rpm-check-signatures>
         <rpm-force>false</rpm-force>
         <boot-theme>studio</boot-theme>
-        <timezone>Europe/London</timezone>
+        <timezone>America/Chicago</timezone>
         <hwclock>localtime</hwclock>
-        <locale>en_GB</locale>
+        <locale>en_US</locale>
       </preferences>
-      <users group="root">
-        <user name="root" pwd="$1$jjXOZ7LZ$pPHaW9fxbUv9SN4R5fS7P1" home="/root" shell="/bin/bash"/>
+      <users group='root'>
+        <user name='root' pwd='$1$jjXOZ7LZ$pPHaW9fxbUv9SN4R5fS7P1' home='/root' shell='/bin/bash'/>
       </users>
       <repository type="yast2">
         <source path="http://download.opensuse.org/distribution/12.3/repo/oss/"/>
@@ -31,95 +34,98 @@
       <repository type="rpm-md">
         <source path="http://download.opensuse.org/update/12.3/"/>
       </repository>
-      <repository type="rpm-md">
-        <source path="http://download.opensuse.org/repositories/systemsmanagement:/crowbar:/2.0/openSUSE_12.3/"/>
+      <repository type='rpm-md'>
+        <source path='http://download.opensuse.org/repositories/systemsmanagement:/crowbar:/2.0/openSUSE_12.3/'/>
       </repository>
       <packages type="image" patternType="onlyRequired">
-        <opensusePattern name="Crowbar_Admin"/>
+        <opensusePattern name='Crowbar_Admin'/>
         <opensusePattern name="devel_basis"/>
         <opensusePattern name="devel_C_C++"/>
-        <package name="man-pages-posix"/>
-        <package name="libyui-qt4"/>
-        <package name="yast2"/>
-        <package name="libyui-ncurses4"/>
-        <package name="openssh-askpass"/>
-        <package name="net-tools"/>
-        <package name="plymouth"/>
-        <package name="acpi"/>
-        <package name="permissions"/>
-        <package name="fillup"/>
-        <package name="aaa_base-extras"/>
-        <package name="aaa_base"/>
-        <package name="branding-openSUSE"/>
-        <package name="grub2"/>
-        <package name="grub"/>
-        <package name="hwinfo"/>
-        <package name="iputils"/>
-        <package name="kernel-default"/>
-        <package name="netcfg"/>
-        <package name="openSUSE-build-key"/>
-        <package name="openssh"/>
-        <package name="polkit-default-privs"/>
-        <package name="rpcbind"/>
-        <package name="syslog-ng"/>
-        <package name="vim"/>
-        <package name="zypper"/>
-        <package name="ruby"/>
-        <package name="sqlite3-devel"/>
-        <package name="erlang"/>
-        <package name="tmux"/>
-        <package name="htop"/>
-        <package name="sudo"/>
-        <package name="vim-data"/>
-        <package name="rsync"/>
-        <package name="git"/>
-        <package name="strace"/>
-        <package name="aria2"/>
-        <package name="wget"/>
-        <package name="ntp"/>
-        <package name="ca-certificates-mozilla"/>
-        <package name="libjson-devel"/>
-        <package name="ruby-devel"/>
-        <package name="gcc-c++"/>
-        <package name="rubygem-bundler"/>
-        <package name="curl"/>
-        <package name="man"/>
-        <package name="yast2-country"/>
-        <package name="emacs"/>
-        <package name="iotop"/>
-        <package name="man-pages"/>
-        <package name="less"/>
-        <package name="ltrace"/>
-        <package name="lsof"/>
-        <package name="tcpdump"/>
-        <package name="wireshark"/>
-        <package name="glibc-locale"/>
-        <package name="patch"/>
-        <package name="yast2-firewall"/>
-        <package name="yast2-network"/>
-        <package name="nfs-client"/>
-        <package name="screen"/>
-        <package name="telnet"/>
-        <package name="acpid"/>
-        <package name="xauth"/>
-        <archive name="plymouth.tar" bootinclude="true"/>
+	<package name='man-pages-posix'/>
+	<package name='libyui-qt4'/>
+	<package name='yast2'/>
+	<package name='libyui-ncurses4'/>
+	<package name='openssh-askpass'/>
+	<package name='net-tools'/>
+	<package name='plymouth'/>
+	<package name='permissions'/>
+	<package name='nfs-client'/>
+	<package name='fillup'/>
+	<package name='aaa_base-extras'/>
+	<package name='aaa_base'/>
+	<package name='branding-openSUSE'/>
+	<package name='grub2'/>
+	<package name='grub'/>
+	<package name='hwinfo'/>
+	<package name='iputils'/>
+	<package name='kernel-default'/>
+	<package name='netcfg'/>
+	<package name='openSUSE-build-key'/>
+	<package name='openssh'/>
+	<package name='polkit-default-privs'/>
+	<package name='rpcbind'/>
+	<package name='syslog-ng'/>
+	<package name='vim'/>
+	<package name='zypper'/>
+	<package name='ruby'/>
+	<package name='sqlite3-devel'/>
+	<package name='erlang'/>
+	<package name='tmux'/>
+	<package name='htop'/>
+	<package name='sudo'/>
+	<package name='vim-data'/>
+	<package name='rsync'/>
+	<package name='git'/>
+	<package name='strace'/>
+	<package name='aria2'/>
+	<package name='wget'/>
+	<package name='ntp'/>
+	<package name='ca-certificates-mozilla'/>
+	<package name='libjson-devel'/>
+	<package name='ruby-devel'/>
+	<package name='gcc-c++'/>
+	<package name='rubygem-bundler'/>
+	<package name='curl'/>
+	<package name='man'/>
+	<package name='yast2-country'/>
+	<package name='libopenssl-devel'/>
+	<package name='ccache'/>
+	<package name='emacs'/>
+	<package name='iotop'/>
+	<package name='man-pages'/>
+	<package name='less'/>
+	<package name='ltrace'/>
+	<package name='lsof'/>
+	<package name='tcpdump'/>
+	<package name='wireshark'/>
+	<package name='glibc-locale'/>
+	<package name='patch'/>
+	<package name='yast2-firewall'/>
+	<package name='yast2-network'/>
+	<package name='screen'/>
+	<package name='telnet'/>
+	<package name='acpid'/>
+	<package name='xauth'/>
+	<package name='gfxboot-devel'/>
+	<archive name='plymouth.tar' bootinclude='true'/>
       </packages>
-      <packages type="bootstrap">
-        <package name="filesystem"/>
-        <package name="glibc-locale"/>
+      <packages type='bootstrap'>
+        <package name='filesystem'/>
+        <package name='glibc-locale'/>
+        <package name='module-init-tools'/>
       </packages>
     </image>
   </config>
-  <extra_config name="Crowbar_2.0">
-    <appliance_id>862190</appliance_id>
+  <extra_config name="Crowbar_Dev">
+    <appliance_id>907451</appliance_id>
     <arch>x86_64</arch>
-    <version>0.0.5</version>
+    <version>0.0.1</version>
     <logo>b7/60e55d3f31145d83bc5da1f2d9e979</logo>
-    <background>18/4c9141b1a73db1cb0820a395f0c4bd</background>
+    <background>fe/38f99378655344a098ace03058cbbb</background>
     <base_system>12.3</base_system>
-    <image_type>kvm</image_type>
-    <time_zone>Europe/London</time_zone>
-    <region>Europe</region>
+    <image_type>oemiso</image_type>
+    <time_zone>America/Chicago</time_zone>
+    <region>USA</region>
     <default_runlevel>3</default_runlevel>
     <install_recommended>false</install_recommended>
     <xen_host>false</xen_host>
@@ -127,10 +133,10 @@
     <disable_branding>false</disable_branding>
     <template>openSUSE 12.2, Just enough OS (JeOS)</template>
     <locale>
-      <language>en_GB.UTF-8</language>
-      <keytable>uk.map.gz</keytable>
+      <language>en_US.UTF-8</language>
+      <keytable>us.map.gz</keytable>
     </locale>
-    <estimated_size>60</estimated_size>
+    <estimated_size>1220</estimated_size>
     <size_offset>0</size_offset>
     <non_interactive>false</non_interactive>
     <oem_disk_size>16G</oem_disk_size>
@@ -166,7 +172,7 @@
     </firewall>
     <webyast enabled="false" version="">
     </webyast>
-    <x_keyboard model="microsoftpro" layout="gb" variant="" keycode="xfree86" LA="" RA="" SL="" RC="" OPT=""/>
+    <x_keyboard model="microsoftpro" layout="us" variant="" keycode="xfree86" LA="" RA="" SL="" RC="" OPT=""/>
     <build_script>
       <![CDATA[#!/bin/bash -e
 #

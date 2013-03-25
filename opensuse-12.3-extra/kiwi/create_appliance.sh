@@ -9,7 +9,7 @@
 # Contact: feedback@susestudio.com
 # ============================================================================
 
-image_file='image/Crowbar_2.0.x86_64-0.0.5'
+image_file='image/Crowbar_Dev.x86_64-0.0.1'
 image_arch='x86_64'
 schema_ver='5.2'
 base_system='12.3'
