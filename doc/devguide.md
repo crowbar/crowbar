@@ -34,6 +34,7 @@ See the [Contributor Guide](devguide/contributing.md).
 * [Testing](devguide/testing.md)
 * [Code analysis](devguide/analysis.md)
 * [UI development](devguide/ui.md)
+* [openSUSE images](devguide/openSUSE-images.md)
 
 ## Authors
 
