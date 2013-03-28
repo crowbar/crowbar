@@ -21,37 +21,24 @@ Installation steps:
 
 1. [Optional] To improve VM performance, run the following example commands to
    pre-allocate the virtual disk:
-
    ````
    kvm-host> VERSION=1.0.5
    kvm-host> mv Crowbar_Dev.x86_64-$VERSION{,-org}.qcow2
    kvm-host> qemu-img convert -f qcow2 -O qcow2 -o preallocation=metadata Crowbar_Dev.x86_64-$VERSION{-org,}.qcow2
    ````
 
-1. Start a VM with the desired network (private network with NAT), with the ISO
-   and disk attached. For example:
-
+1. Start the VM by running:
    ````
-   kvm-host> VERSION=1.0.5
-   kvm-host> sudo qemu-kvm -m 2G -daemonize -vnc :10 \
-                           -net nic,model=virtio,macaddr=DE:AD:BE:EF:30:22 \
-                           -net tap,script=qemu-ifup \
-                           -drive file=Crowbar_Dev.x86_64-$VERSION.qcow2,cache=none,if=virtio
+   kvm-host> ./start-vm
    ````
-
-   Note that `script=qemu-ifup` points to the script at `qemu-kvm/qemu-ifup`,
-   so make sure you are running the above command in the same directory, or
-   modify it accordingly.
 
 1. [Optional] Connect to the VM via VNC. This is useful for debugging the VM
    (eg. networking issues).
-
    ````
    kvm-host> vncviewer :10
    ````
 
    The VM is configured with the following settings:
-
    ````
    IP address: 192.168.124.10
    Netmask:    255.255.255.0
@@ -65,7 +52,6 @@ Installation steps:
 
 1. After the VM boots up (takes a bit longer during the first boot), you should
    be able to connect to the VM via SSH:
-
    ````
    kvm-host> ssh root@192.168.124.10
    ````
@@ -77,7 +63,6 @@ Installation steps:
 1. Create a non-root user account and set the passowrd. We recommend using the
    same username as you do on your regular workstation for convenience. Then
    re-login to the dev VM as the newly created user. For example:
-
    ````
    root@crowbar-dev> useradd -m jamestyj
    root@crowbar-dev> passwd jamestyj
@@ -92,13 +77,11 @@ Installation steps:
 You should now have a working VM that you can SSH into from the qemu-kvm host.
 
 1. Copy your .gitconfig and other configuration files to the VM, e.g.:
-
    ````
    crowbar-dev> scp -r <your-usual-dev-host>:.{gitconfig,vimrc,vim,profile,ssh} .
    ````
 
 1. Check out the Crowbar git repo and run the dev tool:
-
    ````
    crowbar-dev> git clone git://github.com/crowbar/crowbar.git
    crowbar-dev> cd crowbar
@@ -112,11 +95,5 @@ You should now have a working VM that you can SSH into from the qemu-kvm host.
    and [dev-and-code-review]
    (https://github.com/crowbar/crowbar/blob/master/README.dev-and-code-review)
    for details. This will take a while so get some coffee.
-
-1. Install dependencies required by the test suite:
-
-   ````
-   sudo zypper install ruby-devel rubygem-bundler sqlite3-devel gcc-c++ erlang
-   ````
 
 Now see the [testing page](testing.md) for how to run the tests.
