@@ -1,25 +1,25 @@
 # Getting started with Crowbar development
 
-Setting up a full Crowbar development environment is rather complex due to its
-many dependencies. We are working on simplifying and automating this process as
-much as possible. This document provides step by step instructions on how to
-setup a _minimal Crowbar development instance_ - access to the web interface
-and the ability to run the unit, RSpec and BDD tests.
+Setting up a full Crowbar development environment is complex due to its many
+dependencies - we are simplifying and automating this process as much as
+possible. This document provides detailed instructions on how to setup a
+_minimal Crowbar development instance_: access to the web interface and the
+ability to run the unit, RSpec, and BDD tests.
 
-Here we assume that you are setting up the Crowbar development
-instance/environment in a qemu-kvm virtual machine (VM), with a SUSE based
-system as the VM host. There is no hard requirement for this - you just need to
-adapt the steps and commands listed here accordingly.
+We assume you are setting up the Crowbar development environment in a qemu-kvm
+virtual machine (VM). It is not a hard requirement - just adapt the steps and
+commands accordingly.
 
-If you are using Fedora 18, the scripts in
-https://github.com/cwolferh/crowbar-virt-for-f18 may save you a bit of
-time setting up a qemu-kvm/virsh environment for Crowbar.
+If you prefer other hypervisors, check out the corresponding [VirtualBox]
+(https://github.com/crowbar/crowbar/wiki/Running-Crowbar-in-VirtualBox-VMs) and
+[VMWare]
+(https://github.com/crowbar/crowbar/wiki/Running-Crowbar-in-VMWare-VMs) docs.
+Then skip to the "Setting up the development environment" section of your
+preferred distro.
 
-If you prefer to use another hypervisor other than qemu-kvm, see [Crowbar in
-VirtualBox](https://github.com/crowbar/crowbar/wiki/Running-Crowbar-in-VirtualBox-VMs)
-or [Crowbar in VMWare](https://github.com/crowbar/crowbar/wiki/Running-Crowbar-in-VMWare-VMs).
-Then jump to the section titled "Installing the development system" and adapt
-the steps/commands accordingly.
+If you are using Fedora 18, [these scripts]
+(https://github.com/cwolferh/crowbar-virt-for-f18) may save you a bit of time
+setting up a qemu-kvm/virsh environment for Crowbar.
 
 ## Setting up the qemu-kvm host
 
@@ -31,26 +31,19 @@ First you need to install KVM. On SUSE based systems, run:
 
 ### Enabling CPU virtualization acceleration
 
-qemu-kvm requires hardware support for optimal performance. This requires
-[Intel VT-x](http://en.wikipedia.org/wiki/X86_virtualization#Intel_virtualization_.28VT-x.29)
-or [AMD-V](http://en.wikipedia.org/wiki/X86_virtualization#AMD_virtualization_.28AMD-V.29)
-capable CPUs. This is usually disabled by default in the BIOS, so you may need
-to enable it manually.
+[Intel VT-x]
+(http://en.wikipedia.org/wiki/X86_virtualization#Intel_virtualization_.28VT-x.29)
+or [AMD-V]
+(http://en.wikipedia.org/wiki/X86_virtualization#AMD_virtualization_.28AMD-V.29)
+capable CPUs are required for hardware acceleration. This is usually disabled
+by default in the BIOS, so you may need to enable it manually.
 
-You can run the [qemu-kvm/setup-kvm](https://github.com/crowbar/crowbar/blob/master/dev-setup/qemu-kvm/setup-kvm)
-script to set it up. It will check for CPU support and load the appropriate
-kernel modules.
+Run the [qemu-kvm/setup-kvm]
+(https://github.com/crowbar/crowbar/blob/master/dev-setup/qemu-kvm/setup-kvm)
+script to set it up. It checks for CPU support and loads the appropriate kernel
+modules.
 
 ## Setting up the virtual machine
 
-Currently two Linux distributions are supported as development enviromnents,
-though others should also work:
-
-1. openSUSE - Refer to the [openSUSE setup steps](dev-vm-openSUSE.md) for
-   detailed instructions on how to proceed
-
-1. Ubuntu - Refer to the [Ubuntu setup steps](dev-vm-Ubuntu.md) if you prefer
-   using Ubuntu.
-
-1. Fedora - Refer to the [Fedora setup steps](dev-vm-Fedora.md) if you prefer
-   using Fedora.
+Refer to the following distro specific docs: [openSUSE](dev-vm-openSUSE.md),
+[Ubuntu](dev-vm-Ubuntu.md), and [Fedora](dev-vm-Fedora.md).
