@@ -25,7 +25,7 @@ require 'getoptlong'
 require 'fileutils'
 
 def debug(msg)
-  STDERR.puts "DEBUG: " + msg if ENV['DEBUG'] == "true"
+  STDERR.puts "DEBUG: " + msg unless ENV['DEBUG'].nil?
 end
 
 def die(msg)
@@ -62,20 +62,25 @@ class Barclamp
     @pkg = "crowbar-barclamp-#@name"
   end
 
-  def make_schemas(schemas)
+  def make_schemas(errs,schemas)
     res = {}
-    schemas.each do |s|
-      validator = Kwalify::MetaValidator.instance
-      parser = Kwalify::Yaml::Parser.new(validator)
-      document = parser.parse_file(s)
-      if parser.errors && ! parser.errors.empty?
-        parser.errors.each do |err|
-          STDERR.puts "#{s}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
+    schemas.each { |s|
+      begin
+        validator = Kwalify::MetaValidator.instance
+        parser = Kwalify::Yaml::Parser.new(validator)
+        document = parser.parse_file(s)
+        if parser.errors && ! parser.errors.empty?
+          parser.errors.each do |err|
+            errs << "#{s}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
+          end
+          raise "error parsing schemas"
         end
-        exit(1)
+        res[s.gsub(/\.schema$/,'')] = Kwalify::Validator.new(Kwalify::Yaml.load_file(s))
+      rescue =>e
+        errs << "caught exception while processing #{s.to_s} - #{e.inspect}"
+        raise "exceptions parsing schemas"
       end
-      res[s.gsub(/\.schema$/,'')] = Kwalify::Validator.new(Kwalify::Yaml.load_file(s))
-    end
+    }
     res
   end
 
@@ -102,30 +107,38 @@ class Barclamp
     debug("#{name} requires #{@requires.join(', ')}")
   end
 
-  def validate_bags(schemas,bags)
+  def validate_bags(errs,schemas,bags)
     bags.each do |f|
       schema=f.gsub(/\.json$/,'')
       next unless schemas[schema]
+      debug("validating bag: #{f.to_s} schema:#{schemas[schema]}")
       parser = Kwalify::Yaml::Parser.new(schemas[schema])
       document = parser.parse_file(f)
       next unless parser.errors && !parser.errors.empty?
       parser.errors.each do |err|
-        STDERR.puts "#{f}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
+        errs << "#{f}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
       end
-      exit(1)
+      raise "error in validating bags"
     end
     true
   end
 
   def validate
+    errs = []
     data_bags = File.join(@path,"chef","data_bags")
     if File.directory?(data_bags)
-      schemas = make_schemas(Dir.glob(File.join(data_bags,"*","*.schema")))
+      schemas = make_schemas(errs, Dir.glob(File.join(data_bags,"*","*.schema")))
       # Next, use the known-validated schemas to validate the data bags.
-      validate_bags(schemas,Dir.glob(File.join(data_bags,"*","*.json")))
+      validate_bags(errs,schemas,Dir.glob(File.join(data_bags,"*","*.json")))
     end
-    schemas = make_schemas(Dir.glob(File.join(@path,'bc-template-*.schema')))
-    validate_bags(schemas,Dir.glob(File.join(@path,'bc-template-*.json')))
+    schemas = make_schemas(errs, Dir.glob(File.join(@path,'bc-template-*.schema')))
+    validate_bags(errs,schemas,Dir.glob(File.join(@path,'bc-template-*.json')))
+  rescue
+    puts "encountered errors:"
+    errs.each { |l| 
+      puts l
+    }
+    exit(1)
   end
 
   def make_rpm
