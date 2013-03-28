@@ -1,28 +1,29 @@
-# Crowbar Dev environment based on openSUSE
+# Crowbar Dev based on openSUSE
 
-## Setting up the virtual machine (VM)
+Here we describe how to setup a Crowbar development environment in a virtual
+machine (VM) that is based on openSUSE. It is currently focused on the core
+Rails application and required barclamps.
 
-Currently only openSUSE 12.2 is supported, though the instructions here should
-also work with other versions.
+## Setting up the VM
 
-The steps here describe how to setup the VM from the command line. You can use
-[virt-manager](http://virt-manager.org) if you prefer a graphical user
-interface. Do submit your relevant virt-manager configs if you have some!
+We assume that you are using KVM and have read the [KVM setup instructions]
+(dev-vm.md). If not, setup the VM accordingly and continue on to the [next
+section](#setting-up-the-development-environment).
 
-The steps here assume that your KVM host is also the desktop that you are
-working from. If not, adapt the commands accordingly.
+The instructions here are command line only. If you prefer a GUI, try
+[virt-manager](http://virt-manager.org) and please share your configs with us.
+We assume your KVM host is the desktop you are working from, so adapt them if
+necessary:
 
-Installation steps:
+1. Download the latest version of the [Crowbar Dev VM image]
+   (http://susestudio.com/a/n0rKOx/crowbar-dev) - KVM image recommended.
+   Place the image in the `dev-setup/qemu-kvm` directory of the [Crowbar git]
+   (https://github.com/crowbar/crowbar/) checkout on your KVM host.
 
-1. Download the latest version of the Crowbar Dev VM image from [SUSE Gallery]
-   (http://susestudio.com/a/n0rKOx/crowbar-dev). We recommend using the KVM
-   image. Place the image in the `dev-setup/qemu-kvm` directory of the Crowbar
-   git checkout on your KVM host.
-
-1. [Optional] To improve VM performance, run the following example commands to
-   pre-allocate the virtual disk:
+1. [Optional] To improve VM disk performance, pre-allocate the virtual disk
+   metadata:
    ````
-   kvm-host> VERSION=1.0.5
+   kvm-host> VERSION=2.1.0
    kvm-host> mv Crowbar_Dev.x86_64-$VERSION{,-org}.qcow2
    kvm-host> qemu-img convert -f qcow2 -O qcow2 -o preallocation=metadata Crowbar_Dev.x86_64-$VERSION{-org,}.qcow2
    ````
@@ -32,13 +33,33 @@ Installation steps:
    kvm-host> ./start-vm
    ````
 
-1. [Optional] Connect to the VM via VNC. This is useful for debugging the VM
-   (eg. networking issues).
+1. After the VM boots up (takes a bit longer for first boot), you should be
+   able to connect to the VM via SSH with root password `linux`:
+   ````
+   kvm-host> ssh root@192.168.124.10
+   ````
+
+1. Create a non-root user account and set the password. Use the same username
+   as you do on your regular workstation for convenience. Then re-login to the
+   dev VM as the newly created user, eg:
+   ````
+   root@crowbar-dev> useradd -m jamestyj
+   root@crowbar-dev> passwd jamestyj
+   root@crowbar-dev> logout
+   jamestyj@kvm-host> ssh 192.168.124.10
+   jamestyj@crowbar-dev>
+   ````
+
+### Troubleshooting tips
+
+1. Connect to the VM via VNC. This is useful for debugging the VM (eg.
+   networking issues).
    ````
    kvm-host> vncviewer :10
    ````
 
    The VM is configured with the following settings:
+
    ````
    IP address: 192.168.124.10
    Netmask:    255.255.255.0
@@ -48,28 +69,6 @@ Installation steps:
 
    You may need to update the DNS setting to match your environment by
    modifying `/etc/resolv.conf`.
-
-
-1. After the VM boots up (takes a bit longer during the first boot), you should
-   be able to connect to the VM via SSH:
-   ````
-   kvm-host> ssh root@192.168.124.10
-   ````
-
-   The root password is `linux`. If you cannot connect via SSH, this means that
-   the networking is misconfigured. Refer to the previous step to see how you
-   can connect via VNC to debug.
-
-1. Create a non-root user account and set the passowrd. We recommend using the
-   same username as you do on your regular workstation for convenience. Then
-   re-login to the dev VM as the newly created user. For example:
-   ````
-   root@crowbar-dev> useradd -m jamestyj
-   root@crowbar-dev> passwd jamestyj
-   root@crowbar-dev> logout
-   jamestyj@kvm-host> ssh 192.168.124.10
-   jamestyj@crowbar-dev>
-   ````
 
 
 ## Setting up the development environment
@@ -87,13 +86,12 @@ You should now have a working VM that you can SSH into from the qemu-kvm host.
    crowbar-dev> cd crowbar
    crowbar-dev> ./dev setup
    ````
-
    The `./dev setup` script will ask for your Github username and password. It
    will fork the Crowbar and corresponding barclamp repositories to your
    account and clone them into `crowbar/barclamps/`. See [dev-and-workflow]
    (https://github.com/crowbar/crowbar/blob/master/README.dev-and-workflow)
    and [dev-and-code-review]
    (https://github.com/crowbar/crowbar/blob/master/README.dev-and-code-review)
-   for details. This will take a while so get some coffee.
+   for details.
 
 Now see the [testing page](testing.md) for how to run the tests.

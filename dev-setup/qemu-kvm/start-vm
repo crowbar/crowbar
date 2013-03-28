@@ -1,14 +1,59 @@
 #!/bin/bash
 
+usage() {
+  echo >&2
+  echo >&2 "  Launches a VM with pre-baked settings. See http://bit.ly/XJnp5o for details."
+  echo >&2
+  echo >&2 "  Usage:"
+  echo >&2
+  echo >&2 "    ./start-vm"
+  echo >&2
+  echo >&2 "  The following parameters can be overridden by setting the corresponding"
+  echo >&2 "  environment variables:"
+  echo >&2
+  echo >&2 "    DISK={First .qcow2 file in current directory}"
+  echo >&2 "    MAC_ADDR=DE:AD:BE:EF:30:22"
+  echo >&2 "    RAM=2G"
+  echo >&2 "    VNC_PORT=:10"
+  echo >&2
+}
+
+if [ "$1" = "-h" -o "$1" = "--help" ]; then
+  usage
+  exit 1
+fi
+
+DISK="${DISK:-`ls -1 *.qcow2 2>/dev/null | head -1`}"
+MAC_ADDR=${MAC_ADDR:-DE:AD:BE:EF:30:22}
+RAM=${RAM:-2G}
+VNC_PORT=${VNC_PORT:-:10}
+
+if [ "$DISK" = "" ]; then
+  echo >&2
+  echo >&2 "** DISK: Can't find any *.qcow2 files!"
+  echo >&2
+  exit 1
+fi
+
+echo "** Using the following settings:"
+echo "  DISK=$DISK"
+echo "  MAC_ADDR=$MAC_ADDR"
+echo "  RAM=$RAM"
+echo "  VNC_PORT=$VNC_PORT"
+echo
+
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run as root"
   exit 1
 fi
 
-ram=2G
-disk=ubuntu-12.04.qcow2
+cmd="qemu-kvm -cpu host -m $RAM -daemonize -vnc $VNC_PORT -vga vmware \
+              -net nic,model=virtio,macaddr=$MAC_ADDR -net tap,script=qemu-ifup \
+              -drive file=$DISK,cache=none,if=virtio"
 
-qemu-kvm -cpu host -m $ram -daemonize -vnc :10 \
-         -net nic,model=virtio,macaddr=DE:AD:BE:EF:30:22 \
-         -net tap,script=qemu-ifup \
-         -drive file=$disk,cache=none,if=virtio
+echo "** Running the following command:"
+echo $cmd
+echo
+echo "** Output:"
+
+$cmd
