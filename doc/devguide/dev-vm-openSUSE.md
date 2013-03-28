@@ -20,23 +20,16 @@ necessary:
    Place the image in the `dev-setup/qemu-kvm` directory of the [Crowbar git]
    (https://github.com/crowbar/crowbar/) checkout on your KVM host.
 
-1. [Optional] To improve VM disk performance, pre-allocate the virtual disk
-   metadata:
-   ````
-   kvm-host> VERSION=2.1.0
-   kvm-host> mv Crowbar_Dev.x86_64-$VERSION{,-org}.qcow2
-   kvm-host> qemu-img convert -f qcow2 -O qcow2 -o preallocation=metadata Crowbar_Dev.x86_64-$VERSION{-org,}.qcow2
-   ````
-
 1. Start the VM by running:
    ````
    kvm-host> ./start-vm
    ````
+   Use the `--preallocate` option if you need to improve disk performance.
 
 1. After the VM boots up (takes a bit longer for first boot), you should be
-   able to connect to the VM via SSH with root password `linux`:
+   able to connect to the VM via SSH:
    ````
-   kvm-host> ssh root@192.168.124.10
+   kvm-host> ssh root@192.168.124.10            # Password is 'linux'
    ````
 
 1. Create a non-root user account and set the password. Use the same username
@@ -49,26 +42,6 @@ necessary:
    jamestyj@kvm-host> ssh 192.168.124.10
    jamestyj@crowbar-dev>
    ````
-
-### Troubleshooting tips
-
-1. Connect to the VM via VNC. This is useful for debugging the VM (eg.
-   networking issues).
-   ````
-   kvm-host> vncviewer :10
-   ````
-
-   The VM is configured with the following settings:
-
-   ````
-   IP address: 192.168.124.10
-   Netmask:    255.255.255.0
-   Gateway:    192.168.124.1
-   DNS:        10.120.2.88, 8.8.8.8
-   ````
-
-   You may need to update the DNS setting to match your environment by
-   modifying `/etc/resolv.conf`.
 
 
 ## Setting up the development environment
@@ -94,4 +67,45 @@ You should now have a working VM that you can SSH into from the qemu-kvm host.
    (https://github.com/crowbar/crowbar/blob/master/README.dev-and-code-review)
    for details.
 
-Now see the [testing page](testing.md) for how to run the tests.
+1. Now assemble the Crowbar application:
+   ````
+   crowbar-dev> ./dev tests setup --no-gem-cache
+   ````
+   This assembles a working and testable Crowbar Rails application in
+   `/tmp/crowbar-dev-test/opt/dell/crowbar_framework`.
+
+1. Now you can run an instance of the web UI:
+   ````
+   crowbar-dev> cd /tmp/crowbar-dev-test/opt/dell/crowbar_framework
+   crowbar-dev> bundle install
+   crowbar-dev> bundle exec rake db:migrate
+   crowbar-dev> ./script rails s puma
+   ````
+
+1. And also to run the (unit + RSpec) tests:
+   ````
+   crowbar-dev> bundle exec rake db:drop railties:install:migrations db:migrate db:fixtures:dump test:units spec
+   ````
+
+See the [testing page](testing.md) for details.
+
+
+## Troubleshooting tips
+
+1. Connect to the VM via VNC. This is useful for debugging the VM (eg.
+   networking issues).
+   ````
+   kvm-host> vncviewer :10
+   ````
+
+   The VM is configured with the following settings:
+
+   ````
+   IP address: 192.168.124.10
+   Netmask:    255.255.255.0
+   Gateway:    192.168.124.1
+   DNS:        10.120.2.88, 8.8.8.8
+   ````
+
+   You may need to update the DNS setting to match your environment by
+   modifying `/etc/resolv.conf`.
