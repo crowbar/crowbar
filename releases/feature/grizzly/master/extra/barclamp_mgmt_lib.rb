@@ -17,6 +17,7 @@
 #
 
 require 'rubygems'
+require 'fileutils'
 require 'yaml'
 require 'json'
 require 'fileutils'
@@ -563,6 +564,12 @@ def bc_install_layout_1_cache(bc, path, barclamp, options={})
       unless File.symlink? "/tftpboot/#{ent}/crowbar-extra/#{path.split('/')[-1]}"
 	puts "DEBUG: Symlinking #{path}/cache/#{ent}/pkgs into /tftpboot/#{ent}/crowbar-extra" if debug
         File.symlink "#{path}/cache/#{ent}/pkgs", "/tftpboot/#{ent}/crowbar-extra/#{path.split('/')[-1]}"
+      end
+    else
+      # Symlink the repos into One Flat Directory for serving.
+      FileUtils.mkdir_p "/tftpboot/#{ent}"
+      unless File.symlink? "/tftpboot/#{ent}/#{bc}"
+        File.symlink("#{path}/cache/#{ent}","/tftpboot/#{ent}/#{bc}")
       end
     end
     puts "DEBUG: Done" if debug
