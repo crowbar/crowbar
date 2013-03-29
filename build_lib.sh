@@ -25,11 +25,6 @@ ulimit -Sn unlimited
 # Value = whatever interesting thing we are looking for.
 [[ ${BC_QUERY_STRINGS[*]} ]] || declare -A BC_QUERY_STRINGS
 
-declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_SUPPORT BC_GEMS
-declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
-declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
-declare -A BC_SUPERCEDES BC_SRC_PKGS
-
 # Build OS independent query strings.
 BC_QUERY_STRINGS["deps"]="barclamp requires"
 BC_QUERY_STRINGS["groups"]="barclamp member"
@@ -40,6 +35,7 @@ BC_QUERY_STRINGS["gems"]="gems pkgs"
 BC_QUERY_STRINGS["test_deps"]="smoketest requires"
 BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 BC_QUERY_STRINGS["supercedes"]="barclamp supercedes"
+BC_QUERY_STRINGS["git_repos"]="git_repo"
 
 # By default, do not try to update the cache or the metadata.
 # These will be unset if --update-cache is passed to the build.
@@ -48,7 +44,7 @@ ALLOW_CACHE_METADATA_UPDATE=false
 declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_SUPPORT BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
 declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
-declare -A BC_SUPERCEDES BC_SRC_PKGS
+declare -A BC_SUPERCEDES BC_SRC_PKGS BC_GIT_REPOS
 
 GEM_EXT_RE='^(.*)-\((.*)\)$'
 
@@ -119,6 +115,7 @@ get_one_barclamp_info() {
                     [[ ${BC_SUPERCEDES[$line]} ]] || \
                     BC_SUPERCEDES["$line"]="$1"
                     debug "${BC_SUPERCEDES[$line]} supercedes $line";;
+                git_repos) BC_GIT_REPOS["$1"]+="$line\n";;
                 *) die "Cannot handle query for $query."
             esac
         done < <(read_barclamp_metadata "$mdfile" ${BC_QUERY_STRINGS["$query"]})
@@ -802,6 +799,30 @@ barclamp_file_cache_needs_update() {
     return $ret
 }
 
+barclamp_git_repo_cache_needs_update() { [[ ${BC_GIT_REPOS[$1]} ]]; }
+
+update_barclamp_git_repo_cache() {
+    local repo_name repo_url repo_branches
+    local dest bc_cache="$CACHE_DIR/barclamps/$1/git_repos"
+    [[ ${BC_GIT_REPOS[$1]} ]] || return 1
+    mkdir -p "$bc_cache"
+    while read repo_name repo_url repo_branches; do
+        [[ $repo_branches ]] || repo_branches=master
+        if [[ -f $bc_cache/$repo_name.tar.bz2 ]]; then
+            [[ $UPDATE_GIT_REPOS ]] || continue
+        elif [[ ! $UPDATE_GIT_REPOS ]]; then
+            debug "Git repo $repo_name is not cached, and $1 needs it."
+            continue
+        fi
+        (   cd "$bc_cache"
+            [[ -f $repo_name.tar.bz2 ]] && rm -f "$repo_name.tar.bz2"
+            git clone --mirror "$repo_url" "$repo_name.git"
+            tar cjf "$repo_name.tar.bz2" "$repo_name.git"
+            [[ $CURRENT_CACHE_BRANCH ]] && git add "$repo_name.tar.bz2"
+            rm -rf "$repo_name.git" )
+    done < <(write_lines "${BC_GIT_REPOS[$1]}")
+}
+
 # Some helper functions
 
 log() { printf "$(date '+%F %T %z'): %s\n" "$@" >&2; }
@@ -1226,7 +1247,7 @@ do_crowbar_build() {
     for bc in "${BARCLAMPS[@]}"; do
 	is_barclamp "$bc" || die "Cannot find barclamp $bc!"
 	debug "Staging $bc barclamp."
-	for cache in pkg gem raw_pkg file; do
+	for cache in pkg gem raw_pkg file git_repo; do
 	    checker="barclamp_${cache}_cache_needs_update"
 	    updater="update_barclamp_${cache}_cache"
 	    [[ $(type $checker) = "$checker is a function"* ]] || \
