@@ -13,7 +13,7 @@
         <oem-unattended>true</oem-unattended>
       </oemconfig>
     </type>
-    <version>0.0.1</version>
+    <version>1.0.1</version>
     <packagemanager>zypper</packagemanager>
     <rpm-check-signatures>false</rpm-check-signatures>
     <rpm-force>false</rpm-force>
@@ -24,6 +24,9 @@
   </preferences>
   <users group='root'>
     <user name='root' pwd='$1$jjXOZ7LZ$pPHaW9fxbUv9SN4R5fS7P1' home='/root' shell='/bin/bash'/>
+  </users>
+  <users group='crowbar'>
+    <user name='crowbar' pwd='$1$Rg.cCP65$n3gurOH0qVJgMcnbluW6r/' home='/home/crowbar' shell='/bin/bash'/>
   </users>
   <packages type='image' patternType='onlyRequired'>
     <opensusePattern name='Crowbar_Admin'/>
@@ -90,6 +93,7 @@
     <package name='patch'/>
     <package name='yast2-firewall'/>
     <package name='yast2-network'/>
+    <package name='yast2-proxy'/>
     <package name='screen'/>
     <package name='telnet'/>
     <package name='acpid'/>
