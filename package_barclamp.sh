@@ -35,8 +35,11 @@ fi
     die "$CROWBAR_DIR is not a git checkout of Crowbar!"
 export CROWBAR_DIR
 
+# Set destination directory for generated packages
+[[ $PACKAGE_DEST ]] && DEST="$PACKAGE_DEST"
+[[ $DEST ]] || DEST="$currdir"
+
 BARCLAMPS=()
-DEST="$currdir"
 
 while [[ $1 ]]; do
     case $1 in
