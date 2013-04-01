@@ -799,9 +799,7 @@ barclamp_file_cache_needs_update() {
     return $ret
 }
 
-barclamp_git_repo_cache_needs_update() { [[ ${BC_GIT_REPOS[$1]} ]]; }
-
-update_barclamp_git_repo_cache() {
+barclamp_git_repo_cache_needs_update() {
     local repo_name repo_url repo_branches
     local dest bc_cache="$CACHE_DIR/barclamps/$1/git_repos"
     [[ ${BC_GIT_REPOS[$1]} ]] || return 1
@@ -812,16 +810,28 @@ update_barclamp_git_repo_cache() {
             [[ $UPDATE_GIT_REPOS ]] || continue
         elif [[ ! $UPDATE_GIT_REPOS ]]; then
             debug "Git repo $repo_name is not cached, and $1 needs it."
-            continue
+            debug "Please retry the build with --update-pfs-caches"
+            return 0
         fi
         (   cd "$bc_cache"
-            [[ -f $repo_name.tar.bz2 ]] && rm -f "$repo_name.tar.bz2"
-            git clone --mirror "$repo_url" "$repo_name.git"
+            if [[ -f $repo_name.tar.bz2 ]]; then
+                tar xf "$repo_name.tar.bz2"
+                debug "Updating git clone of $repo_name"
+                (cd "$repo_name.git"; git fetch origin)
+                rm -f "$repo_name.tar.bz2"
+            else
+                debug "Performing initial clone of ${repo_name} from ${repo_url}"
+                git clone --mirror "$repo_url" "$repo_name.git" || \
+                    die "Could not perform initial git clone of $repo_name!"
+            fi
             tar cjf "$repo_name.tar.bz2" "$repo_name.git"
             [[ $CURRENT_CACHE_BRANCH ]] && git add "$repo_name.tar.bz2"
-            rm -rf "$repo_name.git" )
+            rm -rf "$repo_name.git" ) || exit 1
     done < <(write_lines "${BC_GIT_REPOS[$1]}")
+    return 1
 }
+
+update_barclamp_git_repo_cache() { return 0; }
 
 # Some helper functions
 
@@ -1278,6 +1288,7 @@ do_crowbar_build() {
         # cross-barclamp namespace collisions.
         (   export BC_DIR=$CROWBAR_DIR/barclamps/$bc
             export BC_CACHE=$CACHE_DIR/barclamps/$bc
+            res=0
             . "$BC_DIR"/${BC_BUILD_CMDS["$bc"]}
             if bc_needs_build; then
                 # Make sure we have a chroot set up and that it is ready
@@ -1286,11 +1297,12 @@ do_crowbar_build() {
                 bind_mount "$CACHE_DIR/barclamps/$bc" "$CHROOT/mnt"
                 install_build_packages "$bc"
                 in_chroot ln -s /mnt/$OS_TOKEN /mnt/current_os
-                bc_build || die "External builder for $bc failed"
+                bc_build || res=1
                 in_chroot rm -f /mnt/current_os
                 sudo umount "$CHROOT/mnt"
             fi
-        )
+            exit $res
+        ) || die "External builder for $bc failed"
         echo "barclamps/$bc: $(get_rev "$CROWBAR_DIR/barclamps/$bc")" >> "$BUILD_DIR/build-info"
     done
     # Once all our barclamps have had their packages staged, create tarballs of them.
