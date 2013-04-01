@@ -43,13 +43,13 @@ BARCLAMPS=()
 
 while [[ $1 ]]; do
     case $1 in
-	--destdir)
-	    shift
-	    [[ -d "$1" ]] || die "Cannot install generated packages in $1, it does not exist"
-	    DEST="$1";;
-	--os)
-	    shift
-	    OS_PKGS="$1";;
+        --destdir)
+            shift
+            [[ -d "$1" ]] || die "Cannot install generated packages in $1, it does not exist"
+            DEST="$1";;
+        --os)
+            shift
+            OS_PKGS="$1";;
         --deb)
             [[ -d $CROWBAR_DIR/packaging/deb ]] || die "Cannot build .deb packages!"
             BUILD_TYPE=deb;;
@@ -58,15 +58,15 @@ while [[ $1 ]]; do
             BUILD_TYPE=rpm;;
         --no-cache)
             NO_CACHE=true;;
-	*)
-	    if [[ -f $1/crowbar.yml ]]; then
-		[[ $1 = /* ]] && BARCLAMPS+=("$1") || \
-		    BARCLAMPS+=("$currdir/$1")
-	    elif [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]]; then
-		BARCLAMPS+=("$CROWBAR_DIR/barclamps/$1")
-	    else
-		die "$1 is not a barclamp!"
-	    fi ;;
+        *)
+            if [[ -f $1/crowbar.yml ]]; then
+                [[ $1 = /* ]] && BARCLAMPS+=("$1") || \
+                    BARCLAMPS+=("$currdir/$1")
+            elif [[ -f $CROWBAR_DIR/barclamps/$1/crowbar.yml ]]; then
+                BARCLAMPS+=("$CROWBAR_DIR/barclamps/$1")
+            else
+                die "$1 is not a barclamp!"
+            fi ;;
     esac
     shift
 done
@@ -77,25 +77,25 @@ cd "$tmpdir"
 for barclamp in "${BARCLAMPS[@]}"; do
     bc=${barclamp##*/}
     if [[ -d $CACHE_DIR/barclamps/$bc && ! $NO_CACHE ]]; then
-	mkdir -p "$bc/cache"
-	if [[ $OS_PKGS ]]; then
-	    for d in files gems "$OS_PKGS"; do
-		[[ -d $CACHE_DIR/barclamps/$bc/$d ]] || continue
-		[[ -L $d ]] || ln -s -t "$bc/cache" "$CACHE_DIR/barclamps/$bc/$d"
-	    done
-	else
-	    for d in "$CACHE_DIR/barclamps/$bc"/*; do
-		[[ -d $d ]] || continue
-		[[ -L $d ]] || ln -s -t "$bc/cache/" "$d"
-	    done
-	fi
+        mkdir -p "$bc/cache"
+        if [[ $OS_PKGS ]]; then
+            for d in files gems "$OS_PKGS"; do
+                [[ -d $CACHE_DIR/barclamps/$bc/$d ]] || continue
+                [[ -L $d ]] || ln -s -t "$bc/cache" "$CACHE_DIR/barclamps/$bc/$d"
+            done
+        else
+            for d in "$CACHE_DIR/barclamps/$bc"/*; do
+                [[ -d $d ]] || continue
+                [[ -L $d ]] || ln -s -t "$bc/cache/" "$d"
+            done
+        fi
         tar chf - "$bc" |gzip -9 >"$DEST/$bc-cache.tar.gz"
         find "$bc/cache" -type l -print0 |xargs -0 rm -f --
         rm -rf "$bc/cache"
     fi
     cp -a "$barclamp" .
     (
-	cd "$tmpdir/$bc"
+        cd "$tmpdir/$bc"
         if [[ -d .git ]]; then
             GIT_COMMIT=$(git log -n 1 | grep "^commit" | awk -F" " '{ print $2 }')
             GIT_DATE=$(git log -n 1 | grep "^Date:" | sed 's/Date:[ ]*//')
@@ -107,7 +107,7 @@ for barclamp in "${BARCLAMPS[@]}"; do
         fi
         # Generate our sha1sums
         find -L -type f -not -name sha1sums -print0 | \
-	    xargs -0 sha1sum -b >sha1sums
+            xargs -0 sha1sum -b >sha1sums
     )
     case $BUILD_TYPE in
         deb) cp -a "$CROWBAR_DIR/packaging/deb/debian" "$tmpdir/$bc"
