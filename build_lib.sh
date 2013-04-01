@@ -707,6 +707,9 @@ update_barclamp_file_cache() {
     done < <(write_lines "${BC_EXTRA_FILES[$1]}")
 }
 
+# See if there are any package caches that might need updating.
+any_pkg_cache() { [[ ${BC_PKGS[*]} ]]; }
+
 # Check to see if the barclamp package cache needs update.
 barclamp_pkg_cache_needs_update() {
     local pkg pkgname arch bcs=() bc ret=1
@@ -743,6 +746,8 @@ barclamp_pkg_cache_needs_update() {
     return $ret
 }
 
+any_gem_cache() { [[ ${BC_GEMS[*]} ]]; }
+
 # Check to see if the barclamp gem cache needs an update.
 barclamp_gem_cache_needs_update() {
     local pkg pkgname bc ret=1
@@ -768,6 +773,8 @@ barclamp_gem_cache_needs_update() {
     return $ret
 }
 
+any_raw_pkg_cache() { [[ ${BC_RAW_PKGS[*]} ]]; }
+
 # CHeck to see if we are missing any raw packages.
 barclamp_raw_pkg_cache_needs_update() {
     local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" ret=1
@@ -781,6 +788,8 @@ barclamp_raw_pkg_cache_needs_update() {
     done
     return $ret
 }
+
+any_file_cache() { [[ ${BC_EXTRA_FILES[*]} ]]; }
 
 # Check to see if we are missing any raw files.
 barclamp_file_cache_needs_update() {
@@ -798,6 +807,8 @@ barclamp_file_cache_needs_update() {
     done < <(write_lines "${BC_EXTRA_FILES[$1]}")
     return $ret
 }
+
+any_git_repo_cache() { [[ ${BC_GIT_REPOS[*]} ]]; }
 
 barclamp_git_repo_cache_needs_update() {
     local repo_name repo_url repo_branches
@@ -1258,16 +1269,22 @@ do_crowbar_build() {
         is_barclamp "$bc" || die "Cannot find barclamp $bc!"
     done
     # Make sure that all our barclamps are properly staged.
-    for cache in git_repo pkg gem raw_pkg file; do
-        debug "Staging $cache cache files"
+    for cache in pkg gem raw_pkg file git_repo; do
+        skipper="any_${cache}_cache"
         checker="barclamp_${cache}_cache_needs_update"
         updater="update_barclamp_${cache}_cache"
+        [[ $(type $skipper) = "$skipper is a function"* ]] || \
+            die "Cannot see if we will need to skip $cache update tests!"
         [[ $(type $checker) = "$checker is a function"* ]] || \
             die "Asked to check $cache cache, but no checker function!"
         [[ $(type $updater) = "$updater is a function"* ]] || \
             die "Might need to update $cache cache, but no updater!"
+        $skipper || continue
+        debug "Staging $cache cache files"
         for bc in "${BARCLAMPS[@]}"; do
+            printf "\e[0G\e[2K%s" "$bc"
             $checker "$bc" || continue
+            echo
             [[ $ALLOW_CACHE_UPDATE = true ]] || {
                 echo "Need up update $cache cache for $bc, but updates are disabled."
                 echo "Please rerun the build with the --update-cache option."
