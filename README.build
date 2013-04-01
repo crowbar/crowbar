@@ -143,6 +143,11 @@ Customization:
    * IMAGE_DIR
      This is the location that we will mount isos in.  
      It defaults to $CACHE_DIR/image
+   * PACKAGE_DEST
+     This is the default location where package-build.sh will place its output.
+     If not set, package_build.sh will drop its output in the current directory.
+     If --destdir is specified to package_build.sh it will override the environment
+     variable value. The value must be an absolute path from /.
    * SLEDGEHAMMER_PXE_DIR
      This points to the location we expect to find the unpacked Sledgehammer
      PXE boot archive.  It defaults to $CACHE_DIR/tftpboot
