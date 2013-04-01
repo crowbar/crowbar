@@ -62,26 +62,29 @@ class Barclamp
     @pkg = "crowbar-barclamp-#@name"
   end
 
-  def make_schemas(errs,schemas)
+  def make_schemas(schemas)
     res = {}
-    schemas.each { |s|
+    errs = []
+    schemas.each do |s|
+      schema_name = s.split('/')[-1].gsub(/\.schema$/,'')
+      debug "Loading kwalify schema from #{s}"
+      validator = Kwalify::MetaValidator.instance
+      parser = Kwalify::Yaml::Parser.new(validator)
       begin
-        validator = Kwalify::MetaValidator.instance
-        parser = Kwalify::Yaml::Parser.new(validator)
         document = parser.parse_file(s)
-        if parser.errors && ! parser.errors.empty?
-          parser.errors.each do |err|
-            errs << "#{s}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
-          end
-          raise "error parsing schemas"
-        end
-        res[s.gsub(/\.schema$/,'')] = Kwalify::Validator.new(Kwalify::Yaml.load_file(s))
-      rescue =>e
-        errs << "caught exception while processing #{s.to_s} - #{e.inspect}"
-        raise "exceptions parsing schemas"
+      rescue Kwalify::SyntaxError => e
+        errs << "Schema #{e.to_s}"
+        next
       end
-    }
-    res
+      if parser.errors && ! parser.errors.empty?
+        parser.errors.each do |err|
+          errs << "Schema #{s} parse error: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
+        end
+        next
+      end
+      res[schema_name] = Kwalify::Validator.new(Kwalify::Yaml.load_file(s))
+    end
+    [ res, errs ]
   end
 
   def solve_requires
@@ -107,38 +110,148 @@ class Barclamp
     debug("#{name} requires #{@requires.join(', ')}")
   end
 
-  def validate_bags(errs,schemas,bags)
+  def validate_bags(schemas,bags)
+    errs = []
     bags.each do |f|
-      schema=f.gsub(/\.json$/,'')
+      schema = f.split('/')[-1].gsub(/\.json$/,'')
       next unless schemas[schema]
-      debug("validating bag: #{f.to_s} schema:#{schemas[schema]}")
+      debug("Validating bag #{f} with schema #{schema}")
       parser = Kwalify::Yaml::Parser.new(schemas[schema])
-      document = parser.parse_file(f)
+      begin
+        document = parser.parse_file(f)
+      rescue Kwalify::SyntaxError => e
+        errs << "Data bag #{e.to_s}"
+        next
+      end
       next unless parser.errors && !parser.errors.empty?
       parser.errors.each do |err|
-        errs << "#{f}: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
+        errs << "Data bag #{f} error: #{err.linenum}:#{err.column} [#{err.path}] #{err.message}"
       end
-      raise "error in validating bags"
     end
-    true
+    errs
   end
 
   def validate
-    errs = []
+    errors = []
     data_bags = File.join(@path,"chef","data_bags")
     if File.directory?(data_bags)
-      schemas = make_schemas(errs, Dir.glob(File.join(data_bags,"*","*.schema")))
+      schemas, errs  = make_schemas(Dir.glob(File.join(data_bags,"*","*.schema")))
+      errors << errs
       # Next, use the known-validated schemas to validate the data bags.
-      validate_bags(errs,schemas,Dir.glob(File.join(data_bags,"*","*.json")))
+      errors << validate_bags(schemas,Dir.glob(File.join(data_bags,"*","*.json")))
     end
-    schemas = make_schemas(errs, Dir.glob(File.join(@path,'bc-template-*.schema')))
-    validate_bags(errs,schemas,Dir.glob(File.join(@path,'bc-template-*.json')))
-  rescue
-    puts "encountered errors:"
-    errs.each { |l| 
-      puts l
+    errors.flatten!
+    errors.compact!
+    template_name = File.join(@path,"bc-template-#{@rawname}.json")
+    return errors unless File.exists?(template_name)
+    schema_name = File.join(@path,"bc-template-#{@rawname}.schema")
+    tmp_schema = false
+    unless File.exists?(schema_name)
+      # Synthesize a schema from fragments
+      # The first four are static
+      id_frag = %Q({ "type": "str", "required": true, "pattern": "/^bc-template-#{@rawname}/" })
+      desc_frag = %Q({ "type": "str", "required": true })
+      roles_frag = %Q({
+    "type": "map",
+    "required": false,
+    "mapping": {
+        = : {
+            "type": "map",
+            "required": true,
+            "mapping": {
+                "implicit": { "type": "bool", "required": false },
+                "admin_implicit": { "type": "bool", "required": false },
+                "jig": { "type": "str", "required": true }
+            }
+        }
     }
-    exit(1)
+})
+      deployment_frag = %Q({
+    "type": "map",
+    "required": true,
+    "mapping": {
+         "#{@rawname}": {
+             "type": "map",
+             "required": true,
+             "mapping": {
+                 "crowbar-revision": { "type": "int", "required": true },
+                 "crowbar-committing": { "type": "bool" },
+                 "crowbar-queued": { "type": "bool" },
+                 "element_states": {
+                     "type": "map",
+                     "mapping": {
+                             = : {
+                                 "type": "seq",
+                                 "required": true,
+                                 "sequence": [ { "type": "str" } ]
+                             }
+                     }
+                 },
+                 "elements": {
+                     "type": "map",
+                     "required": true,
+                     "mapping": {
+                             = : {
+                                 "type": "seq",
+                                 "required": true,
+                                 "sequence": [ { "type": "str" } ]
+                             }
+                     }
+                 },
+                 "element_order": {
+                     "type": "seq",
+                     "required": true,
+                     "sequence": [ {
+                         "type": "seq",
+                         "sequence": [ { "type": "str" } ]
+                     } ]
+                 },
+                 "config": {
+                     "type": "map",
+                     "required": true,
+                     "mapping": {
+                         "environment": { "type": "str", "required": true },
+                         "mode": { "type": "str", "required": true },
+                         "transitions": { "type": "bool", "required": true },
+                         "transition_list": {
+                             "type": "seq",
+                             "required": true,
+                             "sequence": [ { "type": "str" } ]
+                         }
+                     }
+                 }
+             }
+         }
+    }
+})
+      # attr_frag is the only one that is barclamp specific.
+      attr_frag = File.join(@path,"attributes.schema")
+      raise "Cannot find #{f}!" unless File.exists?(attr_frag)
+      schema_skel = %Q(
+{
+    "type": "map",
+    "required": true,
+    "mapping": {
+        "id": #{id_frag},
+        "description": #{desc_frag},
+        "attributes": #{IO.read(attr_frag)},
+        "roles": #{roles_frag},
+        "deployment": #{deployment_frag}
+    }
+}
+)
+      schema_name = File.join('','tmp',"bc-template-#{@rawname}.schema")
+      debug("Validation schema for #{@rawname} written to #{schema_name}")
+      tmp_schema = true
+      File.open(schema_name,'w') do |f|
+        f.write(schema_skel)
+      end
+    end
+    schemas,errs = make_schemas([schema_name])
+    errors << errs
+    errors << validate_bags(schemas,[File.join(@path,"bc-template-#{@rawname}.json")])
+    File.unlink(schema_name) if tmp_schema
+    errors.flatten.compact
   end
 
   def make_rpm
@@ -240,8 +353,22 @@ ARGV.each do |bc_dir|
   barclamps << Barclamp.new(bc_dir, bc_name, @@dest)
 end
 
+validation_errors = []
 barclamps.each do |bc|
-  bc.validate
+  validation_errors << bc.validate
+end
+
+validation_errors.flatten!
+validation_errors.compact!
+unless validation_errors.empty?
+  STDERR.puts("Validation failed!")
+  validation_errors.each do |e|
+    STDERR.puts(e)
+  end
+  exit(1)
+end
+
+barclamps.each do |bc|
   bc.solve_requires
   case @@type
   when "rpm" then bc.make_rpm
