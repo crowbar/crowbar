@@ -7,12 +7,25 @@
 #
 # Author:  James Tan <jatan@suse.de>
 # Contact: feedback@susestudio.com
+# Modified: John_Terpstra@Dell.Com
 # ============================================================================
 
 image_file='image/Crowbar_Dev.x86_64-0.0.1'
 image_arch='x86_64'
 schema_ver='5.2'
 base_system='12.3'
+
+# Source our config file if we have one
+[[ -f $HOME/.build-crowbar.conf ]] && \
+    . "$HOME/.build-crowbar.conf"
+
+# Look for a local one.
+[[ -f build-crowbar.conf ]] && \
+    . "build-crowbar.conf"
+
+# Set destination directory for generated packages
+[[ $PACKAGE_DEST ]] || PACKAGE_DEST="$CROWBAR_DIR"
+
 declare -a repos=()
 
 dir="$(dirname $0)"
@@ -27,11 +40,14 @@ if ! [ -d "$src/" ] || ! [ -f "$src/config.xml" ]; then
   exit 1
 fi
 
+# Substitute MYDESTDIR in source/config.xml with the location of the RPM files.
+sed -i "s|MYDESTDIR|$PACKAGE_DEST|g"  "$src/config.xml"
+
 # Prints and runs the given command. Aborts if the command fails.
 function run_cmd {
   command=$1
   echo $command
-  $command
+  sudo $command
   if [ $? -ne 0 ]; then
     echo
     echo "** Appliance creation failed!"
@@ -59,14 +75,8 @@ function add_repo_url {
   && echo "{$repo} $url alias added to /etc/kiwi/repoalias"
 }
 
-# Check that we're root.
-if [ `whoami` != 'root' ]; then
-  echo "Please run this script as root."
-  exit 1
-fi
-
 # Check that kiwi is installed.
-kiwi=`which kiwi 2> /dev/null`
+kiwi=`sudo which kiwi 2> /dev/null`
 if [ $? -ne 0 ]; then
   echo "Kiwi is required but not found on your system."
   echo "Run the following command to install kiwi:"

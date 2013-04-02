@@ -694,7 +694,8 @@ run_admin_node() {
         initrd_re='initrd=([^ ]+)'
         console_re='console=([^ ]+)'
         unset kernel kernel_params initrd
-        
+        if [[ -d $LOOPDIR/isolinux ]]; then
+        #RHEL and Ubuntu 
         while read line; do
             [[ ! $kernel && ( $line =~ $kernel_re ) ]] && \
                 kernel="${BASH_REMATCH[1]}" || :
@@ -713,10 +714,21 @@ run_admin_node() {
             initrd="$d/$initrd"
             break
         done
+        elif [[ -d $LOOPDIR/boot/grub2 ]]; then
+	# OpenSUSE
+		kernel="$LOOPDIR/boot/linux"
+		initrd="$LOOPDIR/boot/initrd"
+		
+		while read line; do
+		[[ $line = linux* ]] || continue
+		kernel_params="${line#linux /boot/linux }"
+                break
+        	done < "$LOOPDIR/boot/grub2/grub.cfg"
+	fi
         [[ $kernel && -f $kernel && $kernel_params && $initrd && -f $initrd ]] || \
             die "Could not find our kernel!"
         kernel_params+=" crowbar.url=http://192.168.124.10:8091/config crowbar.debug.logdest=/dev/ttyS0 crowbar.use_serial_console=true"
-        [[ $DISPLAY ]] || kernel_params+=" console=ttyS1,115200n81"
+#JJJJ - FIXME MAYBE ###        [[ $DISPLAY ]] || kernel_params+=" console=ttyS1,115200n81"
         [[ -r $HOME/.ssh/id_rsa.pub ]] && kernel_params+=" crowbar.authkey=$(sed 's/ /\\040/g' <"$HOME/.ssh/id_rsa.pub")"
         if ! [[ $manual_deploy = true ]]; then
             kernel_params+=" crowbar.hostname=$ADMIN_HOSTNAME"

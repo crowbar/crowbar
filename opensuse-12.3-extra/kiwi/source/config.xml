@@ -1,19 +1,20 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <image name='Crowbar_Dev' displayname='Crowbar_Dev' schemaversion='5.2'>
   <description type='system'>
-    <author>John Terpstra</author>
-    <contact>studio-devel@suse.de</contact>
+    <author>Generic Smoketest</author>
+    <contact>crowbar@dell.com</contact>
     <specification>Tiny, minimalistic appliances</specification>
   </description>
   <preferences>
     <type checkprebuilt='true' boot='oemboot/suse-12.3' fsnocheck='true' filesystem='ext3' bootloader='grub2' installiso='true' installboot='install' kernelcmdline='quiet' image='oem'>
       <oemconfig>
         <oem-swap>true</oem-swap>
-        <oem-swapsize>512</oem-swapsize>
+        <oem-swapsize>2048</oem-swapsize>
         <oem-unattended>true</oem-unattended>
+	<oem-boot-title>Crowbar Smoketest</oem-boot-title>
       </oemconfig>
     </type>
-    <version>0.0.1</version>
+    <version>0.0.2</version>
     <packagemanager>zypper</packagemanager>
     <rpm-check-signatures>false</rpm-check-signatures>
     <rpm-force>false</rpm-force>
@@ -25,8 +26,10 @@
   <users group='root'>
     <user name='root' pwd='$1$jjXOZ7LZ$pPHaW9fxbUv9SN4R5fS7P1' home='/root' shell='/bin/bash'/>
   </users>
+  <users group='crowbar'>
+    <user name='crowbar' pwd='$1$Rg.cCP65$n3gurOH0qVJgMcnbluW6r/' home='/home/crowbar' shell='/bin/bash'/>
+  </users>
   <packages type='image' patternType='onlyRequired'>
-    <opensusePattern name='Crowbar_Admin'/>
     <opensusePattern name='devel_basis'/>
     <opensusePattern name='devel_C_C++'/>
     <package name='man-pages-posix'/>
@@ -90,11 +93,89 @@
     <package name='patch'/>
     <package name='yast2-firewall'/>
     <package name='yast2-network'/>
+    <package name='yast2-proxy'/>
     <package name='screen'/>
     <package name='telnet'/>
     <package name='acpid'/>
     <package name='xauth'/>
     <package name='gfxboot-devel'/>
+    <package name='js*'/>
+    <package name='libyaml*'/>
+    <package name='libyui-ncurses-pkg*'/>
+    <package name='chef**'/>
+    <package name='rubygem-actionmailer*' />
+    <package name='rubygem-actionpack*' />
+    <package name='rubygem-activemodel*' />
+    <package name='rubygem-activerecord*' />
+    <package name='rubygem-activeresource*' />
+    <package name='rubygem-active_scaffold*' />
+    <package name='rubygem-activesupport*' />
+    <package name='rubygem-addressable*' />
+    <package name='rubygem-amqp*' />
+    <package name='rubygem-bluepill*' />
+    <package name='rubygem-builder*' />
+    <package name='rubygem-bunny*' />
+    <package name='rubygem-choice*' />
+    <package name='rubygem-ci_reporter*' />
+    <package name='rubygem-coderay*' />
+    <package name='rubygem-colorize*' />
+    <package name='rubygem-cookiejar*' />
+    <package name='rubygem-coveralls*' />
+    <package name='rubygem-cstruct*' />
+    <package name='rubygem-daemons*' />
+    <package name='rubygem-database_cleaner*' />
+    <package name='rubygem-delayed_job_active_record*' />
+    <package name='rubygem-diff-lcs*' />
+    <package name='rubygem-email_spec*' />
+    <package name='rubygem-em-http-request*' />
+    <package name='rubygem-em-socksify*' />
+    <package name='rubygem-erubis*' />
+    <package name='rubygem-eventmachine*' />
+    <package name='rubygem-extlib*' />
+    <package name='rubygem-factory_girl*' />
+    <package name='rubygem-fast_xs*' />
+    <package name='rubygem-haml*' />
+    <package name='rubygem-highline*' />
+    <package name='rubygem-hike*' />
+    <package name='rubygem-http_parser.rb*' />
+    <package name='rubygem-i18n*' />
+    <package name='rubygem-ipaddress*' />
+    <package name='rubygem-jquery-rails*' />
+    <package name='rubygem-json*' />
+    <package name='rubygem-kwalify*' />
+    <package name='rubygem-launchy*' />
+    <package name='rubygem-libxml-ruby*' />
+    <package name='rubygem-mime-types*' />
+    <package name='rubygem-mixlib-authentication*' />
+    <package name='rubygem-mixlib-cli*' />
+    <package name='rubygem-mixlib-config*' />
+    <package name='rubygem-mixlib-log*' />
+    <package name='rubygem-mixlib-shellout*' />
+    <package name='rubygem-moneta*' />
+    <package name='rubygem-multi_json*' />
+    <package name='rubygem-net-http-digest_auth*' />
+    <package name='rubygem-net-ssh*' />
+    <package name='rubygem-puma*' />
+    <package name='rubygem-rack*' />
+    <package name='rubygem-rails*' />
+    <package name='rubygem-railties*' />
+    <package name='rubygem-rest-client*' />
+    <package name='rubygem-rspec*' />
+    <package name='rubygem-ruby-graphviz*' />
+    <package name='rubygem-ruby-openid*' />
+    <package name='rubygem-ruby-shadow*' />
+    <package name='rubygem-sass*' />
+    <package name='rubygem-simple-navigation*' />
+    <package name='rubygem-state_machine*' />
+    <package name='rubygem-syslogger*' />
+    <package name='rubygem-systemu*' />
+    <package name='rubygem-thin*' />
+    <package name='rubygem-treetop*' />
+    <package name='rubygem-uuidtools*' />
+    <package name='rubygem-wsman*' />
+    <package name='rubygem-xml-simple*' />
+    <package name='rubygem-yajl-ruby*' />
+    <package name='crowbar*' />
     <archive name='plymouth.tar' bootinclude='true'/>
   </packages>
   <packages type='bootstrap'>
@@ -108,7 +189,10 @@
   <repository type='rpm-md'>
     <source path='http://download.opensuse.org/update/12.3/'/>
   </repository>
-  <repository type='rpm-md'>
-    <source path='http://download.opensuse.org/repositories/systemsmanagement:/crowbar:/2.0/openSUSE_12.3/'/>
+  <repository type='rpm-dir'>
+    <source path='MYDESTDIR/../opensuse'/>
+  </repository>
+  <repository type='rpm-dir'>
+    <source path='MYDESTDIR'/>
   </repository>
 </image>

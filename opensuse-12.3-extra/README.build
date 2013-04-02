@@ -1,0 +1,30 @@
+This directory contains the files needed to enable crowbar ISOs to be built
+and smoketested prior to changes to the code tree being committed.
+
+This code is NOT generally intended for direct execution, but is readily
+used via the dev tool.
+
+Examples of use includes:
+
+a) Just build an ISO and leave it in a sane place (See README.build in
+the $CROWBAR_DIR):
+
+	./dev build --os opensuse-12.3
+
+b) Build a crowbar ISO and smoketest it:
+	./dev build --os opensuse-12.3 --test develop-mode
+
+c) Build new crowbar RPMS, then build the crowbar ISO and smoketest it:
+
+	./package_barclamp.sh --rpm --no-cache $(./dev barclamps-in-build)
+	./dev build --os opensuse-12.3 --test develop-mode
+
+NOTE: It is recommended to specify in the ~/.build-crowbar.conf file the preferred
+      location of the following:
+	$ISO_LIBRARY
+	$ISO_DEST
+	$PACKAGE_DEST
+
+
+NOTE: The create_appliance.sh script in the kiwi directory can be executed stand-alone
+      however you should read it carefully to understand its behavior.

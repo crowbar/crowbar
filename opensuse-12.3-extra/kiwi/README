@@ -1,3 +1,11 @@
+-----------------------------------------------
+NOTE: The create_appliance file  been modified
+-----------------------------------------------
+The create_appliance.sh script previously had to run as the superuser.
+This is no longer the case. Those commands that require superuser
+alone are now called vi sudo.
+
+
 ------------------------------------------------
 README for Kiwi source from SUSE Studio
 ------------------------------------------------
