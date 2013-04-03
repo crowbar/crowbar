@@ -258,8 +258,9 @@ while [[ $1 ]]; do
 	# for fully offline builds.
 	--no-cache-update) shift; ALLOW_CACHE_UPDATE=false;;
 	--no-metadata-update) shift; ALLOW_CACHE_METADATA_UPDATE=false;;
+        --update-pfs-caches) shift; UPDATE_GIT_REPOS=true;;
         --wild-cache) shift; ALLOW_CACHE_UPDATE=true; ALLOW_CACHE_METADATA_UPDATE=true;
-            WILD_CACHE=true
+            WILD_CACHE=true; UPDATE_GIT_REPOS=true;
             export CACHE_DIR="$(mktemp -d "${CACHE_DIR%/*}/.crowbar_temp_cache-XXXXXX")"
             export SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot";;
 	# Go through all the motions, but do not actaully generate
