@@ -17,6 +17,7 @@
 #
 
 require 'rubygems'
+require 'fileutils'
 require 'yaml'
 require 'json'
 require 'fileutils'
@@ -68,11 +69,18 @@ def catalog(path, options={})
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
   cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
+  system("knife data bag create -k /etc/chef/webui.pem -u chef-webui barclamps")
   list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
   # scan the installed barclamps
   list.each do |bc_file|
     puts "Loading #{bc_file}" if debug
     bc = YAML.load_file File.join(barclamps, bc_file)
+    File.open("#{barclamps}/#{bc_file}.json","w+") { |f|
+      f.truncate(0)
+      bc["id"] = bc_file.split('.')[0]
+      f.puts(JSON.pretty_generate(bc))
+    }
+    system("knife data bag from file -k /etc/chef/webui.pem -u chef-webui barclamps \"#{barclamps}/#{bc_file}.json\"")
     name =  bc['barclamp']['name']
     cat['barclamps'][name] = {} if cat['barclamps'][name].nil?
     description = bc['barclamp']['description']
@@ -556,6 +564,12 @@ def bc_install_layout_1_cache(bc, path, barclamp, options={})
       unless File.symlink? "/tftpboot/#{ent}/crowbar-extra/#{path.split('/')[-1]}"
 	puts "DEBUG: Symlinking #{path}/cache/#{ent}/pkgs into /tftpboot/#{ent}/crowbar-extra" if debug
         File.symlink "#{path}/cache/#{ent}/pkgs", "/tftpboot/#{ent}/crowbar-extra/#{path.split('/')[-1]}"
+      end
+    else
+      # Symlink the repos into One Flat Directory for serving.
+      FileUtils.mkdir_p "/tftpboot/#{ent}"
+      unless File.symlink? "/tftpboot/#{ent}/#{bc}"
+        File.symlink("#{path}/cache/#{ent}","/tftpboot/#{ent}/#{bc}")
       end
     end
     puts "DEBUG: Done" if debug
