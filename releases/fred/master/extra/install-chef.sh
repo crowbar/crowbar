@@ -140,6 +140,7 @@ update_hostname || die "Could not update our hostname"
 # When it does not, things get hard to debug pretty quick.
 (ip link set eth0 up; ip addr add 192.168.124.10/24 dev eth0 ) &>/dev/null || :
 
+echo '$SystemLogRateLimitInterval 0' > /etc/rsyslog.d/10-noratelimit.conf
 # once our hostname is correct, bounce rsyslog to let it know.
 log_to svc service rsyslog restart || :
 
