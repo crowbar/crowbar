@@ -2818,33 +2818,68 @@ merge_or_rebase_from_remote() {
     return 1
 }
 
+merge_one_release() (
+    [[ $1 && $2 && $3 ]] || die "Not enough params!"
+    cd "$CROWBAR_DIR/barclamps/$1"
+    local t s
+    s="$(barclamp_branch_for_build "$2" "$1")"
+    t="$(barclamp_branch_for_build "$3" "$1")"
+    [[ $s && $t && $s != empty-branch && $t != empty_branch ]] || return 0
+    quiet_checkout "$s" || return 1
+    debug "Merging $3 into $2 in barclamp $1"
+    git merge -q "$t" && return 0
+    echo "Barclamp ${1}:"
+    echo "  Merging branch $t into $s failed."
+    echo "  Dropping to a shell for you to fix up."
+    echo "  If you want to abort this merge, exit the shell with 'exit 1'"
+    /bin/bash && return 0
+    git merge --abort
+    return 2
+)
+
 # Handle merges across releases.
 merge_releases() {
-    # $@ = releases to merge.
-    local rel branch start_ref build bc
+    # $@ = releases to merge into the current release
+    local rel branch head build bc thisrel res
+    local -A current_barclamps current_builds
+    thisrel=$(current_release)
     bc="${repo##*/}"
-    start_ref=$(git rev-parse HEAD)
+    current_release_br=$()
+    for bc in $(barclamps_in_release "$thisrel"); do
+        current_barclamps[$bc]="$thisrel"
+    done
+    for build in $(builds_in_release "$thisrel"); do
+        current_builds[$build]="$thisrel"
+    done
     for rel in "$@"; do
-	[[ $rel ]] || continue
-	[[ $rel = $(current_release) ]] &&  continue
-	release_exists "$rel" || continue
-        for branch in $(barclamp_branches_for_release "$rel" "$bc"); do
-	    git merge -q "$branch" && continue
-	    git merge --abort
-	    {
-                echo "Barclamp ${repo##*/}:"
-	        echo "  Merging releases $@ into $(current_release) failed."
-	        echo "  Dropping to a shell for you to fix up."
-	        echo "  If you want to abort this merge, exit the shell with 'exit 1'"
-	        /bin/bash
-	    } || {
-	        git merge --abort
-	        git branch "${head#refs/heads/}" "$start_ref"
-	        debug "Barclamp ${repo##*/}: Merge of $br from $rel into $cur_rel failed."
-                return 1
-	    }
+        [[ $rel && $rel != $thisrel ]] && release_exists "$rel" || continue
+        for build in $(builds_in_release "$rel"); do
+            [[ ${current_builds[$build]} ]] || continue
+            for bc in $(barclamps_from_build "$rel/$build"); do
+                [[ ${current_barclamps[$bc]} ]] || continue
+                head=$(git symbolic-ref HEAD)
+                if [[ $head != refs/heads/* ]]; then
+                    head=$(git rev-parse HEAD)
+                    if [[ ! $head ]]; then
+                        debug "Barclamp ${repo##*/}: Cannot find head commit."
+                        return 1
+                    fi
+                else
+                    head=${head#refs/heads/}
+                fi
+                merge_one_release "$bc" "$thisrel/$build" "$rel/$build"
+                res=$?
+                in_barclamp "$bc" git checkout -q -f "${head}"
+                case $res in
+                    1) debug "No branch for $thisrel/$build in $bc to merge into. Skipping.";;
+                    2) debug "Barclamp ${repo##*/}: Merge of $br from $rel into $thisrel failed."
+                        return 1;;
+                esac
+            done
         done
     done
+    debug "Releases $* merged into $thisrel"
+    debug "You will need to update the metadata manually."
 }
 
 # Merges in changes into all local branches from their upstreams.
@@ -2880,10 +2915,6 @@ sync_repo() (
         debug "Merge conflicts detected when syncing barclamp ${repo##*/} with $remote."
         debug "Please fix them up locally and retry the sync operation."
         return 1
-    fi
-    if [[ $@ ]] && ! merge_releases "$@"; then
-        debug "Unfixed merge conflicts while merging releases."
-        return 2
     fi
     return 0
 )
@@ -4366,6 +4397,7 @@ DEV_COMMANDS["flatten"]="flatten_crowbar"
 DEV_COMMANDS["help"]="dev_help"
 DEV_COMMANDS["is_clean"]="crowbar_is_clean"
 DEV_COMMANDS["local-changes"]="find_local_changed_branches_for_release"
+DEV_COMMANDS["merge"]="merge_releases"
 DEV_COMMANDS["missing-barclamps"]="find_missing_barclamps"
 DEV_COMMANDS["new-feature"]="new_feature"
 DEV_COMMANDS["orphaned-barclamps"]="find_orphaned_barclamps"
@@ -4423,6 +4455,7 @@ DEV_SHORT_HELP["flatten"]="            Flatten the main Crowbar repo branching s
 DEV_SHORT_HELP["help"]="               Show detailed help."
 DEV_SHORT_HELP["is_clean"]="           Test to see if all work is committed."
 DEV_SHORT_HELP["local-changes"]="      Find local changes from upstream for a release"
+DEV_SHORT_HELP["merge"]="              Merge other releases into the current release"
 DEV_SHORT_HELP["missing-barclamps"]="  Show missing barclamps."
 DEV_SHORT_HELP["new-feature"]="        Create a new feature bundle from the current release."
 DEV_SHORT_HELP["orphaned-barclamps"]=" Show barclamps that are not part of any build."
@@ -4457,6 +4490,9 @@ DEV_SHORT_HELP["upstream-changes"]="   Find unmerged changes from upstream for a
 DEV_SHORT_HELP["bash_completion"]="    Make tab ~/.bash_completion for dev (overwrites)"
 
 # Hash for long help
+DEV_LONG_HELP["merge"]="Merge other releases into the current release
+  This command interprets any arguments passed on the command line as
+  the names of releases to be merged into the current release."
 DEV_LONG_HELP["bash_completion"]="Enable tab command completion.
   Overwrites /\$HOME/.bash_completion every time you run it. Inserts
   all the implemented commands.  Not yet subcommands.  You need to
@@ -4535,14 +4571,7 @@ DEV_LONG_HELP["sync"]="Synchronize local branches with their
   from upstream, as long as there are no rebase or merge conflicts and
   the results of the rebase are identical to the results of the
   equivalent merge.  dev is_clean should exit without any messages
-  before running this command.
-
-  If you pass an argument to sync, it will interpret that argument as
-  a release or feature name and try to merge any changes in common
-  branches from that release.  If you use the --from command, sync
-  will merge changes from the specified remote into your local
-  branches instead of merging in changes from the remote tracking
-  branches."
+  before running this command."
 DEV_LONG_HELP["push"]="Push a branch or branches to your personal remote.
   Unconditionally push a branch (or branches) to your crowbar Github
   fork.  Any arguments are interpreted as branch names to push, and if
