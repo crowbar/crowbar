@@ -195,6 +195,8 @@ fi
 bluepill load /etc/bluepill/rubygems-server.pill
 sleep 5
 
+gem install eventmachine kwalify
+
 if [[ ! -x /etc/init.d/bluepill ]]; then
 
     echo "$(date '+%F %T %z'): Installing Chef"
