@@ -1288,7 +1288,7 @@ do_crowbar_build() {
             printf "\e[0G\e[2K%s" "$bc"
             $checker "$bc" || continue
             echo
-            [[ $ALLOW_CACHE_UPDATE = true ]] || {
+            [[ $ALLOW_CACHE_UPDATE = true || $cache = git_repo ]] || {
                 echo "Need up update $cache cache for $bc, but updates are disabled."
                 echo "Please rerun the build with the --update-cache option."
                 exit 1
