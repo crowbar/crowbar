@@ -808,12 +808,15 @@ barclamp_file_cache_needs_update() {
     return $ret
 }
 
-any_git_repo_cache() { [[ ${BC_GIT_REPOS[*]} ]]; }
+any_git_repo_cache() { [[ ${BC_GIT_REPOS[*]} && $USE_PFS = true ]]; }
 
 barclamp_git_repo_cache_needs_update() {
-    local repo_name repo_url repo_branches
     local dest bc_cache="$CACHE_DIR/barclamps/$1/git_repos"
-    [[ ${BC_GIT_REPOS[$1]} ]] || return 1
+    [[ ${BC_GIT_REPOS[$1]} && $USE_PFS = true ]] || return 1
+}
+
+update_barclamp_git_repo_cache() {
+    local repo_name repo_url repo_branches
     mkdir -p "$bc_cache"
     while read repo_name repo_url repo_branches; do
         [[ $repo_branches ]] || repo_branches=master
@@ -842,7 +845,7 @@ barclamp_git_repo_cache_needs_update() {
     return 1
 }
 
-update_barclamp_git_repo_cache() { return 0; }
+
 
 # Some helper functions
 
