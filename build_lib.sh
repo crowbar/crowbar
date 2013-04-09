@@ -816,7 +816,7 @@ barclamp_git_repo_cache_needs_update() {
 }
 
 update_barclamp_git_repo_cache() {
-    local repo_name repo_url repo_branches
+    local repo_name repo_url repo_branches bc_cache="$CACHE_DIR/barclamps/$1/git_repos"
     mkdir -p "$bc_cache"
     while read repo_name repo_url repo_branches; do
         [[ $repo_branches ]] || repo_branches=master
