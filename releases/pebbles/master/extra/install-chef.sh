@@ -216,7 +216,8 @@ if [[ ! -x /etc/init.d/bluepill ]]; then
 
     # Sometimes chef-server does not die either.  Kill it with fire
     if ps aux |grep -q [c]hef-server; then
-        killall -9 chef-server chef-server-webui
+        ps axu | grep '^chef.*chef-server ' | awk '{print $2}' | xargs kill -9
+        ps axu | grep '^chef.*chef-server-webui ' | awk '{print $2}' | xargs kill -9
     fi
 
     # Create an init script for bluepill
