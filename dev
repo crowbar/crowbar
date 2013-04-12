@@ -3650,7 +3650,7 @@ maybe_checkout_build_cache_branch() {
     rel_br="$(release_branch "${1:-$(current_release)}")" || \
         die "Cannot find release branch for $1"
     update_cache_tracking_branches
-    if in_cache branch_exists "$rel_br"; then
+    if in_cache git show-ref | grep -q "$rel_br"; then
 	debug "Checking out $rel_br in the build cache, please be patient."
 	in_cache quiet_checkout -f "$rel_br"
     fi
