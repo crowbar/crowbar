@@ -129,7 +129,9 @@ __make_barclamp_pkg_metadata() {
     sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
     if [[ $CURRENT_CACHE_BRANCH ]]; then
         in_cache git add "barclamps/$1/$OS_TOKEN/pkgs/Packages.gz"
-        in_cache git add "barclamps/$1/$OS_TOKEN/pkgs/Sources.gz"
+        if in_cache test -f "barclamps/$1/$OS_TOKEN/pkgs/Sources.gz"; then
+            in_cache git add "barclamps/$1/$OS_TOKEN/pkgs/Sources.gz"
+        fi
     fi
 }
 
