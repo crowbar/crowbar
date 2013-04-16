@@ -79,7 +79,7 @@ You should now have a working VM that you can SSH into from the qemu-kvm host.
    crowbar-dev> cd /tmp/crowbar-dev-test/opt/dell/crowbar_framework
    crowbar-dev> bundle install
    crowbar-dev> bundle exec rake db:migrate
-   crowbar-dev> ./script rails s puma
+   crowbar-dev> bundle exec rails s puma
    ````
 
 1. And also to run the (unit + RSpec) tests:
