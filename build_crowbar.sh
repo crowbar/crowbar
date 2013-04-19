@@ -160,6 +160,10 @@ fi
 # add_offline_repos(): This function should take whatever steps are needed
 #   to ensure that the OS packages in the crowbar build cache are installable
 #   from the chroot environment.
+
+# NOTE: The following sourcing of the extra build_lib.sh file can (usually does)
+# change the do_crowbar_build() function call.  Be sure to step through this code
+# very carefully when making changes.
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
 
 # Build OS dependent query strings
