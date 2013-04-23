@@ -1,15 +1,15 @@
 #!/bin/bash
 # This is sourced by build_crowbar.sh to enable it to stage Crowbar onto
-# RHEL 6.2
+# RHEL 6.4
 
 
 # OS information for the OS we are building crowbar on to.
 OS=redhat
-OS_VERSION=6.2
+OS_VERSION=6.4
 
 # If we need to make a chroot to stage packages into, this is the minimal
 # set of packages needed to bootstrap yum.  This package list has only been tested
-# on RHEL 6.2.
+# on RHEL 6.4.
 
 OS_BASIC_PACKAGES=(MAKEDEV upstart audit-libs basesystem bash binutils \
     bzip2-libs chkconfig cracklib cracklib-dicts crontabs coreutils db4 \
@@ -33,9 +33,10 @@ OS_BASIC_PACKAGES=(MAKEDEV upstart audit-libs basesystem bash binutils \
 #   http://repository.steve.org.uk/cgi-bin/hgwebdir.cgi/rinse/file/964ec9650f08/etc
 
 OS_REPO_POOL=""
+SHRINK_ISO=true
 
 # The name of the OS iso we are using as a base.
-[[ $ISO ]] || ISO="RHEL6.2-20111117.0-Server-x86_64-DVD1.iso"
+[[ $ISO ]] || ISO="RHEL6.4-20130130.0-Server-x86_64-DVD1.iso"
 
 # The location of OS packages on $ISO
 find_cd_pool() ( echo "$IMAGE_DIR/Packages" )

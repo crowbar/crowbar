@@ -391,19 +391,22 @@ vercmp(){
 # Index the pool of packages in the CD.
 index_cd_pool() {
     # Scan through our pool to find pkgs we can easily omit.
-    local pkgname='' pkg='' cache="$CACHE_DIR/$OS_TOKEN/iso-packages"
+    local pkgname='' pkg='' cache="$CACHE_DIR/$OS_TOKEN/packages-$ISO"
     if [[ $ISO_LIBRARY/$ISO -nt $cache ]]; then
         mkdir -p "${cache%/*}"
-        > "$cache"
+        echo 'CD_POOL_VERSION=2' > "$cache"
         while read pkg; do
             [[ -f $pkg ]] && is_pkg "$pkg" || continue
             pkgname="$(pkg_name "$pkg")"
             CD_POOL["$pkgname"]="${pkg}"
             echo "CD_POOL[\"$pkgname\"]=\"${pkg}\"" >> "$cache"
         done < <(find "$(find_cd_pool)" -type f)
-    else
-        . "$cache"
+        return
     fi
+    . "$cache"
+    [[ $CD_POOL_VERSION = 2 ]] && return
+    rm "$cache"
+    index_cd_pool
 }
 
 # Make a chroot environment for package-fetching purposes.
@@ -446,49 +449,6 @@ make_chroot() {
     fi
     add_offline_repos
     chroot_update
-}
-
-stage_pkgs() {
-    # $1 = cache to copy from.
-    # $2 = location to copy to
-    local pkg pkgname pkg_t
-    local -A to_copy STAGED_POOL
-    while read pkg; do
-        # If it is not a package, skip it.
-        is_pkg "$pkg" || continue
-        pkgname="$(pkg_name "$pkg")"
-        # Check to see if it is in the CD pool.
-        pkg_t="${CD_POOL["$pkgname"]}"
-        # If it is, and the one in the pool is not older than this one,
-        # skip it.
-        if [[ $pkg_t && -f $pkg_t ]] && ( ! pkg_cmp "$pkg" "$pkg_t" ); then
-            #debug "Skipping copy of ${pkg##*/}, it is on the install media"
-            # if we are shrinking our ISO, make sure this one is in.
-            [[ $SHRINK_ISO = true ]] && INSTALLED_PKGS["$pkgname"]="true"
-            continue
-        fi
-        # Now check to see if we have already staged it
-        pkg_t="${STAGED_POOL["$pkgname"]}"
-        if [[ $pkg_t && -f $pkg_t ]]; then
-            # We have already staged it.  Check to see if ours is newer than
-            # the one already staged.
-            if pkg_cmp "$pkg" "$pkg_t"; then
-                # We are newer.  Delete the old one, copy us,
-                # and update $STAGED_POOL
-                #debug "Replacing ${pkg_t##*/} with ${pkg##*/}"
-                [[ -f "$pkg_t" ]] && rm -f "$pkg_t"
-                [[ ${to_copy["$pkg_t"]} ]] && unset to_copy["$pkg_t"]
-                to_copy["$pkg"]="true"
-                STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
-            fi
-        else
-            # We have not seen this package before.  Copy it.
-            to_copy["$pkg"]="true"
-            cp "$pkg" "$2"
-            STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
-        fi
-    done < <(find "$1" -type f)
-    [[ ${!to_copy[*]} ]] && cp "${!to_copy[@]}" "$2"
 }
 
 cache_add() {
@@ -734,9 +694,9 @@ barclamp_pkg_cache_needs_update() {
     for pkg in ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]}; do
         [[ $pkg ]] || continue
         for arch in "${PKG_ALLOWED_ARCHES[@]}"; do
-            [[ ${pkgs["$pkg-$arch"]} ]] && continue 2
-            if [[ ${CD_POOL["$pkg-$arch"]} ]]; then
-                INSTALLED_PKGS["$pkg-$arch"]="true"
+            [[ ${pkgs["$pkg.$arch"]} ]] && continue 2
+            if [[ ${CD_POOL["$pkg.$arch"]} ]]; then
+                INSTALLED_PKGS["$pkg.$arch"]="true"
                 continue 2
             fi
         done

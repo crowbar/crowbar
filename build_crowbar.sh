@@ -146,11 +146,6 @@ fi
 #   and echo that information in $name-$arch format.
 # __make_chroot(): This function should handle all of the OS-specific actions
 #   needed to set up the package-fetching chroot environment.
-# pkg_cmp(): This function should check to see that both of the files passed to
-#   it refer to the same package name.  If it does, this function should return
-#   0 if the first package is a higher revision than the second one, and 1 if
-#   the first package is the same or lower revision.  It should die if the
-#   package names are not the same.
 # final_build_fixups(): This function should take wahtever steps are needed
 #   to make the default OS install process also ensure that the Crowbar bits
 #   are properly staged and to completly automate the admin node install

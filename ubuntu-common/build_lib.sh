@@ -104,7 +104,7 @@ dpkg_info() {
             esac
             [[ $name && $ver && $arch ]] && break || :
         done < <(dpkg -I "$1")
-        SEEN_DEBS["${1##*/}"]="$name-$arch $ver"
+        SEEN_DEBS["${1##*/}"]="$name.$arch $ver"
     fi
     echo "${SEEN_DEBS["${1##*/}"]}"
 }
@@ -179,17 +179,6 @@ __make_chroot() {
         in_chroot mkdir -p "/etc/apt/apt.conf.d/"
         sudo cp "$f" "$CHROOT/etc/apt/apt.conf.d/00http_proxy"
     fi
-}
-
-# Test to see of package $1 is more recent than package $2
-pkg_cmp() {
-    # $1 = Debian package 1
-    # $2 = Debian package 2
-    local deb1="$(dpkg_info "$1")"
-    local deb2="$(dpkg_info "$2")"
-    [[ ${deb1%% *} = ${deb2%% *} ]] || \
-        die "$1 and $2 do not reference the same package!"
-    vercmp "${deb1#* }" "${deb2#* }"
 }
 
 final_build_fixups() {
