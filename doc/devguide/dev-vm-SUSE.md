@@ -1,8 +1,8 @@
-# Crowbar Dev based on openSUSE
+# Crowbar Dev based on SUSE
 
 Here we describe how to setup a Crowbar development environment in a virtual
-machine (VM) that is based on openSUSE. It is currently focused on the core
-Rails application and required barclamps.
+machine (VM) that is based on openSUSE or SUSE Linux Enterprise Server (SLES).
+It is currently focused on the core Rails application and required barclamps.
 
 ## Setting up the VM
 
@@ -15,8 +15,11 @@ The instructions here are command line only. If you prefer a GUI, try
 We assume your KVM host is the desktop you are working from, so adapt them if
 necessary:
 
-1. Download the latest version of the [Crowbar Dev VM image]
-   (http://susestudio.com/a/n0rKOx/crowbar-dev) - KVM image recommended.
+1. Download the latest version of the Crowbar Dev VM from one of the following
+   locations (KVM image recommended):
+   - [openSUSE Crowbar Dev VM](http://susestudio.com/a/n0rKOx/crowbar-dev)
+   - [SLES Crowbar Dev VM](http://susestudio.com/a/n0rKOx/crowbar-dev-sles)
+
    Place the image in the `dev-setup/qemu-kvm` directory of the [Crowbar git]
    (https://github.com/crowbar/crowbar/) checkout on your KVM host.
 
@@ -26,11 +29,23 @@ necessary:
    ````
    Use the `--preallocate` option if you need to improve disk performance.
 
+1. [SLES only] Connect via VNC to accept the end user license agreement (EULA),
+   eg:
+   ````
+   kvm-host> vncviewer :10
+   ````
+   Type `:q`, `y`, and hit enter.
+
+
 1. After the VM boots up (takes a bit longer for first boot), you should be
    able to connect to the VM via SSH:
    ````
    kvm-host> ssh root@192.168.124.10            # Password is 'linux'
    ````
+
+1. [SLES only] If you're running the VM within the SUSE network, run
+   `add-suse-internal-repos` to add the internal SUSE repositories. Otherwise,
+   if you have a SLES subscription, register with NCC to get updates.
 
 1. Create a non-root user account and set the password. Use the same username
    as you do on your regular workstation for convenience. Then re-login to the
