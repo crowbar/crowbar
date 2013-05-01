@@ -6,6 +6,16 @@
     exec 2>/var/log/smoketest.log
 }
 
+if [[ ! -f /opt/dell/.all_nets ]]; then
+    touch /opt/dell/.all_nets
+    for n in "public host" "storage host" "nova_fixed router"; do
+        crowbar network allocate_ip default $(hostname --fqdn) $n
+    done
+
+    /opt/dell/bin/blocking_chef_client.sh
+fi
+
+
 found_groups=()
 export LOGDIR=/var/log/smoketest
 if [[ -f /etc/crowbar.install.key ]]; then
