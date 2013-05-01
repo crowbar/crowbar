@@ -113,8 +113,7 @@ get_one_barclamp_info() {
                 test_timeouts) BC_SMOKETEST_TIMEOUTS["$1"]+="$line ";;
                 supercedes)
                     [[ ${BC_SUPERCEDES[$line]} ]] || \
-                    BC_SUPERCEDES["$line"]="$1"
-                    debug "${BC_SUPERCEDES[$line]} supercedes $line";;
+                    BC_SUPERCEDES["$line"]="$1";;
                 git_repos) BC_GIT_REPOS["$1"]+="$line\n";;
                 *) die "Cannot handle query for $query."
             esac
@@ -173,25 +172,15 @@ get_barclamp_info() {
 
     # Pull in dependencies for the barclamps.
     # Everything depends on the crowbar barclamp, so include it first.
-    new_barclamps=("crowbar")
-    while [[ t = t ]]; do
-        for bc in "${BARCLAMPS[@]}"; do
-            if [[ ${BC_SUPERCEDES[$bc]} ]]; then
-                debug "$bc is superceded by ${BC_SUPERCEDES[$bc]}. Skipping."
-                continue
-            fi
-            for dep in ${BC_DEPS["$bc"]}; do
-                dep="${BC_SUPERCEDES[$dep]:-$dep}"
-                is_barclamp "$bc" || die "$bc depends on $dep, which is not a barclamp!"
-                is_in "$dep" "${new_barclamps[@]}" && continue
-                new_barclamps+=("$dep")
-            done
-            is_barclamp "$bc" || die "$bc is not a barclamp!"
-            is_in "$bc" "${new_barclamps[@]}" || new_barclamps+=("$bc")
-        done
-        [[ ${BARCLAMPS[*]} = ${new_barclamps[*]} ]] && break
-        BARCLAMPS=("${new_barclamps[@]}")
+    for bc in "${BARCLAMPS[@]}"; do
+        if [[ ${BC_SUPERCEDES[$bc]} ]]; then
+            debug "$bc is superceded by ${BC_SUPERCEDES[$bc]}. Skipping."
+            continue
+        fi
+        new_barclamps+=("$bc")
+        is_barclamp "$bc" || die "$bc is not a barclamp!"
     done
+    BARCLAMPS=($(all_deps "${new_barclamps[@]}"))
 }
 
 [[ $CROWBAR_BUILD_PID ]] || export CROWBAR_BUILD_PID=$$
@@ -322,21 +311,32 @@ read_base_repos() {
 # Worker function for all_deps
 __all_deps() {
     local dep
+    [[ ${deps[$1]} = "unordered" ]] && die "Circular dependency of $1 depending on $1 detected!"
+    [[ ${deps[$1]} ]] && return 0
+    deps[$1]="unordered"
     if [[ ${BC_DEPS["$1"]} ]]; then
         for dep in ${BC_DEPS["$1"]}; do
-            is_in "$dep" "${deps[@]}" && continue
+            dep="${BC_SUPERCEDES[$dep]:-$dep}"
+            [[ ${deps[$dep]} ]] && continue
+            is_barclamp "$dep" || die "$1 depends on $dep, but $dep is not a barclamp!"
             __all_deps "$dep"
         done
     fi
-    is_in "$1" "${deps[@]}" || deps+=("$1")
+    deps[$1]=$count
+    count=$((count + 1))
     return 0
 }
 
-# Given a barclamp, echo all of the dependencies of that barclamp
+# Given a set of barclamps, echo all of the dependencies of that barclamp, including itself.
 all_deps() {
-    local deps=() dep
-    __all_deps "$1"
-    echo "${deps[*]}"
+    local -A deps
+    local count=1 __deps=() d
+    # Everything depends on the crowbar barclamp. Always.
+    deps['crowbar']=0
+    # Find our dependencies and sort them based on the values of the deps hash.
+    for d in "$@"; do __all_deps "$d"; done
+    for d in "${!deps[@]}"; do;  __deps[${deps[$d]}]=$d; done
+    echo "${__deps[*]}"
 }
 
 # A couple of utility functions for comparing version numbers.
