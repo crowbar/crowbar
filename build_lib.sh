@@ -129,11 +129,11 @@ get_barclamp_info() {
     for bc in barclamps/*; do
         [[ -d "$bc" ]] || continue
         bc=${bc##*/}
-        debug "Reading metadata for $bc barclamp."
         is_barclamp "$bc" || {
-            echo "$bc is not a barclamp, skipping."
+            debug "$bc is not part of this build."
             continue
         }
+        debug "Reading metadata for $bc barclamp."
         get_one_barclamp_info "$bc"
     done
     cd -
