@@ -333,9 +333,9 @@ all_deps() {
     local count=1 __deps=() d
     # Everything depends on the crowbar barclamp. Always.
     deps['crowbar']=0
-    # Find our dependencies and sort them based on the values of the deps hash.
+    # Find our dependencies and sort them based on the values o
     for d in "$@"; do __all_deps "$d"; done
-    for d in "${!deps[@]}"; do;  __deps[${deps[$d]}]=$d; done
+    for d in "${!deps[@]}"; do  __deps[${deps[$d]}]=$d; done
     echo "${__deps[*]}"
 }
 
