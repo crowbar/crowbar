@@ -45,6 +45,7 @@ declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_SUPPORT BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
 declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
 declare -A BC_SUPERCEDES BC_SRC_PKGS BC_GIT_REPOS
+declare -A CACHED_PACKAGES
 
 GEM_EXT_RE='^(.*)-\((.*)\)$'
 
@@ -489,6 +490,8 @@ make_barclamp_pkg_metadata() {
         "$CHROOT/mnt"
     __make_barclamp_pkg_metadata "$1"
     sudo umount "$CHROOT/mnt"
+    unset CACHED_PACKAGES[$1]
+    barclamp_pkg_cache_needs_update
 }
 
 install_build_packages() {
@@ -672,37 +675,34 @@ any_pkg_cache() { [[ ${BC_PKGS[*]} ]]; }
 
 # Check to see if the barclamp package cache needs update.
 barclamp_pkg_cache_needs_update() {
-    local pkg pkgname arch bcs=() bc ret=1
-    local -A pkgs
+    local pkg pkgname arch bc ret=1
     [[ ${BC_PKGS["$1"]} || ${BC_BUILD_PKGS["$1"]} ]] || return 1
     [[ $need_update = true || ${FORCE_BARCLAMP_UPDATE["$1"]} = true ]] && return 0
-    [[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs ]] && \
-        touch "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
-    # First, check to see if we have all the packages we need.
+    local -A parent_pkgs present_pkgs
+    # Build a list of all the packages the barclamps we depend on should provide.
     for bc in $(all_deps "$1"); do
-        [[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" ]] && \
-            bcs+=("$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs")
+        [[ ${CACHED_PACKAGES[$bc]} ]] || continue
+        for pkg in ${CACHED_PACKAGES[$bc]}; do
+            [[ ${parent_pkgs[$pkg]} ]] && continue
+            parent_pkgs[$pkg]="$bc"
+        done
     done
-    if [[ ${bcs[*]} ]]; then
-        while read pkg; do
-            is_pkg "$pkg" || continue
-            pkgname="$(pkg_name "$pkg")"
-        #debug "$pkgname is cached"
-            pkgs["$pkgname"]="$pkg"
-        done < <(find "${bcs[@]}" -type f)
-    fi
+    # Get the list of packages we have.
+    while read pkg; do
+        is_pkg "$pkg" || continue
+        present_pkgs[$(pkg_name "$pkg")]="$1"
+    done < <(find "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs")
     for pkg in ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]}; do
         [[ $pkg ]] || continue
         for arch in "${PKG_ALLOWED_ARCHES[@]}"; do
-            [[ ${pkgs["$pkg.$arch"]} ]] && continue 2
-            if [[ ${CD_POOL["$pkg.$arch"]} ]]; then
-                INSTALLED_PKGS["$pkg.$arch"]="true"
-                continue 2
-            fi
+            [[ ${parent_pkgs["$pkg.$arch"]} || \
+                ${present_pkgs["$pkg.$arch"]} || \
+                ${CD_POOL["$pkg.$arch"]} ]] && continue 2
         done
         debug "Package $pkg is not cached, and $1 needs it."
         ret=0
     done
+    CACHED_PACKAGES["$1"]="${!present_pkgs[*]}"
     return $ret
 }
 
