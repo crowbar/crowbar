@@ -11,12 +11,20 @@ NETWORK=192.168.124.0
 HOST=192.168.124.1
 MASK=255.255.255.0
 
+interface="$1"
+
 echo "$0:"
-echo "Setting up the network bridge for $1"
-brctl addbr "$BRIDGE"
-brctl addif "$BRIDGE" "$1"
+if brctl show | awk '{print $1}' | grep -q "^$BRIDGE\$"; then
+    echo "Network bridge $BRIDGE already exists"
+else
+    echo "Setting up the network bridge for $interface"
+    brctl addbr "$BRIDGE"
+fi
+
+brctl addif "$BRIDGE" "$interface"
+
 ifconfig "$BRIDGE" "$HOST" netmask "$MASK"
-ip link set "$1" up
+ip link set "$interface" up
 ip link set "$BRIDGE" up
 
 if iptables -t nat -L POSTROUTING -n | grep ^MASQUERADE | awk '{print $4}' | cut -d/ -f1 | grep "$NETWORK" >/dev/null
