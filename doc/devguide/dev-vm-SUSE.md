@@ -29,9 +29,9 @@ necessary:
    kvm-host# export BRIDGE=virbr0
    ````
 
-1. Start the VM by running:
+1. Start the VM by running the following as root:
    ````
-   kvm-host> ./start-vm
+   kvm-host# ./start-vm
    ````
    Use the `--preallocate` option if you need to improve disk performance.
 
