@@ -6,7 +6,7 @@
 # Crowbar contains a DHCP server and hence should always run in its own private
 # network to avoid rogue DHCP answers, especially when in a company network!
 
-BRIDGE=kvm-nat
+: ${BRIDGE:=kvm-nat}
 NETWORK=192.168.124.0
 HOST=192.168.124.1
 MASK=255.255.255.0

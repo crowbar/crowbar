@@ -23,6 +23,12 @@ necessary:
    Place the image in the `dev-setup/qemu-kvm` directory of the [Crowbar git]
    (https://github.com/crowbar/crowbar/) checkout on your KVM host.
 
+1. [Optional] Set which bridge device you want to route the VM's NAT
+   traffic through:
+   ````
+   kvm-host# export BRIDGE=virbr0
+   ````
+
 1. Start the VM by running:
    ````
    kvm-host> ./start-vm
