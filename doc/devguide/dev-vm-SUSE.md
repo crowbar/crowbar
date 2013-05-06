@@ -40,7 +40,7 @@ necessary:
    ````
    kvm-host> vncviewer :10
    ````
-   Type `:q`, `y`, and hit enter.
+   Type `q`, `y`, and hit enter.
 
 
 1. After the VM boots up (takes a bit longer for first boot), you should be
