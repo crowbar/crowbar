@@ -491,7 +491,7 @@ make_barclamp_pkg_metadata() {
     __make_barclamp_pkg_metadata "$1"
     sudo umount "$CHROOT/mnt"
     unset CACHED_PACKAGES[$1]
-    barclamp_pkg_cache_needs_update
+    barclamp_pkg_cache_needs_update "$1"
 }
 
 install_build_packages() {
