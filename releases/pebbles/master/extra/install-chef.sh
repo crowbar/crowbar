@@ -452,7 +452,6 @@ ip addr | grep -q $IP || {
 }
 
 update_admin_node
-bluepill load /etc/bluepill/chef-client.pill
 
 # transform our friendlier Crowbar default home page.
 cd $DVD_PATH/extra
@@ -471,4 +470,5 @@ echo "Admin node deployed."
 # Run tests -- currently the host will run this.
 /opt/dell/bin/barclamp_test.rb -t || \
     die "Crowbar validation has errors! Please check the logs and correct."
+bluepill load /etc/bluepill/chef-client.pill
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
