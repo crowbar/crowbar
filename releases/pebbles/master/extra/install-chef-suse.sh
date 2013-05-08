@@ -8,16 +8,19 @@
 # SLES system, you can follow the manual steps below:
 #
 # 0. export CROWBAR_TESTING=true
+#    and
+#    export CROWBAR_FILE=<path-to-your-crowbar-repo>/crowbar.json
 # 1. Copy all barclamps to /opt/dell/barclamps
 #    You'll want:
 #      crowbar database deployer dns glance ipmi keystone logging
 #      nagios network nova nova_dashboard ntp openstack
 #      provisioner swift
-# 2. Copy extra/barclamp* to /opt/dell/bin/
-# 4. You should probably set eth0 to be static IP 192.168.124.10/24.
-# 5. rsync the Devel:Cloud, SLES-11-SP2-LATEST, SLE-11-SP2-SDK-LATEST,
+# 2. Copy extra/b* to /opt/dell/bin/
+# 3. You should probably set eth0 to be static IP 192.168.124.10/24.
+# 4. rsync the Devel:Cloud, SLES-11-SP2-LATEST, SLE-11-SP2-SDK-LATEST,
 #    and possibly other repos into locations under /srv/tftpboot -
 #    see https://github.com/SUSE/cloud/wiki/Crowbar for details.
+# 5. zypper in rubygem-chef (to have /var/log/chef/ present)
 
 LOGFILE=/var/log/chef/install.log
 
@@ -98,7 +101,13 @@ if [ -n "$IPv4_addr" ]; then
     if [[ "$IPv4_addr" =~ ^127 ]]; then
         die "$FQDN resolves to a loopback address. Aborting."
     fi
-    if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < /opt/dell/chef/data_bags/crowbar/bc-template-network.json; then
+
+    if [ -n "$CROWBAR_TESTING" ]; then
+        NETWORK_JSON=/opt/dell/barclamps/network/chef/data_bags/crowbar/bc-template-network.json
+    else
+        NETWORK_JSON=/opt/dell/chef/data_bags/crowbar/bc-template-network.json
+    fi
+    if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < $NETWORK_JSON; then
         die "IPv4 address of admin node not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
     fi
 fi
@@ -128,7 +137,11 @@ fi
 /bin/df -h  
 /usr/bin/free -m
 /bin/ls -la /srv/tftpboot/repos/ /srv/tftpboot/repos/Cloud/ /srv/tftpboot/suse-11.2/install/
-/usr/bin/grep media_url /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb
+
+if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb ]; then
+    # The autoyast profile might not exist yet when CROWBAR_TESTING is enabled
+    /usr/bin/grep media_url /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb
+fi
 
 CROWBAR=/opt/dell/bin/crowbar
 
@@ -185,6 +198,10 @@ check_repo_content \
     /srv/tftpboot/repos/Cloud \
     1558be86e7354d31e71e7c8c2574031a
 
+if [ -n "$CROWBAR_TESTING" ]; then
+    REPOS_SKIP_CHECKS+="SLES11-SP1-Pool SLES11-SP1-Updates SLES11-SP2-Core SLES11-SP2-Updates SUSE-Cloud-1.0-Pool Cloud-PTF"
+fi
+
 if skip_check_for_repo "Cloud-PTF"; then
     echo "Skipping check for Cloud-PTF due to \$REPOS_SKIP_CHECKS"
 else
@@ -200,17 +217,27 @@ check_repo_product SLES11-SP2-Core     'SUSE Linux Enterprise Server 11 SP2'
 check_repo_product SLES11-SP2-Updates  'SUSE Linux Enterprise Server 11 SP2'
 check_repo_product SUSE-Cloud-1.0-Pool 'SUSE Cloud 1.0'
 
+add_ibs_repo () {
+    url="$1"
+    alias="$2"
+    if ! [ -f /etc/zypp/repos.d/$alias.repo ]; then
+        zypper ar $url $alias
+    else
+        echo "Repo: $alias already exists. Skipping."
+    fi
+}
+
 if [ -n "$CROWBAR_TESTING" ]; then
     # This is supposed to go away once the Chef dependencies are included in the
     # add-on image.  Note that SP1 is required for rubygem-haml at least, but
     # the new maintenance model requires SP1 repos alongside SP2 anyway.
-    zypper ar    http://dist.suse.de/install/SLP/SLES-11-SP2-GM/x86_64/DVD1 sp2
-    zypper ar    http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk-sp2
-    zypper ar    http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
-    zypper ar    http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
-    zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
-    zypper ar -f http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
-    zypper ar -f http://dist.suse.de/ibs/Devel:/Cloud/SLE_11_SP2/ cloud
+    add_ibs_repo http://dist.suse.de/install/SLP/SLES-11-SP2-GM/x86_64/DVD1 sp2
+    add_ibs_repo http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk-sp2
+    add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
+    add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
+    add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
+    add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
+    add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud/SLE_11_SP2/ cloud
 
     # install chef and its dependencies
     zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server couchdb java-1_6_0-ibm rubygem-activesupport
