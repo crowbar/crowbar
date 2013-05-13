@@ -75,7 +75,7 @@ export CROWBAR_KEY="crowbar:crowbar"
 # Please keep it at 4 characters or less.
 SMOKETEST_BRIDGES=(crowbar-pub)
 
-NICS_PER_BRIDGE=2
+NICS_PER_BRIDGE=3
 
 # An array of physical interfaces and the bridges they should be bound to.
 # We need to use real physical interfaces becasue Crowbar assumes

@@ -60,15 +60,15 @@
           "pattern": "team/.*/.*",
           "conduit_list": { 
             "intf0": {
-              "if_list": [ "1g1", "1g2" ],
+              "if_list": [ "1g2", "1g3" ],
               "team_mode": 5
             },
             "intf1": {
-              "if_list": [ "1g1", "1g2" ],
+              "if_list": [ "1g2", "1g3" ],
               "team_mode": 5
             },
             "intf2": {
-              "if_list": [ "1g1", "1g2" ],
+              "if_list": [ "1g2", "1g3" ],
               "team_mode": 5
             }
           }
@@ -77,13 +77,13 @@
           "pattern": "dual/.*/.*",
           "conduit_list": { 
             "intf0": {
-              "if_list": [ "1g1" ]
-            },
-            "intf1": {
               "if_list": [ "1g2" ]
             },
+            "intf1": {
+              "if_list": [ "1g3" ]
+            },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             }
           }
         },
@@ -91,13 +91,13 @@
           "pattern": "single/.*/.*",
           "conduit_list": { 
             "intf0": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf1": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             }
           }
         },
@@ -105,13 +105,13 @@
           "pattern": ".*/.*/.*",
           "conduit_list": { 
             "intf0": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf1": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             }
           }
         },
@@ -119,13 +119,13 @@
           "pattern": "mode/1g_adpt_count/role",
           "conduit_list": { 
             "intf0": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf1": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             }
           }
         }
@@ -246,4 +246,3 @@
     }
   }
 }
-
