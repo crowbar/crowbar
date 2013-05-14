@@ -36,6 +36,7 @@ end
 
 for i in 0..3 do
     if ipv4[i] < ip_start[i] or ipv4[i] > ip_end[i]
+        puts "admin range is configured from #{admin['start']} to #{admin['end']}"
         exit 1
     end
 end
