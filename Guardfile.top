@@ -1,0 +1,61 @@
+#!/usr/bin/ruby
+#
+# Guardfile which uses guard-rsync to sync installation scripts
+# from the Crowbar top-level repo to /opt/dell/bin.
+#
+# The target location of the merge can be a local path or an rsync
+# target such as root@192.168.124.10:/opt/dell/bin
+#
+# Unfortunately https://github.com/guard/listen/issues/25 breaks
+# watching of releases/$RELEASE/$BRANCH/extra/ when the current
+# directory is the Crowbar top-level, due to the extra/ symlink to it.
+# We work around this by starting guard inside the extra/
+# subdirectory.
+#
+# Usage
+# -----
+#
+# First ensure you have the necessary gems by cd'ing to this directory
+# and running 'bundle'.  Doing this inside an rvm gemset is recommended.
+#
+# Then use as follows:
+#
+#   # Optionally set the rsync target; defaults to /opt/dell/bin
+#   $ export GUARD_RSYNC_TARGET=root@192.168.124.10:/opt/dell/bin
+#
+#   # Launch the guard watcher:
+#   $ bundle exec guard -G `pwd`/Guardfile.top -w releases/pebbles/master/extra
+#
+# Note that "-w extra" will *not* work here due to the above-mentioned bug.
+#
+# Further info
+# ------------
+#
+# More about Guard at https://github.com/guard/guard#readme
+
+TARGET = ENV['GUARD_RSYNC_TARGET'] || '/opt/dell/bin'
+
+group :top do
+  # FIXME: The list of files to copy is release-specific, so this file
+  # should probably be moved to releases/$release.  But by the time it
+  # starts mattering, hopefully we won't be doing all development on the
+  # master branch of this repo.
+  globs = [
+    "barclamp_*.rb",
+    "install-chef-suse.sh",
+    "bc-dns-json.rb",
+    "bc-network-admin-helper.rb",
+  ]
+  filters = globs.map {|f| "+ #{f}"} + ["- /*"]
+  guard_opts = {
+    :input => './',
+    :output => TARGET,
+    :excludes => filters + ["- .#*#"],
+  }
+  guard('rsync', guard_opts) do
+    globs.each do |glob|
+      regexp = Regexp.new('^' + glob.gsub('.', '\.').gsub('*', '.*') + '$')
+      watch(regexp)
+    end
+  end
+end
