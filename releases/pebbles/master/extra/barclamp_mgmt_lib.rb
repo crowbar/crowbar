@@ -370,6 +370,7 @@ def framework_permissions(bc, path, options={})
 end
 
 # install the framework files for a barclamp
+# N.B. if you update this, you must also update Guardfile.tree-merge !!
 def bc_install_layout_1_app(bc, path, barclamp, options={})
   options = {:debug => false}.merge! options
   debug = options[:debug] or ENV['DEBUG'] === "true"
