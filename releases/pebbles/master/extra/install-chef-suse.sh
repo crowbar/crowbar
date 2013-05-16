@@ -282,9 +282,7 @@ else
     sed -i 's/amqp_pass ".*"/amqp_pass "'"$rabbit_chef_password"'"/' /etc/chef/{server,solr}.rb
 fi
 
-chef_webui_password=$( dd if=/dev/urandom count=1 bs=16 2>/dev/null | base64 | tr -d / )
-sed -i "s/^\s*web_ui_admin_default_password\s*\".*\"/web_ui_admin_default_password \"$chef_webui_password\"/" /etc/chef/webui.rb
-chmod o-rwx /etc/chef /etc/chef/{server,solr,webui}.rb
+chmod o-rwx /etc/chef /etc/chef/{server,solr}.rb
 
 rabbitmqctl set_permissions -p /chef chef ".*" ".*" ".*"
 
@@ -294,7 +292,7 @@ ensure_service_running couchdb
 # increase chef-solr index field size
 perl -i -pe 's{<maxFieldLength>.*</maxFieldLength>}{<maxFieldLength>200000</maxFieldLength>}' /var/lib/chef/solr/conf/solrconfig.xml
 
-services='solr expander server server-webui'
+services='solr expander server'
 for service in $services; do
     chkconfig chef-${service} on
 done
@@ -302,18 +300,6 @@ done
 for service in $services; do
     ensure_service_running chef-${service}
 done
-
-# chef-server-webui won't start if /etc/chef/webui.pem doesn't exist, which
-# may be the case (chef-server generates it if not present, and if the webui
-# starts too soon, it won't be there yet).
-for ((x=1; x<6; x++)); do
-    sleep 10
-    service chef-server-webui status >/dev/null && { chef_webui_running=true; break; }
-    service chef-server-webui start
-done
-if [[ ! $chef_webui_running ]]; then
-    echo "WARNING: unable to start chef-server-webui"
-fi
 
 if ! [ -e ~/.chef/knife.rb ]; then
     yes '' | knife configure -i
