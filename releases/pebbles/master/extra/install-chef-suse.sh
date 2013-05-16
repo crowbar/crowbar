@@ -24,6 +24,8 @@
 
 LOGFILE=/var/log/chef/install.log
 
+: ${BARCLAMP_SRC:="/opt/dell/barclamps/"}
+
 set -e
 
 run_succeeded=
@@ -103,7 +105,7 @@ if [ -n "$IPv4_addr" ]; then
     fi
 
     if [ -n "$CROWBAR_TESTING" ]; then
-        NETWORK_JSON=/opt/dell/barclamps/network/chef/data_bags/crowbar/bc-template-network.json
+        NETWORK_JSON=$BARCLAMP_SRC/network/chef/data_bags/crowbar/bc-template-network.json
     else
         NETWORK_JSON=/opt/dell/chef/data_bags/crowbar/bc-template-network.json
     fi
@@ -322,7 +324,7 @@ fi
 : ${CROWBAR_FILE:="/etc/crowbar/crowbar.json"}
 
 mkdir -p /opt/dell/crowbar_framework
-CROWBAR_REALM=$(/opt/dell/barclamps/provisioner/updates/parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
+CROWBAR_REALM=$($BARCLAMP_SRC/provisioner/updates/parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
 CROWBAR_REALM=${CROWBAR_REALM##*=}
 
 # Generate the machine install username and password.
@@ -336,7 +338,7 @@ if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" $CROWBAR_FILE
 fi
 
-/opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/crowbar
+/opt/dell/bin/barclamp_install.rb $BARCLAMP_SRC/crowbar
 
 #
 # Take care that the barclamps are installed in the right order
@@ -349,7 +351,7 @@ for i in deployer dns database ipmi nagios keystone \
     if [ -e /opt/dell/crowbar_framework/barclamps/$i.yml ]; then
         echo "$i barclamp is already installed"
     else
-        /opt/dell/bin/barclamp_install.rb /opt/dell/barclamps/$i
+        /opt/dell/bin/barclamp_install.rb $BARCLAMP_SRC/$i
     fi
 done
 
