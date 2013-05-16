@@ -2,25 +2,21 @@
 
 # This script is supposed to be run after being installed via the
 # crowbar rpm from the SUSE Cloud ISO.  In that context, it is
-# expected that all other required repositories (SP2, Updates, etc.)
+# expected that all other required repositories (SLES, Updates, etc.)
 # are already set up, and a lot of the required files will already be
-# in the right place.  However if you want to test setup on a vanilla
-# SLES system, you can follow the manual steps below:
+# in the right place.
+# However if you want to test setup on a vanilla SLES system and setup a
+# crowbar admin node from a git checkout , you can follow the manual steps
+# below.
 #
-# 0. export CROWBAR_TESTING=true
+# 1. export CROWBAR_TESTING=true (this expects a current build of the Cloud
+#    addon ISO to be extracted in /srv/tftpboot/repos/Cloud)
 #    and
-#    export CROWBAR_FILE=<path-to-your-crowbar-repo>/crowbar.json
-# 1. Copy all barclamps to /opt/dell/barclamps
-#    You'll want:
-#      crowbar database deployer dns glance ipmi keystone logging
-#      nagios network nova nova_dashboard ntp openstack
-#      provisioner swift
+#    export CROWBAR_FILE=<path-to-your-git-tree>/crowbar.json
+#    export BARCLAMP_SRC=<path-to-your-git-tree>/barclamps/
 # 2. Copy extra/b* to /opt/dell/bin/
-# 3. You should probably set eth0 to be static IP 192.168.124.10/24.
-# 4. rsync the Devel:Cloud, SLES-11-SP2-LATEST, SLE-11-SP2-SDK-LATEST,
-#    and possibly other repos into locations under /srv/tftpboot -
-#    see https://github.com/SUSE/cloud/wiki/Crowbar for details.
-# 5. zypper in rubygem-chef (to have /var/log/chef/ present)
+# 3. Make sure eth0 is configured to the same static address as defined
+#    in configuration of the network barclamp (default: 192.168.124.10/24)
 
 LOGFILE=/var/log/chef/install.log
 
@@ -93,6 +89,11 @@ IPv4_addr=$( echo "$resolved" | awk '{ if ($1 !~ /:/) { print $1; exit } }' )
 IPv6_addr=$( echo "$resolved" | awk '{ if ($1  ~ /:/) { print $1; exit } }' )
 if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
     die "Could not resolve $FQDN to an IPv4 or IPv6 address. Aborting."
+fi
+
+if [ -n "$CROWBAR_TESTING" ]; then
+    REPOS_SKIP_CHECKS+="SLES11-SP1-Pool SLES11-SP1-Updates SLES11-SP2-Core SLES11-SP2-Updates SUSE-Cloud-1.0-Pool Cloud-PTF"
+    zypper in rubygems rubygem-json
 fi
 
 if [ -n "$IPv4_addr" ]; then
@@ -173,8 +174,12 @@ check_repo_content () {
         fi
     fi
 
-    if [ "`md5sum $repo_path/content | awk '{print $1}'`" != "$md5" ]; then
-        die "$repo_name does not contain the expected repository ($repo_path/content failed MD5 checksum)"
+    if [ -n "$CROWBAR_TESTING" ]; then
+        echo "Skipping md5 check for $repo_name due to \$CROWBAR_TESTING"
+    else
+        if [ "`md5sum $repo_path/content | awk '{print $1}'`" != "$md5" ]; then
+            die "$repo_name does not contain the expected repository ($repo_path/content failed MD5 checksum)"
+        fi
     fi
 }
 
@@ -200,9 +205,6 @@ check_repo_content \
     /srv/tftpboot/repos/Cloud \
     1558be86e7354d31e71e7c8c2574031a
 
-if [ -n "$CROWBAR_TESTING" ]; then
-    REPOS_SKIP_CHECKS+="SLES11-SP1-Pool SLES11-SP1-Updates SLES11-SP2-Core SLES11-SP2-Updates SUSE-Cloud-1.0-Pool Cloud-PTF"
-fi
 
 if skip_check_for_repo "Cloud-PTF"; then
     echo "Skipping check for Cloud-PTF due to \$REPOS_SKIP_CHECKS"
@@ -230,22 +232,27 @@ add_ibs_repo () {
 }
 
 if [ -n "$CROWBAR_TESTING" ]; then
-    # This is supposed to go away once the Chef dependencies are included in the
-    # add-on image.  Note that SP1 is required for rubygem-haml at least, but
-    # the new maintenance model requires SP1 repos alongside SP2 anyway.
-    add_ibs_repo http://dist.suse.de/install/SLP/SLES-11-SP2-GM/x86_64/DVD1 sp2
-    add_ibs_repo http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk-sp2
-    add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
-    add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
-    add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
-    add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
-    add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud/SLE_11_SP2/ cloud
+
+#    FIXME: This is currently not working. The repos URLs need to be updated to the
+#           latests SP3 repos. It would be useful only for testing the crowbar
+#           admin node setup. Additional work (e.g. on the autoyast profile) is
+#           required to make those repos available to any client nodes.
+#    if [ $CROWBAR_TESTING = "ibs" ]; then
+#        add_ibs_repo http://dist.suse.de/install/SLP/SLES-11-SP2-GM/x86_64/DVD1 sp2
+#        add_ibs_repo http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk-sp2
+#        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
+#        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
+#        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
+#        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
+#        add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud/SLE_11_SP2/ cloud
+#    fi
 
     # install chef and its dependencies
-    zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server couchdb java-1_6_0-ibm rubygem-activesupport
+    zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server \
+            couchdb java-1_6_0-ibm rubygem-activesupport
 
     # also need these (crowbar dependencies):
-    zypper in rubygem-kwalify rubygem-ruby-shadow tcpdump
+    zypper in rubygem-kwalify rubygem-ruby-shadow rubygem-sass rubygem-i18n tcpdump
 
     # Need this for provisioner to work:
     mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
