@@ -252,7 +252,7 @@ if [ -n "$CROWBAR_TESTING" ]; then
             couchdb java-1_6_0-ibm rubygem-activesupport
 
     # also need these (crowbar dependencies):
-    zypper in rubygem-kwalify rubygem-ruby-shadow rubygem-sass rubygem-i18n tcpdump
+    zypper in rubygem-cstruct rubygem-kwalify rubygem-ruby-shadow rubygem-sass rubygem-i18n sleshammer tcpdump
 
     # Need this for provisioner to work:
     mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
@@ -265,6 +265,13 @@ LABEL pxeboot
         APPEND initrd=initrd0.img root=/sledgehammer.iso rootfstype=iso9660 rootflags=loop
 ONERROR LOCALBOOT 0
 EOF
+    # create Compatibility link /tftpboot -> /srv/tftpboot (this is part of
+    # the crowbar package when not in $CROWBAR_TESTING)
+    if ! [ -e /tftpboot ]; then
+        ln -s /srv/tftpboot /tftpboot
+    elif [ "$( /usr/bin/readlink /tftpboot )" != "/srv/tftpboot" ]; then
+        die "/tftpboot exist but is not a symbolic link to /srv/tftpboot. Please fix!"
+    fi
 
     # You'll also need:
     #   /srv/tftpboot/discovery/initrd0.img
