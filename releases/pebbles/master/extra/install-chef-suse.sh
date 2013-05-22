@@ -335,6 +335,8 @@ fi
 
 # Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
 #CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
+# See also https://bugzilla.novell.com/show_bug.cgi?id=788161#c9
+# for the history behind this location.
 : ${CROWBAR_FILE:="/etc/crowbar/crowbar.json"}
 
 mkdir -p /opt/dell/crowbar_framework
