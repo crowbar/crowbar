@@ -92,7 +92,7 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_TESTING" ]; then
-    REPOS_SKIP_CHECKS+="SLES11-SP1-Pool SLES11-SP1-Updates SLES11-SP2-Core SLES11-SP2-Updates SUSE-Cloud-1.0-Pool Cloud-PTF"
+    REPOS_SKIP_CHECKS+="SLES11-SP1-Pool SLES11-SP1-Updates SLES11-SP2-Core SLES11-SP2-Updates SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates Cloud-PTF"
     zypper in rubygems rubygem-json
 fi
 
@@ -139,7 +139,7 @@ fi
 /usr/bin/lscpu  
 /bin/df -h  
 /usr/bin/free -m
-/bin/ls -la /srv/tftpboot/repos/ /srv/tftpboot/repos/Cloud/ /srv/tftpboot/suse-11.2/install/
+/bin/ls -la /srv/tftpboot/repos/ /srv/tftpboot/repos/Cloud/ /srv/tftpboot/suse-11.3/install/
 
 if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb ]; then
     # The autoyast profile might not exist yet when CROWBAR_TESTING is enabled
@@ -195,10 +195,17 @@ check_repo_product () {
     fi
 }
 
+# FIXME: repos that we cannot check yet:
+#   SP3-Updates is lacking products.xml
+#   Cloud: we don't have the final md5
+#   SUSE-Cloud-2.0-*: not existing yet
+REPOS_SKIP_CHECKS+="Cloud SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
+
+# FIXME: this is for SP3 RC2
 check_repo_content \
-    SLES11_SP2 \
-    /srv/tftpboot/suse-11.2/install \
-    f775f5e2d11b75bf1f3fef97700bcfd3
+    SLES11_SP3 \
+    /srv/tftpboot/suse-11.3/install \
+    f9a7aa4950fbee8079844f5973169db8
 
 check_repo_content \
     Cloud \
@@ -214,12 +221,15 @@ else
     fi
 fi
 
-check_repo_product SLES11-SP1-Pool     'SUSE Linux Enterprise Server 11 SP1'
-check_repo_product SLES11-SP1-Updates  'SUSE Linux Enterprise Server 11 SP1'
-check_repo_product SLES11-SP1-Updates  'SUSE_SLES Service Pack 2 Migration Product'
-check_repo_product SLES11-SP2-Core     'SUSE Linux Enterprise Server 11 SP2'
-check_repo_product SLES11-SP2-Updates  'SUSE Linux Enterprise Server 11 SP2'
-check_repo_product SUSE-Cloud-1.0-Pool 'SUSE Cloud 1.0'
+check_repo_product SLES11-SP1-Pool        'SUSE Linux Enterprise Server 11 SP1'
+check_repo_product SLES11-SP1-Updates     'SUSE Linux Enterprise Server 11 SP1'
+check_repo_product SLES11-SP1-Updates     'SUSE_SLES Service Pack 2 Migration Product'
+check_repo_product SLES11-SP2-Core        'SUSE Linux Enterprise Server 11 SP2'
+check_repo_product SLES11-SP2-Updates     'SUSE Linux Enterprise Server 11 SP2'
+check_repo_product SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
+check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
+check_repo_product SUSE-Cloud-2.0-Pool    'SUSE Cloud 2.0'
+check_repo_product SUSE-Cloud-2.0-Updates 'SUSE Cloud 2.0'
 
 add_ibs_repo () {
     url="$1"
@@ -233,19 +243,20 @@ add_ibs_repo () {
 
 if [ -n "$CROWBAR_TESTING" ]; then
 
-#    FIXME: This is currently not working. The repos URLs need to be updated to the
-#           latests SP3 repos. It would be useful only for testing the crowbar
-#           admin node setup. Additional work (e.g. on the autoyast profile) is
-#           required to make those repos available to any client nodes.
-#    if [ $CROWBAR_TESTING = "ibs" ]; then
-#        add_ibs_repo http://dist.suse.de/install/SLP/SLES-11-SP2-GM/x86_64/DVD1 sp2
-#        add_ibs_repo http://dist.suse.de/install/SLP/SLE-11-SP2-SDK-GM/x86_64/DVD1/ sdk-sp2
-#        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
-#        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
-#        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
-#        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
-#        add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud/SLE_11_SP2/ cloud
-#    fi
+    # FIXME: This is useful only for testing the crowbar admin node setup.
+    #        Additional work (e.g. on the autoyast profile) is required to make
+    #        those repos available to any client nodes.
+    if [ $CROWBAR_TESTING = "ibs" ]; then
+        add_ibs_repo http://dist.suse.de/install/SLP/SLES-11-SP3-LATEST/x86_64/DVD1 sp3
+        add_ibs_repo http://dist.suse.de/install/SLP/SLE-11-SP3-SDK-LATEST/x86_64/DVD1/ sdk-sp3
+        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
+        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
+        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP3:/GA/standard/ sp3-ga
+        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
+        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
+        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP3:/Update/standard/ sp3-update
+        add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud:/2.0/SLE_11_SP3/ cloud
+    fi
 
     # install chef and its dependencies
     zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server \
