@@ -377,9 +377,9 @@ fi
 # If you've got a full openstack set installed, e.g.: nagios has to be
 # installed before keystone, etc.
 #
-for i in deployer dns database ipmi nagios keystone \
-         glance logging network ceph nova nova_dashboard ntp openstack \
-         provisioner swift ; do
+for i in deployer dns ipmi logging nagios network ntp provisioner \
+         database rabbitmq ceph \
+         keystone glance cinder quantum nova nova_dashboard swift openstack ; do
     if [ -e /opt/dell/crowbar_framework/barclamps/$i.yml ]; then
         echo "$i barclamp is already installed"
     else
