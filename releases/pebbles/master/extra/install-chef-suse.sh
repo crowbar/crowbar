@@ -92,7 +92,7 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_TESTING" ]; then
-    REPOS_SKIP_CHECKS+="SLES11-SP1-Pool SLES11-SP1-Updates SLES11-SP2-Core SLES11-SP2-Updates SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates Cloud-PTF"
+    REPOS_SKIP_CHECKS+=" SLES11-SP1-Pool SLES11-SP1-Updates SLES11-SP2-Core SLES11-SP2-Updates SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates Cloud-PTF"
     zypper in rubygems rubygem-json
 fi
 
@@ -199,7 +199,7 @@ check_repo_product () {
 #   SP3-Updates is lacking products.xml
 #   Cloud: we don't have the final md5
 #   SUSE-Cloud-2.0-*: not existing yet
-REPOS_SKIP_CHECKS+="Cloud SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
+REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
 
 # FIXME: this is for SP3 RC2
 check_repo_content \
