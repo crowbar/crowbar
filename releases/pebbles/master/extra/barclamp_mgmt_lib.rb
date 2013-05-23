@@ -54,15 +54,15 @@ def fatal(msg, log)
 end
 
 # entry point for scripts
-def bc_install(bc, bc_path, yaml)
+def bc_install(from_rpm, bc, bc_path, yaml)
   case yaml["crowbar"]["layout"].to_i
   when 1
     debug "Installing app components"
-    bc_install_layout_1_app bc, bc_path, yaml
+    bc_install_layout_1_app from_rpm, bc, bc_path, yaml
     debug "Installing chef components"
-    bc_install_layout_1_chef bc, bc_path, yaml
+    bc_install_layout_1_chef from_rpm, bc, bc_path, yaml
     debug "Installing cache components"
-    bc_install_layout_1_cache bc, bc_path, yaml
+    bc_install_layout_1_cache from_rpm, bc, bc_path, yaml
   else
     raise "ERROR: could not install barclamp #{bc} because #{yaml["barclamp"]["crowbar_layout"]} is unknown layout."
   end
@@ -362,7 +362,7 @@ end
 
 # install the framework files for a barclamp
 # N.B. if you update this, you must also update Guardfile.tree-merge !!
-def bc_install_layout_1_app(bc, bc_path, yaml)
+def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
 
   #TODO - add a roll back so there are NOT partial results if a step fails
   files = []
@@ -444,7 +444,7 @@ def bc_install_layout_1_app(bc, bc_path, yaml)
 end
 
 # upload the chef parts for a barclamp
-def bc_install_layout_1_chef(bc, bc_path, yaml)
+def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
   log_path = File.join '/var', 'log', 'barclamps'
   FileUtils.mkdir log_path unless File.directory? log_path
   log = File.join log_path, "#{bc}.log"
@@ -455,15 +455,15 @@ def bc_install_layout_1_chef(bc, bc_path, yaml)
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
 
-  if File.exists? '/etc/SuSE-release'
+  if from_rpm
     rpm = 'crowbar-barclamp-' + bc
-    debug "on SUSE machine; obtaining chef components from #{rpm}"
+    debug "obtaining chef components from #{rpm} rpm"
     rpm_files = get_rpm_file_list(rpm)
     upload_cookbooks_from_rpm rpm, rpm_files, bc_path, log
     upload_data_bags_from_rpm rpm, rpm_files, bc_path, log
     upload_roles_from_rpm     rpm, rpm_files, bc_path, log
   else
-    debug "obtaining chef components from " + bc_path
+    debug "obtaining chef components from #{bc_path} directory"
     upload_cookbooks_from_dir cookbooks, ['ALL'], bc_path, log
     upload_data_bags_from_dir databags, bc_path, log
     upload_roles_from_dir     roles,    bc_path, log
@@ -601,7 +601,7 @@ def upload_role_from_dir(role_path, bc_path, log)
   debug "\texecuted: #{bc_path} #{knife_role}"
 end
 
-def bc_install_layout_1_cache(bc, bc_path, yaml)
+def bc_install_layout_1_cache(from_rpm, bc, bc_path, yaml)
   return unless File.directory?(File.join(bc_path,"cache"))
   Dir.entries(File.join(bc_path,"cache")).each do |ent|
     debug ent.inspect

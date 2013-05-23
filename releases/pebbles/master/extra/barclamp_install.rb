@@ -25,7 +25,8 @@ require 'pp'
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
-  [ '--force', '-f', GetoptLong::NO_ARGUMENT ]
+  [ '--force', '-f', GetoptLong::NO_ARGUMENT ],
+  [ '--rpm', GetoptLong::NO_ARGUMENT ]
 )
 
 def usage()
@@ -35,6 +36,7 @@ def usage()
 end
 
 force_install = false
+from_rpm = false
 
 opts.each do |opt, arg|
   case opt
@@ -45,6 +47,8 @@ opts.each do |opt, arg|
     debug "debug mode is enabled"
     when "--force"
     force_install = true
+    when "--rpm"
+    from_rpm = true
   end
 end
 
@@ -175,7 +179,7 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
     end
     debug "installing barclamp"
     begin
-      bc_install bc[:name], bc[:src], bc[:yaml]
+      bc_install from_rpm, bc[:name], bc[:src], bc[:yaml]
     rescue StandardError => e
       debug "exception occurred while installing barclamp"
       raise e
