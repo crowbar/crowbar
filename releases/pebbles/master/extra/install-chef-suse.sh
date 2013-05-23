@@ -9,7 +9,7 @@
 # crowbar admin node from a git checkout , you can follow the manual steps
 # below.
 #
-# 1. export CROWBAR_TESTING=true (this expects a current build of the Cloud
+# 1. export CROWBAR_FROM_GIT=true (this expects a current build of the Cloud
 #    addon ISO to be extracted in /srv/tftpboot/repos/Cloud)
 #    and
 #    export CROWBAR_FILE=<path-to-your-git-tree>/crowbar.json
@@ -91,7 +91,7 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
     die "Could not resolve $FQDN to an IPv4 or IPv6 address. Aborting."
 fi
 
-if [ -n "$CROWBAR_TESTING" ]; then
+if [ -n "$CROWBAR_FROM_GIT" ]; then
     REPOS_SKIP_CHECKS+=" SLES11-SP1-Pool SLES11-SP1-Updates SLES11-SP2-Core SLES11-SP2-Updates SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates Cloud-PTF"
     zypper in rubygems rubygem-json
 fi
@@ -105,7 +105,7 @@ if [ -n "$IPv4_addr" ]; then
         die "$FQDN resolves to a loopback address. Aborting."
     fi
 
-    if [ -n "$CROWBAR_TESTING" ]; then
+    if [ -n "$CROWBAR_FROM_GIT" ]; then
         NETWORK_JSON=$BARCLAMP_SRC/network/chef/data_bags/crowbar/bc-template-network.json
     else
         NETWORK_JSON=/opt/dell/chef/data_bags/crowbar/bc-template-network.json
@@ -142,7 +142,7 @@ fi
 /bin/ls -la /srv/tftpboot/repos/ /srv/tftpboot/repos/Cloud/ /srv/tftpboot/suse-11.3/install/
 
 if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb ]; then
-    # The autoyast profile might not exist yet when CROWBAR_TESTING is enabled
+    # The autoyast profile might not exist yet when CROWBAR_FROM_GIT is enabled
     /usr/bin/grep media_url /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb
 fi
 
@@ -167,15 +167,15 @@ check_repo_content () {
     fi
 
     if ! [ -e "$repo_path/content.asc" ]; then
-        if [ -n "$CROWBAR_TESTING" ]; then
+        if [ -n "$CROWBAR_FROM_GIT" ]; then
             die "$repo has not been set up yet; please see https://github.com/SUSE/cloud/wiki/Crowbar"
         else
             die "$repo_name has not been set up yet; please check you didn't miss a step in the installation guide."
         fi
     fi
 
-    if [ -n "$CROWBAR_TESTING" ]; then
-        echo "Skipping md5 check for $repo_name due to \$CROWBAR_TESTING"
+    if [ -n "$CROWBAR_FROM_GIT" ]; then
+        echo "Skipping md5 check for $repo_name due to \$CROWBAR_FROM_GIT"
     else
         if [ "`md5sum $repo_path/content | awk '{print $1}'`" != "$md5" ]; then
             die "$repo_name does not contain the expected repository ($repo_path/content failed MD5 checksum)"
@@ -241,12 +241,12 @@ add_ibs_repo () {
     fi
 }
 
-if [ -n "$CROWBAR_TESTING" ]; then
+if [ -n "$CROWBAR_FROM_GIT" ]; then
 
     # FIXME: This is useful only for testing the crowbar admin node setup.
     #        Additional work (e.g. on the autoyast profile) is required to make
     #        those repos available to any client nodes.
-    if [ $CROWBAR_TESTING = "ibs" ]; then
+    if [ $CROWBAR_FROM_GIT = "ibs" ]; then
         add_ibs_repo http://dist.suse.de/install/SLP/SLES-11-SP3-LATEST/x86_64/DVD1 sp3
         add_ibs_repo http://dist.suse.de/install/SLP/SLE-11-SP3-SDK-LATEST/x86_64/DVD1/ sdk-sp3
         add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
@@ -277,7 +277,7 @@ LABEL pxeboot
 ONERROR LOCALBOOT 0
 EOF
     # create Compatibility link /tftpboot -> /srv/tftpboot (this is part of
-    # the crowbar package when not in $CROWBAR_TESTING)
+    # the crowbar package when not in $CROWBAR_FROM_GIT)
     if ! [ -e /tftpboot ]; then
         ln -s /srv/tftpboot /tftpboot
     elif [ "$( /usr/bin/readlink /tftpboot )" != "/srv/tftpboot" ]; then
@@ -365,7 +365,12 @@ if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" $CROWBAR_FILE
 fi
 
-/opt/dell/bin/barclamp_install.rb $BARCLAMP_SRC/crowbar
+BARCLAMP_INSTALL_OPTS=
+if [ -z "$CROWBAR_FROM_GIT" ]; then
+    BARCLAMP_INSTALL_OPTS="--rpm"
+fi
+
+/opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/crowbar
 
 #
 # Take care that the barclamps are installed in the right order
@@ -378,7 +383,7 @@ for i in deployer dns database ipmi nagios keystone \
     if [ -e /opt/dell/crowbar_framework/barclamps/$i.yml ]; then
         echo "$i barclamp is already installed"
     else
-        /opt/dell/bin/barclamp_install.rb $BARCLAMP_SRC/$i
+        /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
     fi
 done
 
@@ -514,7 +519,7 @@ ip addr | grep -q $IP || {
 
 # Run tests -- currently the host will run this.
 # 2012-05-24: test is failing, so only run if CROWBAR_RUN_TESTS=true
-# (this is distinct from CROWBAR_TESTING, which would add extra repos etc.)
+# (this is distinct from CROWBAR_FROM_GIT, which would add extra repos etc.)
 if [ -n "$CROWBAR_RUN_TESTS" ]; then
     /opt/dell/bin/barclamp_test.rb -t || \
         die "Crowbar validation has errors! Please check the logs and correct."

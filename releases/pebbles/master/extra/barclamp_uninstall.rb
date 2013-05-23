@@ -24,7 +24,7 @@ require '/opt/dell/bin/barclamp_mgmt_lib.rb'
   # this is used by the install-chef installer script 
   if __FILE__ == $0
     path = ARGV[0]
-    puts "Using #{path}" if DEBUG
+    debug "Using #{path}"
     bc_file = File.join path, 'crowbar.yml'
     unless File.exist? bc_file
       path = File.join '/opt', 'dell', 'barclamps', path
