@@ -379,9 +379,13 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
     framework_permissions bc, bc_path
   end
 
-  #merge i18n information (least invasive operations first)
-  debug "merge_i18n"
-  merge_i18n yaml
+  if from_rpm
+    debug "locale data for #{bc} is already available in #{File.join CROWBAR_PATH, 'config', 'locales'} (generated at rpm build-time)"
+  else
+    # merge i18n information (least invasive operations first)
+    debug "merge_i18n"
+    merge_i18n yaml
+  end
   debug "merge_nav"
   merge_nav yaml, true
   debug "merge_sass"
