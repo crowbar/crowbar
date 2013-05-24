@@ -39,12 +39,16 @@ die() {
 crowbar_up=
 admin_node_up=
 
+# Create log directory and secure it
+mkdir -p /var/log/crowbar/install
+chmod 0750 /var/log/crowbar
+
 # Run a command and log its output.
 log_to() {
     # $1 = install log to log to
     # $@ = rest of args
     local __logname="$1" _ret=0
-    local __log="/var/log/install-$1"
+    local __log="/var/log/crowbar/install/$1"
     local __timestamp="$(date '+%F %T %z')"
     local log_skip_re='^gem|knife$'
     shift
@@ -393,10 +397,10 @@ if [ "$(crowbar crowbar proposal list)" != "default" ] ; then
         die "Could not create default proposal"
     fi
 fi
-crowbar crowbar proposal show default >/var/log/default-proposal.json
+crowbar crowbar proposal show default >/var/log/crowbar/default-proposal.json
 crowbar crowbar proposal commit default || \
     die "Could not commit default proposal!"
-crowbar crowbar show default >/var/log/default.json
+crowbar crowbar show default >/var/log/crowbar/default.json
 # have die change our status to problem if we fail
 crowbar_up=true
 chef_or_die "Chef run after default proposal commit failed!"

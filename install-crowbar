@@ -23,6 +23,10 @@ cp change-image/dell/* /opt/dell/bin
 cp extra/barclamp* /opt/dell/bin
 export PATH=$PATH:/opt/dell/bin:/usr/local/bin
 
+# Create log directory and secure it
+mkdir -p /var/log/crowbar
+chmod 0750 /var/log/crowbar
+
 # Put our barclamps in the proper location
 [[ -d /opt/dell/barclamps/crowbar ]] || cp -a barclamps /opt/dell
 
@@ -312,10 +316,10 @@ EOF
 	    die "Could not create default proposal"
 	fi
     fi
-    crowbar crowbar proposal show default >/var/log/default-proposal.json
+    crowbar crowbar proposal show default >/var/log/crowbar/default-proposal.json
     crowbar crowbar proposal commit default || \
 	die "Could not commit default proposal!"
-    crowbar crowbar show default >/var/log/default.json
+    crowbar crowbar show default >/var/log/crowbar/default.json
 fi
 
 for state in discovering discovered hardware-installing hardware-installed \
