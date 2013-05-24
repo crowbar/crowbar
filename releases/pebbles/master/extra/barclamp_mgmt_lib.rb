@@ -335,7 +335,7 @@ def merge_tree(key, value, target)
 end
 
 # cleanup (anti-install) assumes the install generates a file list
-def bc_remove_layout_1(bc, bc_path, yaml)
+def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
   filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
   if File.exist? filelist
     files = [ filelist ]
