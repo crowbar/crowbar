@@ -92,8 +92,8 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    REPOS_SKIP_CHECKS+=" SLES11-SP1-Pool SLES11-SP1-Updates SLES11-SP2-Core SLES11-SP2-Updates SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates Cloud-PTF"
-    zypper in rubygems rubygem-json
+    REPOS_SKIP_CHECKS+=" SLES11-SP1-Pool SLES11-SP1-Updates SLES11-SP2-Core SLES11-SP2-Updates SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
+    zypper in rubygems rubygem-json createrepo
 fi
 
 if [ -n "$IPv4_addr" ]; then
@@ -189,6 +189,11 @@ check_repo_product () {
     if ! grep -q "<summary>$2</summary>" $products_xml; then
         if skip_check_for_repo "$repo"; then
             echo "Ignoring failed repo check for $repo due to \$REPOS_SKIP_CHECKS ($products_xml is missing summary '$expected_summary')"
+            if ! [ -d /srv/tftpboot/repos/$repo ]; then
+                echo "Creating repo skeleton to make AutoYaST happy."
+                mkdir /srv/tftpboot/repos/$repo
+                /usr/bin/createrepo /srv/tftpboot/repos/$repo
+            fi
             return 0
         fi
         die "$repo does not contain the right repository ($products_xml is missing summary '$expected_summary')"
@@ -217,7 +222,17 @@ if skip_check_for_repo "Cloud-PTF"; then
     echo "Skipping check for Cloud-PTF due to \$REPOS_SKIP_CHECKS"
 else
     if ! [ -e "/srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml" ]; then
-        die "Cloud-PTF has not been set up correctly; did the crowbar rpm fail to install correctly?"
+        # Only do this for CROWBAR_FROM_GIT , as usually the crowbar package
+        # creates the repo metadata for Cloud-PTF
+        if [ -n $CROWBAR_FROM_GIT ]; then
+            echo "Creating repo skeleton to make AutoYaST happy."
+            if ! [ -d /srv/tftpboot/repos/Cloud-PTF ]; then
+                mkdir /srv/tftpboot/repos/Cloud-PTF
+            fi
+            /usr/bin/createrepo /srv/tftpboot/repos/Cloud-PTF
+        else
+            die "Cloud-PTF has not been set up correctly; did the crowbar rpm fail to install correctly?"
+        fi
     fi
 fi
 
