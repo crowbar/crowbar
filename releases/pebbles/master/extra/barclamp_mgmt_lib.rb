@@ -453,7 +453,7 @@ end
 
 # upload the chef parts for a barclamp
 def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
-  log_path = File.join '/var', 'log', 'barclamps'
+  log_path = File.join '/var', 'log', 'crowbar', 'barclamp_install'
   FileUtils.mkdir log_path unless File.directory? log_path
   log = File.join log_path, "#{bc}.log"
   system "date >> #{log}"
