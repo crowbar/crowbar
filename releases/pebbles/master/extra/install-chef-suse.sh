@@ -299,6 +299,10 @@ EOF
         die "/tftpboot exist but is not a symbolic link to /srv/tftpboot. Please fix!"
     fi
 
+    # log directory needs to exist
+    mkdir -p /var/log/crowbar
+    chmod 0750 /var/log/crowbar
+
     # You'll also need:
     #   /srv/tftpboot/discovery/initrd0.img
     #   /srv/tftpboot/discovery/vmlinuz0
@@ -479,13 +483,13 @@ if [ "$($CROWBAR crowbar proposal list)" != "default" ] ; then
 fi
 
 # this has machine key world readable? care?
-$CROWBAR crowbar proposal show default >/var/log/default-proposal.json
+$CROWBAR crowbar proposal show default >/var/log/crowbar/default-proposal.json
 
 # next will fail if ntp barclamp not present (or did for me...)
 $CROWBAR crowbar proposal commit default || \
     die "Could not commit default proposal!"
     
-$CROWBAR crowbar show default >/var/log/default.json
+$CROWBAR crowbar show default >/var/log/crowbar/default.json
 
 crowbar_up=true
 chef-client
