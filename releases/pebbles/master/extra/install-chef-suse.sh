@@ -1,22 +1,20 @@
 #! /bin/bash -e
 
-# This script is supposed to be run after being installed via the
-# crowbar rpm from the SUSE Cloud ISO.  In that context, it is
-# expected that all other required repositories (SLES, Updates, etc.)
-# are already set up, and a lot of the required files will already be
-# in the right place.
-# However if you want to test setup on a vanilla SLES system and setup a
-# crowbar admin node from a git checkout , you can follow the manual steps
-# below.
+# This script is called after being installed by the Crowbar RPM from the SUSE
+# Cloud ISO. In this context, it is expected that all other required
+# repositories (eg. SLES, Updates) are already set up, with the required files
+# in place.
 #
-# 1. export CROWBAR_FROM_GIT=true (this expects a current build of the Cloud
-#    addon ISO to be extracted in /srv/tftpboot/repos/Cloud)
-#    and
-#    export CROWBAR_FILE=<path-to-your-git-tree>/crowbar.json
-#    export BARCLAMP_SRC=<path-to-your-git-tree>/barclamps/
-# 2. Copy extra/b* to /opt/dell/bin/
-# 3. Make sure eth0 is configured to the same static address as defined
-#    in configuration of the network barclamp (default: 192.168.124.10/24)
+# For development and testing use, call the script with the '--from-git'
+# option. Use the appropriate dev VM and follow the corresponding setup
+# instructions.
+
+if [ "$1" = "--from-git" ]; then
+    CROWBAR_FROM_GIT=true
+    : ${CROWBAR_FILE:=/root/crowbar/crowbar.json}
+    : ${BARCLAMP_SRC:=/root/crowbar/barclamps/}
+    sed -i -e '/"nagios":/d' -e '/"ganglia":/d' $CROWBAR_FILE
+fi
 
 LOGFILE=/var/log/chef/install.log
 
