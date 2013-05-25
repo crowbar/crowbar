@@ -1,4 +1,4 @@
-#! /bin/bash
+#! /bin/bash -e
 
 # This script is supposed to be run after being installed via the
 # crowbar rpm from the SUSE Cloud ISO.  In that context, it is
@@ -21,8 +21,6 @@
 LOGFILE=/var/log/chef/install.log
 
 : ${BARCLAMP_SRC:="/opt/dell/barclamps/"}
-
-set -e
 
 run_succeeded=
 
