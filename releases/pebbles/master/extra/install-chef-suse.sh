@@ -9,8 +9,11 @@
 # option. Use the appropriate dev VM and follow the corresponding setup
 # instructions.
 
+BARCLAMP_INSTALL_OPTS="--rpm"
+
 if [ "$1" = "--from-git" ]; then
     CROWBAR_FROM_GIT=true
+    BARCLAMP_INSTALL_OPTS="--force"
     : ${CROWBAR_FILE:=/root/crowbar/crowbar.json}
     : ${BARCLAMP_SRC:=/root/crowbar/barclamps/}
     sed -i -e '/"nagios":/d' -e '/"ganglia":/d' $CROWBAR_FILE
@@ -374,11 +377,6 @@ fi
 if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
     sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" $CROWBAR_FILE
-fi
-
-BARCLAMP_INSTALL_OPTS=
-if [ -z "$CROWBAR_FROM_GIT" ]; then
-    BARCLAMP_INSTALL_OPTS="--rpm"
 fi
 
 /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/crowbar
