@@ -25,7 +25,107 @@ LOGFILE=/var/log/chef/install.log
 
 run_succeeded=
 
+# Infrastructure for nice output/logging
+# --------------------------------------
+
+# Copy stdout to fd 3
+exec 3>&1
+# Create fd 4 for logfile
+exec 4>> "$LOGFILE"
+
+if [ -z "$CROWBAR_VERBOSE" ]; then
+    # Set fd 1 and 2 to logfile
+    exec 1>&4 2>&1
+else
+    # Set fd 1 and 2 to logfile (and keep stdout too)
+    exec 1> >( tee -a /dev/fd/4 ) 2>&1
+fi
+# Send summary fd to original stdout
+exec 6>&3
+
+pipe_stdout_and_logfile () {
+    tee -a /dev/fd/3 /dev/fd/4 > /dev/null
+}
+
+# Draw a spinner so the user knows something is happening
+spinner () {
+    local delay=0.75
+    local spinstr='/-\|'
+    printf "... " >&3
+    while [ true ]; do
+        local temp=${spinstr#?}
+        printf "[%c]" "$spinstr" >&3
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b" >&3
+    done
+}
+
+kill_spinner () {
+    if [ ! -z "$LAST_SPINNER_PID" ]; then
+        kill >/dev/null 2>&1 $LAST_SPINNER_PID
+        printf "\b\b\bdone\n" >&3
+        unset LAST_SPINNER_PID
+    fi
+}
+
+echo_log () {
+    echo -e === "$(date '+%F %T %z'): $@" >&4
+}
+
+echo_summary () {
+    # Also send summary to logfile
+    echo_log $@
+
+    kill_spinner
+
+    if [ -z "$CROWBAR_VERBOSE" ]; then
+        if [ -t 3 ]; then
+            echo -n -e $@ >&3
+            # Use disown to lose job control messages (especially the
+            # "Completed" message when spinner will be killed)
+            spinner & disown
+            LAST_SPINNER_PID=$!
+        else
+            echo -e $@ >&3
+        fi
+    else
+        echo -e === $@ >&3
+    fi
+}
+
+echo_summary_no_spinner () {
+    # Also send summary to logfile
+    echo_log $@
+
+    kill_spinner
+
+    if [ -z "$CROWBAR_VERBOSE" ]; then
+        echo -e $@ >&3
+    else
+        echo -e === $@ >&3
+    fi
+}
+
+die() {
+    # Send empty line & error to logfile
+    echo >&4
+    echo_log "Error: $@"
+
+    kill_spinner
+
+    echo >&3
+    echo -e "Error: $@" >&3
+
+    res=1
+    exit 1
+}
+
 exit_handler () {
+    if [ ! -z "$LAST_SPINNER_PID" ]; then
+        kill >/dev/null 2>&1 $LAST_SPINNER_PID
+    fi
+
     if [ -z "$run_succeeded" ]; then
         cat <<EOF
 
@@ -35,17 +135,13 @@ You should also check the SUSE Cloud Installation Manual, in
 particular the Troubleshooting section.  Note that this script can
 safely be re-run multiple times if required.
 EOF
-    fi
+    fi | pipe_stdout_and_logfile
 }
 
 trap exit_handler EXIT
 
-exec >  >(tee -a $LOGFILE    )
-exec 2> >(tee -a $LOGFILE >&2)
 
 echo "`date` $0 started with args: $*"
-
-die() { echo "$(date '+%F %T %z'): $*" >&2; res=1; exit 1; }
 
 ensure_service_running () {
     service="$1"
