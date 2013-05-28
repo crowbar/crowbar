@@ -19,7 +19,8 @@ if [ "$1" = "--from-git" ]; then
     sed -i -e '/"nagios":/d' -e '/"ganglia":/d' $CROWBAR_FILE
 fi
 
-LOGFILE=/var/log/chef/install.log
+LOGFILE=/var/log/crowbar/install.log
+mkdir -p "`dirname "$LOGFILE"`"
 
 : ${BARCLAMP_SRC:="/opt/dell/barclamps/"}
 
