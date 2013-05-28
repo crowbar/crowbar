@@ -19,15 +19,116 @@ if [ "$1" = "--from-git" ]; then
     sed -i -e '/"nagios":/d' -e '/"ganglia":/d' $CROWBAR_FILE
 fi
 
-LOGFILE=/var/log/chef/install.log
+LOGFILE=/var/log/crowbar/install.log
+mkdir -p "`dirname "$LOGFILE"`"
 
 : ${BARCLAMP_SRC:="/opt/dell/barclamps/"}
 
 run_succeeded=
 
+# Infrastructure for nice output/logging
+# --------------------------------------
+
+# Copy stdout to fd 3
+exec 3>&1
+# Create fd 4 for logfile
+exec 4>> "$LOGFILE"
+
+if [ -z "$CROWBAR_VERBOSE" ]; then
+    # Set fd 1 and 2 to logfile
+    exec 1>&4 2>&1
+else
+    # Set fd 1 and 2 to logfile (and keep stdout too)
+    exec 1> >( tee -a /dev/fd/4 ) 2>&1
+fi
+# Send summary fd to original stdout
+exec 6>&3
+
+pipe_stdout_and_logfile () {
+    tee -a /dev/fd/3 /dev/fd/4 > /dev/null
+}
+
+# Draw a spinner so the user knows something is happening
+spinner () {
+    local delay=0.75
+    local spinstr='/-\|'
+    printf "... " >&3
+    while [ true ]; do
+        local temp=${spinstr#?}
+        printf "[%c]" "$spinstr" >&3
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b" >&3
+    done
+}
+
+kill_spinner () {
+    if [ ! -z "$LAST_SPINNER_PID" ]; then
+        kill >/dev/null 2>&1 $LAST_SPINNER_PID
+        printf "\b\b\bdone\n" >&3
+        unset LAST_SPINNER_PID
+    fi
+}
+
+echo_log () {
+    echo -e === "$(date '+%F %T %z'): $@" >&4
+}
+
+echo_summary () {
+    # Also send summary to logfile
+    echo_log $@
+
+    kill_spinner
+
+    if [ -z "$CROWBAR_VERBOSE" ]; then
+        if [ -t 3 ]; then
+            echo -n -e $@ >&3
+            # Use disown to lose job control messages (especially the
+            # "Completed" message when spinner will be killed)
+            spinner & disown
+            LAST_SPINNER_PID=$!
+        else
+            echo -e $@ >&3
+        fi
+    else
+        echo -e === $@ >&3
+    fi
+}
+
+echo_summary_no_spinner () {
+    # Also send summary to logfile
+    echo_log $@
+
+    kill_spinner
+
+    if [ -z "$CROWBAR_VERBOSE" ]; then
+        echo -e $@ >&3
+    else
+        echo -e === $@ >&3
+    fi
+}
+
+die() {
+    # Send empty line & error to logfile
+    echo >&4
+    echo_log "Error: $@"
+
+    kill_spinner
+
+    echo >&3
+    echo -e "Error: $@" >&3
+
+    res=1
+    exit 1
+}
+
 exit_handler () {
+    if [ ! -z "$LAST_SPINNER_PID" ]; then
+        kill >/dev/null 2>&1 $LAST_SPINNER_PID
+    fi
+
     if [ -z "$run_succeeded" ]; then
-        cat <<EOF
+        cat <<EOF | pipe_stdout_and_logfile
 
 Crowbar installation terminated prematurely.  Please examine the above
 output or $LOGFILE for clues as to what went wrong.
@@ -40,12 +141,11 @@ EOF
 
 trap exit_handler EXIT
 
-exec >  >(tee -a $LOGFILE    )
-exec 2> >(tee -a $LOGFILE >&2)
+
+# Real work starts here
+# ---------------------
 
 echo "`date` $0 started with args: $*"
-
-die() { echo "$(date '+%F %T %z'): $*" >&2; res=1; exit 1; }
 
 ensure_service_running () {
     service="$1"
@@ -57,6 +157,12 @@ ensure_service_running () {
         sleep 4
     fi
 }
+
+
+# Sanity checks
+# -------------
+
+echo_summary "Performing sanity checks"
 
 rootpw=$( getent shadow root | cut -d: -f2 )
 case "$rootpw" in
@@ -255,7 +361,13 @@ add_ibs_repo () {
     fi
 }
 
+
+# Setup helper for git
+# --------------------
+
 if [ -n "$CROWBAR_FROM_GIT" ]; then
+
+    echo_summary "Performing additional setup for git"
 
     # FIXME: This is useful only for testing the crowbar admin node setup.
     #        Additional work (e.g. on the autoyast profile) is required to make
@@ -309,6 +421,12 @@ EOF
     # ubuntu admin node.
 fi
 
+
+# Starting services
+# -----------------
+
+echo_summary "Starting required services"
+
 chkconfig rabbitmq-server on
 ensure_service_running rabbitmq-server '^Node .+ with Pid [0-9]+: running'
 
@@ -327,12 +445,12 @@ else
     sed -i 's/amqp_pass ".*"/amqp_pass "'"$rabbit_chef_password"'"/' /etc/chef/{server,solr}.rb
 fi
 
-chmod o-rwx /etc/chef /etc/chef/{server,solr}.rb
-
 rabbitmqctl set_permissions -p /chef chef ".*" ".*" ".*"
 
 chkconfig couchdb on
 ensure_service_running couchdb
+
+chmod o-rwx /etc/chef /etc/chef/{server,solr}.rb
 
 # increase chef-solr index field size
 perl -i -pe 's{<maxFieldLength>.*</maxFieldLength>}{<maxFieldLength>200000</maxFieldLength>}' /var/lib/chef/solr/conf/solrconfig.xml
@@ -346,6 +464,12 @@ for service in $services; do
     ensure_service_running chef-${service}
 done
 
+
+# Initial chef-client run
+# -----------------------
+
+echo_summary "Performing initial chef-client run"
+
 if ! [ -e ~/.chef/knife.rb ]; then
     yes '' | knife configure -i
 fi
@@ -355,12 +479,17 @@ if echo "$node_info" | grep -q 'Run List:.*role'; then
     echo "Chef runlist for $FQDN is already populated; skipping initial chef-client run."
 else
     cat <<EOF
-Performing initial chef-client run ...
 This can cause warnings about /etc/chef/client.rb missing and
 the run list being empty; they can be safely ignored.
 EOF
     chef-client
 fi
+
+
+# Barclamp installation
+# ---------------------
+
+echo_summary "Installing barclamps"
 
 # Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
 #CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
@@ -400,6 +529,12 @@ for i in deployer dns ipmi logging nagios network ntp provisioner \
     fi
 done
 
+
+# First step of crowbar bootstrap
+# -------------------------------
+
+echo_summary "Bootstrapping Crowbar setup"
+
 # Configure chef to set up bind with correct local domain and DNS forwarders.
 dns_template=/opt/dell/chef/data_bags/crowbar/bc-template-dns.json
 [ -f $dns_template ] || die "$dns_template doesn't exist"
@@ -431,6 +566,12 @@ chef-client
 
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
+
+
+# Second step of crowbar bootstrap
+# -------------------------------
+
+echo_summary "Applying Crowbar configuration for administration server"
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /tmp/deploying
@@ -496,6 +637,12 @@ chef-client
 
 # BMC support?
 
+
+# Third step of crowbar bootstrap
+# -------------------------------
+
+echo_summary "Transitioning administration server to \"ready\""
+
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
 # to the next.
@@ -519,9 +666,21 @@ done
 # OK, let looper_chef_client run normally now.
 rm /tmp/deploying
 
+
+# Starting more services
+# ----------------------
+
+echo_summary "Starting chef-client"
+
 # Need chef-client daemon now
 chkconfig chef-client on
 ensure_service_running chef-client
+
+
+# Final sanity checks
+# -------------------
+
+echo_summary "Performing post-installation sanity checks"
 
 # Spit out a warning message if we managed to not get an IP address
 IPSTR=$($CROWBAR network show default | /opt/dell/barclamps/provisioner/updates/parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
@@ -544,9 +703,16 @@ for s in xinetd dhcpd apache2 ; do
     fi
 done
 
+
+# We're done!
+# -----------
+
+echo_summary_no_spinner ""
+echo_summary_no_spinner ""
+
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 
-cat <<EOF
+cat <<EOF | pipe_stdout_and_logfile
 Admin node deployed.
 
 You can now visit the Crowbar web UI at:
