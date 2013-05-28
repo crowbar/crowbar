@@ -127,7 +127,7 @@ exit_handler () {
     fi
 
     if [ -z "$run_succeeded" ]; then
-        cat <<EOF
+        cat <<EOF | pipe_stdout_and_logfile
 
 Crowbar installation terminated prematurely.  Please examine the above
 output or $LOGFILE for clues as to what went wrong.
@@ -135,11 +135,14 @@ You should also check the SUSE Cloud Installation Manual, in
 particular the Troubleshooting section.  Note that this script can
 safely be re-run multiple times if required.
 EOF
-    fi | pipe_stdout_and_logfile
+    fi
 }
 
 trap exit_handler EXIT
 
+
+# Real work starts here
+# ---------------------
 
 echo "`date` $0 started with args: $*"
 
@@ -153,6 +156,12 @@ ensure_service_running () {
         sleep 4
     fi
 }
+
+
+# Sanity checks
+# -------------
+
+echo_summary "Performing sanity checks"
 
 rootpw=$( getent shadow root | cut -d: -f2 )
 case "$rootpw" in
@@ -351,7 +360,13 @@ add_ibs_repo () {
     fi
 }
 
+
+# Setup helper for git
+# --------------------
+
 if [ -n "$CROWBAR_FROM_GIT" ]; then
+
+    echo_summary "Performing additional setup for git"
 
     # FIXME: This is useful only for testing the crowbar admin node setup.
     #        Additional work (e.g. on the autoyast profile) is required to make
@@ -405,6 +420,12 @@ EOF
     # ubuntu admin node.
 fi
 
+
+# Starting services
+# -----------------
+
+echo_summary "Starting required services"
+
 chkconfig rabbitmq-server on
 ensure_service_running rabbitmq-server '^Node .+ with Pid [0-9]+: running'
 
@@ -423,12 +444,12 @@ else
     sed -i 's/amqp_pass ".*"/amqp_pass "'"$rabbit_chef_password"'"/' /etc/chef/{server,solr}.rb
 fi
 
-chmod o-rwx /etc/chef /etc/chef/{server,solr}.rb
-
 rabbitmqctl set_permissions -p /chef chef ".*" ".*" ".*"
 
 chkconfig couchdb on
 ensure_service_running couchdb
+
+chmod o-rwx /etc/chef /etc/chef/{server,solr}.rb
 
 # increase chef-solr index field size
 perl -i -pe 's{<maxFieldLength>.*</maxFieldLength>}{<maxFieldLength>200000</maxFieldLength>}' /var/lib/chef/solr/conf/solrconfig.xml
@@ -442,6 +463,12 @@ for service in $services; do
     ensure_service_running chef-${service}
 done
 
+
+# Initial chef-client run
+# -----------------------
+
+echo_summary "Performing initial chef-client run"
+
 if ! [ -e ~/.chef/knife.rb ]; then
     yes '' | knife configure -i
 fi
@@ -451,12 +478,17 @@ if echo "$node_info" | grep -q 'Run List:.*role'; then
     echo "Chef runlist for $FQDN is already populated; skipping initial chef-client run."
 else
     cat <<EOF
-Performing initial chef-client run ...
 This can cause warnings about /etc/chef/client.rb missing and
 the run list being empty; they can be safely ignored.
 EOF
     chef-client
 fi
+
+
+# Barclamp installation
+# ---------------------
+
+echo_summary "Installing barclamps"
 
 # Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
 #CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
@@ -496,6 +528,12 @@ for i in deployer dns ipmi logging nagios network ntp provisioner \
     fi
 done
 
+
+# First step of crowbar bootstrap
+# -------------------------------
+
+echo_summary "Bootstrapping Crowbar setup"
+
 # Configure chef to set up bind with correct local domain and DNS forwarders.
 dns_template=/opt/dell/chef/data_bags/crowbar/bc-template-dns.json
 [ -f $dns_template ] || die "$dns_template doesn't exist"
@@ -527,6 +565,12 @@ chef-client
 
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
+
+
+# Second step of crowbar bootstrap
+# -------------------------------
+
+echo_summary "Applying Crowbar configuration for administration server"
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /tmp/deploying
@@ -592,6 +636,12 @@ chef-client
 
 # BMC support?
 
+
+# Third step of crowbar bootstrap
+# -------------------------------
+
+echo_summary "Transitioning administration server to \"ready\""
+
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
 # to the next.
@@ -615,9 +665,21 @@ done
 # OK, let looper_chef_client run normally now.
 rm /tmp/deploying
 
+
+# Starting more services
+# ----------------------
+
+echo_summary "Starting chef-client"
+
 # Need chef-client daemon now
 chkconfig chef-client on
 ensure_service_running chef-client
+
+
+# Final sanity checks
+# -------------------
+
+echo_summary "Performing post-installation sanity checks"
 
 # Spit out a warning message if we managed to not get an IP address
 IPSTR=$($CROWBAR network show default | /opt/dell/barclamps/provisioner/updates/parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
@@ -640,9 +702,16 @@ for s in xinetd dhcpd apache2 ; do
     fi
 done
 
+
+# We're done!
+# -----------
+
+echo_summary_no_spinner ""
+echo_summary_no_spinner ""
+
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 
-cat <<EOF
+cat <<EOF | pipe_stdout_and_logfile
 Admin node deployed.
 
 You can now visit the Crowbar web UI at:
