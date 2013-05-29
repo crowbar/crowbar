@@ -358,6 +358,10 @@ check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SUSE-Cloud-2.0-Pool    'SUSE Cloud 2.0'
 check_repo_product SUSE-Cloud-2.0-Updates 'SUSE Cloud 2.0'
 
+
+# Setup helper for git
+# --------------------
+
 add_ibs_repo () {
     url="$1"
     alias="$2"
@@ -367,10 +371,6 @@ add_ibs_repo () {
         echo "Repo: $alias already exists. Skipping."
     fi
 }
-
-
-# Setup helper for git
-# --------------------
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
 
@@ -714,14 +714,13 @@ done
 # We're done!
 # -----------
 
-echo_summary_no_spinner ""
-echo_summary_no_spinner ""
-
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 
 kill_spinner
 
 cat <<EOF | pipe_stdout_and_logfile
+
+
 Admin node deployed.
 
 You can now visit the Crowbar web UI at:
