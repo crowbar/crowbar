@@ -358,6 +358,12 @@ check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SUSE-Cloud-2.0-Pool    'SUSE Cloud 2.0'
 check_repo_product SUSE-Cloud-2.0-Updates 'SUSE Cloud 2.0'
 
+if [ -z "$CROWBAR_FROM_GIT" ]; then
+    if ! LANG=C zypper if -t pattern cloud_admin 2> /dev/null | grep -q "^Installed: Yes$"; then
+        die "cloud_admin pattern is not installed; please install with \"zypper in -t pattern cloud_admin\". Aborting."
+    fi
+fi
+
 
 # Setup helper for git
 # --------------------
