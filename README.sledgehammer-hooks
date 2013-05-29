@@ -69,7 +69,8 @@ functions:
 * hook_has_run
   If the current hook has already run for the current -pre or -post
   state, hook_has_run will return 0.  Otherwise, return 1.  This
-  function works by creating state tracking files in /install-logs/.
+  function works by creating state tracking files in
+  /var/log/crowbar/sledgehammer/.
   To facilitate this function, control.sh exports the following
   environment variables to the hooks:
   * HOOKNAME = the name of the hook without any path components.
