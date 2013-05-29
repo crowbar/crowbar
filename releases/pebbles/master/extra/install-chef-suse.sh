@@ -65,9 +65,17 @@ spinner () {
 kill_spinner () {
     if [ ! -z "$LAST_SPINNER_PID" ]; then
         kill >/dev/null 2>&1 $LAST_SPINNER_PID
-        printf "\b\b\bdone\n" >&3
+        if [ $# -eq 0 ]; then
+            printf "\b\b\bdone\n" >&3
+        else
+            printf "\b\b\b$*\n" >&3
+        fi
         unset LAST_SPINNER_PID
     fi
+}
+
+kill_spinner_with_failed () {
+    kill_spinner "failed"
 }
 
 echo_log () {
@@ -113,7 +121,7 @@ die() {
     echo >&4
     echo_log "Error: $@"
 
-    kill_spinner
+    kill_spinner_with_failed
 
     echo >&3
     echo -e "Error: $@" >&3
@@ -123,11 +131,8 @@ die() {
 }
 
 exit_handler () {
-    if [ ! -z "$LAST_SPINNER_PID" ]; then
-        kill >/dev/null 2>&1 $LAST_SPINNER_PID
-    fi
-
     if [ -z "$run_succeeded" ]; then
+        kill_spinner_with_failed
         cat <<EOF | pipe_stdout_and_logfile
 
 Crowbar installation terminated prematurely.  Please examine the above
@@ -136,6 +141,8 @@ You should also check the SUSE Cloud Installation Manual, in
 particular the Troubleshooting section.  Note that this script can
 safely be re-run multiple times if required.
 EOF
+    else
+        kill_spinner
     fi
 }
 
@@ -351,6 +358,16 @@ check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SUSE-Cloud-2.0-Pool    'SUSE Cloud 2.0'
 check_repo_product SUSE-Cloud-2.0-Updates 'SUSE Cloud 2.0'
 
+if [ -z "$CROWBAR_FROM_GIT" ]; then
+    if ! LANG=C zypper if -t pattern cloud_admin 2> /dev/null | grep -q "^Installed: Yes$"; then
+        die "cloud_admin pattern is not installed; please install with \"zypper in -t pattern cloud_admin\". Aborting."
+    fi
+fi
+
+
+# Setup helper for git
+# --------------------
+
 add_ibs_repo () {
     url="$1"
     alias="$2"
@@ -360,10 +377,6 @@ add_ibs_repo () {
         echo "Repo: $alias already exists. Skipping."
     fi
 }
-
-
-# Setup helper for git
-# --------------------
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
 
@@ -707,12 +720,13 @@ done
 # We're done!
 # -----------
 
-echo_summary_no_spinner ""
-echo_summary_no_spinner ""
-
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 
+kill_spinner
+
 cat <<EOF | pipe_stdout_and_logfile
+
+
 Admin node deployed.
 
 You can now visit the Crowbar web UI at:
