@@ -204,7 +204,7 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    REPOS_SKIP_CHECKS+=" SLES11-SP1-Pool SLES11-SP1-Updates SLES11-SP2-Core SLES11-SP2-Updates SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
     zypper in rubygems rubygem-json createrepo
 fi
 
@@ -348,11 +348,6 @@ else
     fi
 fi
 
-check_repo_product SLES11-SP1-Pool        'SUSE Linux Enterprise Server 11 SP1'
-check_repo_product SLES11-SP1-Updates     'SUSE Linux Enterprise Server 11 SP1'
-check_repo_product SLES11-SP1-Updates     'SUSE_SLES Service Pack 2 Migration Product'
-check_repo_product SLES11-SP2-Core        'SUSE Linux Enterprise Server 11 SP2'
-check_repo_product SLES11-SP2-Updates     'SUSE Linux Enterprise Server 11 SP2'
 check_repo_product SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SUSE-Cloud-2.0-Pool    'SUSE Cloud 2.0'
@@ -388,11 +383,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     if [ $CROWBAR_FROM_GIT = "ibs" ]; then
         add_ibs_repo http://dist.suse.de/install/SLP/SLES-11-SP3-LATEST/x86_64/DVD1 sp3
         add_ibs_repo http://dist.suse.de/install/SLP/SLE-11-SP3-SDK-LATEST/x86_64/DVD1/ sdk-sp3
-        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/GA/standard/ sp1-ga
-        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/GA/standard/ sp2-ga
         add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP3:/GA/standard/ sp3-ga
-        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP1:/Update/standard/ sp1-update
-        add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP2:/Update/standard/ sp2-update
         add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP3:/Update/standard/ sp3-update
         add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud:/2.0/SLE_11_SP3/ cloud
     fi
