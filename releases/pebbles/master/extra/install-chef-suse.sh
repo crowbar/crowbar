@@ -9,6 +9,16 @@
 # option. Use the appropriate dev VM and follow the corresponding setup
 # instructions.
 
+if [ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]; then
+    cat <<EOF
+Aborting: admin node is already deployed.
+
+If you want to run the installation script again, remove the following file:
+    /opt/dell/crowbar_framework/.crowbar-installed-ok
+EOF
+    exit 1
+fi
+
 BARCLAMP_INSTALL_OPTS="--rpm"
 
 if [ "$1" = "--from-git" ]; then
