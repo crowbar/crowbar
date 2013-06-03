@@ -26,11 +26,18 @@ if screen -ls |grep -q crowbar-install; then
     echo "You can attach to it with 'screen -r -S crowbar-install'"
     exit 0
 fi
-screen -d -m -S crowbar-install -t 'Crowbar Install' \
-    script -f -c "$installer $1" /var/log/install.log
-echo "Crowbar install started under screen."
-echo "You can attach to it by running:"
-echo "    sudo screen -r -S crowbar-install"
-echo "Once inside, pressing ctrl-a d will detach and leave the session running."
+
+if [[ "$2" == "--no-screen" ]]
+then
+  echo "Crowbar install started NOT under screen."
+  script -f -c "$installer $1" /var/log/install.log
+else
+  screen -d -m -S crowbar-install -t 'Crowbar Install' \
+      script -f -c "$installer $1" /var/log/install.log
+  echo "Crowbar install started under screen."
+  echo "You can attach to it by running:"
+  echo "    sudo screen -r -S crowbar-install"
+  echo "Once inside, pressing ctrl-a d will detach and leave the session running."
+fi
 cd -
 
