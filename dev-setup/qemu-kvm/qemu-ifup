@@ -32,7 +32,7 @@ then
   echo "IP masquerading already set up"
 else
   echo "Setting up IP masquerading"
-  iptables -t nat -A POSTROUTING -s "$NETWORK"/"$MASK" -d ! "$NETWORK"/"$MASK" -j MASQUERADE
+  iptables -t nat -A POSTROUTING -s "$NETWORK"/"$MASK" ! -d "$NETWORK"/"$MASK" -j MASQUERADE
 fi
 
 echo "Setting up IP forwarding"
