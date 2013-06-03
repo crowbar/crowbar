@@ -1,0 +1,75 @@
+--- /usr/lib/ruby/vendor_ruby/chef/provider/package/rubygems.rb	2012-01-17 16:19:36.000000000 -0600
++++ rubygems.rb	2012-03-17 01:32:16.000000000 -0500
+@@ -332,13 +332,13 @@
+ 
+         def initialize(new_resource, run_context=nil)
+           super
+-          if new_resource.gem_binary
++          if new_resource.gem_binary or Gem.configuration["gem"]
+             if new_resource.options && new_resource.options.kind_of?(Hash)
+               msg =  "options cannot be given as a hash when using an explicit gem_binary\n"
+               msg << "in #{new_resource} from #{new_resource.source_line}"
+               raise ArgumentError, msg
+             end
+-            @gem_env = AlternateGemEnvironment.new(new_resource.gem_binary)
++            @gem_env = AlternateGemEnvironment.new(new_resource.gem_binary || "gem")
+             Chef::Log.debug("#{@new_resource} using gem '#{new_resource.gem_binary}'")
+           elsif is_omnibus? && (!@new_resource.instance_of? Chef::Resource::ChefGem)
+             # Opscode Omnibus - The ruby that ships inside omnibus is only used for Chef
+@@ -396,22 +396,19 @@
+         # 2. shell out to `gem install` when a String of options is given
+         # 3. use gems API with options if a hash of options is given
+         def install_package(name, version)
+-          if source_is_remote? && @new_resource.gem_binary.nil?
+-            if @new_resource.options.nil?
+-              @gem_env.install(gem_dependency, :sources => gem_sources)
+-            elsif @new_resource.options.kind_of?(Hash)
+-              options = @new_resource.options
+-              options[:sources] = gem_sources
+-              @gem_env.install(gem_dependency, options)
+-            else
+-              install_via_gem_command(name, version)
+-            end
+-          elsif @new_resource.gem_binary.nil?
+-            @gem_env.install(@new_resource.source)
+-          else
++	  case
++	  when Gem.configuration["gem"] || @new_resource.gem_binary || @new_resource.options.kind_of?(String)
+             install_via_gem_command(name,version)
++          when source_is_remote? && @new_resource.options.kind_of?(Hash)
++            options = @new_resource.options
++            options[:sources] = gem_sources
++            @gem_env.install(gem_dependency, options)
++	  when source_is_remote?            
++            @gem_env.install(gem_dependency, :sources => gem_sources)
++	  else
++            @gem_env.install(@new_resource.source)
+           end
+-          true
++	  true          	    
+         end
+ 
+         def gem_binary_path
+@@ -428,16 +425,13 @@
+         end
+ 
+         def remove_package(name, version)
+-          if @new_resource.gem_binary.nil?
+-            if @new_resource.options.nil?
+-              @gem_env.uninstall(name, version)
+-            elsif @new_resource.options.kind_of?(Hash)
+-              @gem_env.uninstall(name, version, @new_resource.options)
+-            else
+-              uninstall_via_gem_command(name, version)
+-            end
+-          else
++          case
++          when Gem.configuration["gem"] || @new_resource.gem_binary || @new_resource.options.kind_of?(String)
+             uninstall_via_gem_command(name, version)
++          when @new_resource.options.kind_of?(Hash)
++            @gem_env.uninstall(name, version, @new_resource.options)
++	  else
++            @gem_env.uninstall(name, version)
+           end
+         end
+ 
