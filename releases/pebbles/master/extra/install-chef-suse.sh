@@ -30,16 +30,9 @@ while test $# -gt 0; do
     shift
 done
 
-if [ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]; then
-    cat <<EOF
-Aborting: administration server is already deployed.
-
-If you want to run the installation script again, remove the following file:
-    /opt/dell/crowbar_framework/.crowbar-installed-ok
-
-Please note that doing so will completely wipe your previous installation,
-including its configuration.
-EOF
+if [ $(id -u) -gt 0 ]; then
+    echo "$0 needs to be run as root user."
+    echo ""
     exit 1
 fi
 
@@ -59,6 +52,9 @@ mkdir -p "`dirname "$LOGFILE"`"
 
 run_succeeded=
 
+
+DIALOG_TITLE=" SUSE Cloud 2.0 "
+
 # Infrastructure for nice output/logging
 # --------------------------------------
 
@@ -77,7 +73,14 @@ fi
 # Send summary fd to original stdout
 exec 6>&3
 
-pipe_stdout_and_logfile () {
+pipe_show_and_log () {
+    if [ -t 3 -a -x "$(type -p dialog)" ]; then
+        t=$(mktemp)
+        cat - > $t
+        dialog --title "$DIALOG_TITLE" --textbox -- $t $(($(wc -l <$t)+4)) 75 >&3
+        rm -f $t
+        dialog --clear >&3
+    fi
     tee -a /dev/fd/3 /dev/fd/4 > /dev/null
 }
 
@@ -85,13 +88,23 @@ pipe_stdout_and_logfile () {
 spinner () {
     local delay=0.75
     local spinstr='/-\|'
+    local msg="$@"
+
+
     printf "... " >&3
     while [ true ]; do
         local temp=${spinstr#?}
-        printf "[%c]" "$spinstr" >&3
+        if [ -x "$(type -p dialog)"  ]; then
+            printf "\n%s [%c]" "$msg... " "$spinstr" | dialog --title "$DIALOG_TITLE" \
+                --keep-window --progressbox 5 70 >&3
+        else
+            printf "[%c]" "$spinstr" >&3
+        fi
         local spinstr=$temp${spinstr%"$temp"}
         sleep $delay
-        printf "\b\b\b" >&3
+        if ! [ -x "$(type -p dialog)"  ]; then
+            printf "\b\b\b" >&3
+        fi
     done
 }
 
@@ -124,9 +137,12 @@ echo_summary () {
     if [ -z "$CROWBAR_VERBOSE" ]; then
         if [ -t 3 ]; then
             echo -n -e $@ >&3
+            if [ -x "$(type -p dialog)"  ]; then
+                echo -n -e $@ | dialog --title "$DIALOG_TITLE" --progressbox 8 60 >&3
+            fi
             # Use disown to lose job control messages (especially the
             # "Completed" message when spinner will be killed)
-            spinner & disown
+            spinner $@ & disown
             LAST_SPINNER_PID=$!
         else
             echo -e $@ >&3
@@ -159,6 +175,10 @@ die() {
     echo >&3
     echo -e "Error: $@" >&3
 
+    if [ -t 3 -a -x "$(type -p dialog)" ]; then
+        dialog --title "$DIALOG_TITLE" --msgbox -- "Error: $@" 8 73 >&3
+    fi
+
     res=1
     exit 1
 }
@@ -166,7 +186,8 @@ die() {
 exit_handler () {
     if [ -z "$run_succeeded" ]; then
         kill_spinner_with_failed
-        cat <<EOF | pipe_stdout_and_logfile
+        clear >&3
+        cat <<EOF | pipe_show_and_log
 
 Crowbar installation terminated prematurely.  Please examine the above
 output or $LOGFILE for clues as to what went wrong.
@@ -199,6 +220,20 @@ ensure_service_running () {
 }
 
 
+if [ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]; then
+    run_succeeded=already_before
+
+cat <<EOF | pipe_show_and_log
+Aborting: Administration Server is already deployed.
+
+If you want to run the installation script again,
+then please remove the following file:
+
+    /opt/dell/crowbar_framework/.crowbar-installed-ok
+EOF
+    exit 1
+fi
+
 # Sanity checks
 # -------------
 
@@ -211,9 +246,13 @@ fi
 rootpw=$( getent shadow root | cut -d: -f2 )
 case "$rootpw" in
     \*|\!*)
-        die "root password is unset or locked.  Chef will rewrite /root/.ssh/authorized_keys; therefore to avoid being accidentally locked out of this admin node, you should first ensure you have a working root password."
+        die "root password is unset or locked.  Chef will rewrite /root/.ssh/authorized_keys; therefore to avoid being accidentally locked out of this Administration Server, you should first ensure you have a working root password."
         ;;
 esac
+
+if [ -z "$STY" ]; then
+    die "Please use \"screen $0\" to avoid problems during network re-configuration."
+fi
 
 # It is exceedingly important that 'hostname -f' actually returns an FQDN!
 # if it doesn't, add an entry to /etc/hosts, e.g.:
@@ -260,7 +299,7 @@ if [ -n "$IPv4_addr" ]; then
         NETWORK_JSON=/opt/dell/chef/data_bags/crowbar/bc-template-network.json
     fi
     if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < $NETWORK_JSON; then
-        die "IPv4 address $IPv4_addr of admin node not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
+        die "IPv4 address $IPv4_addr of Administration Server not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
     fi
 fi
 if [ -n "$IPv6_addr" ]; then
@@ -319,7 +358,7 @@ check_repo_content () {
         if [ -n "$CROWBAR_FROM_GIT" ]; then
             die "$repo has not been set up yet; please see https://github.com/SUSE/cloud/wiki/Crowbar"
         else
-            die "$repo_name has not been set up yet; please check you didn't miss a step in the installation guide."
+            die "$repo_name has not been set up at $repo_path\n\nPlease check the steps in the installation guide."
         fi
     fi
 
@@ -640,7 +679,7 @@ ensure_service_running crowbar
 # Second step of crowbar bootstrap
 # -------------------------------
 
-echo_summary "Applying Crowbar configuration for administration server"
+echo_summary "Applying Crowbar configuration for Administration Server"
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /tmp/deploying
@@ -719,7 +758,7 @@ done
 # Third step of crowbar bootstrap
 # -------------------------------
 
-echo_summary "Transitioning administration server to \"ready\""
+echo_summary "Transitioning Administration Server to \"ready\""
 
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
@@ -789,7 +828,7 @@ touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 
 kill_spinner
 
-cat <<EOF | pipe_stdout_and_logfile
+cat <<EOF | pipe_show_and_log
 
 
 Admin node deployed.
