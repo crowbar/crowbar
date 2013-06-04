@@ -313,6 +313,10 @@ if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" "$DVD_PATH"/extra/config/crowbar.json
 fi
 
+in=/opt/dell/barclamps/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
+cp -a $in $in.orig
+/opt/dell/bin/bc-provisioner-json.rb < $in.orig > $in
+
 # Crowbar will hack up the pxeboot files appropriatly.
 # Set Version in Crowbar UI
 sed -i "s/CROWBAR_VERSION = .*/CROWBAR_VERSION = \"${VERSION:=Dev}\"/" \

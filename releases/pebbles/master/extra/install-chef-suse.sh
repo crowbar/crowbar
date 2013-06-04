@@ -549,6 +549,10 @@ done
 
 echo_summary "Bootstrapping Crowbar setup"
 
+in=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
+cp -a $in $in.orig
+/opt/dell/bin/bc-provisioner-json.rb < $in.orig > $in
+
 # Configure chef to set up bind with correct local domain and DNS forwarders.
 dns_template=/opt/dell/chef/data_bags/crowbar/bc-template-dns.json
 [ -f $dns_template ] || die "$dns_template doesn't exist"
