@@ -10,9 +10,29 @@
 # option. Use the appropriate dev VM and follow the corresponding setup
 # instructions.
 
+usage () {
+    # do not document --from-git option; it's for developers only
+    cat <<EOF
+`basename $0` [-h|--help] [-v|--verbose]
+
+Install Crowbar on administration server.
+EOF
+    exit
+}
+
+while test $# -gt 0; do
+    case "$1" in
+        -h|--help|--usage|-?) usage ;;
+        -v|--verbose) CROWBAR_VERBOSE=1 ;;
+        --from-git) CROWBAR_FROM_GIT=1 ;;
+        *) ;;
+    esac
+    shift
+done
+
 if [ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]; then
     cat <<EOF
-Aborting: admin node is already deployed.
+Aborting: administration server is already deployed.
 
 If you want to run the installation script again, remove the following file:
     /opt/dell/crowbar_framework/.crowbar-installed-ok
@@ -23,24 +43,9 @@ EOF
     exit 1
 fi
 
-usage()
-{
-    echo "$0: [--help]"
-    echo ""
-    echo "Installs Admin Node for SUSE Cloud. Please refer to the manual"
-    echo "for more information."
-    echo ""
-}
-
-if [ "$1" = "--help" ] || [ "$1" = "-h" ] ||  [ "$1" = "--usage" ] || [ "$1" = "-?" ]; then
-    usage
-    exit 1
-fi
-
 BARCLAMP_INSTALL_OPTS="--rpm"
 
-if [ "$1" = "--from-git" ]; then
-    CROWBAR_FROM_GIT=true
+if [ -n "$CROWBAR_FROM_GIT" ]; then
     BARCLAMP_INSTALL_OPTS="--force"
     : ${CROWBAR_FILE:=/root/crowbar/crowbar.json}
     : ${BARCLAMP_SRC:=/root/crowbar/barclamps/}
