@@ -1,4 +1,5 @@
 #! /bin/bash -e
+# vim: sw=4 et
 
 # This script is called after being installed by the Crowbar RPM from the SUSE
 # Cloud ISO. In this context, it is expected that all other required
@@ -16,6 +17,20 @@ Aborting: admin node is already deployed.
 If you want to run the installation script again, remove the following file:
     /opt/dell/crowbar_framework/.crowbar-installed-ok
 EOF
+    exit 1
+fi
+
+usage()
+{
+    echo "$0: [--help]"
+    echo ""
+    echo "Installs Admin Node for SUSE Cloud. Please refer to the manual"
+    echo "for more information."
+    echo ""
+}
+
+if [ "$1" = "--help" ] || [ "$1" = "-h" ] ||  [ "$1" = "--usage" ] || [ "$1" = "-?" ]; then
+    usage
     exit 1
 fi
 
