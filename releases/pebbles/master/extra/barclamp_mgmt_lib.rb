@@ -340,9 +340,8 @@ def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
   if File.exist? filelist
     files = [ filelist ]
     File.open(filelist, 'r') do |f|
-      f.each_line { |line| files << line }
+      f.each_line { FileUtils.rm line rescue nil }
     end
-    FileUtils.rm files
     merge_nav yaml, false
     merge_sass yaml, bc, bc_path, false
     debug "Barclamp #{bc} UNinstalled"
