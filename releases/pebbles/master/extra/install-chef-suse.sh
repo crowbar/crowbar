@@ -479,6 +479,11 @@ for service in $services; do
 done
 
 
+in=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
+/opt/dell/bin/bc-provisioner-json.rb < $in > $in.new
+cp -a $in $in.orig
+mv $in.new $in
+
 # Initial chef-client run
 # -----------------------
 
