@@ -658,7 +658,16 @@ $CROWBAR crowbar show default >/var/log/crowbar/default.json
 crowbar_up=true
 chef-client
 
-# here we whould check indexer/expander is finished
+# Need to make sure that we have the indexer/expander finished
+COUNT=0
+VALUE=10000
+while (($COUNT < 60 && $VALUE !=0))
+do
+    sleep 1
+    VALUE=$(chef-expanderctl queue-depth | grep total | awk -F: '{ print $2 }')
+    echo "Expander Queue Total = $VALUE"
+    COUNT=$(($COUNT + 1))
+done
 
 # original script has several calls to check_machine_role -- see source for
 # this, in my limited testing it wasn't necessary on SUSE, but we should still
