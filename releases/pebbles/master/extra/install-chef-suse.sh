@@ -16,6 +16,9 @@ Aborting: admin node is already deployed.
 
 If you want to run the installation script again, remove the following file:
     /opt/dell/crowbar_framework/.crowbar-installed-ok
+
+Please note that doing so will completely wipe your previous installation,
+including its configuration.
 EOF
     exit 1
 fi
@@ -507,22 +510,50 @@ if ! [ -e ~/.chef/knife.rb ]; then
     yes '' | knife configure -i
 fi
 
-node_info=$(knife node show $FQDN 2>/dev/null || :)
-if echo "$node_info" | grep -q 'Run List:.*role'; then
-    echo "Chef runlist for $FQDN is already populated; skipping initial chef-client run."
-else
-    cat <<EOF
+# Reset chef to install from clean state
+# (this needs to be done after knife configure, since we need a client key)
+
+# we do not want to delete the chef-validator, chef-webui, root clients; we
+# only really want to delete clients that are named with FQDN
+knife client -y bulk delete ".*\.$DOMAIN"
+test -f /etc/chef/client.pem && rm /etc/chef/client.pem
+# the crowbar cookbook creates a "crowbar" client; delete it too
+if knife client show crowbar > /dev/null 2>&1; then
+    knife client -y delete crowbar
+fi
+test -f /opt/dell/crowbar_framework/config/client.pem && rm /opt/dell/crowbar_framework/config/client.pem
+
+knife cookbook -y bulk delete ".*"
+# no bulk delete for data bag
+for bag in `knife data bag list`; do
+    knife data bag -y delete $bag
+done
+knife node -y bulk delete ".*"
+knife role -y bulk delete ".*"
+
+cat <<EOF
 This can cause warnings about /etc/chef/client.rb missing and
 the run list being empty; they can be safely ignored.
 EOF
-    chef-client
-fi
+
+chef-client
 
 
 # Barclamp installation
 # ---------------------
 
 echo_summary "Installing barclamps"
+
+# Clean up previous crowbar install run, in case there was one
+test -x /etc/init.d/crowbar && service crowbar stop
+test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
+test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/htdigest
+test -e /opt/dell/crowbar_framework/barclamps && rm -r /opt/dell/crowbar_framework/barclamps
+for i in $BARCLAMP_SRC/*; do
+    if test -d $i -a -f $i-filelist.txt; then
+        /opt/dell/bin/barclamp_uninstall.rb $BARCLAMP_INSTALL_OPTS $i
+    fi
+done
 
 # Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
 #CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
@@ -542,7 +573,11 @@ fi
 
 if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    sed -i -e "s/machine_password/${CROWBAR_KEY##*:}/g" $CROWBAR_FILE
+    # This is a multiline sed, so that it works on the json file, however it
+    # looks like
+    # See http://austinmatzko.com/2008/04/26/sed-multi-line-search-and-replace/
+    # to understand this if not comfortable with multiline replace in sed.
+    sed -i -n -e "1h;1!H;\${;g;s|\(\"machine-install\":\s*{\s*\"password\":\s*\"\)[^\"]*|\1${CROWBAR_KEY##*:}|g;p;}" $CROWBAR_FILE
 fi
 
 /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/crowbar
@@ -555,11 +590,7 @@ fi
 for i in deployer dns ipmi logging nagios network ntp provisioner \
          database rabbitmq ceph \
          keystone glance cinder quantum nova nova_dashboard swift openstack ; do
-    if [ -e /opt/dell/crowbar_framework/barclamps/$i.yml ]; then
-        echo "$i barclamp is already installed"
-    else
-        /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
-    fi
+    /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
 done
 
 
