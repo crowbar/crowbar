@@ -90,6 +90,7 @@ def catalog(bc_path)
     name =  bc['barclamp']['name']
     cat['barclamps'][name] = {} if cat['barclamps'][name].nil?
     description = bc['barclamp']['description']
+    display = bc['barclamp']['display']
     if description.nil?
       debug "Trying to find description"
       [ File.join(bc_path, '..', name, 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
@@ -104,6 +105,7 @@ def catalog(bc_path)
     # template = File.join bc_path, name,
     debug "Adding catalog info for #{bc['barclamp']['name']}"
     cat['barclamps'][name]['description'] = description || "No description for #{bc['barclamp']['name']}"
+    cat['barclamps'][name]['display'] = display || ""
     cat['barclamps'][name]['user_managed'] = (bc['barclamp']['user_managed'].nil? ? true : bc['barclamp']['user_managed'])
     puts "#{name} #{bc['barclamp']['user_managed']}" if name === 'dell-branding'
     bc['barclamp']['member'].each do |meta|
