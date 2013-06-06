@@ -4816,6 +4816,8 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
       number, and the second argument must be a build that is applicable to
       the pull request.
 
+      To build in this state, you must: ./dev build --no-switch
+
       Please note that this will put any trees that have changes to be pulled
       into a detached HEAD state.  You can use dev switch to get back to normal."
 DEV_LONG_HELP["ci"]="Crowbar Continuous Integration Helper.
