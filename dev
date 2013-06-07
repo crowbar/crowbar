@@ -1278,7 +1278,7 @@ pull_request_multiswitch_one() (
     merge_res=$(git merge "$(git rev-parse "$prq_local_branch")") && return 0
     git merge --abort
     echo "$merge_res"
-    die "Merge failed!"
+    return 1
 )
 
 # Switch to a loal tree consisting of the contents of a bunch of pull requests
@@ -1305,7 +1305,7 @@ pull_request_multiswitch() {
                 done;;
             *) die "Cannot happen in pull_requests_multiswitch: prq_id";;
         esac
-        ((res != 0)) && exit 1
+        ((res != 0)) && die "Failed to merge $prq_id"
     done
     debug "All pull requests merged locally."
     debug "Remember to use the --no-switch flag to ./dev build."
