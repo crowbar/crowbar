@@ -11,6 +11,8 @@
     export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 }
 
+# Make sure that our git commands do not pop up with spurious editors,
+export GIT_MERGE_AUTOEDIT=false
 [[ $CROWBAR_TMP ]] || CROWBAR_TMP=$(mktemp -d /tmp/.crowbar-tmp-XXXXXXX)
 
 # Location for caches that should not be erased between runs
