@@ -269,13 +269,18 @@ final_build_fixups() {
 }
 
 __check_all_deps() {
-    local pkgname pkg token rest bc ok
+    local pkgname pkg token rest bc ok line
+    local -a lines
+    local token_re='(package|provider):[[:space:]]*([^[:space:]]+)'
     for pkgname in "$@"; do
         local -A deps
         [[ ${touched_pkgs["$pkgname"]} ]] && continue
         #debug "Checking dependencies for $pkgname"
-        while read token rest; do
-            pkg=${rest% *}
+        mapfile -t -n 0 lines < <(in_chroot yum -C deplist "$pkgname")
+        for line in "${lines[@]}"; do
+            [[ $line =~ $token_re ]] || continue
+            token=${BASH_REMATCH[1]}
+            pkg=${BASH_REMATCH[2]}
             ok=false
             # We only care about certian arches.
             for rest in "${PKG_ALLOWED_ARCHES[@]}"; do
@@ -285,23 +290,23 @@ __check_all_deps() {
             done
             [[ $ok = true ]] || continue
             case $token in
-                package:)
+                package)
                     [[ ${CD_POOL["${pkg}"]} && \
                         ! ${INSTALLED_PKGS["${pkg}"]} ]] || continue
                     #debug "Staging depended upon package $pkg"
                     INSTALLED_PKGS["${pkg}"]="true"
                     touched_pkgs["${pkg}"]="true";;
-                provider:) [[ ${seen_deps["$pkg"]} ]] && continue
+                provider) [[ ${seen_deps["$pkg"]} ]] && continue
                     #debug "Will check dependent package ${pkg} for $pkgname"
                     INSTALLED_PKGS["${pkg}"]="true"
                     seen_deps["$pkg"]="true"
                     deps["${pkg}"]="true";;
                 *) continue;;
             esac
-        done < <(in_chroot yum -C deplist "$pkgname")
+        done
         [[ ${!deps[*]} ]] && __check_all_deps "${!deps[@]}"
         unset deps
-        # Add ourselves to the installed_pkgs array if we woud not
+        # Add ourselves to the installed_pkgs array if we would not
         # have been processed by yum above.
         for rest in "${PKG_ALLOWED_ARCHES[@]}"; do
             [[ $pkgname = *.$rest ]] || continue
