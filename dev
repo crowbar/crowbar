@@ -1117,6 +1117,7 @@ show_pull_request() {
             builds=($(builds_in_release "$prq_release"))
         fi
         echo "Title:               $prq_title"
+        echo "Unique ID            $id"
         echo "Target Account:      $prq_target_account"
         echo "Source Account:      $prq_source_account"
         echo "Release:             $prq_release"
