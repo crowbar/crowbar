@@ -3691,6 +3691,7 @@ build_crowbar() {
     maybe_checkout_build_cache_branch
     with_build_lock exec "$CROWBAR_DIR/build_crowbar.sh" \
 	"$target_os" "${build_args[@]}"
+    echo "Build process took ${SECONDS} seconds."
 }
 
 # Reset a branch to another ref.
