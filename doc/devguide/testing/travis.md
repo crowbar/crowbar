@@ -85,7 +85,7 @@ bundle exec rake db:drop railties:install:migrations db:migrate db:fixtures:dump
 Here's how the openSUSE Jenkins node was setup:
 
 1. Setup the system as described in the [openSUSE dev guide]
-   (../dev-vm-openSUSE.md).
+   (../dev-vm-SUSE.md).
 
 1. Create a new `crowbar` user account and switch to it.
    ```

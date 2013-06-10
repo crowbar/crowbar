@@ -11,6 +11,8 @@
     export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 }
 
+# Make sure that our git commands do not pop up with spurious editors,
+export GIT_MERGE_AUTOEDIT=false
 [[ $CROWBAR_TMP ]] || CROWBAR_TMP=$(mktemp -d /tmp/.crowbar-tmp-XXXXXXX)
 
 # Location for caches that should not be erased between runs
@@ -45,6 +47,7 @@ declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_SUPPORT BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
 declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
 declare -A BC_SUPERCEDES BC_SRC_PKGS BC_GIT_REPOS
+declare -A CACHED_PACKAGES
 
 GEM_EXT_RE='^(.*)-\((.*)\)$'
 
@@ -113,8 +116,7 @@ get_one_barclamp_info() {
                 test_timeouts) BC_SMOKETEST_TIMEOUTS["$1"]+="$line ";;
                 supercedes)
                     [[ ${BC_SUPERCEDES[$line]} ]] || \
-                    BC_SUPERCEDES["$line"]="$1"
-                    debug "${BC_SUPERCEDES[$line]} supercedes $line";;
+                    BC_SUPERCEDES["$line"]="$1";;
                 git_repos) BC_GIT_REPOS["$1"]+="$line\n";;
                 *) die "Cannot handle query for $query."
             esac
@@ -130,11 +132,11 @@ get_barclamp_info() {
     for bc in barclamps/*; do
         [[ -d "$bc" ]] || continue
         bc=${bc##*/}
-        debug "Reading metadata for $bc barclamp."
         is_barclamp "$bc" || {
-            echo "$bc is not a barclamp, skipping."
+            debug "$bc is not part of this build."
             continue
         }
+        debug "Reading metadata for $bc barclamp."
         get_one_barclamp_info "$bc"
     done
     cd -
@@ -173,25 +175,15 @@ get_barclamp_info() {
 
     # Pull in dependencies for the barclamps.
     # Everything depends on the crowbar barclamp, so include it first.
-    new_barclamps=("crowbar")
-    while [[ t = t ]]; do
-        for bc in "${BARCLAMPS[@]}"; do
-            if [[ ${BC_SUPERCEDES[$bc]} ]]; then
-                debug "$bc is superceded by ${BC_SUPERCEDES[$bc]}. Skipping."
-                continue
-            fi
-            for dep in ${BC_DEPS["$bc"]}; do
-                dep="${BC_SUPERCEDES[$dep]:-$dep}"
-                is_barclamp "$bc" || die "$bc depends on $dep, which is not a barclamp!"
-                is_in "$dep" "${new_barclamps[@]}" && continue
-                new_barclamps+=("$dep")
-            done
-            is_barclamp "$bc" || die "$bc is not a barclamp!"
-            is_in "$bc" "${new_barclamps[@]}" || new_barclamps+=("$bc")
-        done
-        [[ ${BARCLAMPS[*]} = ${new_barclamps[*]} ]] && break
-        BARCLAMPS=("${new_barclamps[@]}")
+    for bc in "${BARCLAMPS[@]}"; do
+        if [[ ${BC_SUPERCEDES[$bc]} ]]; then
+            debug "$bc is superceded by ${BC_SUPERCEDES[$bc]}. Skipping."
+            continue
+        fi
+        new_barclamps+=("$bc")
+        is_barclamp "$bc" || die "$bc is not a barclamp!"
     done
+    BARCLAMPS=($(all_deps "${new_barclamps[@]}"))
 }
 
 [[ $CROWBAR_BUILD_PID ]] || export CROWBAR_BUILD_PID=$$
@@ -322,21 +314,32 @@ read_base_repos() {
 # Worker function for all_deps
 __all_deps() {
     local dep
+    [[ ${deps[$1]} = "unordered" ]] && die "Circular dependency of $1 depending on $1 detected!"
+    [[ ${deps[$1]} ]] && return 0
+    deps[$1]="unordered"
     if [[ ${BC_DEPS["$1"]} ]]; then
         for dep in ${BC_DEPS["$1"]}; do
-            is_in "$dep" "${deps[@]}" && continue
+            dep="${BC_SUPERCEDES[$dep]:-$dep}"
+            [[ ${deps[$dep]} ]] && continue
+            is_barclamp "$dep" || die "$1 depends on $dep, but $dep is not a barclamp!"
             __all_deps "$dep"
         done
     fi
-    is_in "$1" "${deps[@]}" || deps+=("$1")
+    deps[$1]=$count
+    count=$((count + 1))
     return 0
 }
 
-# Given a barclamp, echo all of the dependencies of that barclamp
+# Given a set of barclamps, echo all of the dependencies of that barclamp, including itself.
 all_deps() {
-    local deps=() dep
-    __all_deps "$1"
-    echo "${deps[*]}"
+    local -A deps
+    local count=1 __deps=() d
+    # Everything depends on the crowbar barclamp. Always.
+    deps['crowbar']=0
+    # Find our dependencies and sort them based on the values o
+    for d in "$@"; do __all_deps "$d"; done
+    for d in "${!deps[@]}"; do  __deps[${deps[$d]}]=$d; done
+    echo "${__deps[*]}"
 }
 
 # A couple of utility functions for comparing version numbers.
@@ -391,19 +394,22 @@ vercmp(){
 # Index the pool of packages in the CD.
 index_cd_pool() {
     # Scan through our pool to find pkgs we can easily omit.
-    local pkgname='' pkg='' cache="$CACHE_DIR/$OS_TOKEN/iso-packages"
+    local pkgname='' pkg='' cache="$CACHE_DIR/$OS_TOKEN/packages-$ISO"
     if [[ $ISO_LIBRARY/$ISO -nt $cache ]]; then
         mkdir -p "${cache%/*}"
-        > "$cache"
+        echo 'CD_POOL_VERSION=2' > "$cache"
         while read pkg; do
             [[ -f $pkg ]] && is_pkg "$pkg" || continue
             pkgname="$(pkg_name "$pkg")"
             CD_POOL["$pkgname"]="${pkg}"
             echo "CD_POOL[\"$pkgname\"]=\"${pkg}\"" >> "$cache"
         done < <(find "$(find_cd_pool)" -type f)
-    else
-        . "$cache"
+        return
     fi
+    . "$cache"
+    [[ $CD_POOL_VERSION = 2 ]] && return
+    rm "$cache"
+    index_cd_pool
 }
 
 # Make a chroot environment for package-fetching purposes.
@@ -448,49 +454,6 @@ make_chroot() {
     chroot_update
 }
 
-stage_pkgs() {
-    # $1 = cache to copy from.
-    # $2 = location to copy to
-    local pkg pkgname pkg_t
-    local -A to_copy STAGED_POOL
-    while read pkg; do
-        # If it is not a package, skip it.
-        is_pkg "$pkg" || continue
-        pkgname="$(pkg_name "$pkg")"
-        # Check to see if it is in the CD pool.
-        pkg_t="${CD_POOL["$pkgname"]}"
-        # If it is, and the one in the pool is not older than this one,
-        # skip it.
-        if [[ $pkg_t && -f $pkg_t ]] && ( ! pkg_cmp "$pkg" "$pkg_t" ); then
-            #debug "Skipping copy of ${pkg##*/}, it is on the install media"
-            # if we are shrinking our ISO, make sure this one is in.
-            [[ $SHRINK_ISO = true ]] && INSTALLED_PKGS["$pkgname"]="true"
-            continue
-        fi
-        # Now check to see if we have already staged it
-        pkg_t="${STAGED_POOL["$pkgname"]}"
-        if [[ $pkg_t && -f $pkg_t ]]; then
-            # We have already staged it.  Check to see if ours is newer than
-            # the one already staged.
-            if pkg_cmp "$pkg" "$pkg_t"; then
-                # We are newer.  Delete the old one, copy us,
-                # and update $STAGED_POOL
-                #debug "Replacing ${pkg_t##*/} with ${pkg##*/}"
-                [[ -f "$pkg_t" ]] && rm -f "$pkg_t"
-                [[ ${to_copy["$pkg_t"]} ]] && unset to_copy["$pkg_t"]
-                to_copy["$pkg"]="true"
-                STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
-            fi
-        else
-            # We have not seen this package before.  Copy it.
-            to_copy["$pkg"]="true"
-            cp "$pkg" "$2"
-            STAGED_POOL["$pkgname"]="$2/${pkg##*/}"
-        fi
-    done < <(find "$1" -type f)
-    [[ ${!to_copy[*]} ]] && cp "${!to_copy[@]}" "$2"
-}
-
 cache_add() {
     # $1 = file to add.
     # $2 = location to store it in the cache
@@ -529,6 +492,8 @@ make_barclamp_pkg_metadata() {
         "$CHROOT/mnt"
     __make_barclamp_pkg_metadata "$1"
     sudo umount "$CHROOT/mnt"
+    unset CACHED_PACKAGES[$1]
+    barclamp_pkg_cache_needs_update "$1"
 }
 
 install_build_packages() {
@@ -712,37 +677,34 @@ any_pkg_cache() { [[ ${BC_PKGS[*]} ]]; }
 
 # Check to see if the barclamp package cache needs update.
 barclamp_pkg_cache_needs_update() {
-    local pkg pkgname arch bcs=() bc ret=1
-    local -A pkgs
+    local pkg pkgname arch bc ret=1
     [[ ${BC_PKGS["$1"]} || ${BC_BUILD_PKGS["$1"]} ]] || return 1
     [[ $need_update = true || ${FORCE_BARCLAMP_UPDATE["$1"]} = true ]] && return 0
-    [[ -d $CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs ]] && \
-        touch "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
-    # First, check to see if we have all the packages we need.
+    local -A parent_pkgs present_pkgs
+    # Build a list of all the packages the barclamps we depend on should provide.
     for bc in $(all_deps "$1"); do
-        [[ -d "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs" ]] && \
-            bcs+=("$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs")
+        [[ ${CACHED_PACKAGES[$bc]} ]] || continue
+        for pkg in ${CACHED_PACKAGES[$bc]}; do
+            [[ ${parent_pkgs[$pkg]} ]] && continue
+            parent_pkgs[$pkg]="$bc"
+        done
     done
-    if [[ ${bcs[*]} ]]; then
-        while read pkg; do
-            is_pkg "$pkg" || continue
-            pkgname="$(pkg_name "$pkg")"
-        #debug "$pkgname is cached"
-            pkgs["$pkgname"]="$pkg"
-        done < <(find "${bcs[@]}" -type f)
-    fi
+    # Get the list of packages we have.
+    while read pkg; do
+        is_pkg "$pkg" || continue
+        present_pkgs[$(pkg_name "$pkg")]="$1"
+    done < <(find "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs")
     for pkg in ${BC_PKGS["$1"]} ${BC_BUILD_PKGS["$1"]}; do
         [[ $pkg ]] || continue
         for arch in "${PKG_ALLOWED_ARCHES[@]}"; do
-            [[ ${pkgs["$pkg-$arch"]} ]] && continue 2
-            if [[ ${CD_POOL["$pkg-$arch"]} ]]; then
-                INSTALLED_PKGS["$pkg-$arch"]="true"
-                continue 2
-            fi
+            [[ ${parent_pkgs["$pkg.$arch"]} || \
+                ${present_pkgs["$pkg.$arch"]} || \
+                ${CD_POOL["$pkg.$arch"]} ]] && continue 2
         done
         debug "Package $pkg is not cached, and $1 needs it."
         ret=0
     done
+    CACHED_PACKAGES["$1"]="${!present_pkgs[*]}"
     return $ret
 }
 

@@ -57,38 +57,4 @@ fetch_os_iso() {
     die "Cannot download download $ISO.  Please manually install it in $ISO_LIBRARY."
 }
 
-# Throw away packages we will not need on the iso
-shrink_iso() {
-    # Do nothing if we do not have a minimal-install set for this OS.
-    [[ -f $CROWBAR_DIR/$OS_TOKEN-extra/minimal-install ]] || \
-        return 0
-    local pkgname pkgver
-    while read pkgname pkgver; do
-        INSTALLED_PKGS["$pkgname"]="$pkgver"
-    done < "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install"
-    mkdir -p "$BUILD_DIR/Packages"
-    cp -a "$IMAGE_DIR/repodata" "$BUILD_DIR"
-    make_chroot
-    # Figure out what else we need for this build
-    # that we did not get from the appropriate minimal-install.
-    check_all_deps $(for bc in "${BARCLAMPS[@]}"; do
-        echo ${BC_PKGS[$bc]}; done)
-    for pkgname in "${!CD_POOL[@]}"; do
-        [[ ${INSTALLED_PKGS["$pkgname"]} ]] || continue
-        [[ -f ${CD_POOL["$pkgname"]} ]] || \
-            die "Cannot stage $pkgname from the CD!"
-        cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/Packages"
-
-	# Reorganize packages for fedora ver > 17
-        lowercase_pkgname=${pkgname,,}
-        mkdir -p "$BUILD_DIR/Packages/${lowercase_pkgname:0:1}"
-        cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/Packages/${lowercase_pkgname:0:1}"
-    done
-    sudo mount --bind "$BUILD_DIR" "$CHROOT/mnt"
-    in_chroot 'cd /mnt; createrepo -g /mnt/repodata/4045e44200e7c3ddf565c6b8c7512455737c5d0dfcfe6df1e089885c6701620f-Fedora-18-comps.xml .'
-    sudo umount -l "$CHROOT/mnt"
-    sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/Packages"
-    sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/repodata"
-}
-
  . "$CROWBAR_DIR/redhat-common/build_lib.sh"

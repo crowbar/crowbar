@@ -3,6 +3,6 @@ if ssh root@192.168.124.10 test -f /etc/redhat-release; then
    > "$HOME/admin-installed.list"
    while read pkg; do
        echo "${pkg// (none):/ }" >>"$HOME/admin-installed.list"
-   done < <(ssh root@192.168.124.10 "rpm -qa --queryformat '%{NAME}-%{ARCH} %{EPOCH}:%{VERSION}-%{RELEASE}\n'")
+   done < <(ssh root@192.168.124.10 "rpm -qa --queryformat '%{NAME}.%{ARCH} %{EPOCH}:%{VERSION}-%{RELEASE}\n'")
 fi
 exit 0

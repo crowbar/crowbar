@@ -46,33 +46,4 @@ fetch_os_iso() {
     die "Cannot download $ISO.  Please manually install it into $ISO_LIBRARY."
 }
 
-# Throw away packages we will not need on the iso
-shrink_iso() {
-    # Do nothing if we do not have a minimal-install set for this OS.
-    [[ -f $CROWBAR_DIR/$OS_TOKEN-extra/minimal-install ]] || \
-        return 0
-    local pkgname pkgver
-    while read pkgname pkgver; do
-        INSTALLED_PKGS["$pkgname"]="$pkgver"
-    done < "$CROWBAR_DIR/$OS_TOKEN-extra/minimal-install"
-    mkdir -p "$BUILD_DIR/Packages"
-    cp -a "$IMAGE_DIR/repodata" "$BUILD_DIR"
-    make_chroot
-    # Figure out what else we need for this build
-    # that we did not get from the appropriate minimal-install.
-    check_all_deps $(for bc in "${BARCLAMPS[@]}"; do
-        echo ${BC_PKGS[$bc]}; done)
-    for pkgname in "${!CD_POOL[@]}"; do
-        [[ ${INSTALLED_PKGS["$pkgname"]} ]] || continue
-        [[ -f ${CD_POOL["$pkgname"]} ]] || \
-            die "Cannot stage $pkgname from the CD!"
-        cp "${CD_POOL["$pkgname"]}" "$BUILD_DIR/Packages"
-    done
-    sudo mount --bind "$BUILD_DIR" "$CHROOT/mnt"
-    in_chroot 'cd /mnt; createrepo -g /mnt/repodata/8afad1febf2d8844a235a9ab1aa5f15c9cec1219b9d01060d4794435cf59dffe-comps-rhel6-Server.xml .'
-    sudo umount -l "$CHROOT/mnt"
-    sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/Packages"
-    sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/repodata"
-}
-
  . "$CROWBAR_DIR/redhat-common/build_lib.sh"

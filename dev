@@ -1201,7 +1201,7 @@ pull_request_switch_one() (
         crowbar) cd "$CROWBAR_DIR";;
     esac
     pull_request_checkout_one "$1" || exit 1
-    git checkout "$(git rev-parse HEAD)"
+    git checkout -q "$(git rev-parse HEAD)"
     git merge "$(git rev-parse "$prq_target_branch")" && return 0
     git merge --abort
     die "Could not merge $prq_target_branch into $prq_local_branch!"
@@ -1256,11 +1256,60 @@ pull_request_switch() {
             done;;
     esac
     if ((res == 0)); then
-            debug "You are now on build $build in pull request $idx."
+        debug "You are now on build $build in pull request $idx."
+        debug "Remember to use the --no-switch flag to ./dev build."
+        debug "./dev switch will throw away the current tree state when you are finished."
     else
         switch_release
         die "Pull request $idx does not merge cleanly.  It should be updated or closed."
     fi
+}
+
+pull_request_multiswitch_one() (
+    local merge_res
+    . <(source_prq_vars "$1" "local")
+    case $prq_local_repo in
+        barclamp-*) cd "$CROWBAR_DIR/barclamps/${prq_local_repo#barclamp-}";;
+        crowbar) cd "$CROWBAR_DIR";;
+    esac
+    debug "Merging $prq_github_url into $prq_local_repo"
+    [[ -f README.empty-branch ]] && exit 0
+    git checkout -q "$(git rev-parse HEAD)" &>/dev/null
+    merge_res=$(git merge "$(git rev-parse "$prq_local_branch")") && return 0
+    git merge --abort
+    echo "$merge_res"
+    return 1
+)
+
+# Switch to a loal tree consisting of the contents of a bunch of pull requests
+# merged in together.  This is less intelligent than pull_requests_switch, but
+# should allow for fater testing of tightly related pull requests.
+pull_request_multiswitch() {
+    local base_build=$1 prq_id id res=0 prq
+    shift
+    crowbar_is_clean || die "Trees must be clean before starting a multiswitch"
+    switch_release "$base_build" || die "Cannot switch to $base_build"
+    for prq_id in "$@"; do
+        id=$(pull_request_number_to_id "$prq_id") ||  \
+            die "$id is not a valid pull request. dev pull-requests list will help."
+        [[ $id ]] || die "Cannot translate $prq_id into a pull request handle!"
+        prq="$OPEN_PULL_REQUESTS/$id"
+        case $id in
+            singletons/*)
+                pull_request_multiswitch_one "$prq" || res=1;;
+            bundles/*)
+                for repo in "$prq"/*; do
+                    [[ -d $repo ]] && \
+                        ((res == 0)) && \
+                        pull_request_multiswitch_one "$repo" || res=1
+                done;;
+            *) die "Cannot happen in pull_requests_multiswitch: prq_id";;
+        esac
+        ((res != 0)) && die "Failed to merge $prq_id"
+    done
+    debug "All pull requests merged locally."
+    debug "Remember to use the --no-switch flag to ./dev build."
+    debug "./dev switch will throw away the current tree state."
 }
 
 pull_request_merge_one () {
@@ -3650,7 +3699,7 @@ maybe_checkout_build_cache_branch() {
     rel_br="$(release_branch "${1:-$(current_release)}")" || \
         die "Cannot find release branch for $1"
     update_cache_tracking_branches
-    if in_cache branch_exists "$rel_br"; then
+    if in_cache git show-ref | grep -q "$rel_br"; then
 	debug "Checking out $rel_br in the build cache, please be patient."
 	in_cache quiet_checkout -f "$rel_br"
     fi
@@ -3691,6 +3740,7 @@ build_crowbar() {
     maybe_checkout_build_cache_branch
     with_build_lock exec "$CROWBAR_DIR/build_crowbar.sh" \
 	"$target_os" "${build_args[@]}"
+    echo "Build process took ${SECONDS} seconds."
 }
 
 # Reset a branch to another ref.
@@ -4311,20 +4361,21 @@ pull_request_handler() {
     local req=$1
     shift
     case $req in
-        fetch)   fetch_pull_requests_for_remote "$@";;
-        prep)    pull_requests_prep "$@";;
-        gen)     pull_requests_gen "$@";;
-        dirs)    pull_request_directories "$@";;
-        list)    list_pull_requests "$@";;
-        show)    show_pull_request "$@";;
-        builds)  builds_for_pull_request "$@";;
-        switch)  pull_request_switch "$@";;
-        merge)   pull_request_merge "$@";;
-        checkout) pull_request_checkout "$@";;
-        comment) pull_request_comment "$@";;
-        close)   pull_request_close "$@";;
-        '')      show_open_pull_requests "$@";;
-        *)       dev_help 'pull-requests';;
+        fetch)       fetch_pull_requests_for_remote "$@";;
+        prep)        pull_requests_prep "$@";;
+        gen)         pull_requests_gen "$@";;
+        dirs)        pull_request_directories "$@";;
+        list)        list_pull_requests "$@";;
+        show)        show_pull_request "$@";;
+        builds)      builds_for_pull_request "$@";;
+        switch)      pull_request_switch "$@";;
+        merge)       pull_request_merge "$@";;
+        multiswitch) pull_request_multiswitch "$@";;
+        checkout)    pull_request_checkout "$@";;
+        comment)     pull_request_comment "$@";;
+        close)       pull_request_close "$@";;
+        '')          show_open_pull_requests "$@";;
+        *)           dev_help 'pull-requests';;
     esac
 }
 
@@ -4816,8 +4867,15 @@ DEV_LONG_HELP["pull-requests"]="Manage pull requests.
       number, and the second argument must be a build that is applicable to
       the pull request.
 
+      To build in this state, you must: ./dev build --no-switch
+
       Please note that this will put any trees that have changes to be pulled
-      into a detached HEAD state.  You can use dev switch to get back to normal."
+      into a detached HEAD state.  You can use dev switch to get back to normal.
+    multiswitch: Switch to a new tree that has the contents of several pull
+      requests merged into it for expedited testing.  
+
+      The first argument must be the build you want to test, and
+      the rest of the arguments must be pull requests IDs."
 DEV_LONG_HELP["ci"]="Crowbar Continuous Integration Helper.
   Any of the CI subcommands that take an ID can either take a raw ID as
   returned by dev ci all-ids,

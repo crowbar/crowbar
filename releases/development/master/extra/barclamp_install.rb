@@ -133,6 +133,7 @@ class BarclampFS
     @metadata[k]
   end
 
+  # N.B. if you update this, you must also update Guardfile.tree-merge !!
   def install_app
     STDERR.puts "Installing #{@name} from #{@source} into #{target}"
     dirs = Dir.entries(@source)

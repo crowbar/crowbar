@@ -6,17 +6,25 @@
 # Crowbar contains a DHCP server and hence should always run in its own private
 # network to avoid rogue DHCP answers, especially when in a company network!
 
-BRIDGE=kvm-nat
+: ${BRIDGE:=kvm-nat}
 NETWORK=192.168.124.0
 HOST=192.168.124.1
 MASK=255.255.255.0
 
+interface="$1"
+
 echo "$0:"
-echo "Setting up the network bridge for $1"
-brctl addbr "$BRIDGE"
-brctl addif "$BRIDGE" "$1"
+if brctl show | awk '{print $1}' | grep -q "^$BRIDGE\$"; then
+    echo "Network bridge $BRIDGE already exists"
+else
+    echo "Setting up the network bridge for $interface"
+    brctl addbr "$BRIDGE"
+fi
+
+brctl addif "$BRIDGE" "$interface"
+
 ifconfig "$BRIDGE" "$HOST" netmask "$MASK"
-ip link set "$1" up
+ip link set "$interface" up
 ip link set "$BRIDGE" up
 
 if iptables -t nat -L POSTROUTING -n | grep ^MASQUERADE | awk '{print $4}' | cut -d/ -f1 | grep "$NETWORK" >/dev/null
@@ -24,7 +32,7 @@ then
   echo "IP masquerading already set up"
 else
   echo "Setting up IP masquerading"
-  iptables -t nat -A POSTROUTING -s "$NETWORK"/"$MASK" -d ! "$NETWORK"/"$MASK" -j MASQUERADE
+  iptables -t nat -A POSTROUTING -s "$NETWORK"/"$MASK" ! -d "$NETWORK"/"$MASK" -j MASQUERADE
 fi
 
 echo "Setting up IP forwarding"

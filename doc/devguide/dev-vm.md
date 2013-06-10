@@ -45,5 +45,5 @@ modules.
 
 ## Setting up the virtual machine
 
-Refer to the following distro specific docs: [openSUSE](dev-vm-openSUSE.md),
+Refer to the following distro specific docs: [openSUSE / SLES](dev-vm-SUSE.md),
 [Ubuntu](dev-vm-Ubuntu.md), and [Fedora](dev-vm-Fedora.md).

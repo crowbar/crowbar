@@ -260,6 +260,18 @@
             "host": { "start": "192.168.124.161", "end": "192.168.124.161" }
           }
         },
+        "os_sdn": {
+              "conduit": "intf1",
+              "vlan": 700,
+              "use_vlan": true,
+              "add_bridge": false,
+              "subnet": "192.168.130.0",
+              "netmask": "255.255.255.0",
+              "broadcast": "192.168.130.255",
+              "ranges": {
+                  "host": { "start": "192.168.130.10", "end": "192.168.130.254"}
+              }
+          },
         "admin": {
           "conduit": "intf0",
           "vlan": 100,

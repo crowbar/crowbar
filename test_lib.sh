@@ -75,7 +75,7 @@ export CROWBAR_KEY="crowbar:crowbar"
 # Please keep it at 4 characters or less.
 SMOKETEST_BRIDGES=(crowbar-pub)
 
-NICS_PER_BRIDGE=2
+NICS_PER_BRIDGE=3
 
 # An array of physical interfaces and the bridges they should be bound to.
 # We need to use real physical interfaces becasue Crowbar assumes
@@ -215,19 +215,28 @@ smoketest_cleanup() {
     # We ignore errors in this function.
     set +e
     flock 75
-    [[ -d $smoketest_dir ]] || return 0
 
     killall check_ready
     [[ $develop_mode = true ]] && pause
     # Gather final logs if our admin node is up.
     smoketest_get_cluster_logs final
     # Make sure our virtual machines have been torn down.
-    for pidfile in "$smoketest_dir/"*.pid; do
-        local vmname=${pidfile##*/}
-        vmname=${vmname%.pid}
-        [[ $vmname = '*' ]] && continue
-        kill_vm "$vmname" || :
-    done
+    if [[ -d $smoketest_dir ]]; then
+        for pidfile in "$smoketest_dir/"*.pid; do
+            local vmname=${pidfile##*/}
+            vmname=${vmname%.pid}
+            [[ $vmname = '*' ]] && continue
+            kill_vm "$vmname" || :
+        done
+        target="${smoketest_dir##*/}-$(date '+%Y%m%d-%H%M%S')-${final_status}"
+        rm -f "$smoketest_dir/"*.disk || :
+        cp "$CROWBAR_DIR/smoketest.log" "$smoketest_dir"
+        (cd "$smoketest_dir/.."; \
+            tar czf "$currdir/$target.tar.gz" "${smoketest_dir##*/}")
+        echo "Logs are available at $currdir/$target.tar.gz."
+        rm -rf "$smoketest_dir"
+    fi
+
     # If there are any commands to run at smoketest_cleanup, run them now.
     for c in "${smoketest_cleanup_cmds[@]}"; do
         eval $c || :
@@ -254,13 +263,6 @@ smoketest_cleanup() {
     }
     [[ $final_status ]] || final_status=Passed
     echo "Deploy $final_status."
-    target="${smoketest_dir##*/}-$(date '+%Y%m%d-%H%M%S')-${final_status}"
-    rm -f "$smoketest_dir/"*.disk || :
-    cp "$CROWBAR_DIR/smoketest.log" "$smoketest_dir"
-    (cd "$smoketest_dir/.."; \
-        tar czf "$currdir/$target.tar.gz" "${smoketest_dir##*/}")
-    echo "Logs are available at $currdir/$target.tar.gz."
-    rm -rf "$smoketest_dir"
     [[ $final_status = Passed ]]
 } 75>"$CROWBAR_DIR/.smoketest_cleanup.lock"
 

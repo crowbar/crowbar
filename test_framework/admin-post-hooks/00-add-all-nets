@@ -1,7 +1,11 @@
 #!/bin/bash
 # Give the admin node IP addresses on the other networks we care about.
 # This will make the life of the smoketests easier.
+
+[[ -f /opt/dell/.all_nets ]] && exit 0
+touch /opt/dell/.all_nets
 for n in "public host" "storage host" "nova_fixed router"; do
     crowbar network allocate_ip default $(hostname --fqdn) $n
 done
-chef-client
+
+/opt/dell/bin/blocking_chef_client.sh

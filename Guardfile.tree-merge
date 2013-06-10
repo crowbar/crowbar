@@ -1,0 +1,92 @@
+#!/usr/bin/ruby
+#
+# Guardfile which uses guard-rsync to perform a real-time merge of the
+# Crowbar repositories into a single hierarchy like the one which ends
+# up under /opt/dell, or under /tmp/crowbar-dev-test/opt/dell when
+# ./dev tests setup is run.
+#
+# The target location of the merge can be a local path or an rsync
+# target such as root@192.168.124.10:/opt/dell
+#
+# This is a different approach to Guardfile.mirror, which mirrors the
+# tree without performing any merging; it skips the need for manual
+# runs of barclamp_install.rb, but has the consequent disadvantage of
+# not taking care of uploading cookbooks via knife, etc.
+#
+# Usage
+# -----
+#
+# First ensure you have the necessary gems by cd'ing to this directory
+# and running 'bundle'.  Doing this inside an rvm gemset is recommended.
+#
+# Then use as follows:
+#
+#   # Optionally set the rsync target; defaults to /tmp/crowbar-dev-test/opt/dell
+#   $ export GUARD_RSYNC_TARGET=root@192.168.124.10:/opt/dell
+#
+#   # Create the barclamps/ subdirectory so that rsyncing crowbar.yml files works
+#   $ ssh root@192.168.124.10 mkdir -p /opt/dell/barclamps
+#
+#   # Launch the guard watcher:
+#   $ bundle exec guard -G Guardfile.tree-merge
+#
+# Further info
+# ------------
+#
+# More about Guard at https://github.com/guard/guard#readme
+
+TARGET = ENV['GUARD_RSYNC_TARGET'] || '/tmp/crowbar-dev-test/opt/dell'
+
+# This has to match how barclamp_install.rb (in 2.0) and
+# barclamp_mgmt_lib.rb (< 2.0) do the tree merging.
+#
+# FIXME: The tree merging logic is release-specific, so this file
+# should probably be moved to releases/$release.  But by the time it
+# starts mattering, hopefully we won't be doing all development on the
+# master branch of this repo.
+BC_FILTERS = [
+  "+ /BDD/",
+  "+ /bin/",
+  "+ /chef/",
+  "+ /crowbar_framework/",
+  # FIXME: barclamp_install.rb in 2.0 does fancy stuff
+  #"+ /crowbar_engine/",
+  "+ /doc/",
+  "+ /etc/",
+  "+ /updates/",
+  "- /*",
+]
+
+GENERAL_EXCLUDES = [
+  "- .#*#",
+]
+
+def guard_bc_dir(bc_dir)
+  guard_opts = {
+    :input => bc_dir + '/',
+    :output => TARGET,
+    :excludes => BC_FILTERS + GENERAL_EXCLUDES,
+  }
+  guard('rsync', guard_opts) do
+    watch(%r{^#{bc_dir}/.+})
+  end
+end
+
+def guard_bc_yaml(bc_dir)
+  bc_yaml = bc_dir + '/crowbar.yml'
+  return unless File.exist? bc_yaml
+  guard_opts = {
+    :input => bc_yaml,
+    :output => TARGET + '/' + bc_dir + '/',
+  }
+  guard('rsync', guard_opts) do
+    watch("#{bc_dir}/crowbar.yml")
+  end
+end
+
+group :barclamps do
+  Dir.glob('barclamps/*').each do |bc_dir|
+    guard_bc_dir  bc_dir
+    guard_bc_yaml bc_dir
+  end
+end

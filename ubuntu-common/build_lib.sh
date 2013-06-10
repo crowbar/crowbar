@@ -104,7 +104,7 @@ dpkg_info() {
             esac
             [[ $name && $ver && $arch ]] && break || :
         done < <(dpkg -I "$1")
-        SEEN_DEBS["${1##*/}"]="$name-$arch $ver"
+        SEEN_DEBS["${1##*/}"]="$name.$arch $ver"
     fi
     echo "${SEEN_DEBS["${1##*/}"]}"
 }
@@ -125,11 +125,13 @@ __barclamp_pkg_metadata_needs_update() (
 )
 
 __make_barclamp_pkg_metadata() {
-    in_chroot 'cd /mnt; dpkg-scanpackages . 2>/dev/null |gzip -9 >Packages.gz'
+    in_chroot 'cd /mnt; dpkg-scanpackages -m -a amd64 . 2>/dev/null |gzip -9 >Packages.gz'
     sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
     if [[ $CURRENT_CACHE_BRANCH ]]; then
         in_cache git add "barclamps/$1/$OS_TOKEN/pkgs/Packages.gz"
-        in_cache git add "barclamps/$1/$OS_TOKEN/pkgs/Sources.gz"
+        if in_cache test -f "barclamps/$1/$OS_TOKEN/pkgs/Sources.gz"; then
+            in_cache git add "barclamps/$1/$OS_TOKEN/pkgs/Sources.gz"
+        fi
     fi
 }
 
@@ -177,17 +179,6 @@ __make_chroot() {
         in_chroot mkdir -p "/etc/apt/apt.conf.d/"
         sudo cp "$f" "$CHROOT/etc/apt/apt.conf.d/00http_proxy"
     fi
-}
-
-# Test to see of package $1 is more recent than package $2
-pkg_cmp() {
-    # $1 = Debian package 1
-    # $2 = Debian package 2
-    local deb1="$(dpkg_info "$1")"
-    local deb2="$(dpkg_info "$2")"
-    [[ ${deb1%% *} = ${deb2%% *} ]] || \
-        die "$1 and $2 do not reference the same package!"
-    vercmp "${deb1#* }" "${deb2#* }"
 }
 
 final_build_fixups() {

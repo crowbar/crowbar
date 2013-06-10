@@ -60,15 +60,15 @@
           "pattern": "team/.*/.*",
           "conduit_list": { 
             "intf0": {
-              "if_list": [ "1g1", "1g2" ],
+              "if_list": [ "1g2", "1g3" ],
               "team_mode": 5
             },
             "intf1": {
-              "if_list": [ "1g1", "1g2" ],
+              "if_list": [ "1g2", "1g3" ],
               "team_mode": 5
             },
             "intf2": {
-              "if_list": [ "1g1", "1g2" ],
+              "if_list": [ "1g2", "1g3" ],
               "team_mode": 5
             }
           }
@@ -77,13 +77,13 @@
           "pattern": "dual/.*/.*",
           "conduit_list": { 
             "intf0": {
-              "if_list": [ "1g1" ]
-            },
-            "intf1": {
               "if_list": [ "1g2" ]
             },
+            "intf1": {
+              "if_list": [ "1g3" ]
+            },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             }
           }
         },
@@ -91,13 +91,13 @@
           "pattern": "single/.*/.*",
           "conduit_list": { 
             "intf0": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf1": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             }
           }
         },
@@ -105,13 +105,13 @@
           "pattern": ".*/.*/.*",
           "conduit_list": { 
             "intf0": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf1": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             }
           }
         },
@@ -119,13 +119,13 @@
           "pattern": "mode/1g_adpt_count/role",
           "conduit_list": { 
             "intf0": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf1": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             }
           }
         }
@@ -162,13 +162,13 @@
           "conduit": "intf1",
           "vlan": 500,
           "use_vlan": true,
-          "add_bridge": true,
+          "add_bridge": false,
           "subnet": "192.168.127.0",
           "netmask": "255.255.255.0",
           "broadcast": "192.168.127.255",
           "ranges": {
-            "router": { "start": "192.168.127.2", "end": "192.168.127.49" },
-            "dhcp": { "start": "192.168.127.50", "end": "192.168.127.254" }
+            "router": { "start": "192.168.127.10", "end": "192.168.127.59" },
+            "dhcp": { "start": "192.168.127.60", "end": "192.168.127.254" }
           }
         },
         "nova_floating": {
@@ -207,6 +207,18 @@
             "host": { "start": "192.168.128.2", "end": "192.168.128.9" }
           }
         },
+          "os_sdn": {
+              "conduit": "intf1",
+              "vlan": 700,
+              "use_vlan": true,
+              "add_bridge": false,
+              "subnet": "192.168.130.0",
+              "netmask": "255.255.255.0",
+              "broadcast": "192.168.130.255",
+              "ranges": {
+                  "host": { "start": "192.168.130.10", "end": "192.168.130.254"}
+              }
+          },
         "admin": {
           "conduit": "intf0",
           "vlan": 100,
@@ -246,4 +258,3 @@
     }
   }
 }
-

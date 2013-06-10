@@ -1,0 +1,52 @@
+#!/usr/bin/ruby
+#
+# Guardfile which uses guard-rsync to perform a real-time mirror of
+# the entire Crowbar tree (including barclamps) to another location,
+# e.g. inside a VM, where you can then run barclamp_install.rb etc.
+# to install the files to their final location in the merged tree
+# under /opt/dell.
+#
+# This is a different approach to Guardfile.tree-merge, which rsyncs
+# the files directly to the merged tree, skipping any installation
+# actions such as uploading cookbooks via knife, etc.
+#
+# Usage
+# -----
+#
+# First ensure you have the necessary gems by cd'ing to this directory
+# and running 'bundle'.  Doing this inside an rvm gemset is recommended.
+#
+# Then use as follows:
+#
+#   # Set the rsync target; this can also be a local path
+#   $ export GUARD_RSYNC_TARGET=root@192.168.124.10:/root/crowbar
+#
+#   # Launch the guard watcher:
+#   $ bundle exec guard -G Guardfile.mirror
+#
+# Further info
+# ------------
+#
+# More about Guard at https://github.com/guard/guard#readme
+
+TARGET = ENV['GUARD_RSYNC_TARGET']
+raise "Must set GUARD_RSYNC_TARGET" if TARGET.nil? or TARGET.empty?
+unless File.directory? TARGET or TARGET.include? ':'
+  raise "GUARD_RSYNC_TARGET set to non-directory: #{TARGET}"
+end
+
+group :rsync do
+  guard_opts = {
+    :input => './',
+    :output => TARGET,
+    :excludes => [
+      '.git/',
+      '/.ci-tracking/',
+      '.#*#',
+    ],
+    #:extra => ['-P'],
+  }
+  guard('rsync', guard_opts) do
+    watch(%r{.+})
+  end
+end
