@@ -246,7 +246,12 @@ fi
 rootpw=$( getent shadow root | cut -d: -f2 )
 case "$rootpw" in
     \*|\!*)
-        die "root password is unset or locked.  Chef will rewrite /root/.ssh/authorized_keys; therefore to avoid being accidentally locked out of this Administration Server, you should first ensure you have a working root password."
+        if [ ! -f /root/.ssh/authorized_keys ]; then
+            # extra-paranoid: not even sure how people could be logged in if that happens...
+            die "root password is unset or locked and no /root/.ssh/authorized_keys file exists; to avoid being accidentally locked out of this Administration Server, you should first ensure that you have a working root password or authorized ssh keys."
+        else
+            echo "root password is unset or locked. Previous keys from /root/.ssh/authorized_keys will be kept, therefore you should not be accidentally locked out of this Administration Server."
+        fi
         ;;
 esac
 
