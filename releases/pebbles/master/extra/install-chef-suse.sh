@@ -359,7 +359,7 @@ REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0
 check_repo_content \
     SLES11_SP3 \
     /srv/tftpboot/suse-11.3/install \
-    f9a7aa4950fbee8079844f5973169db8
+    ac1def6e93db17b03aec76463c684797
 
 check_repo_content \
     Cloud \
