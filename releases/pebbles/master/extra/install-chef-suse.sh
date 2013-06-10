@@ -547,8 +547,13 @@ done
 
 in=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
 /opt/dell/bin/bc-provisioner-json.rb < $in > $in.new
-cp -a $in $in.orig
-mv $in.new $in
+cmp --silent $in $in.new
+if [ $? -ne 0 ]; then
+    cp -a $in $in.orig
+    mv $in.new $in
+else
+    rm $in.new
+fi
 
 # Initial chef-client run
 # -----------------------
