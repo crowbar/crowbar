@@ -550,15 +550,12 @@ for service in $services; do
 done
 
 
-provisioner_template=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
-[ -f $provisioner_template ] || die "$provisioner_template doesn't exist"
-/opt/dell/bin/bc-provisioner-json.rb < $provisioner_template > $provisioner_template.new
-cmp --silent $provisioner_template $provisioner_template.new
-if [ $? -ne 0 ]; then
+if [ -f /root/.ssh/authorized_keys ]; then
+    provisioner_template=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
+    [ -f $provisioner_template ] || die "$provisioner_template doesn't exist"
+    /opt/dell/bin/bc-provisioner-json.rb < $provisioner_template > $provisioner_template.new
     cp -a $provisioner_template $provisioner_template.orig
     mv $provisioner_template.new $provisioner_template
-else
-    rm $provisioner_template.new
 fi
 
 # Initial chef-client run
