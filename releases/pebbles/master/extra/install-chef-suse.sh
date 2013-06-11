@@ -246,7 +246,12 @@ fi
 rootpw=$( getent shadow root | cut -d: -f2 )
 case "$rootpw" in
     \*|\!*)
-        die "root password is unset or locked.  Chef will rewrite /root/.ssh/authorized_keys; therefore to avoid being accidentally locked out of this Administration Server, you should first ensure you have a working root password."
+        if [ ! -f /root/.ssh/authorized_keys ]; then
+            # extra-paranoid: not even sure how people could be logged in if that happens...
+            die "root password is unset or locked and no /root/.ssh/authorized_keys file exists; to avoid being accidentally locked out of this Administration Server, you should first ensure that you have a working root password or authorized ssh keys."
+        else
+            echo "root password is unset or locked. Previous keys from /root/.ssh/authorized_keys will be kept, therefore you should not be accidentally locked out of this Administration Server."
+        fi
         ;;
 esac
 
@@ -545,10 +550,16 @@ for service in $services; do
 done
 
 
-in=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
-/opt/dell/bin/bc-provisioner-json.rb < $in > $in.new
-cp -a $in $in.orig
-mv $in.new $in
+provisioner_template=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
+[ -f $provisioner_template ] || die "$provisioner_template doesn't exist"
+/opt/dell/bin/bc-provisioner-json.rb < $provisioner_template > $provisioner_template.new
+cmp --silent $provisioner_template $provisioner_template.new
+if [ $? -ne 0 ]; then
+    cp -a $provisioner_template $provisioner_template.orig
+    mv $provisioner_template.new $provisioner_template
+else
+    rm $provisioner_template.new
+fi
 
 # Initial chef-client run
 # -----------------------
