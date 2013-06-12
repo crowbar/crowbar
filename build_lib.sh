@@ -417,6 +417,9 @@ make_chroot() {
     [[ -f $CHROOT/etc/resolv.conf ]] && return 0
     local bc repo
     debug "Making utility chroot"
+    if [[ $CHROOT_USE_TMPFS = true ]]; then
+        sudo mount -t tmpfs -osize=3G cb_chroot "$CHROOT"
+    fi
     sudo mkdir -p "$CHROOT/$CHROOT_PKGDIR"
     sudo mkdir -p "$CHROOT/$CHROOT_GEMDIR"
     __make_chroot
