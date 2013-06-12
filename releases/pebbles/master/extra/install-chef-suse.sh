@@ -94,6 +94,8 @@ spinner () {
     local spinstr='/-\|'
     local msg="$@"
 
+    # reset exit handler
+    trap "exit" EXIT
 
     printf "... " >&3
     while [ true ]; do
@@ -146,7 +148,7 @@ echo_summary () {
             fi
             # Use disown to lose job control messages (especially the
             # "Completed" message when spinner will be killed)
-            spinner $@ & disown
+            ( spinner $@ ) & disown
             LAST_SPINNER_PID=$!
         else
             echo -e $@ >&3
@@ -176,11 +178,13 @@ die() {
 
     kill_spinner_with_failed
 
-    echo >&3
-    echo -e "Error: $@" >&3
-
     if use_dialog; then
-        dialog --title "$DIALOG_TITLE" --msgbox -- "Error: $@" 8 73 >&3
+        dialog --title "$DIALOG_TITLE" --clear --msgbox -- "Error: $@" 8 73 >&3
+        # avoid triggering two dialogs in a row
+        run_succeeded=already_died
+    else
+        echo >&3
+        echo -e "Error: $@" >&3
     fi
 
     res=1
