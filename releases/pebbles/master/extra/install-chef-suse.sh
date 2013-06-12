@@ -73,8 +73,12 @@ fi
 # Send summary fd to original stdout
 exec 6>&3
 
+use_dialog () {
+    [ -z "$CROWBAR_VERBOSE" -a -t 3 -a -x "$(type -p dialog)" ]
+}
+
 pipe_show_and_log () {
-    if [ -t 3 -a -x "$(type -p dialog)" ]; then
+    if use_dialog; then
         t=$(mktemp)
         cat - > $t
         dialog --title "$DIALOG_TITLE" --textbox -- $t $(($(wc -l <$t)+4)) 75 >&3
@@ -94,7 +98,7 @@ spinner () {
     printf "... " >&3
     while [ true ]; do
         local temp=${spinstr#?}
-        if [ -x "$(type -p dialog)"  ]; then
+        if use_dialog; then
             printf "\n%s [%c]" "$msg... " "$spinstr" | dialog --title "$DIALOG_TITLE" \
                 --keep-window --progressbox 5 70 >&3
         else
@@ -102,7 +106,7 @@ spinner () {
         fi
         local spinstr=$temp${spinstr%"$temp"}
         sleep $delay
-        if ! [ -x "$(type -p dialog)"  ]; then
+        if ! use_dialog; then
             printf "\b\b\b" >&3
         fi
     done
@@ -137,7 +141,7 @@ echo_summary () {
     if [ -z "$CROWBAR_VERBOSE" ]; then
         if [ -t 3 ]; then
             echo -n -e $@ >&3
-            if [ -x "$(type -p dialog)"  ]; then
+            if use_dialog; then
                 echo -n -e $@ | dialog --title "$DIALOG_TITLE" --progressbox 8 60 >&3
             fi
             # Use disown to lose job control messages (especially the
@@ -175,7 +179,7 @@ die() {
     echo >&3
     echo -e "Error: $@" >&3
 
-    if [ -t 3 -a -x "$(type -p dialog)" ]; then
+    if use_dialog; then
         dialog --title "$DIALOG_TITLE" --msgbox -- "Error: $@" 8 73 >&3
     fi
 
