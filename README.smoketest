@@ -1,5 +1,10 @@
 This file documents the Crowbar smoketest framework
 
+Note: The default admin node memory allocation is 4G.  It may be necessary to
+run smoke tests with more (6 or 8G) to get speedy or reliable results.  The 
+default 4G memory override can be set by adding to the .build_crowbar.conf
+file the following:  ADMIN_MEM=6G, ir ADMIN_MEM=8G  (do not quote the values)
+
 The smoketest framework lives on the admin node, and consists of:
   * smoketest
     This is the front-end to the in-cluster side of the smoketest framework.

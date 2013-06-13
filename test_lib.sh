@@ -6,6 +6,8 @@
 # We only need to be sourced once.
 [[ $SMOKETEST_LIB_SOURCED = true ]] && exit 0
 
+[[ $ADMIN_MEM ]] || ADMIN_MEM=4G
+
 # Make sure we know where to find our test binaries
 [[ -d $CROWBAR_DIR/testing/cli ]] || mkdir -p "$CROWBAR_DIR/testing/cli"
 export PATH="$CROWBAR_DIR/testing/cli:$CROWBAR_DIR/test_framework:$CROWBAR_DIR:$CROWBAR_DIR/change-image/dell:$PATH:/sbin:/usr/sbin"
@@ -551,7 +553,8 @@ run_kvm() {
     local cpu_count=2 mem_size=2G
     if [[ $vmname = admin ]] ; then
       cpu_count=4
-      mem_size=4G
+      # set admin node memory in .build_crowbar.conf file as ADMIN_MEM=xG
+      mem_size=$ADMIN_MEM
     fi
     # Hack to pick the fastest disk caching mode.
     # We use unsafe caching if we can on the vms because we will just
