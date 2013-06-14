@@ -22,7 +22,7 @@ EOF
 
 while test $# -gt 0; do
     case "$1" in
-        -h|--help|--usage|-?) usage ;;
+        -h|--help|--usage|-\?) usage ;;
         -v|--verbose) CROWBAR_VERBOSE=1 ;;
         --from-git) CROWBAR_FROM_GIT=1 ;;
         *) ;;
