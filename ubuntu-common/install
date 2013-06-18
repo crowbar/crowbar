@@ -41,3 +41,6 @@ else
 fi
 cd -
 
+echo "Crowbar installation complete -- Please reboot the Admin node now!"
+
+
