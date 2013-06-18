@@ -465,15 +465,13 @@ def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
 
-  system("knife data bag create -k /etc/chef/webui.pem -u chef-webui barclamps")
-
   yaml_with_id = yaml.clone
   yaml_with_id["id"] = bc
   begin
     temp = Tempfile.new(["#{bc}-", '.json'])
     temp.write(JSON.pretty_generate(yaml_with_id))
     temp.flush
-    system("knife data bag from file -k /etc/chef/webui.pem -u chef-webui barclamps \"#{temp}\"")
+    upload_data_bag_from_file 'barclamps', temp.path, bc_path, log
   ensure
     temp.close!
   end
