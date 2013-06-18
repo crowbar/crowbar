@@ -374,30 +374,35 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
   #copy the rails parts (required for render BEFORE import into chef)
   dirs = Dir.entries(bc_path)
   debug "path entries #{dirs.pretty_inspect}"
-  if dirs.include? 'crowbar_framework'
-    debug "path entries include \"crowbar_framework\""
-    files += bc_cloner('crowbar_framework', bc, nil, bc_path, BASE_PATH, false)
-    framework_permissions bc, bc_path
-  end
 
-  if from_rpm
-    debug "locale data for #{bc} is already available in #{File.join CROWBAR_PATH, 'config', 'locales'} (generated at rpm build-time)"
-  else
-    # merge i18n information (least invasive operations first)
+  unless from_rpm
+    # copy all the files to the target
+
+    if dirs.include? 'crowbar_framework'
+      debug "path entries include \"crowbar_framework\""
+      files += bc_cloner('crowbar_framework', bc, nil, bc_path, BASE_PATH, false)
+      framework_permissions bc, bc_path
+    end
+
+    if dirs.include? 'bin'
+      debug "path entries include \"bin\""
+      files += bc_cloner('bin', bc, nil, bc_path, BASE_PATH, false)
+      FileUtils.chmod_R 0755, BIN_PATH
+      debug "\tcopied command line files"
+    end
+
+    if dirs.include? 'chef'
+      debug "path entries include \"chef\""
+      files += bc_cloner('chef', bc, nil, bc_path, BASE_PATH, false)
+      debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
+    end
+
+    # merge i18n information (rpm packages already have this done)
     debug "merge_i18n"
     merge_i18n yaml
   end
-  debug "merge_nav"
-  merge_nav yaml, true
-  debug "merge_sass"
-  merge_sass yaml, bc, bc_path, true
 
-  if dirs.include? 'bin'
-    debug "path entries include \"bin\""
-    files += bc_cloner('bin', bc, nil, bc_path, BASE_PATH, false)
-    FileUtils.chmod_R 0755, BIN_PATH
-    debug "\tcopied command line files"
-  end
+  # we don't install these files in the right place from rpm
   if dirs.include? 'updates'
     debug "path entries include \"updates\""
     files += bc_cloner('updates', bc, nil, bc_path, ROOT_PATH, false)
@@ -405,12 +410,15 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
     debug "\tcopied updates files"
   end
 
-  # copy all the files to the target
-  if dirs.include? 'chef'
-    debug "path entries include \"chef\""
-    files += bc_cloner('chef', bc, nil, bc_path, BASE_PATH, false)
-    debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
+  filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
+  File.open( filelist, 'w' ) do |out|
+    files.each { |line| out.puts line }
   end
+
+  debug "merge_nav"
+  merge_nav yaml, true
+  debug "merge_sass"
+  merge_sass yaml, bc, bc_path, true
 
   # Migrate base crowbar schema if needed
   bc_schema_version = yaml["crowbar"]["proposal_schema_version"].to_i rescue 1
@@ -436,11 +444,6 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
         }
       end
     end
-  end
-
-  filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
-  File.open( filelist, 'w' ) do |out|
-    files.each { |line| out.puts line }
   end
 
   #copy over the crowbar.yml file
