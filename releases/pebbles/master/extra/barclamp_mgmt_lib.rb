@@ -75,23 +75,11 @@ def catalog(bc_path)
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
   cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
-  system("knife data bag create -k /etc/chef/webui.pem -u chef-webui barclamps")
   list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
   # scan the installed barclamps
   list.each do |bc_file|
     debug "Loading #{bc_file}"
     bc = YAML.load_file File.join(barclamps, bc_file)
-    bc["id"] = bc_file.split('.')[0]
-
-    begin
-      temp = Tempfile.new(["#{bc_file}-", '.json'])
-      temp.write(JSON.pretty_generate(bc))
-      temp.flush
-      system("knife data bag from file -k /etc/chef/webui.pem -u chef-webui barclamps \"#{temp}\"")
-    ensure
-      temp.close!
-    end
-
     name =  bc['barclamp']['name']
     cat['barclamps'][name] = {} if cat['barclamps'][name].nil?
     description = bc['barclamp']['description']
@@ -476,6 +464,19 @@ def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
   cookbooks = File.join chef, 'cookbooks'
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
+
+  system("knife data bag create -k /etc/chef/webui.pem -u chef-webui barclamps")
+
+  yaml_with_id = yaml.clone
+  yaml_with_id["id"] = bc
+  begin
+    temp = Tempfile.new(["#{bc}-", '.json'])
+    temp.write(JSON.pretty_generate(yaml_with_id))
+    temp.flush
+    system("knife data bag from file -k /etc/chef/webui.pem -u chef-webui barclamps \"#{temp}\"")
+  ensure
+    temp.close!
+  end
 
   if from_rpm
     rpm = 'crowbar-barclamp-' + File.basename(bc_path)
