@@ -41,6 +41,6 @@ else
 fi
 cd -
 
-echo "Crowbar installation complete -- Please reboot the Admin node now!"
+echo "When the Crowbar installation is complete -- Please reboot the Admin node."
 
 
