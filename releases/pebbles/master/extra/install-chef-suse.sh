@@ -404,14 +404,13 @@ check_repo_product () {
 # FIXME: repos that we cannot check yet:
 #   SP3-Updates is lacking products.xml
 #   Cloud: we don't have the final md5
-#   SUSE-Cloud-2.0-*: not existing yet
+#   SUSE-Cloud-2.0-*: lacking products.xml
 REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
 
-# FIXME: this is for SP3 RC2
 check_repo_content \
     SLES11_SP3 \
     /srv/tftpboot/suse-11.3/install \
-    ac1def6e93db17b03aec76463c684797
+    d0bb700ab51c180200995dfdf5a6ade8
 
 check_repo_content \
     Cloud \
