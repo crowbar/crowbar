@@ -410,6 +410,14 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
     debug "\tcopied updates files"
   end
 
+  # copy over the crowbar.yml file, needed to update catalog
+  yml_path = File.join CROWBAR_PATH, 'barclamps'
+  yml_barclamp = File.join bc_path, "crowbar.yml"
+  yml_created = File.join(yml_path, "#{bc}.yml")
+  FileUtils.mkdir yml_path unless File.directory? yml_path
+  FileUtils.cp yml_barclamp, yml_created
+  files << yml_created
+
   filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
   File.open( filelist, 'w' ) do |out|
     files.each { |line| out.puts line }
@@ -445,12 +453,6 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
       end
     end
   end
-
-  #copy over the crowbar.yml file
-  yml_path = File.join CROWBAR_PATH, 'barclamps'
-  yml_barclamp = File.join bc_path, "crowbar.yml"
-  FileUtils.mkdir yml_path unless File.directory? yml_path
-  FileUtils.cp yml_barclamp, File.join(yml_path, "#{bc}.yml")
 
   debug "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created."
 end
