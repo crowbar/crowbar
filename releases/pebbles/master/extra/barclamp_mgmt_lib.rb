@@ -20,6 +20,7 @@ require 'rubygems'
 require 'fileutils'
 require 'yaml'
 require 'json'
+require 'time'
 require 'tempfile'
 require 'active_support/all'
 require 'pp'
@@ -459,7 +460,7 @@ def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
   log_path = File.join '/var', 'log', 'crowbar', 'barclamp_install'
   FileUtils.mkdir log_path unless File.directory? log_path
   log = File.join log_path, "#{bc}.log"
-  system "date >> #{log}"
+  File.open(log, "a") { |f| f.puts("======== Installing #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
   debug "Capturing chef install logs to #{log}"
   chef = File.join bc_path, 'chef'
   cookbooks = File.join chef, 'cookbooks'
