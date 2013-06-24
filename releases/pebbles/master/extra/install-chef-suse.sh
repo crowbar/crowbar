@@ -558,7 +558,11 @@ done
 
 
 if [ -f /root/.ssh/authorized_keys ]; then
-    provisioner_template=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
+    if [ -n "$CROWBAR_FROM_GIT" ]; then
+        provisioner_template=$BARCLAMP_SRC/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
+    else
+        provisioner_template=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
+    fi
     [ -f $provisioner_template ] || die "$provisioner_template doesn't exist"
     /opt/dell/bin/bc-provisioner-json.rb < $provisioner_template > $provisioner_template.new
     cp -a $provisioner_template $provisioner_template.orig
@@ -642,6 +646,14 @@ if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     # See http://austinmatzko.com/2008/04/26/sed-multi-line-search-and-replace/
     # to understand this if not comfortable with multiline replace in sed.
     sed -i -n -e "1h;1!H;\${;g;s|\(\"machine-install\":\s*{\s*\"password\":\s*\"\)[^\"]*|\1${CROWBAR_KEY##*:}|g;p;}" $CROWBAR_FILE
+fi
+
+if [ -n "$CROWBAR_FROM_GIT" ]; then
+    # Create an empty "git" cookbook to satisfy the dependencies of the pfs barclamps
+    d=$(mktemp -d)
+    knife cookbook create -o "$d" git
+    knife cookbook upload -o "$d" git
+    rm -rf "$d"
 fi
 
 /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/crowbar
