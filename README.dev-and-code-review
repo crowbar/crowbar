@@ -126,7 +126,7 @@ Repo with Changes:   https://github.com/bpezan/barclamp-provisioner.git
 Branch with Changes: master
 Local Branch:        pull-req-6
 Target Branch:       master
-Pull Request URL:    https://github.com/dellcloudedge/barclamp-provisioner/pull/6
+Pull Request URL:    https://github.com/crowbar/barclamp-provisioner/pull/6
 Builds:              master
 victor@system76:~/crowbar$ 
 
@@ -168,28 +168,28 @@ Repo: barclamp-keystone
     Branch with Changes: pull-req-master-311c3511f0c9de379cb2b755503b5bc95953352d
     Local Branch:        pull-req-47
     Target Branch:       master
-    Pull Request URL:    https://github.com/dellcloudedge/barclamp-keystone/pull/47
+    Pull Request URL:    https://github.com/crowbar/barclamp-keystone/pull/47
     Builds:              openstack-os-build
 Repo: barclamp-mysql
     Repo with Changes:   https://github.com/VictorLowther/barclamp-mysql.git
     Branch with Changes: pull-req-master-311c3511f0c9de379cb2b755503b5bc95953352d
     Local Branch:        pull-req-25
     Target Branch:       master
-    Pull Request URL:    https://github.com/dellcloudedge/barclamp-mysql/pull/25
+    Pull Request URL:    https://github.com/crowbar/barclamp-mysql/pull/25
     Builds:              openstack-os-build
 Repo: barclamp-network
     Repo with Changes:   https://github.com/VictorLowther/barclamp-network.git
     Branch with Changes: pull-req-master-311c3511f0c9de379cb2b755503b5bc95953352d
     Local Branch:        pull-req-100
     Target Branch:       master
-    Pull Request URL:    https://github.com/dellcloudedge/barclamp-network/pull/100
+    Pull Request URL:    https://github.com/crowbar/barclamp-network/pull/100
     Builds:              master
 Repo: barclamp-provisioner
     Repo with Changes:   https://github.com/VictorLowther/barclamp-provisioner.git
     Branch with Changes: pull-req-master-311c3511f0c9de379cb2b755503b5bc95953352d
     Local Branch:        pull-req-84
     Target Branch:       master
-    Pull Request URL:    https://github.com/dellcloudedge/barclamp-provisioner/pull/84
+    Pull Request URL:    https://github.com/crowbar/barclamp-provisioner/pull/84
     Builds:              master
 victor@system76:~/crowbar$ 
 
@@ -295,18 +295,18 @@ Assuming you liked what you saw and the code passed the test, you can
 merge the changes in dev:
 
 victor@system76:~/crowbar$ ./dev pull-requests merge 9
-2012-12-05 09:47:25 -0600: https://github.com/dellcloudedge/barclamp-crowbar/pull/287 merged.
-2012-12-05 09:47:26 -0600: https://github.com/dellcloudedge/barclamp-glance/pull/58 merged.
-2012-12-05 09:47:29 -0600: https://github.com/dellcloudedge/barclamp-hive/pull/19 merged.
-2012-12-05 09:47:32 -0600: https://github.com/dellcloudedge/barclamp-keystone/pull/48 merged.
-2012-12-05 09:47:34 -0600: https://github.com/dellcloudedge/barclamp-nova/pull/100 merged.
-2012-12-05 09:47:38 -0600: https://github.com/dellcloudedge/barclamp-nova_dashboard/pull/43 merged.
-2012-12-05 09:47:40 -0600: https://github.com/dellcloudedge/barclamp-openstack/pull/19 merged.
-2012-12-05 09:47:41 -0600: https://github.com/dellcloudedge/barclamp-pig/pull/19 merged.
-2012-12-05 09:47:46 -0600: https://github.com/dellcloudedge/barclamp-sqoop/pull/20 merged.
-2012-12-05 09:47:48 -0600: https://github.com/dellcloudedge/barclamp-swift/pull/40 merged.
-2012-12-05 09:47:50 -0600: https://github.com/dellcloudedge/barclamp-tempest/pull/14 merged.
-2012-12-05 09:47:52 -0600: https://github.com/dellcloudedge/barclamp-zookeeper/pull/11 merged.
+2012-12-05 09:47:25 -0600: https://github.com/crowbar/barclamp-crowbar/pull/287 merged.
+2012-12-05 09:47:26 -0600: https://github.com/crowbar/barclamp-glance/pull/58 merged.
+2012-12-05 09:47:29 -0600: https://github.com/crowbar/barclamp-hive/pull/19 merged.
+2012-12-05 09:47:32 -0600: https://github.com/crowbar/barclamp-keystone/pull/48 merged.
+2012-12-05 09:47:34 -0600: https://github.com/crowbar/barclamp-nova/pull/100 merged.
+2012-12-05 09:47:38 -0600: https://github.com/crowbar/barclamp-nova_dashboard/pull/43 merged.
+2012-12-05 09:47:40 -0600: https://github.com/crowbar/barclamp-openstack/pull/19 merged.
+2012-12-05 09:47:41 -0600: https://github.com/crowbar/barclamp-pig/pull/19 merged.
+2012-12-05 09:47:46 -0600: https://github.com/crowbar/barclamp-sqoop/pull/20 merged.
+2012-12-05 09:47:48 -0600: https://github.com/crowbar/barclamp-swift/pull/40 merged.
+2012-12-05 09:47:50 -0600: https://github.com/crowbar/barclamp-tempest/pull/14 merged.
+2012-12-05 09:47:52 -0600: https://github.com/crowbar/barclamp-zookeeper/pull/11 merged.
 2012-12-05 09:47:52 -0600: Pull requests merged.
 2012-12-05 09:47:52 -0600: You can use ./dev fetch to pull in updated pull request information.
 victor@system76:~/crowbar$
