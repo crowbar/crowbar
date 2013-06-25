@@ -27,7 +27,7 @@ Version:        <%= @version %>
 Release:        0
 License:        Apache-2.0
 Summary:        Crowbar barclamp for %{barclamp_displayname}
-Url:            https://github.com/dellcloudedge/crowbar/wiki
+Url:            http://crowbar.github.io
 Group:          System/Management
 Requires:       <%= @requires.join(', ') %>
 BuildRoot:      %{_tmppath}/%{name}-%{version}-build
@@ -50,6 +50,6 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 %dir /
 /*
 # FIXME: FHS violation, should not have config files in /opt
-# https://github.com/dellcloudedge/crowbar/issues/833
+# https://github.com/crowbar/crowbar/issues/833
 
 %changelog

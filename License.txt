@@ -1,6 +1,6 @@
 COMPONENT LICENSES:
 
-Please see https://github.com/dellcloudedge/crowbar/wiki/Licenses-for-Components 
+Please see https://github.com/crowbar/crowbar/wiki/Licenses-for-Components
 
 CROWBAR LICENSE:
 

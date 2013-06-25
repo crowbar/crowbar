@@ -137,7 +137,7 @@ Initial Setup:
 
  1: Clone the Crowbar repository from you preferred upstream fork of
     Crowbar.  If you are not sure where to clone from, use
-    https://github.com/dellcloudedge/crowbar.git.
+    https://github.com/crowbar/crowbar.git.
  2: Run crowbar/dev setup.
     a: Provide your github login ID and password.  Dev will need it to
        to handle talking to Github.
@@ -182,9 +182,9 @@ Collaborating on a Feature:
 Make Feature available for fetch:
 
  1: Run dev push-release feature/<featurename>
-    a: dev will create branches for this release on github/dellcloudedge
- 2: Run git push dellcloudedge master
-    a: dev will update the github/dellcloudedge/Crowbar main repo with the
+    a: dev will create branches for this release on github/crowbar
+ 2: Run git push crowbar master
+    a: dev will update the github/crowbar/Crowbar main repo with the
        metadata necessary for others to manage this feature
 
 Grabbing a feature and starting to hack on it:
