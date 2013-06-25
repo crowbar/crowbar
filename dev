@@ -4607,9 +4607,9 @@ DEV_LONG_HELP["remote"]="Manage remotes across all repositories.
   repository name as the origin remote does, and things will fail
   badly if this assumption is violated.  As an example, the urlbase
   for:
-    https://github.com/dellcloudedge/crowbar.git
+    https://github.com/crowbar/crowbar.git
   is:
-    https://github.com/dellcloudedge"
+    https://github.com/crowbar"
 DEV_LONG_HELP["remotes"]="Show all remotes."
 DEV_LONG_HELP["backup"]="Back up local changes to the personal remote.
   Push any locally committed changes into repositories that you have

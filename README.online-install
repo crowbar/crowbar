@@ -23,7 +23,7 @@ Instructions:
     debootstrap, and the json gem. This may involve setting up sane http_proxy
     and https_proxy environment variables.
  4: Clone the Crowbar repository from
-    http://github.com/dellcloudedge/crowbar.git, and cd into the
+    http://github.com/crowbar/crowbar.git, and cd into the
     newly-created crowbar directory.
  5: In the crowbar repository, run ./dev switch.  This will check out
     the barclamps we need.
