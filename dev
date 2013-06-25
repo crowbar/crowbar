@@ -1179,8 +1179,13 @@ list_pull_requests() {
         [[ -d $OPEN_PULL_REQUESTS/$id ]] || continue
         cf="$OPEN_PULL_REQUESTS/$id/title"
         cr="$OPEN_PULL_REQUESTS/$id/release"
+        if [[ -f $OPEN_PULL_REQUESTS/$id/number ]]; then
+            cn=" $(cat $OPEN_PULL_REQUESTS/$id/number)"
+        else
+            cn=""
+        fi
         ct="${id%%/*}"
-        echo "$idx: ($(cat "$cr")) $(cat "$cf")"
+        echo "$idx: ($(cat "$cr")$cn) $(cat "$cf")"
     done <"$OPEN_PULL_REQUESTS/pull_request_index"
 }
 
