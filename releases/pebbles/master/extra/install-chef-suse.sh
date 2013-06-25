@@ -623,9 +623,9 @@ for i in $BARCLAMP_SRC/*; do
     fi
 done
 # Clean up files that are created for handling node discovery by provisioner barclamp
-test -d /etc/dhcp3/hosts.d && rm /etc/dhcp3/hosts.d/*
-test -d /srv/tftpboot/discovery && rm /srv/tftpboot/discovery/*.conf
-test -d /srv/tftpboot/discovery/pxelinux.cfg && rm /srv/tftpboot/discovery/pxelinux.cfg/*
+test -d /etc/dhcp3/hosts.d && rm -f /etc/dhcp3/hosts.d/*
+test -d /srv/tftpboot/discovery && rm -f /srv/tftpboot/discovery/*.conf
+test -d /srv/tftpboot/discovery/pxelinux.cfg && rm -f /srv/tftpboot/discovery/pxelinux.cfg/*
 
 # Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
 #CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
