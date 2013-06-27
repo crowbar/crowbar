@@ -649,7 +649,7 @@ if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     # looks like
     # See http://austinmatzko.com/2008/04/26/sed-multi-line-search-and-replace/
     # to understand this if not comfortable with multiline replace in sed.
-    sed -i -n -e "1h;1!H;\${;g;s|\(\"machine-install\":\s*{\s*\"password\":\s*\"\)[^\"]*|\1${CROWBAR_KEY##*:}|g;p;}" $CROWBAR_FILE
+    sed -i -n -e "1h;1!H;\${;g;s|\(\"machine-install\"\s*:\s*{\s*\"password\"\s*:\s*\"\)[^\"]*|\1${CROWBAR_KEY##*:}|g;p;}" $CROWBAR_FILE
 fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
