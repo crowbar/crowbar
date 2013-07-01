@@ -615,12 +615,12 @@ echo_summary "Installing barclamps"
 test -x /etc/init.d/crowbar && service crowbar stop
 test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
 test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/htdigest
-test -e /opt/dell/crowbar_framework/barclamps && rm -r /opt/dell/crowbar_framework/barclamps
 for i in $BARCLAMP_SRC/*; do
     if test -d $i -a -f $i-filelist.txt; then
         /opt/dell/bin/barclamp_uninstall.rb $BARCLAMP_INSTALL_OPTS $i
     fi
 done
+test -e /opt/dell/crowbar_framework/barclamps && rm -r /opt/dell/crowbar_framework/barclamps
 # Clean up files that are created for handling node discovery by provisioner barclamp
 test -d /etc/dhcp3/hosts.d && rm -f /etc/dhcp3/hosts.d/*
 test -d /srv/tftpboot/discovery && rm -f /srv/tftpboot/discovery/*.conf
