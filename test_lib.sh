@@ -586,7 +586,8 @@ run_kvm() {
         -pidfile "$pidfile"
         -serial "file:$vm_logdir/ttyS0.log"
         -serial "file:$vm_logdir/ttyS1.log"
-        -name "kvm-$vm_gen")
+        -name "kvm-$vm_gen"
+        -vnc :$vmname)
     if [[ $kvm_use_ahci = true ]]; then
         kvmargs+=(-device "ahci,id=ahci0,bus=pci.0,multifunction=on")
         kvmargs+=(-drive "file=$smoketest_dir/$vmname.disk,if=none,format=raw,cache=$drive_cache,id=drive-ahci-0")
