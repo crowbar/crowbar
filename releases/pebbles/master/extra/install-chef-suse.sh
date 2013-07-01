@@ -194,7 +194,6 @@ die() {
 exit_handler () {
     if [ -z "$run_succeeded" ]; then
         kill_spinner_with_failed
-        clear >&3
         cat <<EOF | pipe_show_and_log
 
 Crowbar installation terminated prematurely.  Please examine the above
