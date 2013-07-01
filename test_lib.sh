@@ -643,7 +643,9 @@ run_kvm() {
             "$KVM" "${kvmargs[@]}" "$@"
         else
             # otherwise, launch ourselves under screen.
-            kvmargs+=( -curses )
+            # get port from name. For virt-123 should be 123
+            vncport="$(echo $vmname | sed 's|.*\([0-9]\+\)|\1|g')"
+            kvmargs+=( -vnc :$vncport )
             screen -S "$SMOKETEST_SCREEN" -X screen \
                 -t "$vm_gen" "$KVM" "${kvmargs[@]}" "$@"
             screen -S "$SMOKETEST_SCREEN" -p "$vm_gen" -X log on
