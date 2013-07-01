@@ -586,8 +586,7 @@ run_kvm() {
         -pidfile "$pidfile"
         -serial "file:$vm_logdir/ttyS0.log"
         -serial "file:$vm_logdir/ttyS1.log"
-        -name "kvm-$vm_gen"
-        -vnc :$vmname)
+        -name "kvm-$vm_gen")
     if [[ $kvm_use_ahci = true ]]; then
         kvmargs+=(-device "ahci,id=ahci0,bus=pci.0,multifunction=on")
         kvmargs+=(-drive "file=$smoketest_dir/$vmname.disk,if=none,format=raw,cache=$drive_cache,id=drive-ahci-0")
@@ -644,7 +643,9 @@ run_kvm() {
             "$KVM" "${kvmargs[@]}" "$@"
         else
             # otherwise, launch ourselves under screen.
-            kvmargs+=( -curses )
+            # get port from name. For virt-123 should be 123
+            vncport="$(echo $vmname | sed 's|.*\([0-9]\+\)|\1|g')"
+            kvmargs+=( -vnc :$vncport )
             screen -S "$SMOKETEST_SCREEN" -X screen \
                 -t "$vm_gen" "$KVM" "${kvmargs[@]}" "$@"
             screen -S "$SMOKETEST_SCREEN" -p "$vm_gen" -X log on
