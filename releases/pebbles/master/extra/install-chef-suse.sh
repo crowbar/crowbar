@@ -22,7 +22,7 @@ EOF
 
 while test $# -gt 0; do
     case "$1" in
-        -h|--help|--usage|-?) usage ;;
+        -h|--help|--usage|-\?) usage ;;
         -v|--verbose) CROWBAR_VERBOSE=1 ;;
         --from-git) CROWBAR_FROM_GIT=1 ;;
         *) ;;
@@ -73,8 +73,12 @@ fi
 # Send summary fd to original stdout
 exec 6>&3
 
+use_dialog () {
+    [ -z "$CROWBAR_VERBOSE" -a -t 3 -a -x "$(type -p dialog)" ]
+}
+
 pipe_show_and_log () {
-    if [ -t 3 -a -x "$(type -p dialog)" ]; then
+    if use_dialog; then
         t=$(mktemp)
         cat - > $t
         dialog --title "$DIALOG_TITLE" --textbox -- $t $(($(wc -l <$t)+4)) 75 >&3
@@ -90,11 +94,13 @@ spinner () {
     local spinstr='/-\|'
     local msg="$@"
 
+    # reset exit handler
+    trap "exit" EXIT
 
     printf "... " >&3
     while [ true ]; do
         local temp=${spinstr#?}
-        if [ -x "$(type -p dialog)"  ]; then
+        if use_dialog; then
             printf "\n%s [%c]" "$msg... " "$spinstr" | dialog --title "$DIALOG_TITLE" \
                 --keep-window --progressbox 5 70 >&3
         else
@@ -102,7 +108,7 @@ spinner () {
         fi
         local spinstr=$temp${spinstr%"$temp"}
         sleep $delay
-        if ! [ -x "$(type -p dialog)"  ]; then
+        if ! use_dialog; then
             printf "\b\b\b" >&3
         fi
     done
@@ -137,12 +143,12 @@ echo_summary () {
     if [ -z "$CROWBAR_VERBOSE" ]; then
         if [ -t 3 ]; then
             echo -n -e $@ >&3
-            if [ -x "$(type -p dialog)"  ]; then
+            if use_dialog; then
                 echo -n -e $@ | dialog --title "$DIALOG_TITLE" --progressbox 8 60 >&3
             fi
             # Use disown to lose job control messages (especially the
             # "Completed" message when spinner will be killed)
-            spinner $@ & disown
+            ( spinner $@ ) & disown
             LAST_SPINNER_PID=$!
         else
             echo -e $@ >&3
@@ -172,11 +178,13 @@ die() {
 
     kill_spinner_with_failed
 
-    echo >&3
-    echo -e "Error: $@" >&3
-
-    if [ -t 3 -a -x "$(type -p dialog)" ]; then
-        dialog --title "$DIALOG_TITLE" --msgbox -- "Error: $@" 8 73 >&3
+    if use_dialog; then
+        dialog --title "$DIALOG_TITLE" --clear --msgbox -- "Error: $@" 8 73 >&3
+        # avoid triggering two dialogs in a row
+        run_succeeded=already_died
+    else
+        echo >&3
+        echo -e "Error: $@" >&3
     fi
 
     res=1
@@ -186,7 +194,6 @@ die() {
 exit_handler () {
     if [ -z "$run_succeeded" ]; then
         kill_spinner_with_failed
-        clear >&3
         cat <<EOF | pipe_show_and_log
 
 Crowbar installation terminated prematurely.  Please examine the above
@@ -246,7 +253,12 @@ fi
 rootpw=$( getent shadow root | cut -d: -f2 )
 case "$rootpw" in
     \*|\!*)
-        die "root password is unset or locked.  Chef will rewrite /root/.ssh/authorized_keys; therefore to avoid being accidentally locked out of this Administration Server, you should first ensure you have a working root password."
+        if [ ! -f /root/.ssh/authorized_keys ]; then
+            # extra-paranoid: not even sure how people could be logged in if that happens...
+            die "root password is unset or locked and no /root/.ssh/authorized_keys file exists; to avoid being accidentally locked out of this Administration Server, you should first ensure that you have a working root password or authorized ssh keys."
+        else
+            echo "root password is unset or locked. Previous keys from /root/.ssh/authorized_keys will be kept, therefore you should not be accidentally locked out of this Administration Server."
+        fi
         ;;
 esac
 
@@ -322,12 +334,12 @@ fi
 
 # output details, that will make remote debugging via bugzilla much easier  
 # for us
-/usr/bin/zypper lr -d   
+/usr/bin/zypper lr -d  || :
 /bin/rpm -qV crowbar || :
-/usr/bin/lscpu  
-/bin/df -h  
-/usr/bin/free -m
-/bin/ls -la /srv/tftpboot/repos/ /srv/tftpboot/repos/Cloud/ /srv/tftpboot/suse-11.3/install/
+/usr/bin/lscpu  || :
+/bin/df -h  || :
+/usr/bin/free -m || :
+/bin/ls -la /srv/tftpboot/repos/ /srv/tftpboot/repos/Cloud/ /srv/tftpboot/suse-11.3/install/ || :
 
 if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb ]; then
     # The autoyast profile might not exist yet when CROWBAR_FROM_GIT is enabled
@@ -391,14 +403,13 @@ check_repo_product () {
 # FIXME: repos that we cannot check yet:
 #   SP3-Updates is lacking products.xml
 #   Cloud: we don't have the final md5
-#   SUSE-Cloud-2.0-*: not existing yet
+#   SUSE-Cloud-2.0-*: lacking products.xml
 REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
 
-# FIXME: this is for SP3 RC2
 check_repo_content \
     SLES11_SP3 \
     /srv/tftpboot/suse-11.3/install \
-    ac1def6e93db17b03aec76463c684797
+    d0bb700ab51c180200995dfdf5a6ade8
 
 check_repo_content \
     Cloud \
@@ -545,10 +556,17 @@ for service in $services; do
 done
 
 
-in=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
-/opt/dell/bin/bc-provisioner-json.rb < $in > $in.new
-cp -a $in $in.orig
-mv $in.new $in
+if [ -f /root/.ssh/authorized_keys ]; then
+    if [ -n "$CROWBAR_FROM_GIT" ]; then
+        provisioner_template=$BARCLAMP_SRC/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
+    else
+        provisioner_template=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
+    fi
+    [ -f $provisioner_template ] || die "$provisioner_template doesn't exist"
+    /opt/dell/bin/bc-provisioner-json.rb < $provisioner_template > $provisioner_template.new
+    cp -a $provisioner_template $provisioner_template.orig
+    mv $provisioner_template.new $provisioner_template
+fi
 
 # Initial chef-client run
 # -----------------------
@@ -597,12 +615,16 @@ echo_summary "Installing barclamps"
 test -x /etc/init.d/crowbar && service crowbar stop
 test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
 test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/htdigest
-test -e /opt/dell/crowbar_framework/barclamps && rm -r /opt/dell/crowbar_framework/barclamps
 for i in $BARCLAMP_SRC/*; do
     if test -d $i -a -f $i-filelist.txt; then
         /opt/dell/bin/barclamp_uninstall.rb $BARCLAMP_INSTALL_OPTS $i
     fi
 done
+test -e /opt/dell/crowbar_framework/barclamps && rm -r /opt/dell/crowbar_framework/barclamps
+# Clean up files that are created for handling node discovery by provisioner barclamp
+test -d /etc/dhcp3/hosts.d && rm -f /etc/dhcp3/hosts.d/*
+test -d /srv/tftpboot/discovery && rm -f /srv/tftpboot/discovery/*.conf
+test -d /srv/tftpboot/discovery/pxelinux.cfg && rm -f /srv/tftpboot/discovery/pxelinux.cfg/*
 
 # Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
 #CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
@@ -626,7 +648,15 @@ if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     # looks like
     # See http://austinmatzko.com/2008/04/26/sed-multi-line-search-and-replace/
     # to understand this if not comfortable with multiline replace in sed.
-    sed -i -n -e "1h;1!H;\${;g;s|\(\"machine-install\":\s*{\s*\"password\":\s*\"\)[^\"]*|\1${CROWBAR_KEY##*:}|g;p;}" $CROWBAR_FILE
+    sed -i -n -e "1h;1!H;\${;g;s|\(\"machine-install\"\s*:\s*{\s*\"password\"\s*:\s*\"\)[^\"]*|\1${CROWBAR_KEY##*:}|g;p;}" $CROWBAR_FILE
+fi
+
+if [ -n "$CROWBAR_FROM_GIT" ]; then
+    # Create an empty "git" cookbook to satisfy the dependencies of the pfs barclamps
+    d=$(mktemp -d)
+    knife cookbook create -o "$d" git
+    knife cookbook upload -o "$d" git
+    rm -rf "$d"
 fi
 
 /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/crowbar
@@ -640,6 +670,13 @@ for i in deployer dns ipmi logging nagios network ntp provisioner \
          database rabbitmq ceph \
          keystone glance cinder quantum nova nova_dashboard swift openstack ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
+done
+
+# Install optional barclamps if they're present
+for i in updater suse-manager-client ; do
+    if test -d $BARCLAMP_SRC/$i; then
+        /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
+    fi
 done
 
 

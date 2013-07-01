@@ -937,16 +937,11 @@ pull_request_last_touched() (
         for d in *; do
             [[ -d $d ]] || continue
             [[ $ltime ]] || read ltime <"$d/created_at"
-            [[ -f updated_at ]] && read $d/ltime <"$d/updated_at"
             [[ $ltime > $mtime ]] && mtime=$ltime
         done
         echo $mtime
     elif [[ $1 = singletons/* ]]; then
-        if [[ -f $OPEN_PULL_REQUESTS/$1/updated_at ]]; then
-            cat "$OPEN_PULL_REQUESTS/$1/updated_at"
-        else
-            cat "$OPEN_PULL_REQUESTS/$1/created_at"
-        fi
+        cat "$OPEN_PULL_REQUESTS/$1/created_at"
     else
         die "No idea how to find last touched time for $1"
     fi
@@ -1117,6 +1112,7 @@ show_pull_request() {
             builds=($(builds_in_release "$prq_release"))
         fi
         echo "Title:               $prq_title"
+        echo "Unique ID            $id"
         echo "Target Account:      $prq_target_account"
         echo "Source Account:      $prq_source_account"
         echo "Release:             $prq_release"
@@ -1178,8 +1174,13 @@ list_pull_requests() {
         [[ -d $OPEN_PULL_REQUESTS/$id ]] || continue
         cf="$OPEN_PULL_REQUESTS/$id/title"
         cr="$OPEN_PULL_REQUESTS/$id/release"
+        if [[ -f $OPEN_PULL_REQUESTS/$id/number ]]; then
+            cn=" $(cat $OPEN_PULL_REQUESTS/$id/number)"
+        else
+            cn=""
+        fi
         ct="${id%%/*}"
-        echo "$idx: ($(cat "$cr")) $(cat "$cf")"
+        echo "$idx: ($(cat "$cr")$cn) $(cat "$cf")"
     done <"$OPEN_PULL_REQUESTS/pull_request_index"
 }
 
@@ -4606,9 +4607,9 @@ DEV_LONG_HELP["remote"]="Manage remotes across all repositories.
   repository name as the origin remote does, and things will fail
   badly if this assumption is violated.  As an example, the urlbase
   for:
-    https://github.com/dellcloudedge/crowbar.git
+    https://github.com/crowbar/crowbar.git
   is:
-    https://github.com/dellcloudedge"
+    https://github.com/crowbar"
 DEV_LONG_HELP["remotes"]="Show all remotes."
 DEV_LONG_HELP["backup"]="Back up local changes to the personal remote.
   Push any locally committed changes into repositories that you have

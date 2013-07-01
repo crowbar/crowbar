@@ -20,7 +20,8 @@ require 'rubygems'
 require 'fileutils'
 require 'yaml'
 require 'json'
-require 'fileutils'
+require 'time'
+require 'tempfile'
 require 'active_support/all'
 require 'pp'
 require 'i18n'
@@ -75,21 +76,15 @@ def catalog(bc_path)
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
   cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
-  system("knife data bag create -k /etc/chef/webui.pem -u chef-webui barclamps")
   list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
   # scan the installed barclamps
   list.each do |bc_file|
     debug "Loading #{bc_file}"
     bc = YAML.load_file File.join(barclamps, bc_file)
-    File.open("#{barclamps}/#{bc_file}.json","w+") { |f|
-      f.truncate(0)
-      bc["id"] = bc_file.split('.')[0]
-      f.puts(JSON.pretty_generate(bc))
-    }
-    system("knife data bag from file -k /etc/chef/webui.pem -u chef-webui barclamps \"#{barclamps}/#{bc_file}.json\"")
     name =  bc['barclamp']['name']
     cat['barclamps'][name] = {} if cat['barclamps'][name].nil?
     description = bc['barclamp']['description']
+    display = bc['barclamp']['display']
     if description.nil?
       debug "Trying to find description"
       [ File.join(bc_path, '..', name, 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
@@ -104,6 +99,7 @@ def catalog(bc_path)
     # template = File.join bc_path, name,
     debug "Adding catalog info for #{bc['barclamp']['name']}"
     cat['barclamps'][name]['description'] = description || "No description for #{bc['barclamp']['name']}"
+    cat['barclamps'][name]['display'] = display || ""
     cat['barclamps'][name]['user_managed'] = (bc['barclamp']['user_managed'].nil? ? true : bc['barclamp']['user_managed'])
     puts "#{name} #{bc['barclamp']['user_managed']}" if name === 'dell-branding'
     bc['barclamp']['member'].each do |meta|
@@ -340,10 +336,14 @@ def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
   if File.exist? filelist
     files = [ filelist ]
     File.open(filelist, 'r') do |f|
-      f.each_line { FileUtils.rm line rescue nil }
+      f.each_line { |line| FileUtils.rm line.chomp rescue nil }
     end
+    FileUtils.rm filelist rescue nil
+
     merge_nav yaml, false
     merge_sass yaml, bc, bc_path, false
+    catalog bc_path
+
     debug "Barclamp #{bc} UNinstalled"
   end
 end
@@ -372,30 +372,35 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
   #copy the rails parts (required for render BEFORE import into chef)
   dirs = Dir.entries(bc_path)
   debug "path entries #{dirs.pretty_inspect}"
-  if dirs.include? 'crowbar_framework'
-    debug "path entries include \"crowbar_framework\""
-    files += bc_cloner('crowbar_framework', bc, nil, bc_path, BASE_PATH, false)
-    framework_permissions bc, bc_path
-  end
 
-  if from_rpm
-    debug "locale data for #{bc} is already available in #{File.join CROWBAR_PATH, 'config', 'locales'} (generated at rpm build-time)"
-  else
-    # merge i18n information (least invasive operations first)
+  unless from_rpm
+    # copy all the files to the target
+
+    if dirs.include? 'crowbar_framework'
+      debug "path entries include \"crowbar_framework\""
+      files += bc_cloner('crowbar_framework', bc, nil, bc_path, BASE_PATH, false)
+      framework_permissions bc, bc_path
+    end
+
+    if dirs.include? 'bin'
+      debug "path entries include \"bin\""
+      files += bc_cloner('bin', bc, nil, bc_path, BASE_PATH, false)
+      FileUtils.chmod_R 0755, BIN_PATH
+      debug "\tcopied command line files"
+    end
+
+    if dirs.include? 'chef'
+      debug "path entries include \"chef\""
+      files += bc_cloner('chef', bc, nil, bc_path, BASE_PATH, false)
+      debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
+    end
+
+    # merge i18n information (rpm packages already have this done)
     debug "merge_i18n"
     merge_i18n yaml
   end
-  debug "merge_nav"
-  merge_nav yaml, true
-  debug "merge_sass"
-  merge_sass yaml, bc, bc_path, true
 
-  if dirs.include? 'bin'
-    debug "path entries include \"bin\""
-    files += bc_cloner('bin', bc, nil, bc_path, BASE_PATH, false)
-    FileUtils.chmod_R 0755, BIN_PATH
-    debug "\tcopied command line files"
-  end
+  # we don't install these files in the right place from rpm
   if dirs.include? 'updates'
     debug "path entries include \"updates\""
     files += bc_cloner('updates', bc, nil, bc_path, ROOT_PATH, false)
@@ -403,12 +408,23 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
     debug "\tcopied updates files"
   end
 
-  # copy all the files to the target
-  if dirs.include? 'chef'
-    debug "path entries include \"chef\""
-    files += bc_cloner('chef', bc, nil, bc_path, BASE_PATH, false)
-    debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
+  # copy over the crowbar.yml file, needed to update catalog
+  yml_path = File.join CROWBAR_PATH, 'barclamps'
+  yml_barclamp = File.join bc_path, "crowbar.yml"
+  yml_created = File.join(yml_path, "#{bc}.yml")
+  FileUtils.mkdir yml_path unless File.directory? yml_path
+  FileUtils.cp yml_barclamp, yml_created
+  files << yml_created
+
+  filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
+  File.open( filelist, 'w' ) do |out|
+    files.each { |line| out.puts line }
   end
+
+  debug "merge_nav"
+  merge_nav yaml, true
+  debug "merge_sass"
+  merge_sass yaml, bc, bc_path, true
 
   # Migrate base crowbar schema if needed
   bc_schema_version = yaml["crowbar"]["proposal_schema_version"].to_i rescue 1
@@ -436,17 +452,6 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
     end
   end
 
-  filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
-  File.open( filelist, 'w' ) do |out|
-    files.each { |line| out.puts line }
-  end
-
-  #copy over the crowbar.yml file
-  yml_path = File.join CROWBAR_PATH, 'barclamps'
-  yml_barclamp = File.join bc_path, "crowbar.yml"
-  FileUtils.mkdir yml_path unless File.directory? yml_path
-  FileUtils.cp yml_barclamp, File.join(yml_path, "#{bc}.yml")
-
   debug "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created."
 end
 
@@ -455,15 +460,26 @@ def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
   log_path = File.join '/var', 'log', 'crowbar', 'barclamp_install'
   FileUtils.mkdir log_path unless File.directory? log_path
   log = File.join log_path, "#{bc}.log"
-  system "date >> #{log}"
+  File.open(log, "a") { |f| f.puts("======== Installing #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
   debug "Capturing chef install logs to #{log}"
   chef = File.join bc_path, 'chef'
   cookbooks = File.join chef, 'cookbooks'
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
 
+  yaml_with_id = yaml.clone
+  yaml_with_id["id"] = bc
+  begin
+    temp = Tempfile.new(["#{bc}-", '.json'])
+    temp.write(JSON.pretty_generate(yaml_with_id))
+    temp.flush
+    upload_data_bag_from_file 'barclamps', temp.path, bc_path, log
+  ensure
+    temp.close!
+  end
+
   if from_rpm
-    rpm = 'crowbar-barclamp-' + bc
+    rpm = 'crowbar-barclamp-' + File.basename(bc_path)
     debug "obtaining chef components from #{rpm} rpm"
     rpm_files = get_rpm_file_list(rpm)
     upload_cookbooks_from_rpm rpm, rpm_files, bc_path, log
