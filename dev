@@ -11,7 +11,7 @@ PULL_TITLE_RE='^(.*)\[([0-9]+)/([0-9]+)\]$'
 readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 # Ubuntu hack to make sure gem executables are in our path.
-[[ -d /var/lib/gems/1.8/bin ]] && export PATH=$PATH:/var/lib/gems/1.8/bin
+[[ -d /var/lib/gems/1.9.1/bin ]] && export PATH=$PATH:/var/lib/gems/1.9.1/bin
 declare -A DEV_BRANCHES DEV_REMOTE_SOURCES DEV_REMOTE_BRANCHES DEV_ORIGIN_TYPES
 declare -A DEV_REMOTE_PRIORITY DEV_REMOTE_URLBASE __AVAILABLE_REMOTES
 declare -a DEV_SORTED_REMOTES
@@ -4720,7 +4720,7 @@ DEV_LONG_HELP["tests"]="Various tasks related to running tests.
       environment.
 
       setup also takes two optional arguments:
-        --update-gem-cache will copy the contents of /var/lib/gems/1.8 into
+        --update-gem-cache will copy the contents of /var/lib/gems/1.9.1 into
             $CACHE_DIR/unit_tests/gems.  If you are managing your build cache
             with git, these files will be automatically committed.
         --no-gem-cache will force bundler to use gems from the internet
