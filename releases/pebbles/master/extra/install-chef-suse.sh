@@ -192,6 +192,10 @@ die() {
 }
 
 exit_handler () {
+    if test -n "$CROWBAR_TMPDIR" -a -d "$CROWBAR_TMPDIR"; then
+        rm -r "$CROWBAR_TMPDIR"
+    fi
+
     if [ -z "$run_succeeded" ]; then
         kill_spinner_with_failed
         cat <<EOF | pipe_show_and_log
@@ -214,6 +218,8 @@ trap exit_handler EXIT
 # ---------------------
 
 echo "`date` $0 started with args: $*"
+
+CROWBAR_TMPDIR=$(mktemp -d --tmpdir crowbar-install-XXXXXX)
 
 ensure_service_running () {
     service="$1"
@@ -690,20 +696,20 @@ dns_template=/opt/dell/chef/data_bags/crowbar/bc-template-dns.json
 [ -f $dns_template ] || die "$dns_template doesn't exist"
 nameservers=$( awk '/^nameserver/ {print $2}' /etc/resolv.conf )
 # This will still work if there are no nameservers.
-/opt/dell/bin/bc-dns-json.rb $DOMAIN $nameservers < $dns_template > /tmp/bc-template-dns.json
+/opt/dell/bin/bc-dns-json.rb $DOMAIN $nameservers < $dns_template > "$CROWBAR_TMPDIR/bc-template-dns.json"
 echo "Instructing chef to configure bind with the following DNS forwarders: $nameservers"
-knife data bag from file crowbar /tmp/bc-template-dns.json
+knife data bag from file crowbar "$CROWBAR_TMPDIR/bc-template-dns.json"
 
 echo "Create Admin node role"
 NODE_ROLE="crowbar-${FQDN//./_}" 
-cat > /tmp/role.rb <<EOF
+cat > "$CROWBAR_TMPDIR/role.rb" <<EOF
 name "$NODE_ROLE"
 description "Role for $FQDN"
 run_list()
 default_attributes( "crowbar" => { "network" => {} } )
 override_attributes()
 EOF
-knife role from file /tmp/role.rb
+knife role from file "$CROWBAR_TMPDIR/role.rb"
 
 knife node run_list add "$FQDN" role["crowbar"]
 knife node run_list add "$FQDN" role["deployer-client"]
