@@ -203,7 +203,7 @@ if [[ $OS = ubuntu ]]; then
             sed -i "/^chef-solr/ s/password\$/${rabbit_chef_password}/" ./debsel.conf
             /usr/bin/debconf-set-selections ./debsel.conf)
         apt-get update
-        apt-get -y install 'crowbar-barclamp-*'
+        apt-get -y install libssl-dev 'crowbar-barclamp-*'
     fi
 elif [[ $OS = redhat ]]; then
     yum -y makecache
