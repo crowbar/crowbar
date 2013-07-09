@@ -630,6 +630,10 @@ mkdir -p /var/lib/crowbar/config
 
 # force id
 /opt/dell/bin/json-edit "$CROWBAR_FILE" -a id -v "default"
+# if crowbar user has been removed from crowbar.json, mark it as disabled (as it's still in main json)
+if test -z "`$BARCLAMP_SRC/provisioner/updates/parse_node_data "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar | sed "s/^[^=]*=//g"`"; then
+    /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
+fi
 # remove old stuff
 /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.redhat_install --raw -v "[ ]"
 /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.ubuntu_install --raw -v "[ ]"
