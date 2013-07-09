@@ -42,7 +42,6 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     BARCLAMP_INSTALL_OPTS="--force"
     : ${CROWBAR_FILE:=/root/crowbar/crowbar.json}
     : ${BARCLAMP_SRC:=/root/crowbar/barclamps/}
-    sed -i -e '/"nagios":/d' -e '/"ganglia":/d' $CROWBAR_FILE
 fi
 
 LOGFILE=/var/log/crowbar/install.log
@@ -624,12 +623,19 @@ test -d /srv/tftpboot/discovery/pxelinux.cfg && rm -f /srv/tftpboot/discovery/px
 : ${CROWBAR_FILE:="/etc/crowbar/crowbar.json"}
 if test -f "$CROWBAR_FILE"; then
     cp "$CROWBAR_FILE" "$CROWBAR_TMPDIR/crowbar.json"
-else
-    /opt/dell/bin/json-edit "$CROWBAR_TMPDIR/crowbar.json" -a id -v "default"
 fi
 CROWBAR_FILE="$CROWBAR_TMPDIR/crowbar.json"
 
 mkdir -p /var/lib/crowbar/config
+
+# force id
+/opt/dell/bin/json-edit "$CROWBAR_FILE" -a id -v "default"
+# remove old stuff
+/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.redhat_install --raw -v "[ ]"
+/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.ubuntu_install --raw -v "[ ]"
+# we don't use ganglia at all, and we don't want nagios by default
+/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
+/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
 
 # Use existing SSH authorized keys
 if [ -f /root/.ssh/authorized_keys ]; then
