@@ -628,8 +628,9 @@ CROWBAR_FILE="$CROWBAR_TMPDIR/crowbar.json"
 
 mkdir -p /var/lib/crowbar/config
 
-# force id
+# force id and use merge with template
 /opt/dell/bin/json-edit "$CROWBAR_FILE" -a id -v "default"
+/opt/dell/bin/json-edit "$CROWBAR_FILE" -a crowbar-deep-merge-template --raw -v "true"
 # if crowbar user has been removed from crowbar.json, mark it as disabled (as it's still in main json)
 if test -z "`$BARCLAMP_SRC/provisioner/updates/parse_node_data "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar | sed "s/^[^=]*=//g"`"; then
     /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
@@ -646,6 +647,7 @@ if [ -f /root/.ssh/authorized_keys ]; then
     # remove empty lines and change newline to \n
     access_keys=$(sed "/^ *$/d" /root/.ssh/authorized_keys | sed "N;s/\n/\\n/g")
     /opt/dell/bin/json-edit "/var/lib/crowbar/config/provisioner.json" -a id -v "default"
+    /opt/dell/bin/json-edit "/var/lib/crowbar/config/provisioner.json" -a crowbar-deep-merge-template --raw -v "true"
     /opt/dell/bin/json-edit "/var/lib/crowbar/config/provisioner.json" -a attributes.provisioner.access_keys -v "$access_keys"
     /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.provisioner --raw -v "[ \"/var/lib/crowbar/config/provisioner.json\" ]"
     echo "Will add pre-existing SSH keys from /root/.ssh/authorized_keys"
@@ -654,6 +656,7 @@ fi
 # Setup bind with correct local domain and DNS forwarders
 nameservers=$( awk '/^nameserver/ {printf "\""$2"\","}' /etc/resolv.conf | sed "s/,$//" )
 /opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a id -v "default"
+/opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a crowbar-deep-merge-template --raw -v "true"
 /opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a attributes.dns.domain -v "$DOMAIN"
 /opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a attributes.dns.forwarders --raw -v "[ $nameservers ]"
 /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.dns --raw -v "[ \"/var/lib/crowbar/config/dns.json\" ]"
