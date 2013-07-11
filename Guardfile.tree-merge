@@ -59,6 +59,7 @@ BC_FILTERS = [
 
 GENERAL_EXCLUDES = [
   "- .#*#",
+  "- *.swp",
 ]
 
 def guard_bc_dir(bc_dir)
