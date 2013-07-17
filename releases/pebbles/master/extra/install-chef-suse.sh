@@ -347,8 +347,6 @@ if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb 
     /usr/bin/grep media_url /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb
 fi
 
-CROWBAR=/opt/dell/bin/crowbar
-
 skip_check_for_repo () {
     repo="$1"
     for skipped_repo in $REPOS_SKIP_CHECKS; do
@@ -688,6 +686,8 @@ for file in /etc/resolv.conf; do
         cp -a "$file" "/var/lib/crowbar/cache/$file"
     fi
 done
+
+CROWBAR=/opt/dell/bin/crowbar
 
 : ${CROWBAR_FILE:="/etc/crowbar/crowbar.json"}
 if test -f "$CROWBAR_FILE"; then
