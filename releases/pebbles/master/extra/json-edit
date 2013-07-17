@@ -106,12 +106,17 @@ def main()
 
     elements = @attribute.split(".")
     data = json
+
     elements[0, elements.length - 1].each { |element|
-      if not data.has_key?(element)
+      if not (data.has_key?(element) && data[element].is_a?(Hash))
+        if @remove
+          exit 0
+        end
         data[element] = {}
       end
       data = data[element]
     }
+
     unless @remove
       data[elements[-1]] = real_value
     else
