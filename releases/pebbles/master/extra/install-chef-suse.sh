@@ -620,6 +620,16 @@ test -d /etc/dhcp3/hosts.d && rm -f /etc/dhcp3/hosts.d/*
 test -d /srv/tftpboot/discovery && rm -f /srv/tftpboot/discovery/*.conf
 test -d /srv/tftpboot/discovery/pxelinux.cfg && rm -f /srv/tftpboot/discovery/pxelinux.cfg/*
 
+# Keep copy of files that crowbar will overwrite; this is done only on the very
+# first run of this script, and allow running the installation script again
+# while still having the original data.
+for file in /etc/resolv.conf; do
+    if test ! -f "/var/lib/crowbar/cache/$file"; then
+        mkdir -p "/var/lib/crowbar/cache/`dirname $file`"
+        cp -a "$file" "/var/lib/crowbar/cache/$file"
+    fi
+done
+
 : ${CROWBAR_FILE:="/etc/crowbar/crowbar.json"}
 if test -f "$CROWBAR_FILE"; then
     cp "$CROWBAR_FILE" "$CROWBAR_TMPDIR/crowbar.json"
@@ -654,7 +664,7 @@ if [ -f /root/.ssh/authorized_keys ]; then
 fi
 
 # Setup bind with correct local domain and DNS forwarders
-nameservers=$( awk '/^nameserver/ {printf "\""$2"\","}' /etc/resolv.conf | sed "s/,$//" )
+nameservers=$( awk '/^nameserver/ {printf "\""$2"\","}' /var/lib/crowbar/cache/etc/resolv.conf | sed "s/,$//" )
 /opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a id -v "default"
 /opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a crowbar-deep-merge-template --raw -v "true"
 /opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a attributes.dns.domain -v "$DOMAIN"
