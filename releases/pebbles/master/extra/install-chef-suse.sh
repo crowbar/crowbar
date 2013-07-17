@@ -267,10 +267,6 @@ case "$rootpw" in
         ;;
 esac
 
-if [ -z "$STY" ]; then
-    die "Please use \"screen $0\" to avoid problems during network re-configuration."
-fi
-
 # It is exceedingly important that 'hostname -f' actually returns an FQDN!
 # if it doesn't, add an entry to /etc/hosts, e.g.:
 #    192.168.124.10 cb-admin.example.com cb-admin
