@@ -642,6 +642,15 @@ fi
 /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
 /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
 
+# use custom network configuration if there's one
+if [ -f /etc/crowbar/network.json ]; then
+    cp -a /etc/crowbar/network.json /var/lib/crowbar/config/network.json
+    /opt/dell/bin/json-edit "/var/lib/crowbar/config/network.json" -a id -v "default"
+    /opt/dell/bin/json-edit "/var/lib/crowbar/config/network.json" -a crowbar-deep-merge-template --raw -v "true"
+    /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.network --raw -v "[ \"/var/lib/crowbar/config/network.json\" ]"
+    echo "Using custom network configuration from /etc/crowbar/network.json"
+fi
+
 # Use existing SSH authorized keys
 if [ -f /root/.ssh/authorized_keys ]; then
     # remove empty lines and change newline to \n
