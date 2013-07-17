@@ -889,6 +889,8 @@ done
 # We're done!
 # -----------
 
+echo_summary "Installation complete!"
+
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 
 kill_spinner
