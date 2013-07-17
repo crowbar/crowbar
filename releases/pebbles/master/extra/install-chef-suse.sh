@@ -621,14 +621,12 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     rm -rf "$d"
 fi
 
-/opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/crowbar
-
 #
 # Take care that the barclamps are installed in the right order
 # If you've got a full openstack set installed, e.g.: nagios has to be
 # installed before keystone, etc.
 #
-for i in deployer dns ipmi logging nagios network ntp provisioner \
+for i in crowbar deployer dns ipmi logging nagios network ntp provisioner \
          database rabbitmq ceph \
          keystone glance cinder quantum nova nova_dashboard swift openstack ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
