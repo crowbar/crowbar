@@ -23,8 +23,8 @@ require 'getoptlong'
 #
 @options = [
     [ [ '--help', '-h', GetoptLong::NO_ARGUMENT ], "--help or -h - help" ],
-    [ [ '--attribute', '-a', GetoptLong::REQUIRED_ARGUMENT ], "--attribute <attribute> or -a <attribute>  - Name of attribute to set.  Use . as sub-attribute delimiter" ],
-    [ [ '--value', '-v', GetoptLong::REQUIRED_ARGUMENT ], "--value <value> or -v <value>  - Value to set for attribute" ],
+    [ [ '--attribute', '-a', GetoptLong::REQUIRED_ARGUMENT ], "--attribute <attribute> or -a <attribute> - Name of attribute to set. Use . as sub-attribute delimiter" ],
+    [ [ '--value', '-v', GetoptLong::REQUIRED_ARGUMENT ], "--value <value> or -v <value> - Value to set for attribute" ],
     [ [ '--raw', '-r', GetoptLong::NO_ARGUMENT ], "--raw or -r - value is a raw argument already in JSON format" ],
     [ [ '--remove', GetoptLong::NO_ARGUMENT ], "--remove - Remove attribute instead of setting it" ],
 ]
