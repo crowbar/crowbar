@@ -34,6 +34,10 @@ covered by a [CLA](CLA.md).
    * Unit tests for all models concurrent with pull request
    * BDD tests for all API calls and web pages concurrent with pull request
    * Documentation for API calls concurrent with pull request
+   * Adhere to the community [Ruby style guide]
+     (https://github.com/bbatsov/ruby-style-guide)
+   * Adhere to the community [Rails style guide]
+     (https://github.com/bbatsov/rails-style-guide/)
 
 #### Testing/ Validation
 
