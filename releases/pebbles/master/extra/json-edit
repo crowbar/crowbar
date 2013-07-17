@@ -26,11 +26,13 @@ require 'getoptlong'
     [ [ '--attribute', '-a', GetoptLong::REQUIRED_ARGUMENT ], "--attribute <attribute> or -a <attribute>  - Name of attribute to set.  Use . as sub-attribute delimiter" ],
     [ [ '--value', '-v', GetoptLong::REQUIRED_ARGUMENT ], "--value <value> or -v <value>  - Value to set for attribute" ],
     [ [ '--raw', '-r', GetoptLong::NO_ARGUMENT ], "--raw or -r - value is a raw argument already in JSON format" ],
+    [ [ '--remove', GetoptLong::NO_ARGUMENT ], "--remove - Remove attribute instead of setting it" ],
 ]
 
 @attribute = nil
 @value = nil
 @raw = false
+@remove = false
 
 def usage (rc)
   puts "Usage: json-edit [options] filename"
@@ -69,6 +71,8 @@ def opt_parse()
         end
       when '--raw'
         @raw = true
+      when '--remove'
+        @remove = true
       else
         usage -1
     end
@@ -108,7 +112,15 @@ def main()
       end
       data = data[element]
     }
-    data[elements[-1]] = real_value
+    unless @remove
+      data[elements[-1]] = real_value
+    else
+      if data.has_key?(elements[-1])
+        data.delete(elements[-1])
+      else
+        exit 0
+      end
+    end
 
     File.open(filename, 'w') {|f| f.write(JSON.pretty_generate(json)) }
   rescue => ex
