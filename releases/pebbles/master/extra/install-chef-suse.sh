@@ -606,14 +606,79 @@ echo_summary "Installing barclamps"
 
 # Clean up previous crowbar install run, in case there was one
 test -x /etc/init.d/crowbar && service crowbar stop
-test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
-test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/htdigest
 for i in $BARCLAMP_SRC/*; do
     if test -d $i -a -f $i-filelist.txt; then
         /opt/dell/bin/barclamp_uninstall.rb $BARCLAMP_INSTALL_OPTS $i
     fi
 done
 test -e /opt/dell/crowbar_framework/barclamps && rm -r /opt/dell/crowbar_framework/barclamps
+
+if [ -n "$CROWBAR_FROM_GIT" ]; then
+    # Create an empty "git" cookbook to satisfy the dependencies of the pfs barclamps
+    d=$(mktemp -d)
+    knife cookbook create -o "$d" git
+    knife cookbook upload -o "$d" git
+    rm -rf "$d"
+fi
+
+/opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/crowbar
+
+#
+# Take care that the barclamps are installed in the right order
+# If you've got a full openstack set installed, e.g.: nagios has to be
+# installed before keystone, etc.
+#
+for i in deployer dns ipmi logging nagios network ntp provisioner \
+         database rabbitmq ceph \
+         keystone glance cinder quantum nova nova_dashboard swift openstack ; do
+    /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
+done
+
+# Install optional barclamps if they're present
+for i in updater suse-manager-client ; do
+    if test -d $BARCLAMP_SRC/$i; then
+        /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
+    fi
+done
+
+
+# First step of crowbar bootstrap
+# -------------------------------
+
+echo_summary "Bootstrapping Crowbar setup"
+
+echo "Create Admin node role"
+NODE_ROLE="crowbar-${FQDN//./_}" 
+cat > "$CROWBAR_TMPDIR/role.rb" <<EOF
+name "$NODE_ROLE"
+description "Role for $FQDN"
+run_list()
+default_attributes( "crowbar" => { "network" => {} } )
+override_attributes()
+EOF
+knife role from file "$CROWBAR_TMPDIR/role.rb"
+
+knife node run_list add "$FQDN" role["crowbar"]
+knife node run_list add "$FQDN" role["deployer-client"]
+knife node run_list add "$FQDN" role["$NODE_ROLE"]
+
+# at this point you can run chef-client from the command line to start
+# the crowbar bootstrapping
+
+chef-client
+
+# OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
+ensure_service_running crowbar
+
+
+# Second step of crowbar bootstrap
+# -------------------------------
+
+echo_summary "Applying Crowbar configuration for Administration Server"
+
+# Clean up previous crowbar install run, in case there was one
+test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
+test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/htdigest
 test -d /var/lib/crowbar/config && rm -f /var/lib/crowbar/config/*.json
 # Clean up files that are created for handling node discovery by provisioner barclamp
 test -d /etc/dhcp3/hosts.d && rm -f /etc/dhcp3/hosts.d/*
@@ -686,69 +751,6 @@ if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
     /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.users.machine-install.password -v "${CROWBAR_KEY##*:}"
 fi
-
-if [ -n "$CROWBAR_FROM_GIT" ]; then
-    # Create an empty "git" cookbook to satisfy the dependencies of the pfs barclamps
-    d=$(mktemp -d)
-    knife cookbook create -o "$d" git
-    knife cookbook upload -o "$d" git
-    rm -rf "$d"
-fi
-
-/opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/crowbar
-
-#
-# Take care that the barclamps are installed in the right order
-# If you've got a full openstack set installed, e.g.: nagios has to be
-# installed before keystone, etc.
-#
-for i in deployer dns ipmi logging nagios network ntp provisioner \
-         database rabbitmq ceph \
-         keystone glance cinder quantum nova nova_dashboard swift openstack ; do
-    /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
-done
-
-# Install optional barclamps if they're present
-for i in updater suse-manager-client ; do
-    if test -d $BARCLAMP_SRC/$i; then
-        /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
-    fi
-done
-
-
-# First step of crowbar bootstrap
-# -------------------------------
-
-echo_summary "Bootstrapping Crowbar setup"
-
-echo "Create Admin node role"
-NODE_ROLE="crowbar-${FQDN//./_}" 
-cat > "$CROWBAR_TMPDIR/role.rb" <<EOF
-name "$NODE_ROLE"
-description "Role for $FQDN"
-run_list()
-default_attributes( "crowbar" => { "network" => {} } )
-override_attributes()
-EOF
-knife role from file "$CROWBAR_TMPDIR/role.rb"
-
-knife node run_list add "$FQDN" role["crowbar"]
-knife node run_list add "$FQDN" role["deployer-client"]
-knife node run_list add "$FQDN" role["$NODE_ROLE"]
-
-# at this point you can run chef-client from the command line to start
-# the crowbar bootstrapping
-
-chef-client
-
-# OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
-ensure_service_running crowbar
-
-
-# Second step of crowbar bootstrap
-# -------------------------------
-
-echo_summary "Applying Crowbar configuration for Administration Server"
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /tmp/deploying
