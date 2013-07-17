@@ -318,6 +318,12 @@ if [ -n "$IPv4_addr" ]; then
     if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < $NETWORK_JSON; then
         die "IPv4 address $IPv4_addr of Administration Server not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
     fi
+
+    if [ -f /etc/crowbar/network.json ]; then
+        if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < /etc/crowbar/network.json; then
+            die "IPv4 address $IPv4_addr of Administration Server not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
+        fi
+    fi
 fi
 if [ -n "$IPv6_addr" ]; then
     echo "$FQDN resolved to IPv6 address: $IPv6_addr"
