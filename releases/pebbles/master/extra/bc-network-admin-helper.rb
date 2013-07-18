@@ -38,6 +38,11 @@ if not databag['attributes'].has_key?('network')
   exit 1
 end
 
+if not databag['attributes']['network'].has_key?('teaming')
+  puts "Invalid network JSON: missing attribute: attributes.network.teaming"
+  exit 1
+end
+
 if not databag['attributes']['network'].has_key?('conduit_map')
   puts "Invalid network JSON: missing attribute: attributes.network.conduit_map"
   exit 1
@@ -45,6 +50,21 @@ end
 
 if not databag['attributes']['network'].has_key?('networks')
   puts "Invalid network JSON: missing attribute: attributes.network.networks"
+  exit 1
+end
+
+
+### Validation of simple attributes
+
+mode = databag['attributes']['network']['mode']
+if not ['single', 'dual', 'team'].include?(mode)
+  puts "Invalid mode '#{mode}': must be one of 'single', 'dual', 'team'"
+  exit 1
+end
+
+teaming_mode = databag['attributes']['network']['teaming']['mode']
+if not Range.new(0, 6).include?(teaming_mode)
+  puts "Invalid teaming mode '#{teaming_mode}': must be a value between 0 and 6, see https://www.kernel.org/doc/Documentation/networking/bonding.txt"
   exit 1
 end
 
