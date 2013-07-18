@@ -28,7 +28,7 @@ REQUIRED_NETWORKS = {
 ### Helpers
 
 def usage (rc)
-  puts "Usage: network-json-validator --admin-ip=IP filename"
+  puts "Usage: network-json-validator [options] filename"
   @options.each do |options|
     puts "  #{options[1]}"
   end
@@ -295,11 +295,7 @@ if ARGV.length != 1
   usage -1
 end
 
-if @admin_ip.nil?
-  usage -1
-end
-
-@admin_ip_addr = IPAddr.new(@admin_ip)
+@admin_ip_addr = IPAddr.new(@admin_ip) unless @admin_ip.nil?
 
 filename = File.expand_path(ARGV[0])
 unless File.exists?(filename)
@@ -319,7 +315,7 @@ begin
   validate_structure(databag)
   validate_basic_attributes(databag)
   validate_networks(databag)
-  validate_admin_ip
+  validate_admin_ip unless @admin_ip.nil?
 rescue Exception => e
   puts e.to_s
   exit 1
