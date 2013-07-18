@@ -310,19 +310,16 @@ if [ -n "$IPv4_addr" ]; then
         die "$FQDN resolves to a loopback address. Aborting."
     fi
 
-    if [ -n "$CROWBAR_FROM_GIT" ]; then
+    if [ -f /etc/crowbar/network.json ]; then
+        NETWORK_JSON=/etc/crowbar/network.json
+    elif [ -n "$CROWBAR_FROM_GIT" ]; then
         NETWORK_JSON=$BARCLAMP_SRC/network/chef/data_bags/crowbar/bc-template-network.json
     else
         NETWORK_JSON=/opt/dell/chef/data_bags/crowbar/bc-template-network.json
     fi
+
     if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < $NETWORK_JSON; then
         die "IPv4 address $IPv4_addr of Administration Server not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
-    fi
-
-    if [ -f /etc/crowbar/network.json ]; then
-        if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < /etc/crowbar/network.json; then
-            die "IPv4 address $IPv4_addr of Administration Server not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
-        fi
     fi
 fi
 if [ -n "$IPv6_addr" ]; then
