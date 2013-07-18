@@ -1,6 +1,7 @@
 #!/usr/bin/ruby
 
 require 'rubygems'
+require 'getoptlong'
 require 'ipaddr'
 require 'json'
 
@@ -15,61 +16,51 @@ REQUIRED_NETWORKS = {
   'storage' => ['host']
 }
 
-if ARGV.length != 1
-  puts "Invalid call to script."
-  exit 1
+@options = [
+    [ [ '--help', '-h', GetoptLong::NO_ARGUMENT ], "--help or -h - help" ],
+    [ [ '--admin-ip', GetoptLong::REQUIRED_ARGUMENT ], "--admin-ip <ip> - IP address of the Administration Server" ],
+]
+
+@admin_ip = nil
+@networks = {}
+
+
+### Helpers
+
+def usage (rc)
+  puts "Usage: bc-network-admin-helper --admin-ip=IP filename"
+  @options.each do |options|
+    puts "  #{options[1]}"
+  end
+  exit rc
 end
 
-ipv4_arg = ARGV[0]
-ipv4 = IPAddr.new(ipv4_arg)
+def opt_parse()
+  sub_options = @options.map { |x| x[0] }
+  opts = GetoptLong.new(*sub_options)
 
-databag = JSON.load($stdin)
+  opts.each do |opt, arg|
+    case opt
+      when '--help'
+        usage 0
+      when '--admin-ip'
+        if @admin_ip.nil?
+          @admin_ip = arg
+        else
+          usage -1
+        end
+      else
+        usage -1
+    end
+  end
 
-
-### Early validation
-
-if not databag.has_key?('attributes')
-  puts "Invalid network JSON: missing attribute: attributes"
-  exit 1
-end
-
-if not databag['attributes'].has_key?('network')
-  puts "Invalid network JSON: missing attribute: attributes.network"
-  exit 1
-end
-
-if not databag['attributes']['network'].has_key?('teaming')
-  puts "Invalid network JSON: missing attribute: attributes.network.teaming"
-  exit 1
-end
-
-if not databag['attributes']['network'].has_key?('conduit_map')
-  puts "Invalid network JSON: missing attribute: attributes.network.conduit_map"
-  exit 1
-end
-
-if not databag['attributes']['network'].has_key?('networks')
-  puts "Invalid network JSON: missing attribute: attributes.network.networks"
-  exit 1
-end
-
-
-### Validation of simple attributes
-
-mode = databag['attributes']['network']['mode']
-if not ['single', 'dual', 'team'].include?(mode)
-  puts "Invalid mode '#{mode}': must be one of 'single', 'dual', 'team'"
-  exit 1
-end
-
-teaming_mode = databag['attributes']['network']['teaming']['mode']
-if not Range.new(0, 6).include?(teaming_mode)
-  puts "Invalid teaming mode '#{teaming_mode}': must be a value between 0 and 6, see https://www.kernel.org/doc/Documentation/networking/bonding.txt"
-  exit 1
+  if ARGV.length > 1
+    usage -1
+  end
 end
 
 
-### Validation of networks
+### Classes
 
 class CrowbarNetworkRange
   attr_reader :name
@@ -179,6 +170,45 @@ class CrowbarNetwork
   end
 end
 
+
+### Validation functions
+
+def validate_structure databag
+  if not databag.has_key?('attributes')
+    raise "Invalid network JSON: missing attribute: attributes"
+  end
+
+  if not databag['attributes'].has_key?('network')
+    raise "Invalid network JSON: missing attribute: attributes.network"
+  end
+
+  if not databag['attributes']['network'].has_key?('teaming')
+    raise "Invalid network JSON: missing attribute: attributes.network.teaming"
+  end
+
+  if not databag['attributes']['network'].has_key?('conduit_map')
+    raise "Invalid network JSON: missing attribute: attributes.network.conduit_map"
+  end
+
+  if not databag['attributes']['network'].has_key?('networks')
+    raise "Invalid network JSON: missing attribute: attributes.network.networks"
+  end
+end
+
+
+def validate_basic_attributes databag
+  mode = databag['attributes']['network']['mode']
+  if not ['single', 'dual', 'team'].include?(mode)
+    raise "Invalid mode '#{mode}': must be one of 'single', 'dual', 'team'"
+  end
+
+  teaming_mode = databag['attributes']['network']['teaming']['mode']
+  if not Range.new(0, 6).include?(teaming_mode)
+    raise "Invalid teaming mode '#{teaming_mode}': must be a value between 0 and 6, see https://www.kernel.org/doc/Documentation/networking/bonding.txt"
+  end
+end
+
+
 def no_conflicting_ranges(neta, netb)
   error = false
   neta.ranges.each do |namea, rangea|
@@ -201,69 +231,96 @@ def no_conflicting_ranges(neta, netb)
 end
 
 
-networks = databag['attributes']['network']['networks']
+def validate_networks databag
+  networks = databag['attributes']['network']['networks']
 
-REQUIRED_NETWORKS.each do |name, ranges|
-  if not networks.has_key?(name)
-    puts "Missing definition of network '#{name}'"
-    exit 1
-  end
+  REQUIRED_NETWORKS.each do |name, ranges|
+    if not networks.has_key?(name)
+      raise "Missing definition of network '#{name}'"
+    end
 
-  ranges.each do |range|
-    if not networks[name]['ranges'].has_key?(range)
-      puts "Missing range '#{range}' in definition of network '#{name}'"
-      exit 1
+    ranges.each do |range|
+      if not networks[name]['ranges'].has_key?(range)
+        raise "Missing range '#{range}' in definition of network '#{name}'"
+      end
     end
   end
-end
 
-networks_hash = {}
-
-networks.each do |name, value|
-  begin
-    net = CrowbarNetwork.new(name, value)
-    net.validate
-    networks_hash[name] = net
-  rescue Exception => e
-    puts "Cannot validate definition for network '#{name}': #{e.to_s}"
-    exit 1
+  networks.each do |name, value|
+    begin
+      net = CrowbarNetwork.new(name, value)
+      net.validate
+      @networks[name] = net
+    rescue Exception => e
+      raise "Cannot validate definition for network '#{name}': #{e.to_s}"
+    end
   end
-end
 
-if not networks_hash['public'].subnet_addr_full.include?(networks_hash['nova_floating'].subnet_addr_full)
-  puts "'nova_floating' network must be a subnetwork of 'public' network"
-  exit 1
-end
+  if not @networks['public'].subnet_addr_full.include?(@networks['nova_floating'].subnet_addr_full)
+    raise "'nova_floating' network must be a subnetwork of 'public' network"
+  end
 
-if not networks_hash['admin'].subnet_addr_full.include?(networks_hash['bmc'].subnet_addr_full)
-  puts "'bmc' network must be a subnetwork of 'admin' network"
-  exit 1
-end
+  if not @networks['admin'].subnet_addr_full.include?(@networks['bmc'].subnet_addr_full)
+    raise "'bmc' network must be a subnetwork of 'admin' network"
+  end
 
-if not networks_hash['admin'].subnet_addr_full.include?(networks_hash['bmc_vlan'].subnet_addr_full)
-  puts "'bmc_vlan' network must be a subnetwork of 'admin' network"
-  exit 1
-end
+  if not @networks['admin'].subnet_addr_full.include?(@networks['bmc_vlan'].subnet_addr_full)
+    raise "'bmc_vlan' network must be a subnetwork of 'admin' network"
+  end
 
-begin
-  networks_hash.each do |namea, neta|
-    networks_hash.each do |nameb, netb|
+  @networks.each do |namea, neta|
+    @networks.each do |nameb, netb|
       unless namea == nameb
         no_conflicting_ranges(neta, netb)
       end
     end
   end
+end
+
+
+def validate_admin_ip
+  admin_range = @networks['admin'].ranges['admin']
+
+  if @admin_ip_addr < admin_range.start_addr || @admin_ip_addr > admin_range.end_addr
+    raise "IP #{@admin_ip} of Administration Server is not in admin range (#{admin_range.start} to #{admin_range.end})"
+  end
+end
+
+
+### Main
+
+opt_parse
+
+if ARGV.length != 1
+  usage -1
+end
+
+if @admin_ip.nil?
+  usage -1
+end
+
+@admin_ip_addr = IPAddr.new(@admin_ip)
+
+filename = File.expand_path(ARGV[0])
+unless File.exists?(filename)
+  puts "File #{filename} does not exist."
+  exit 1
+end
+
+begin
+  databag = JSON.load(File.open(filename).read())
 rescue Exception => e
-  puts "#{e.to_s}"
+  puts "File #{filename} is not a valid JSON file: #{e.to_s}"
   exit 1
 end
 
 
-### Validation of IP address of admin node
-
-admin_range = networks_hash['admin'].ranges['admin']
-
-if ipv4 < admin_range.start_addr || ipv4 > admin_range.end_addr
-  puts "admin range is configured from #{admin_range.start} to #{admin_range.end}"
+begin
+  validate_structure(databag)
+  validate_basic_attributes(databag)
+  validate_networks(databag)
+  validate_admin_ip
+rescue Exception => e
+  puts e.to_s
   exit 1
 end
