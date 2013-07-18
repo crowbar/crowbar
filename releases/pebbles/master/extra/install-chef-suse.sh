@@ -635,9 +635,6 @@ mkdir -p /var/lib/crowbar/config
 if test -z "`$BARCLAMP_SRC/provisioner/updates/parse_node_data "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar | sed "s/^[^=]*=//g"`"; then
     /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
 fi
-# remove old stuff
-/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.redhat_install --raw -v "[ ]"
-/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.ubuntu_install --raw -v "[ ]"
 # we don't use ganglia at all, and we don't want nagios by default
 /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
 /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
