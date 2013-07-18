@@ -318,6 +318,12 @@ if [ -n "$IPv4_addr" ]; then
     if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < $NETWORK_JSON; then
         die "IPv4 address $IPv4_addr of Administration Server not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
     fi
+
+    if [ -f /etc/crowbar/network.json ]; then
+        if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < /etc/crowbar/network.json; then
+            die "IPv4 address $IPv4_addr of Administration Server not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
+        fi
+    fi
 fi
 if [ -n "$IPv6_addr" ]; then
     echo "$FQDN resolved to IPv6 address: $IPv6_addr"
@@ -638,6 +644,15 @@ fi
 # we don't use ganglia at all, and we don't want nagios by default
 /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
 /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
+
+# use custom network configuration if there's one
+if [ -f /etc/crowbar/network.json ]; then
+    cp -a /etc/crowbar/network.json /var/lib/crowbar/config/network.json
+    /opt/dell/bin/json-edit "/var/lib/crowbar/config/network.json" -a id -v "default"
+    /opt/dell/bin/json-edit "/var/lib/crowbar/config/network.json" -a crowbar-deep-merge-template --raw -v "true"
+    /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.network --raw -v "[ \"/var/lib/crowbar/config/network.json\" ]"
+    echo "Using custom network configuration from /etc/crowbar/network.json"
+fi
 
 # Use existing SSH authorized keys
 if [ -f /root/.ssh/authorized_keys ]; then
