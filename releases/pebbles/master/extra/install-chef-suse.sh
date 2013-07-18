@@ -314,7 +314,7 @@ if [ -n "$IPv4_addr" ]; then
         NETWORK_JSON=/opt/dell/chef/data_bags/crowbar/bc-template-network.json
     fi
 
-    if ! /opt/dell/bin/bc-network-admin-helper.rb --admin-ip "$IPv4_addr" $NETWORK_JSON; then
+    if ! /opt/dell/bin/network-json-validator --admin-ip "$IPv4_addr" $NETWORK_JSON; then
         die "Failed to validate network.json configuration. Please check and fix with yast2 crowbar. Aborting."
     fi
 fi

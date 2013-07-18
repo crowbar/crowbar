@@ -28,7 +28,7 @@ REQUIRED_NETWORKS = {
 ### Helpers
 
 def usage (rc)
-  puts "Usage: bc-network-admin-helper --admin-ip=IP filename"
+  puts "Usage: network-json-validator --admin-ip=IP filename"
   @options.each do |options|
     puts "  #{options[1]}"
   end
