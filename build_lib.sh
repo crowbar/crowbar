@@ -283,7 +283,10 @@ is_in() {
 }
 
 # Run a command in our chroot environment.
-in_chroot() { sudo -H chroot "$CHROOT" /bin/bash -l -c "$*"; }
+in_chroot() {
+    sudo -H chroot "$CHROOT" \
+        /bin/bash -l -c "export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin; $*"
+}
 
 # A little helper function for doing bind mounts.
 bind_mount() {
@@ -422,6 +425,7 @@ make_chroot() {
     fi
     sudo mkdir -p "$CHROOT/$CHROOT_PKGDIR"
     sudo mkdir -p "$CHROOT/$CHROOT_GEMDIR"
+    sudo mkdir -p "$CHROOT/etc/profile.d"
     __make_chroot
     if [[ $http_proxy || $https_proxy || $no_proxy ]]; then
         local __f
