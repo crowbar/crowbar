@@ -1300,8 +1300,8 @@ pull_request_multiswitch() {
                 pull_request_multiswitch_one "$prq" || res=1;;
             bundles/*)
                 for repo in "$prq"/*; do
-                    [[ -d $repo ]] && \
-                        ((res == 0)) && \
+                    [[ -d $repo ]] || continue
+                    ((res == 0)) && \
                         pull_request_multiswitch_one "$repo" || res=1
                 done;;
             *) die "Cannot happen in pull_requests_multiswitch: prq_id";;
