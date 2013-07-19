@@ -36,7 +36,7 @@ ADMIN_HOSTNAME=${ADMIN_HOSTNAMES[$(($RANDOM % ${#ADMIN_HOSTNAMES[@]}))]}
 debug "Picked $ADMIN_HOSTNAME"
 export SMOKETEST_DOMAIN=${ADMIN_HOSTNAME#*.}
 
-for KVM in kvm qemu-kvm ''; do
+for KVM in kvm qemu-kvm qemu-system-x86_64 ''; do
     type $KVM &>/dev/null && break
 done
 
