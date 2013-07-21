@@ -163,10 +163,10 @@ class CrowbarNetwork
       range.validate
 
       if not @subnet_addr_full.include?(range.start_addr)
-        return "start of range '#{range.name}' ('#{range.start}') is not part of subnet '#{@subnet}/#{@netmask}'"
+        raise "start of range '#{range.name}' ('#{range.start}') is not part of subnet '#{@subnet}/#{@netmask}'"
       end
       if not @subnet_addr_full.include?(range.end_addr)
-        return "end of range '#{range.name}' ('#{range.end}') is not part of subnet '#{@subnet}/#{@netmask}'"
+        raise "end of range '#{range.name}' ('#{range.end}') is not part of subnet '#{@subnet}/#{@netmask}'"
       end
     end
 
