@@ -50,6 +50,10 @@ Prerequisites:
     dependencies for the packages it will windo up staging on the
     final generated ISO.
 
+  * dpkg-buildpackage and debhelper
+
+    These are used to build native .deb packages for Crowbar 2.0 releases.
+
   * rpm2cpio
 
     The Sledgehammer build process downloads raw RPM files to build
