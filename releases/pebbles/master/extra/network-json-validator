@@ -85,7 +85,7 @@ class CrowbarNetworkRange
 
   def validate
     if @start_addr > @end_addr
-      raise "start of range '#{@name}' ('#{@range_start}') is greater than its end ('#{@range_end}')"
+      raise "start of range '#{@name}' ('#{@start}') is greater than its end ('#{@end}')"
     end
   end
 end
