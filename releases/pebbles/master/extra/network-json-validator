@@ -96,6 +96,7 @@ class CrowbarNetwork
   attr_reader :broadcast_addr
   attr_reader :subnet_addr_full
   attr_reader :ranges
+  attr_reader :vlan
 
   def initialize name, json
     @name = name
@@ -120,6 +121,14 @@ class CrowbarNetwork
     @router_addr = IPAddr.new(@router) unless @router.nil?
 
     @subnet_addr_full = IPAddr.new("#{@subnet}/#{@netmask}")
+
+    if json['use_vlan']
+      @use_vlan = true
+      @vlan = json['vlan']
+    else
+      @use_vlan = false
+      @vlan = nil
+    end
 
     @ranges = {}
 
@@ -165,6 +174,12 @@ class CrowbarNetwork
     for i in 0..ranges_array.length-2 do
       if ranges_array[i].end_addr >= ranges_array[i+1].start_addr
         raise "ranges '#{ranges_array[i].name}' and '#{ranges_array[i+1].name}' are conflicting"
+      end
+    end
+
+    if @use_vlan
+      if @vlan.nil?
+        raise "no VLAN identifier specified while using VLAN"
       end
     end
   end
