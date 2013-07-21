@@ -6,23 +6,32 @@ Prerequisites:
     The first time you try to build Crowbar it will need to download
     all the packages that it will need to stage Crowbar onto an OS install
     DVD.
+    
   * bash version 4 or higher
+    
   * mkisofs
+  
     The end product of the build script is an ISO image that will be used
     to bootstrap the Crowbar admin node.
   * debootstrap (if staging on to Ubuntu)
+    
     The build process needs to download all the .debs and gems that 
     Crowbar requires, and we don't want to inadvertently mess up the build
     machine when we do that.  All extra packages are downloaded into a
     chrooted minimal Ubuntu intall, and we use debootstrap to enable that.
+
   * git
+
     If you are reading this locally, you probably already have git
     installed. If not, you will need it to allow the dev tool to
     manage all your barclamps.
+
   * curl
+
     The build process may need to download files from the Internet.
     It uses curl to do this.
   * ruby
+
     Most of Crowbar is written in Ruby, and some of the helper
     programs we use during the build process are also written in Ruby.
     The Crowbar build process works with all Ruby versions from 1.8.7
@@ -32,24 +41,42 @@ Prerequisites:
     * libxml-ruby
     * xml-simple
     * kwalify
+    * bundler
+    * builder
+
   * rpm and dpkg
+
     The build process needs to be able to introspect on package
     dependencies for the packages it will windo up staging on the
     final generated ISO.
+
   * rpm2cpio
+
     The Sledgehammer build process downloads raw RPM files to build
     the Sledgehammer system discovery component.  It needs rpm2cpio to
     create its initial chroot to bootstrap its build process.
+
   * cpio
+
     We need to extract the cpio files that rpm2cpio creates, so we
     have to have cpio as well.
+
   * createrepo
+
     If the Sledgehapper and Crowbar build processes need o create a
     yum or zypper archive, they use createrepo to do this.
+
   * cabextract
+
     The dell\_bios barclamp needs to extract its configuration from a
     .cab file downloaded off of ftp.dell.com so that it can find the
     latest firmware components for PowerEdge R series hardware.
+
+  * erlang
+
+    The BDD test suite that the Crowbar unit test framework is written
+    in requires Erlang.
+    
   * Sudo to root privileges for the following commands:
     * /bin/mount, /bin/umount
       We have to be able to mount and umount the Ubuntu .iso image, as well as
