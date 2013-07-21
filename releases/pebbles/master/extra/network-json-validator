@@ -181,6 +181,9 @@ class CrowbarNetwork
       if @vlan.nil?
         raise "no VLAN identifier specified while using VLAN"
       end
+      unless (1..4094).member?(@vlan)
+        raise "VLAN identifier '#{vlan}' must be between 1 and 4094"
+      end
     end
   end
 end
