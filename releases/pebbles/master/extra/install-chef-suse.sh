@@ -703,53 +703,66 @@ done
 
 CROWBAR=/opt/dell/bin/crowbar
 
-: ${CROWBAR_JSON:="/etc/crowbar/crowbar.json"}
-if test -f "$CROWBAR_JSON"; then
-    cp "$CROWBAR_JSON" "$CROWBAR_TMPDIR/crowbar.json"
-fi
-CROWBAR_JSON="$CROWBAR_TMPDIR/crowbar.json"
-
+# Use custom configurations from /etc where they exist and are permitted.
+# These are treated as read-only and copied into /var/lib/crowbar/config
+# for modification.
 mkdir -p /var/lib/crowbar/config
+for bc in crowbar dns network provisioner; do
+    # Use CROWBAR_JSON, NETWORK_JSON etc. if they are set above
+    json_var_name=$(echo "${bc}_json" | tr a-z A-Z )
+    custom_json="${!json_var_name:-/etc/crowbar/$bc.json}"
+    json_to_merge=/var/lib/crowbar/config/$bc.json
+    if [ -f $custom_json ]; then
+        cp -a $custom_json $json_to_merge
+        echo "Using custom $bc configuration from $custom_json"
+    fi
+    # Make sure that from now on we use the modifiable version
+    declare $json_var_name=$json_to_merge
+done
 
-# force id and use merge with template
-$json_edit "$CROWBAR_JSON" -a id -v "default"
-$json_edit "$CROWBAR_JSON" -a crowbar-deep-merge-template --raw -v "true"
 # if crowbar user has been removed from crowbar.json, mark it as disabled (as it's still in main json)
 if test -z "`json_read "$CROWBAR_JSON" attributes.crowbar.users.crowbar`"; then
     $json_edit "$CROWBAR_JSON" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
 fi
 # we don't use ganglia at all, and we don't want nagios by default
-$json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
-$json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
-
-# use custom network configuration if there's one
-if [ -f /etc/crowbar/network.json ]; then
-    cp -a /etc/crowbar/network.json /var/lib/crowbar/config/network.json
-    $json_edit "/var/lib/crowbar/config/network.json" -a id -v "default"
-    $json_edit "/var/lib/crowbar/config/network.json" -a crowbar-deep-merge-template --raw -v "true"
-    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.network --raw -v "[ \"/var/lib/crowbar/config/network.json\" ]"
-    echo "Using custom network configuration from /etc/crowbar/network.json"
-fi
+$json_edit "$CROWBAR_JSON"    -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
+$json_edit "$CROWBAR_JSON" -n -a attributes.crowbar.instances.nagios --raw -v "[ ]"
 
 # Use existing SSH authorized keys
 if [ -f /root/.ssh/authorized_keys ]; then
     # remove empty lines and change newline to \n
     access_keys=$(sed "/^ *$/d" /root/.ssh/authorized_keys | sed "N;s/\n/\\n/g")
-    $json_edit "/var/lib/crowbar/config/provisioner.json" -a id -v "default"
-    $json_edit "/var/lib/crowbar/config/provisioner.json" -a crowbar-deep-merge-template --raw -v "true"
-    $json_edit "/var/lib/crowbar/config/provisioner.json" -a attributes.provisioner.access_keys -v "$access_keys"
-    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.provisioner --raw -v "[ \"/var/lib/crowbar/config/provisioner.json\" ]"
-    echo "Will add pre-existing SSH keys from /root/.ssh/authorized_keys"
+    if [ ! -f "$PROVISIONER_JSON" -o \
+           -z "`json_read "$PROVISIONER_JSON" attributes.provisioner.access_keys`" ]
+    then
+        echo "Will add pre-existing SSH keys from /root/.ssh/authorized_keys"
+        $json_edit "$PROVISIONER_JSON" -a attributes.provisioner.access_keys -v "$access_keys"
+    fi
 fi
 
 # Setup bind with correct local domain and DNS forwarders
-nameservers=$( awk '/^nameserver/ {printf "\""$2"\","}' /var/lib/crowbar/cache/etc/resolv.conf | sed "s/,$//" )
-$json_edit "/var/lib/crowbar/config/dns.json" -a id -v "default"
-$json_edit "/var/lib/crowbar/config/dns.json" -a crowbar-deep-merge-template --raw -v "true"
-$json_edit "/var/lib/crowbar/config/dns.json" -a attributes.dns.domain -v "$DOMAIN"
-$json_edit "/var/lib/crowbar/config/dns.json" -a attributes.dns.forwarders --raw -v "[ $nameservers ]"
-$json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.dns --raw -v "[ \"/var/lib/crowbar/config/dns.json\" ]"
-echo "Will configure bind with the following DNS forwarders: $nameservers"
+$json_edit "$DNS_JSON" -n -a attributes.dns.domain -v "$DOMAIN"
+custom_forwarders="$( json_read "$DNS_JSON" attributes.dns.forwarders )"
+if [ -n "$custom_forwarders" ]; then
+    echo "bind will use forwarders from $DNS_JSON: $custom_forwarders"
+else
+    nameservers=$( awk '/^nameserver/ {printf "\""$2"\","}' /var/lib/crowbar/cache/etc/resolv.conf | sed "s/,$//" )
+    $json_edit "$DNS_JSON" -a attributes.dns.forwarders --raw -v "[ $nameservers ]"
+    echo "bind will use the following DNS forwarders: $nameservers"
+fi
+
+for bc in crowbar dns network provisioner; do
+    json_to_merge=/var/lib/crowbar/config/$bc.json
+    [ -f $json_to_merge ] || continue
+
+    $json_edit $json_to_merge -a id -v "default"
+    $json_edit $json_to_merge -a crowbar-deep-merge-template --raw -v "true"
+    if [ $bc != crowbar ]; then
+        $json_edit "$CROWBAR_JSON" \
+            -a attributes.crowbar.instances.$bc \
+            --raw -v "[ \"$json_to_merge\" ]"
+    fi
+done
 
 mkdir -p /opt/dell/crowbar_framework
 CROWBAR_REALM=$(json_read "$CROWBAR_JSON" attributes.crowbar.realm)
