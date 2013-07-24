@@ -625,7 +625,7 @@ fi
 #
 for i in crowbar deployer dns ipmi logging nagios network ntp provisioner \
          database rabbitmq ceph \
-         keystone glance cinder quantum nova nova_dashboard swift openstack ; do
+         keystone swift glance cinder quantum nova nova_dashboard openstack ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
 done
 
