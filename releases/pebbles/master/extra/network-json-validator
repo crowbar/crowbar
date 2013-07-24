@@ -161,6 +161,7 @@ class CrowbarNetwork
   attr_reader :broadcast_addr
   attr_reader :subnet_addr_full
   attr_reader :ranges
+  attr_reader :conduit
   attr_reader :vlan
 
   def initialize name, json
@@ -178,6 +179,7 @@ class CrowbarNetwork
     @netmask = json['netmask']
     @broadcast = json['broadcast']
     @router = json['router']
+    @conduit = json['conduit']
 
     @subnet_addr = IPAddr.new(@subnet)
     @netmask_addr = IPAddr.new(@netmask)
@@ -204,6 +206,10 @@ class CrowbarNetwork
 
   def validate
     netmask_bits = @netmask_addr.to_i.to_s(2).count("1")
+
+    if @conduit.nil?
+      raise "no conduit specified"
+    end
 
     sub = IPAddr.new("#{@subnet}/#{@netmask_bits}")
     if sub != @subnet_addr_full
@@ -415,6 +421,26 @@ def validate_networks databag
 end
 
 
+def validate_conduits_for_networks databag
+  mode = databag['attributes']['network']['mode']
+  conduits = @conduit_lists["#{mode}/.*/.*"].conduits.keys
+
+  @networks.each_value do |network|
+    unless conduits.include?(network.conduit) || network.conduit == 'bmc'
+      raise "Network '#{network.name}' uses conduit '#{network.conduit}' which is undefined in conduit lists for mode '#{mode}'."
+    end
+
+    if network.name != 'bmc' && network.conduit == 'bmc'
+      raise "Network '#{network.name}' uses conduit 'bmc' which can only be used in the 'bmc' network."
+    end
+
+    if network.name == 'bmc' && network.conduit != 'bmc'
+      raise "Network 'bmc' must use conduit 'bmc'."
+    end
+  end
+end
+
+
 def validate_admin_ip
   admin_range = @networks['admin'].ranges['admin']
 
@@ -453,6 +479,7 @@ begin
   validate_basic_attributes(databag)
   validate_conduit_lists(databag)
   validate_networks(databag)
+  validate_conduits_for_networks(databag)
   validate_admin_ip unless @admin_ip.nil?
 rescue Exception => e
   puts e.to_s
