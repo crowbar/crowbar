@@ -314,8 +314,8 @@ if [ -n "$IPv4_addr" ]; then
         NETWORK_JSON=/opt/dell/chef/data_bags/crowbar/bc-template-network.json
     fi
 
-    if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < $NETWORK_JSON; then
-        die "IPv4 address $IPv4_addr of Administration Server not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
+    if ! /opt/dell/bin/network-json-validator --admin-ip "$IPv4_addr" $NETWORK_JSON; then
+        die "Failed to validate network.json configuration. Please check and fix with yast2 crowbar. Aborting."
     fi
 fi
 if [ -n "$IPv6_addr" ]; then
