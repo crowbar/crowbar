@@ -73,7 +73,8 @@ ARGV.each do |src|
     # This might be a barclamp tarball.  Expand it into a temporary location.
     src=File.expand_path(src)
     system "tar xzf \"#{src}\" -C \"#{tmpdir}\""
-    target="#{tmpdir}/#{src.split("/")[-1].split(".")[0]}"
+    # get the barclamp name, allow the tar ball to be named <barclampname>-barclamp.t*
+    target="#{tmpdir}/#{src.split("/")[-1].split(".")[0].chomp("-barclamp")}"
     if File.exists?(File.join(target,"crowbar.yml"))
       candidates << target
     else
