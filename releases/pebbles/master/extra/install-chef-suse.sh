@@ -297,6 +297,17 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     zypper in rubygems rubygem-json createrepo
 fi
 
+json_edit=/opt/dell/bin/json-edit
+parse_node_data=$BARCLAMP_SRC/provisioner/updates/parse_node_data
+json_read () {
+    file="$1" attr="$2"
+    if [ "$file" = '-' ]; then
+        $parse_node_data -a "$attr"
+    elif [ -f "$file" ]; then
+        $parse_node_data "$file" -a "$attr"
+    fi | sed "s/^[^=]*=//g"
+}
+
 if [ -n "$IPv4_addr" ]; then
     echo "$FQDN resolved to IPv4 address: $IPv4_addr"
     if ! ip addr | grep -q "inet $IPv4_addr"; then
@@ -700,14 +711,11 @@ CROWBAR_JSON="$CROWBAR_TMPDIR/crowbar.json"
 
 mkdir -p /var/lib/crowbar/config
 
-json_edit=/opt/dell/bin/json-edit
-parse_node_data=$BARCLAMP_SRC/provisioner/updates/parse_node_data
-
 # force id and use merge with template
 $json_edit "$CROWBAR_JSON" -a id -v "default"
 $json_edit "$CROWBAR_JSON" -a crowbar-deep-merge-template --raw -v "true"
 # if crowbar user has been removed from crowbar.json, mark it as disabled (as it's still in main json)
-if test -z "`$parse_node_data "$CROWBAR_JSON" -a attributes.crowbar.users.crowbar | sed "s/^[^=]*=//g"`"; then
+if test -z "`json_read "$CROWBAR_JSON" attributes.crowbar.users.crowbar`"; then
     $json_edit "$CROWBAR_JSON" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
 fi
 # we don't use ganglia at all, and we don't want nagios by default
@@ -744,8 +752,7 @@ $json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.dns --raw -v "[ \"/va
 echo "Will configure bind with the following DNS forwarders: $nameservers"
 
 mkdir -p /opt/dell/crowbar_framework
-CROWBAR_REALM=$($parse_node_data $CROWBAR_JSON -a attributes.crowbar.realm)
-CROWBAR_REALM=${CROWBAR_REALM##*=}
+CROWBAR_REALM=$(json_read "$CROWBAR_JSON" attributes.crowbar.realm)
 
 # Generate the machine install username and password.
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
@@ -877,9 +884,8 @@ ensure_service_running chef-client
 echo_summary "Performing post-installation sanity checks"
 
 # Spit out a warning message if we managed to not get an IP address
-IPSTR=$($CROWBAR network show default | $parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
-IP=${IPSTR##*=}
-ip addr | grep -q $IP || {
+IP=$($CROWBAR network show default | json_read - attributes.network.networks.admin.ranges.admin.start)
+ip addr | grep -q "$IP" || {
     die "eth0 not configured, but should have been."
 }
 
