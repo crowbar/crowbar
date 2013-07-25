@@ -701,12 +701,13 @@ CROWBAR_FILE="$CROWBAR_TMPDIR/crowbar.json"
 mkdir -p /var/lib/crowbar/config
 
 json_edit=/opt/dell/bin/json-edit
+parse_node_data=$BARCLAMP_SRC/provisioner/updates/parse_node_data
 
 # force id and use merge with template
 $json_edit "$CROWBAR_FILE" -a id -v "default"
 $json_edit "$CROWBAR_FILE" -a crowbar-deep-merge-template --raw -v "true"
 # if crowbar user has been removed from crowbar.json, mark it as disabled (as it's still in main json)
-if test -z "`$BARCLAMP_SRC/provisioner/updates/parse_node_data "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar | sed "s/^[^=]*=//g"`"; then
+if test -z "`$parse_node_data "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar | sed "s/^[^=]*=//g"`"; then
     $json_edit "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
 fi
 # we don't use ganglia at all, and we don't want nagios by default
@@ -743,7 +744,7 @@ $json_edit "$CROWBAR_FILE" -a attributes.crowbar.instances.dns --raw -v "[ \"/va
 echo "Will configure bind with the following DNS forwarders: $nameservers"
 
 mkdir -p /opt/dell/crowbar_framework
-CROWBAR_REALM=$($BARCLAMP_SRC/provisioner/updates/parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
+CROWBAR_REALM=$($parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
 CROWBAR_REALM=${CROWBAR_REALM##*=}
 
 # Generate the machine install username and password.
@@ -876,7 +877,7 @@ ensure_service_running chef-client
 echo_summary "Performing post-installation sanity checks"
 
 # Spit out a warning message if we managed to not get an IP address
-IPSTR=$($CROWBAR network show default | /opt/dell/barclamps/provisioner/updates/parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
+IPSTR=$($CROWBAR network show default | $parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
 IP=${IPSTR##*=}
 ip addr | grep -q $IP || {
     die "eth0 not configured, but should have been."
