@@ -26,12 +26,14 @@ require 'getoptlong'
     [ [ '--attribute', '-a', GetoptLong::REQUIRED_ARGUMENT ], "--attribute <attribute> or -a <attribute> - Name of attribute to set. Use . as sub-attribute delimiter" ],
     [ [ '--value', '-v', GetoptLong::REQUIRED_ARGUMENT ], "--value <value> or -v <value> - Value to set for attribute" ],
     [ [ '--raw', '-r', GetoptLong::NO_ARGUMENT ], "--raw or -r - value is a raw argument already in JSON format" ],
+    [ [ '--no-clobber', '-n', GetoptLong::NO_ARGUMENT ], "--no-clobber - Don't overwrite existing attributes" ],
     [ [ '--remove', GetoptLong::NO_ARGUMENT ], "--remove - Remove attribute instead of setting it" ],
 ]
 
 @attribute = nil
 @value = nil
 @raw = false
+@no_clobber = false
 @remove = false
 
 def usage (rc)
@@ -71,6 +73,8 @@ def opt_parse()
         end
       when '--raw'
         @raw = true
+      when '--no-clobber'
+        @no_clobber = true
       when '--remove'
         @remove = true
       else
@@ -118,7 +122,11 @@ def main()
     }
 
     unless @remove
-      data[elements[-1]] = real_value
+      if @no_clobber and data.has_key?(elements[-1])
+        puts "Not overwriting #{@attribute}"
+      else
+        data[elements[-1]] = real_value
+      end
     else
       if data.has_key?(elements[-1])
         data.delete(elements[-1])
