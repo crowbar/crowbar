@@ -611,19 +611,23 @@ done
 test -e /opt/dell/crowbar_framework/barclamps && rm -r /opt/dell/crowbar_framework/barclamps
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    # Create an empty "git" cookbook to satisfy the dependencies of the pfs barclamps
+    # Create empty "git" and "nagios" cookbooks to satisfy the dependencies of
+    # the barclamps (PFS + monitor)
     d=$(mktemp -d)
     knife cookbook create -o "$d" git
     knife cookbook upload -o "$d" git
+    knife cookbook create -o "$d" nagios
+    # the nagios::common recipe is included from other cookbooks
+    touch "$d/nagios/recipes/common.rb"
+    knife cookbook upload -o "$d" nagios
     rm -rf "$d"
 fi
 
 #
-# Take care that the barclamps are installed in the right order
-# If you've got a full openstack set installed, e.g.: nagios has to be
-# installed before keystone, etc.
+# Take care that the barclamps are installed in the right order (as expressed
+# in cookbook dependencies)
 #
-for i in crowbar deployer dns ipmi logging nagios network ntp provisioner \
+for i in crowbar deployer dns ipmi logging network ntp provisioner \
          database rabbitmq ceph \
          keystone swift glance cinder quantum nova nova_dashboard openstack ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
