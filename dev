@@ -11,7 +11,7 @@ PULL_TITLE_RE='^(.*)\[([0-9]+)/([0-9]+)\]$'
 readonly currdir="$PWD"
 export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 # Ubuntu hack to make sure gem executables are in our path.
-[[ -d /var/lib/gems/1.8/bin ]] && export PATH=$PATH:/var/lib/gems/1.8/bin
+[[ -d /var/lib/gems/1.9.1/bin ]] && export PATH=$PATH:/var/lib/gems/1.9.1/bin
 declare -A DEV_BRANCHES DEV_REMOTE_SOURCES DEV_REMOTE_BRANCHES DEV_ORIGIN_TYPES
 declare -A DEV_REMOTE_PRIORITY DEV_REMOTE_URLBASE __AVAILABLE_REMOTES
 declare -a DEV_SORTED_REMOTES
@@ -1300,8 +1300,8 @@ pull_request_multiswitch() {
                 pull_request_multiswitch_one "$prq" || res=1;;
             bundles/*)
                 for repo in "$prq"/*; do
-                    [[ -d $repo ]] && \
-                        ((res == 0)) && \
+                    [[ -d $repo ]] || continue
+                    ((res == 0)) && \
                         pull_request_multiswitch_one "$repo" || res=1
                 done;;
             *) die "Cannot happen in pull_requests_multiswitch: prq_id";;
@@ -4164,6 +4164,13 @@ run_server() {
   RAILS_ENV=development bundle exec script/rails s Puma development
 }
 
+run_console() {
+  auto_reload_test_env
+  cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
+  echo "Starting Rails console"
+  RAILS_ENV=development bundle exec script/rails c
+}
+
 run_tests() {
     run_unit_tests
     run_BDD_tests
@@ -4389,6 +4396,7 @@ tests_handler() {
         run-units) run_unit_tests          "$@" ;;
         run-BDD)   run_BDD_tests           "$@" ;;
         server)    run_server              "$@" ;;
+        console)   run_console             "$@" ;;
         reload)    reload_test_env         "$@" ;;
         clear)     clear_test_env          "$@" ;;
         *)         dev_help tests               ;;
@@ -4720,7 +4728,7 @@ DEV_LONG_HELP["tests"]="Various tasks related to running tests.
       environment.
 
       setup also takes two optional arguments:
-        --update-gem-cache will copy the contents of /var/lib/gems/1.8 into
+        --update-gem-cache will copy the contents of /var/lib/gems/1.9.1 into
             $CACHE_DIR/unit_tests/gems.  If you are managing your build cache
             with git, these files will be automatically committed.
         --no-gem-cache will force bundler to use gems from the internet
@@ -4735,6 +4743,8 @@ DEV_LONG_HELP["tests"]="Various tasks related to running tests.
       Run unit tests and specs from the /tmp/crowbar environment.
     server
       Run the dev web server interactively
+    console
+      Run the dev console interactively
     clear
       Removes a test environment in /tmp/crowbar."
 DEV_LONG_HELP["setup-unit-tests"]="Deprecated; please see help for ./dev tests setup"

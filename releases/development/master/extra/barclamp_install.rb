@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: RobHirschfeld
 #
 require 'getoptlong'
 require 'rubygems'
@@ -35,10 +34,6 @@ end
 
 def camelize(str)
   str.split('_').map {|w| w.capitalize}.join
-end
-
-def knife(args)
-  system("knife #{args} -k /etc/chef/webui.pem -u chef-webui")
 end
 
 class BarclampFS
@@ -81,14 +76,6 @@ class BarclampFS
 
   def dir
     File.join(target,"barclamps",@name)
-  end
-
-  def skip_chef=(t)
-    @skip_chef = !!t | @chroot
-  end
-
-  def skip_chef
-    @skip_chef | @chroot
   end
 
   def skip_files=(t)
@@ -220,44 +207,6 @@ class BarclampFS
     end
   end
 
-  def install_chef
-    return if skip_chef
-    unless File.exists?('/root/.chef/knife.rb')
-      STDERR.puts("Knife not configured. Not installing #{@name} Chef Components.")
-      return
-    end
-    chef=File.join(dir,'chef')
-    unless File.directory?(chef)
-      STDERR.puts("No chef components to upload")
-      return
-    end
-    cookbooks = File.join(chef,'cookbooks')
-    FileUtils.cd(cookbooks) do
-      debug("Uploading chef cookbooks for #{@name}")
-      unless knife("cookbook upload -o . --all")
-        fatal("Could not upload cookbooks from #{cookbooks}")
-      end
-    end if File.directory?(cookbooks)
-    data_bags = File.join(chef,'data_bags')
-    FileUtils.cd(data_bags) do
-      debug("Uploading chef data bags for #{@name}")
-      Dir.entries(".").each do |bag|
-        next if bag == '.' or bag == '..'
-        knife("data bag create \"#{bag}\"")
-        unless knife("data bag from file \"#{bag}\" \"#{bag}\"")
-          fatal("Could not upload data bag #{bag}")
-        end
-      end
-    end if File.directory?(data_bags)
-    roles = File.join(chef,'roles')
-    FileUtils.cd(roles) do
-      debug("Uploading chef roles for #{@name}")
-      unless knife("role from file *.rb")
-        fatal("Could not upload role #{role}")
-      end
-    end if File.directory?(roles)
-  end
-
   def run_actions(stage)
     return if skip_install_actions
     setup_dir = File.join(dir,'setup')
@@ -304,7 +253,6 @@ class BarclampFS
     install_migrations
     install_cache
     run_actions("install")
-    install_chef
     @installed = true
   end
 end
@@ -317,7 +265,6 @@ opts = GetoptLong.new(
   [ '--no-files', '-x', GetoptLong::NO_ARGUMENT ],
   [ '--no-engines', '-e', GetoptLong::NO_ARGUMENT ],
   [ '--no-install-actions', '-a', GetoptLong::NO_ARGUMENT ],
-  [ '--no-chef', '-c', GetoptLong::NO_ARGUMENT ],
   [ '--base-dir', '-b', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--root', '-r', GetoptLong::REQUIRED_ARGUMENT ],
   [ '--test', '-t', GetoptLong::REQUIRED_ARGUMENT ],
@@ -326,12 +273,12 @@ opts = GetoptLong.new(
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-chef] [--no-install-actions] [--deploy] [--build] [--base-dir <dir>] [--root <dir>] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--debug] [--no-files] [--no-install-actions] [--deploy] [--build] [--base-dir <dir>] [--root <dir>] /path/to/new/barclamp"
   exit
 end
 
 class Barclamps < Hash
-  attr_accessor :no_rsync, :base_dir, :root, :no_install_actions, :no_chef
+  attr_accessor :no_rsync, :base_dir, :root, :no_install_actions
   attr_accessor :no_migrations, :no_rsync, :no_files, :no_engines
   attr_accessor :force_install, :tmpdir
 
@@ -340,7 +287,6 @@ class Barclamps < Hash
     @base_dir = "/opt/dell"
     @root = nil
     @no_install_actions = false
-    @no_chef = false
     @no_migrations = false
     @no_rsync = false
     @no_files = false
@@ -360,7 +306,6 @@ class Barclamps < Hash
   def set_bc_opts(bc)
     bc.target = @base_dir
     bc.root = @root if @root
-    bc.skip_chef = @no_chef
     bc.skip_files = @no_files
     bc.skip_install_actions = @no_install_actions
     bc.skip_migrations = @no_migrations
@@ -481,7 +426,6 @@ opts.each do |opt, arg|
   when "--debug" then ENV['DEBUG']="true"; debug "debug mode is enabled"
   when "--build"
     candidates.no_install_actions = true
-    candidates.no_chef = true
     candidates.no_migrations = true
     candidates.no_rsync = true
     candidates.no_engines = true
@@ -490,7 +434,6 @@ opts.each do |opt, arg|
   when "--deploy" then true
   when "--no-files" then candidates.no_files = true; debug "no-files is enabled"
   when "--no-engines" then candidates.no_engines = true; debug "no-engine is enabled"
-  when "--no-chef" then candidates.no_chef = true; debug "no-chef is enabled"
   when "--base-dir" then candidates.base_dir = arg; debug "base-dir is #{candidates.base_dir}"
   when "--force" then candidates.force_install = true
   when "--root" then candidates.root = arg
@@ -523,6 +466,7 @@ Dir.glob(File.join((candidates.root || ''),candidates.base_dir, "barclamps","*")
 end
 
 candidates.sanity_check
+
 candidates.install
 
 exit 0

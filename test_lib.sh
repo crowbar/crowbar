@@ -36,7 +36,7 @@ ADMIN_HOSTNAME=${ADMIN_HOSTNAMES[$(($RANDOM % ${#ADMIN_HOSTNAMES[@]}))]}
 debug "Picked $ADMIN_HOSTNAME"
 export SMOKETEST_DOMAIN=${ADMIN_HOSTNAME#*.}
 
-for KVM in kvm qemu-kvm ''; do
+for KVM in kvm qemu-kvm qemu-system-x86_64 ''; do
     type $KVM &>/dev/null && break
 done
 
@@ -427,7 +427,7 @@ wait_for_kvm() {
     shift
     local pidfile="$smoketest_dir/$vmname.pid"
     [[ -f $pidfile ]] || {
-        smoektest_update_status "$vmanme" "No pid file for KVM."
+        smoketest_update_status "$vmanme" "No pid file for KVM."
         return 1 # no pidfile? Bad Things happened.
     }
     local kvmpid=$(cat "$pidfile")

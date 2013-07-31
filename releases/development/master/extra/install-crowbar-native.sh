@@ -140,7 +140,7 @@ EOF
     (   cd /tftpboot/gemsite/gems
         for gem in builder json net-http-digest_auth activesupport i18n \
             daemons bluepill xml-simple libxml-ruby wsman cstruct ; do
-            gem install --local --no-ri --no-rdoc $gem-*.gem
+            gem install --local --no-ri --no-rdoc $gem-*.gem || :
         done
         cd ..
         gem generate_index)
@@ -203,7 +203,7 @@ if [[ $OS = ubuntu ]]; then
             sed -i "/^chef-solr/ s/password\$/${rabbit_chef_password}/" ./debsel.conf
             /usr/bin/debconf-set-selections ./debsel.conf)
         apt-get update
-        apt-get -y install 'crowbar-barclamp-*'
+        apt-get -y install libssl-dev 'crowbar-barclamp-*'
     fi
 elif [[ $OS = redhat ]]; then
     yum -y makecache
@@ -280,18 +280,18 @@ service crowbar restart
 ###
 
 # Create the admin node entry.
-curl --digest -u $(cat /etc/crowbar.install.key) \
-    -X POST http://localhost:3000/api/v2/nodes -d "name=$FQDN" -d 'admin=true'
+# curl --digest -u $(cat /etc/crowbar.install.key) \
+#    -X POST http://localhost:3000/api/v2/nodes -d "name=$FQDN" -d 'admin=true'
 
 # Add the required roles for the admin node to act like a provisioner.
-HOSTNAME=$(hostname --fqdn)
-roles=(deployer-client network dns-server dns-client 
-    ntp-server logging-server provisioner-server)
-for role in "${roles[@]}"; do 
-    knife node run_list add $HOSTNAME role[$role]; 
-done
+#HOSTNAME=$(hostname --fqdn)
+#roles=(deployer-client network dns-server dns-client 
+#    ntp-server logging-server provisioner-server)
+#for role in "${roles[@]}"; do 
+#    knife node run_list add $HOSTNAME role[$role]; 
+#done
 
-chef-client || die "Install failed."
+#chef-client || die "Install failed."
 
 # Not actually properly deployed, but pretend we are.
 echo "Admin node deployed."

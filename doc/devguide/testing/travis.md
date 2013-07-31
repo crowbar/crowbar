@@ -46,7 +46,7 @@ script looks like this:
 2013-01-13 01:32:09 +0100: Nothing to commit
 ```
 
-This is script is run every 5 minutes by our public [Jenkins server]
+This is script is run every 15 minutes by our public [Jenkins server]
 (https://ci.opensuse.org/job/crowbar-travis_ci-trackupstream/).
 
 ### Debugging test failures

@@ -67,6 +67,7 @@ def bc_install(from_rpm, bc, bc_path, yaml)
   else
     raise "ERROR: could not install barclamp #{bc} because #{yaml["barclamp"]["crowbar_layout"]} is unknown layout."
   end
+  generate_navigation
   catalog bc_path
 end
 
@@ -122,6 +123,67 @@ def catalog(bc_path)
   end
   File.open( File.join(CROWBAR_PATH, 'config', 'catalog.yml'), 'w' ) do |out|
     YAML.dump( cat, out )
+  end
+end
+
+def generate_navigation
+  debug "Generating navigation"
+
+  primaries = []
+  secondaries = {}
+
+  barclamps = File.join CROWBAR_PATH, 'barclamps'
+  list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
+  list.each do |bc_file|
+    yaml = YAML.load_file File.join(barclamps, bc_file)
+    next if yaml['nav'].nil?
+
+    unless yaml['crowbar']['navigation_order'].nil?
+      order = yaml['crowbar']['navigation_order'].to_i
+    else
+      order = yaml['crowbar']['order'].to_i
+    end
+    order2 = 0
+
+    yaml['nav'].each do |key, value|
+      if key == 'primary':
+        yaml['nav']['primary'].each do |k, v|
+          primaries << { :order => order, :order2 => order2, :id => k, :link => v }
+          order2 += 1
+        end
+      else
+        primary = key
+        secondaries[primary] = [] if secondaries[primary].nil?
+        value.each do |k, v|
+          next if v.nil?
+          secondaries[primary] << { :order => order, :order2 => order2, :id => k, :link => v }
+          order2 += 1
+        end
+      end
+    end
+  end
+
+  primaries.sort! { |x,y| [x[:order], x[:order2]] <=> [y[:order], y[:order2]] }
+  primaries.each do |primary|
+    next if secondaries[primary[:id]].nil?
+    secondaries[primary[:id]].sort! { |x,y| [x[:order], x[:order2]] <=> [y[:order], y[:order2]] }
+  end
+
+  nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'
+  File.open( nav_file, 'w') do |out|
+    out.puts 'SimpleNavigation::Configuration.run do |navigation|'
+    out.puts '  navigation.items do |primary|'
+    primaries.each do |primary|
+      out.puts "    primary.item :#{primary[:id]}, t('nav.#{primary[:id]}'), #{primary[:link]} do |secondary|"
+      unless secondaries[primary[:id]].nil?
+        secondaries[primary[:id]].each do |secondary|
+          out.puts "      secondary.item :#{secondary[:id]}, t('nav.#{secondary[:id]}'), #{secondary[:link]}"
+        end
+      end
+      out.puts "    end"
+    end
+    out.puts '  end'
+    out.puts 'end'
   end
 end
 
@@ -270,47 +332,6 @@ def merge_sass(yaml, bc, path, installing)
   end
 end
 
-# injects/cleans barclamp items from framework navigation
-def merge_nav(yaml, installing)
-  unless yaml['nav'].nil?
-    bc_flag = "#FROM BARCLAMP: #{yaml['barclamp']['name']}."
-    # get raw file
-    nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'
-    nav_raw = []
-    File.open(nav_file, 'r') do |f|
-      f.each_line { |line| nav_raw << line }
-    end
-    # remove stuff that will be replaced
-    nav = []
-    nav_raw.each do |line|
-      nav << line unless line =~ /#{bc_flag}$/
-    end
-    # now add new items
-    new_nav = []
-    nav.each do |line|
-      unless yaml['nav']['primary'].nil?
-        yaml['nav']['primary'].each do |key, value|
-          #insert new items before
-          new_nav << "primary.item :#{value} #{bc_flag}" if installing and line.lstrip.start_with? "primary.item :#{key}"
-        end
-      end
-      # add the line
-      new_nav << line
-      # add submenu items (REQUIRIES KEYS IN NAV FILE!!)
-      yaml['nav'].each do |key, value|
-        if installing and line.lstrip.start_with? "# insert here for :#{key}"
-          value.each do |k, v|
-            new_nav << "secondary.item :#{k}, t('nav.#{k}'), #{v} #{bc_flag}" unless v.nil?
-          end
-        end
-      end
-    end
-    File.open( nav_file, 'w') do |out|
-      new_nav.each { |l| out.puts l }
-    end
-  end
-end
-
 # helper for localization merge
 def merge_tree(key, value, target)
   if target.key? key
@@ -340,8 +361,8 @@ def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
     end
     FileUtils.rm filelist rescue nil
 
-    merge_nav yaml, false
     merge_sass yaml, bc, bc_path, false
+    generate_navigation
     catalog bc_path
 
     debug "Barclamp #{bc} UNinstalled"
@@ -421,8 +442,6 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
     files.each { |line| out.puts line }
   end
 
-  debug "merge_nav"
-  merge_nav yaml, true
   debug "merge_sass"
   merge_sass yaml, bc, bc_path, true
 

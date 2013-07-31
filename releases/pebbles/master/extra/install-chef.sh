@@ -199,7 +199,7 @@ fi
 bluepill load /etc/bluepill/rubygems-server.pill
 sleep 5
 
-gem install eventmachine kwalify
+gem install eventmachine kwalify app_config
 
 if [[ ! -x /etc/init.d/bluepill ]]; then
 

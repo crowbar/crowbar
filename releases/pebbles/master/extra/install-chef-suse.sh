@@ -42,7 +42,6 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     BARCLAMP_INSTALL_OPTS="--force"
     : ${CROWBAR_FILE:=/root/crowbar/crowbar.json}
     : ${BARCLAMP_SRC:=/root/crowbar/barclamps/}
-    sed -i -e '/"nagios":/d' -e '/"ganglia":/d' $CROWBAR_FILE
 fi
 
 LOGFILE=/var/log/crowbar/install.log
@@ -192,6 +191,10 @@ die() {
 }
 
 exit_handler () {
+    if test -n "$CROWBAR_TMPDIR" -a -d "$CROWBAR_TMPDIR"; then
+        rm -r "$CROWBAR_TMPDIR"
+    fi
+
     if [ -z "$run_succeeded" ]; then
         kill_spinner_with_failed
         cat <<EOF | pipe_show_and_log
@@ -214,6 +217,8 @@ trap exit_handler EXIT
 # ---------------------
 
 echo "`date` $0 started with args: $*"
+
+CROWBAR_TMPDIR=$(mktemp -d --tmpdir crowbar-install-XXXXXX)
 
 ensure_service_running () {
     service="$1"
@@ -262,10 +267,6 @@ case "$rootpw" in
         ;;
 esac
 
-if [ -z "$STY" ]; then
-    die "Please use \"screen $0\" to avoid problems during network re-configuration."
-fi
-
 # It is exceedingly important that 'hostname -f' actually returns an FQDN!
 # if it doesn't, add an entry to /etc/hosts, e.g.:
 #    192.168.124.10 cb-admin.example.com cb-admin
@@ -305,13 +306,16 @@ if [ -n "$IPv4_addr" ]; then
         die "$FQDN resolves to a loopback address. Aborting."
     fi
 
-    if [ -n "$CROWBAR_FROM_GIT" ]; then
+    if [ -f /etc/crowbar/network.json ]; then
+        NETWORK_JSON=/etc/crowbar/network.json
+    elif [ -n "$CROWBAR_FROM_GIT" ]; then
         NETWORK_JSON=$BARCLAMP_SRC/network/chef/data_bags/crowbar/bc-template-network.json
     else
         NETWORK_JSON=/opt/dell/chef/data_bags/crowbar/bc-template-network.json
     fi
-    if ! /opt/dell/bin/bc-network-admin-helper.rb "$IPv4_addr" < $NETWORK_JSON; then
-        die "IPv4 address $IPv4_addr of Administration Server not in admin range of admin network. Please check and fix with yast2 crowbar. Aborting."
+
+    if ! /opt/dell/bin/network-json-validator --admin-ip "$IPv4_addr" $NETWORK_JSON; then
+        die "Failed to validate network.json configuration. Please check and fix with yast2 crowbar. Aborting."
     fi
 fi
 if [ -n "$IPv6_addr" ]; then
@@ -345,8 +349,6 @@ if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb 
     # The autoyast profile might not exist yet when CROWBAR_FROM_GIT is enabled
     /usr/bin/grep media_url /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb
 fi
-
-CROWBAR=/opt/dell/bin/crowbar
 
 skip_check_for_repo () {
     repo="$1"
@@ -556,18 +558,6 @@ for service in $services; do
 done
 
 
-if [ -f /root/.ssh/authorized_keys ]; then
-    if [ -n "$CROWBAR_FROM_GIT" ]; then
-        provisioner_template=$BARCLAMP_SRC/provisioner/chef/data_bags/crowbar/bc-template-provisioner.json
-    else
-        provisioner_template=/opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json
-    fi
-    [ -f $provisioner_template ] || die "$provisioner_template doesn't exist"
-    /opt/dell/bin/bc-provisioner-json.rb < $provisioner_template > $provisioner_template.new
-    cp -a $provisioner_template $provisioner_template.orig
-    mv $provisioner_template.new $provisioner_template
-fi
-
 # Initial chef-client run
 # -----------------------
 
@@ -613,43 +603,12 @@ echo_summary "Installing barclamps"
 
 # Clean up previous crowbar install run, in case there was one
 test -x /etc/init.d/crowbar && service crowbar stop
-test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
-test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/htdigest
 for i in $BARCLAMP_SRC/*; do
     if test -d $i -a -f $i-filelist.txt; then
         /opt/dell/bin/barclamp_uninstall.rb $BARCLAMP_INSTALL_OPTS $i
     fi
 done
 test -e /opt/dell/crowbar_framework/barclamps && rm -r /opt/dell/crowbar_framework/barclamps
-# Clean up files that are created for handling node discovery by provisioner barclamp
-test -d /etc/dhcp3/hosts.d && rm -f /etc/dhcp3/hosts.d/*
-test -d /srv/tftpboot/discovery && rm -f /srv/tftpboot/discovery/*.conf
-test -d /srv/tftpboot/discovery/pxelinux.cfg && rm -f /srv/tftpboot/discovery/pxelinux.cfg/*
-
-# Don't use this one - crowbar barfs due to hyphens in the "id" attribute.
-#CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
-# See also https://bugzilla.novell.com/show_bug.cgi?id=788161#c9
-# for the history behind this location.
-: ${CROWBAR_FILE:="/etc/crowbar/crowbar.json"}
-
-mkdir -p /opt/dell/crowbar_framework
-CROWBAR_REALM=$($BARCLAMP_SRC/provisioner/updates/parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
-CROWBAR_REALM=${CROWBAR_REALM##*=}
-
-# Generate the machine install username and password.
-if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
-    dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
-        (read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
-fi
-
-if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
-    export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    # This is a multiline sed, so that it works on the json file, however it
-    # looks like
-    # See http://austinmatzko.com/2008/04/26/sed-multi-line-search-and-replace/
-    # to understand this if not comfortable with multiline replace in sed.
-    sed -i -n -e "1h;1!H;\${;g;s|\(\"machine-install\"\s*:\s*{\s*\"password\"\s*:\s*\"\)[^\"]*|\1${CROWBAR_KEY##*:}|g;p;}" $CROWBAR_FILE
-fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
     # Create an empty "git" cookbook to satisfy the dependencies of the pfs barclamps
@@ -659,16 +618,14 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     rm -rf "$d"
 fi
 
-/opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/crowbar
-
 #
 # Take care that the barclamps are installed in the right order
 # If you've got a full openstack set installed, e.g.: nagios has to be
 # installed before keystone, etc.
 #
-for i in deployer dns ipmi logging nagios network ntp provisioner \
+for i in crowbar deployer dns ipmi logging nagios network ntp provisioner \
          database rabbitmq ceph \
-         keystone glance cinder quantum nova nova_dashboard swift openstack ; do
+         keystone swift glance cinder quantum nova nova_dashboard openstack ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
 done
 
@@ -685,25 +642,16 @@ done
 
 echo_summary "Bootstrapping Crowbar setup"
 
-# Configure chef to set up bind with correct local domain and DNS forwarders.
-dns_template=/opt/dell/chef/data_bags/crowbar/bc-template-dns.json
-[ -f $dns_template ] || die "$dns_template doesn't exist"
-nameservers=$( awk '/^nameserver/ {print $2}' /etc/resolv.conf )
-# This will still work if there are no nameservers.
-/opt/dell/bin/bc-dns-json.rb $DOMAIN $nameservers < $dns_template > /tmp/bc-template-dns.json
-echo "Instructing chef to configure bind with the following DNS forwarders: $nameservers"
-knife data bag from file crowbar /tmp/bc-template-dns.json
-
 echo "Create Admin node role"
 NODE_ROLE="crowbar-${FQDN//./_}" 
-cat > /tmp/role.rb <<EOF
+cat > "$CROWBAR_TMPDIR/role.rb" <<EOF
 name "$NODE_ROLE"
 description "Role for $FQDN"
 run_list()
 default_attributes( "crowbar" => { "network" => {} } )
 override_attributes()
 EOF
-knife role from file /tmp/role.rb
+knife role from file "$CROWBAR_TMPDIR/role.rb"
 
 knife node run_list add "$FQDN" role["crowbar"]
 knife node run_list add "$FQDN" role["deployer-client"]
@@ -722,6 +670,90 @@ ensure_service_running crowbar
 # -------------------------------
 
 echo_summary "Applying Crowbar configuration for Administration Server"
+
+# Clean up previous crowbar install run, in case there was one
+test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
+test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/htdigest
+test -d /var/lib/crowbar/config && rm -f /var/lib/crowbar/config/*.json
+# Clean up files that are created for handling node discovery by provisioner barclamp
+test -d /etc/dhcp3/hosts.d && rm -f /etc/dhcp3/hosts.d/*
+test -d /srv/tftpboot/discovery && rm -f /srv/tftpboot/discovery/*.conf
+test -d /srv/tftpboot/discovery/pxelinux.cfg && rm -f /srv/tftpboot/discovery/pxelinux.cfg/*
+
+# Keep copy of files that crowbar will overwrite; this is done only on the very
+# first run of this script, and allow running the installation script again
+# while still having the original data.
+for file in /etc/resolv.conf; do
+    if test ! -f "/var/lib/crowbar/cache/$file"; then
+        mkdir -p "/var/lib/crowbar/cache/`dirname $file`"
+        cp -a "$file" "/var/lib/crowbar/cache/$file"
+    fi
+done
+
+CROWBAR=/opt/dell/bin/crowbar
+
+: ${CROWBAR_FILE:="/etc/crowbar/crowbar.json"}
+if test -f "$CROWBAR_FILE"; then
+    cp "$CROWBAR_FILE" "$CROWBAR_TMPDIR/crowbar.json"
+fi
+CROWBAR_FILE="$CROWBAR_TMPDIR/crowbar.json"
+
+mkdir -p /var/lib/crowbar/config
+
+# force id and use merge with template
+/opt/dell/bin/json-edit "$CROWBAR_FILE" -a id -v "default"
+/opt/dell/bin/json-edit "$CROWBAR_FILE" -a crowbar-deep-merge-template --raw -v "true"
+# if crowbar user has been removed from crowbar.json, mark it as disabled (as it's still in main json)
+if test -z "`$BARCLAMP_SRC/provisioner/updates/parse_node_data "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar | sed "s/^[^=]*=//g"`"; then
+    /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
+fi
+# we don't use ganglia at all, and we don't want nagios by default
+/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
+/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
+
+# use custom network configuration if there's one
+if [ -f /etc/crowbar/network.json ]; then
+    cp -a /etc/crowbar/network.json /var/lib/crowbar/config/network.json
+    /opt/dell/bin/json-edit "/var/lib/crowbar/config/network.json" -a id -v "default"
+    /opt/dell/bin/json-edit "/var/lib/crowbar/config/network.json" -a crowbar-deep-merge-template --raw -v "true"
+    /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.network --raw -v "[ \"/var/lib/crowbar/config/network.json\" ]"
+    echo "Using custom network configuration from /etc/crowbar/network.json"
+fi
+
+# Use existing SSH authorized keys
+if [ -f /root/.ssh/authorized_keys ]; then
+    # remove empty lines and change newline to \n
+    access_keys=$(sed "/^ *$/d" /root/.ssh/authorized_keys | sed "N;s/\n/\\n/g")
+    /opt/dell/bin/json-edit "/var/lib/crowbar/config/provisioner.json" -a id -v "default"
+    /opt/dell/bin/json-edit "/var/lib/crowbar/config/provisioner.json" -a crowbar-deep-merge-template --raw -v "true"
+    /opt/dell/bin/json-edit "/var/lib/crowbar/config/provisioner.json" -a attributes.provisioner.access_keys -v "$access_keys"
+    /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.provisioner --raw -v "[ \"/var/lib/crowbar/config/provisioner.json\" ]"
+    echo "Will add pre-existing SSH keys from /root/.ssh/authorized_keys"
+fi
+
+# Setup bind with correct local domain and DNS forwarders
+nameservers=$( awk '/^nameserver/ {printf "\""$2"\","}' /var/lib/crowbar/cache/etc/resolv.conf | sed "s/,$//" )
+/opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a id -v "default"
+/opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a crowbar-deep-merge-template --raw -v "true"
+/opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a attributes.dns.domain -v "$DOMAIN"
+/opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a attributes.dns.forwarders --raw -v "[ $nameservers ]"
+/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.dns --raw -v "[ \"/var/lib/crowbar/config/dns.json\" ]"
+echo "Will configure bind with the following DNS forwarders: $nameservers"
+
+mkdir -p /opt/dell/crowbar_framework
+CROWBAR_REALM=$($BARCLAMP_SRC/provisioner/updates/parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
+CROWBAR_REALM=${CROWBAR_REALM##*=}
+
+# Generate the machine install username and password.
+if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
+    dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
+        (read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
+fi
+
+if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
+    export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
+    /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.users.machine-install.password -v "${CROWBAR_KEY##*:}"
+fi
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /tmp/deploying
@@ -865,6 +897,8 @@ done
 
 # We're done!
 # -----------
+
+echo_summary "Installation complete!"
 
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 
