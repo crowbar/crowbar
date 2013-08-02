@@ -355,8 +355,8 @@ create_gpg_key () {
   if ! [[ -n $(gpg --list-secret-keys) ]]; then
     # no secret key found - create one
     # create batch file for automated key generation
-     echo "No gpg key found - generating a new key now"
-     cat >SUSE-key.batch <<EOF
+     echo "Generating a GPG key that will be used to sign repositories"
+     cat > $CROWBAR_TMPDIR/SUSE-key.batch <<EOF
           Key-Type: DSA
           Key-Length: 1024
           Name-Real: SUSE Cloud resporitory key
@@ -366,19 +366,24 @@ create_gpg_key () {
           %no-protection          
           %commit
 EOF
-    gpg --batch --gen-key SUSE-key.batch
-    rm SUSE-key.batch
+    gpg --batch --gen-key $CROWBAR_TMPDIR/SUSE-key.batch
+    rm $CROWBAR_TMPDIR/SUSE-key.batch
   else
     # secret key found - don't do anything at all
-    echo "Gpg key found - skipping key generation"
+    echo "Will use pre-existing GPG key to sign repositories"
   fi
+  sign_repositories
 }
 
 sign_repositories () {
   # Currently we only sign the Cloud-PTF repository
-  echo "Signing the Cloud-PTF repository"
-  gpg --yes -a --detach-sign /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml
-  gpg --yes -a --export >  /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml
+  echo "Signing the repository Cloud-PTF"
+  if [ ! -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.asc ]; then
+    gpg  -a --detach-sign /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml
+    gpg  -a --export >  /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.key
+  else
+    echo "Repository Cloud-PTF is already signed - skipping"
+  fi
 }
 
 skip_check_for_repo () {
@@ -480,7 +485,6 @@ if [ -z "$CROWBAR_FROM_GIT" ]; then
 fi
 
 create_gpg_key
-sign_repositories
 
 # Setup helper for git
 # --------------------
