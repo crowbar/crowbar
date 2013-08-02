@@ -350,12 +350,14 @@ if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb 
     /usr/bin/grep media_url /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb
 fi
 
-# To sign the repositories the admin node needs a gpg key - create one, if it's not present
 create_gpg_key () {
+  # To sign the repositories the admin node needs a gpg key - create one, if
+  # it's not present
+
   if ! [[ -n $(gpg --list-secret-keys) ]]; then
     # no secret key found - create one
     # create batch file for automated key generation
-     echo "Generating a GPG key that will be used to sign repositories"
+     echo "Generating GPG key that will be used to sign repositories"
      cat > $CROWBAR_TMPDIR/SUSE-key.batch <<EOF
           Key-Type: DSA
           Key-Length: 1024
@@ -372,17 +374,17 @@ EOF
     # secret key found - don't do anything at all
     echo "Will use pre-existing GPG key to sign repositories"
   fi
-  sign_repositories
 }
 
 sign_repositories () {
   # Currently we only sign the Cloud-PTF repository
-  echo "Signing the repository Cloud-PTF"
-  if [ ! -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.asc ]; then
-    gpg  -a --detach-sign /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml
-    gpg  -a --export >  /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.key
+  if [ ! -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.asc -o ! -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.key ]; then
+    create_gpg_key
+    echo "Signing Cloud-PTF repository"
+    gpg -a --detach-sign /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml
+    gpg -a --export > /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.key
   else
-    echo "Repository Cloud-PTF is already signed - skipping"
+    echo "Cloud-PTF repository is already signed"
   fi
 }
 
@@ -484,7 +486,7 @@ if [ -z "$CROWBAR_FROM_GIT" ]; then
     fi
 fi
 
-create_gpg_key
+sign_repositories
 
 # Setup helper for git
 # --------------------
