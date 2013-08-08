@@ -1,0 +1,19 @@
+# enable simple bash completion for the devtool for Dell Crowbar
+# move this file to the new file: /etc/bash_completion.d/dev
+
+_dev()
+{
+
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    opts="backup barclamps-in-build branch branches build builds build-refs checkout clear-test-env clone-barclamps create-barclamp crowbar-version current-build cut_release erase-feature fetch fetch-pull-requests find-parent flatten help is_clean local-changes missing-barclamps new-feature orphaned-barclamps pin pull-requests pull-requests-gen pull-requests-prep purge-submodules push push-release push-tag redundant-barclamps refresh-tracking release releases reload-BDD-tests reload-test-env reload-tests remote remotes reset-release run-unit-tests scrub-merged-pulls setup-test-env setup switch sync tag-build tests unpin upstream-changes"
+    #opts="--help --verbose --version"
+
+    #if [[ ${cur} == -* ]] ; then
+        COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+        return 0
+    #fi
+}
+complete -F _dev dev
