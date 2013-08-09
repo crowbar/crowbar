@@ -40,7 +40,7 @@ BARCLAMP_INSTALL_OPTS="--rpm"
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
     BARCLAMP_INSTALL_OPTS="--force"
-    : ${CROWBAR_FILE:=/root/crowbar/crowbar.json}
+    : ${CROWBAR_JSON:=/root/crowbar/crowbar.json}
     : ${BARCLAMP_SRC:=/root/crowbar/barclamps/}
 fi
 
@@ -295,6 +295,36 @@ fi
 if [ -n "$CROWBAR_FROM_GIT" ]; then
     REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
     zypper in rubygems rubygem-json createrepo
+fi
+
+json_edit=/opt/dell/bin/json-edit
+parse_node_data=$BARCLAMP_SRC/provisioner/updates/parse_node_data
+json_read () {
+    file="$1" attr="$2"
+    if [ "$file" = '-' ]; then
+        $parse_node_data -a "$attr"
+    elif [ -f "$file" ]; then
+        $parse_node_data "$file" -a "$attr"
+    fi | sed "s/^[^=]*=//g"
+}
+
+if [ -f /etc/crowbar/provisioner.json ]; then
+    PROVISIONER_JSON=/etc/crowbar/provisioner.json
+elif [ -n "$CROWBAR_FROM_GIT" -a -f /root/crowbar/provisioner.json ]; then
+    PROVISIONER_JSON=/root/crowbar/provisioner.json
+fi
+if [ -n "$PROVISIONER_JSON" ]; then
+  for repo in SLE-Cloud \
+              SLE-Cloud-PTF \
+              SUSE-Cloud-2.0-Pool \
+              SUSE-Cloud-2.0-Updates \
+              SLES11-SP3-Pool \
+              SLES11-SP3-Updates
+  do
+      if test -n "`json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.${repo//./\\\\.}.url`"; then
+          REPOS_SKIP_CHECKS+=" ${repo#SLE-}"
+      fi
+  done
 fi
 
 if [ -n "$IPv4_addr" ]; then
@@ -738,57 +768,69 @@ done
 
 CROWBAR=/opt/dell/bin/crowbar
 
-: ${CROWBAR_FILE:="/etc/crowbar/crowbar.json"}
-if test -f "$CROWBAR_FILE"; then
-    cp "$CROWBAR_FILE" "$CROWBAR_TMPDIR/crowbar.json"
-fi
-CROWBAR_FILE="$CROWBAR_TMPDIR/crowbar.json"
-
+# Use custom configurations from /etc where they exist and are permitted.
+# These are treated as read-only and copied into /var/lib/crowbar/config
+# for modification.
 mkdir -p /var/lib/crowbar/config
+for bc in crowbar dns network provisioner; do
+    # Use CROWBAR_JSON, NETWORK_JSON etc. if they are set above
+    json_var_name=$(echo "${bc}_json" | tr a-z A-Z )
+    custom_json="${!json_var_name:-/etc/crowbar/$bc.json}"
+    json_to_merge=/var/lib/crowbar/config/$bc.json
+    if [ -f $custom_json ]; then
+        cp -a $custom_json $json_to_merge
+        echo "Using custom $bc configuration from $custom_json"
+    fi
+    # Make sure that from now on we use the modifiable version
+    declare $json_var_name=$json_to_merge
+done
 
-# force id and use merge with template
-/opt/dell/bin/json-edit "$CROWBAR_FILE" -a id -v "default"
-/opt/dell/bin/json-edit "$CROWBAR_FILE" -a crowbar-deep-merge-template --raw -v "true"
 # if crowbar user has been removed from crowbar.json, mark it as disabled (as it's still in main json)
-if test -z "`$BARCLAMP_SRC/provisioner/updates/parse_node_data "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar | sed "s/^[^=]*=//g"`"; then
-    /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
+if test -z "`json_read "$CROWBAR_JSON" attributes.crowbar.users.crowbar`"; then
+    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
 fi
 # we don't use ganglia at all, and we don't want nagios by default
-/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
-/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
-
-# use custom network configuration if there's one
-if [ -f /etc/crowbar/network.json ]; then
-    cp -a /etc/crowbar/network.json /var/lib/crowbar/config/network.json
-    /opt/dell/bin/json-edit "/var/lib/crowbar/config/network.json" -a id -v "default"
-    /opt/dell/bin/json-edit "/var/lib/crowbar/config/network.json" -a crowbar-deep-merge-template --raw -v "true"
-    /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.network --raw -v "[ \"/var/lib/crowbar/config/network.json\" ]"
-    echo "Using custom network configuration from /etc/crowbar/network.json"
-fi
+$json_edit "$CROWBAR_JSON"    -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
+$json_edit "$CROWBAR_JSON" -n -a attributes.crowbar.instances.nagios --raw -v "[ ]"
 
 # Use existing SSH authorized keys
 if [ -f /root/.ssh/authorized_keys ]; then
     # remove empty lines and change newline to \n
     access_keys=$(sed "/^ *$/d" /root/.ssh/authorized_keys | sed "N;s/\n/\\n/g")
-    /opt/dell/bin/json-edit "/var/lib/crowbar/config/provisioner.json" -a id -v "default"
-    /opt/dell/bin/json-edit "/var/lib/crowbar/config/provisioner.json" -a crowbar-deep-merge-template --raw -v "true"
-    /opt/dell/bin/json-edit "/var/lib/crowbar/config/provisioner.json" -a attributes.provisioner.access_keys -v "$access_keys"
-    /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.provisioner --raw -v "[ \"/var/lib/crowbar/config/provisioner.json\" ]"
-    echo "Will add pre-existing SSH keys from /root/.ssh/authorized_keys"
+    if [ ! -f "$PROVISIONER_JSON" -o \
+           -z "`json_read "$PROVISIONER_JSON" attributes.provisioner.access_keys`" ]
+    then
+        echo "Will add pre-existing SSH keys from /root/.ssh/authorized_keys"
+        $json_edit "$PROVISIONER_JSON" -a attributes.provisioner.access_keys -v "$access_keys"
+    fi
 fi
 
 # Setup bind with correct local domain and DNS forwarders
-nameservers=$( awk '/^nameserver/ {printf "\""$2"\","}' /var/lib/crowbar/cache/etc/resolv.conf | sed "s/,$//" )
-/opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a id -v "default"
-/opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a crowbar-deep-merge-template --raw -v "true"
-/opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a attributes.dns.domain -v "$DOMAIN"
-/opt/dell/bin/json-edit "/var/lib/crowbar/config/dns.json" -a attributes.dns.forwarders --raw -v "[ $nameservers ]"
-/opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.instances.dns --raw -v "[ \"/var/lib/crowbar/config/dns.json\" ]"
-echo "Will configure bind with the following DNS forwarders: $nameservers"
+$json_edit "$DNS_JSON" -n -a attributes.dns.domain -v "$DOMAIN"
+custom_forwarders="$( json_read "$DNS_JSON" attributes.dns.forwarders )"
+if [ -n "$custom_forwarders" ]; then
+    echo "bind will use forwarders from $DNS_JSON: $custom_forwarders"
+else
+    nameservers=$( awk '/^nameserver/ {printf "\""$2"\","}' /var/lib/crowbar/cache/etc/resolv.conf | sed "s/,$//" )
+    $json_edit "$DNS_JSON" -a attributes.dns.forwarders --raw -v "[ $nameservers ]"
+    echo "bind will use the following DNS forwarders: $nameservers"
+fi
+
+for bc in crowbar dns network provisioner; do
+    json_to_merge=/var/lib/crowbar/config/$bc.json
+    [ -f $json_to_merge ] || continue
+
+    $json_edit $json_to_merge -a id -v "default"
+    $json_edit $json_to_merge -a crowbar-deep-merge-template --raw -v "true"
+    if [ $bc != crowbar ]; then
+        $json_edit "$CROWBAR_JSON" \
+            -a attributes.crowbar.instances.$bc \
+            --raw -v "[ \"$json_to_merge\" ]"
+    fi
+done
 
 mkdir -p /opt/dell/crowbar_framework
-CROWBAR_REALM=$($BARCLAMP_SRC/provisioner/updates/parse_node_data $CROWBAR_FILE -a attributes.crowbar.realm)
-CROWBAR_REALM=${CROWBAR_REALM##*=}
+CROWBAR_REALM=$(json_read "$CROWBAR_JSON" attributes.crowbar.realm)
 
 # Generate the machine install username and password.
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
@@ -798,7 +840,7 @@ fi
 
 if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
     export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    /opt/dell/bin/json-edit "$CROWBAR_FILE" -a attributes.crowbar.users.machine-install.password -v "${CROWBAR_KEY##*:}"
+    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.users.machine-install.password -v "${CROWBAR_KEY##*:}"
 fi
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
@@ -824,8 +866,8 @@ touch /tmp/deploying
 if [ "$($CROWBAR crowbar proposal list)" != "default" ] ; then
     proposal_opts=()
     # If your custom crowbar.json is somewhere else, probably substitute that here
-    if [[ -e $CROWBAR_FILE ]]; then
-        proposal_opts+=(--file $CROWBAR_FILE)
+    if [[ -e $CROWBAR_JSON ]]; then
+        proposal_opts+=(--file $CROWBAR_JSON)
     fi
     proposal_opts+=(proposal create default)
 
@@ -920,9 +962,8 @@ ensure_service_running chef-client
 echo_summary "Performing post-installation sanity checks"
 
 # Spit out a warning message if we managed to not get an IP address
-IPSTR=$($CROWBAR network show default | /opt/dell/barclamps/provisioner/updates/parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
-IP=${IPSTR##*=}
-ip addr | grep -q $IP || {
+IP=$($CROWBAR network show default | json_read - attributes.network.networks.admin.ranges.admin.start)
+ip addr | grep -q "$IP" || {
     die "eth0 not configured, but should have been."
 }
 
