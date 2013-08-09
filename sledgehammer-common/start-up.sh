@@ -95,9 +95,14 @@ echo "*.* @@${ADMIN_IP}" >> /etc/rsyslog.conf
 service $RSYSLOGSERVICE restart
 
 # Setup common dirs
-for d in updates install-logs; do
-    mkdir -p /$d
-    mount -t nfs $ADMIN_IP:/$d /$d
+exports=$(showmount -e $ADMIN_IP --no-headers | awk {'print $1'})
+for d in /updates /install-logs /var/log/crowbar/sledgehammer; do
+    for e in $exports; do
+        if [ "$e" == "$d" ]; then
+            mkdir -p $d
+            mount -t nfs $ADMIN_IP:$d $d
+        fi
+    done
 done
 
 export MAC BOOTDEV ADMIN_IP DOMAIN HOSTNAME HOSTNAME_MAC MYIP
