@@ -676,7 +676,7 @@ for i in crowbar deployer dns ipmi logging network ntp provisioner \
 done
 
 # Install optional barclamps if they're present
-for i in updater suse-manager-client ; do
+for i in updater suse-manager-client nfs_client ; do
     if test -d $BARCLAMP_SRC/$i; then
         /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
     fi
