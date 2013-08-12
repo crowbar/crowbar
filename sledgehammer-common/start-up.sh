@@ -94,16 +94,18 @@ echo "# Sledgehammer added to log to the admin node" >> /etc/rsyslog.conf
 echo "*.* @@${ADMIN_IP}" >> /etc/rsyslog.conf
 service $RSYSLOGSERVICE restart
 
-# Setup common dirs
-exports=$(showmount -e $ADMIN_IP --no-headers | awk {'print $1'})
-for d in /updates /install-logs /var/log/crowbar/sledgehammer; do
-    for e in $exports; do
-        if [ "$e" == "$d" ]; then
-            mkdir -p $d
-            mount -t nfs $ADMIN_IP:$d $d
-        fi
-    done
+# Zap legacy log directory if it exists
+[[ -d /install-log ]] && rmdir /install-log
+
+# Setup common dirs based on what the Crowbar admin server is sharing
+exports=$(showmount -e $ADMIN_IP --no-headers | cut -f1 -d " ")
+for d in $exports; do
+    mkdir -p $d
+    mount -t nfs $ADMIN_IP:$d $d
 done
+
+# Lagacy protection to make sure that support the old directory structure
+[[ -e /var/log/crowbar/sledgehammer ]] && ln -sf /var/log/crowbar/sledgehammer /install-log
 
 export MAC BOOTDEV ADMIN_IP DOMAIN HOSTNAME HOSTNAME_MAC MYIP
 
