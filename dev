@@ -3722,7 +3722,8 @@ build_crowbar() {
 	    --release) shift; target_release="$1";;
 	    --branch) shift; target_branch="$1";;
 	    --exact) exact=true;;
-            --no-switch) no_switch=true;;
+        --no-switch) no_switch=true;;
+        --no-cache-update) switch_include_cache=false;;
 	    *) build_args+=($1);;
 	esac
 	shift
@@ -3738,7 +3739,11 @@ build_crowbar() {
     if [[ $exact ]]; then
 	debug "Exact does not mean anything anymore."
     fi
+    if [[ $switch_include_cache = true ]];then
     maybe_checkout_build_cache_branch
+    else
+    debug "--no-cache-update enabled. So skip checking out the cache" 
+    fi
     with_build_lock exec "$CROWBAR_DIR/build_crowbar.sh" \
 	"$target_os" "${build_args[@]}"
     echo "Build process took ${SECONDS} seconds."
