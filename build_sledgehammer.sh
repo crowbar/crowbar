@@ -142,6 +142,10 @@ in_chroot /mnt/make_sledgehammer
 cp -a "$CHROOT/mnt/tftpboot" "$CACHE_DIR/"
 $SLEDGEECHO in_chroot /bin/rm -rf /mnt/tftpboot
 
+# Make sure that the loopback kernel module is loaded.
+KMLOOP=`lsmod | grep loop`
+[[ $KMLOOP == "loop" ]] || sudo modprobe loop
+
 while read line; do
     sudo losetup -d "${line%%:*}"
 done < <(sudo losetup -a |grep sledgehammer.iso)
