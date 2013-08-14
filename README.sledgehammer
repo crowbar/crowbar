@@ -23,3 +23,13 @@ Output:
 The build process creates an ISO image that will be emmbedded within an
 initrd file.  The initrd file and all controls needed to use it will be
 installed into the $ISO_LIBRARY/tftpboot directory (see ~/.build-crowbar.conf.
+
+Note:
+To debug build_sledgehammer.sh operation set in ~/.build-crowbar.conf
+or in the environment:
+	DEBUG=1
+	SLEDGEECHO="echo"
+This provides details logs and preserves intermediate files that are 
+otherwise removed during processing. These files can be helpful for
+diagnositc purposes BUT SLEDGEECHO should be null (empty) for prodction
+use.

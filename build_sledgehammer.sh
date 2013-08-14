@@ -133,14 +133,18 @@ cat >> "$CHROOT/mnt/make_sledgehammer" <<EOF
 set -e
 cd /mnt
 livecd-creator --config=sledgehammer.ks --cache=./cache -f sledgehammer
-rm -fr /mnt/tftpboot
+$SLEDGEECHO rm -fr /mnt/tftpboot
 livecd-iso-to-pxeboot sledgehammer.iso
-/bin/rm /mnt/sledgehammer.iso
+$SLEDGEECHO /bin/rm /mnt/sledgehammer.iso
 EOF
 in_chroot ln -s /proc/self/mounts /etc/mtab
 in_chroot /mnt/make_sledgehammer
 cp -a "$CHROOT/mnt/tftpboot" "$CACHE_DIR/"
-in_chroot /bin/rm -rf /mnt/tftpboot
+$SLEDGEECHO in_chroot /bin/rm -rf /mnt/tftpboot
+
+# Make sure that the loopback kernel module is loaded.
+KMLOOP=`lsmod | grep loop`
+[[ $KMLOOP == "loop" ]] || sudo modprobe loop
 
 while read line; do
     sudo losetup -d "${line%%:*}"
