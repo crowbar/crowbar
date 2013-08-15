@@ -245,13 +245,14 @@ def bc_replacer(item, bc, entity)
   debug "bc_replacer method called with debug option enabled"
   debug "bc_replacer args: item=#{item}, bc=#{bc}, entity=#{entity}"
 
-  item.gsub!(MODEL_SUBSTRING_BASE, bc)
-  item.gsub!(MODEL_SUBSTRING_CAMEL, bc.camelize)
-  item.gsub!(MODEL_SUBSTRING_HUMAN, bc.humanize)
-  item.gsub!(MODEL_SUBSTRING_CAPSS, bc.capitalize)
-  item.gsub!('Copyright 2011, Dell', "Copyright #{Time.now.year}, #{entity}")
-  debug "bc_replacer returns item=#{item}"
-  return item
+  new_item = item.clone  
+  new_item.gsub!(MODEL_SUBSTRING_BASE, bc)
+  new_item.gsub!(MODEL_SUBSTRING_CAMEL, bc.camelize)
+  new_item.gsub!(MODEL_SUBSTRING_HUMAN, bc.humanize)
+  new_item.gsub!(MODEL_SUBSTRING_CAPSS, bc.capitalize)
+  new_item.gsub!('Copyright 2011, Dell', "Copyright #{Time.now.year}, #{entity}")
+  debug "bc_replacer returns new_item=#{new_item}"
+  return new_item
 end
 
 #merges localizations from config into the matching translation files
