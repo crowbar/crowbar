@@ -193,7 +193,7 @@ def bc_cloner(item, bc, entity, source, target, replace)
   debug "bc_cloner args: item=#{item}, bc=#{bc}, entity=#{entity}, source=#{source}, target=#{target}, replace=#{replace}"
 
   files = []
-  new_item = (replace ? bc_replacer(item, bc, entity) : item)
+  new_item = (replace ? bc_replacer(item.dup, bc, entity) : item)
   debug "new_item=#{new_item}"
   new_file = File.join target, new_item
   debug "new_file=#{new_file}"
