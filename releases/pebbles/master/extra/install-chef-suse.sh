@@ -554,7 +554,8 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
             couchdb java-1_6_0-ibm rubygem-activesupport
 
     # also need these (crowbar dependencies):
-    zypper in rubygem-cstruct rubygem-kwalify rubygem-ruby-shadow rubygem-sass rubygem-i18n sleshammer tcpdump
+    zypper in rubygem-app_config rubygem-cstruct rubygem-kwalify rubygem-ruby-shadow \
+            rubygem-sass rubygem-i18n sleshammer tcpdump
 
     # Need this for provisioner to work:
     mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
