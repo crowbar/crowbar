@@ -420,7 +420,7 @@ check_machine_role
 
 ##
 # if we have baked in BMC support, make sure the BMC is responsive.
-[[ -f /updates/unbmc.sh ]] && . /updates/unbmc.sh
+[[ -f /updates/unbmc.sh ]] && . /updates/unbmc.sh $OS_TOKEN
  
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
