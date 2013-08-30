@@ -773,7 +773,7 @@ CROWBAR=/opt/dell/bin/crowbar
 # These are treated as read-only and copied into /var/lib/crowbar/config
 # for modification.
 mkdir -p /var/lib/crowbar/config
-for bc in crowbar dns network provisioner; do
+for bc in crowbar dns network provisioner ntp; do
     # Use CROWBAR_JSON, NETWORK_JSON etc. if they are set above
     json_var_name=$(echo "${bc}_json" | tr a-z A-Z )
     custom_json="${!json_var_name:-/etc/crowbar/$bc.json}"
@@ -817,7 +817,31 @@ else
     echo "bind will use the following DNS forwarders: $nameservers"
 fi
 
-for bc in crowbar dns network provisioner; do
+custom_ntp_servers="$( json_read "$NTP_JSON" attributes.ntp.external_servers )"
+if [ -z "$custom_ntp_servers" ]; then
+    # Use existing ntp servers, if any.  We prefer servers in
+    # /etc/ntp.conf over servers currently used by a running ntpd,
+    # since (a) configuring ntp.conf is a more deliberate manual
+    # process than updating peers in a running ntpd (which can happen
+    # automatically e.g. via /etc/netconfig.d/ntp-runtime), and as
+    # such should be considered more authoritative, and (b) querying
+    # the running configuration will only give us canonical hostnames,
+    # not round-robin DNS hostnames for NTP server pools.
+    echo "Attempting to auto-detect existing ntp servers from /etc/ntp.conf ..."
+    ntp_servers="$( cat /etc/ntp.conf | awk '/^server / && ! / 127\./ { print $2 }' )"
+    if [ -z "$ntp_servers" ]; then
+        echo "Attempting to auto-detect existing ntp servers from ntpd ..."
+        ntp_servers="$( ntpdc -l | awk '/client/ && ! /LOCAL/ { print $2 }' )"
+    fi
+    if [ -n "$ntp_servers" ]; then
+        ntp_servers="${ntp_servers%$'\n'}" # trim trailing newline
+        ntp_servers="\"${ntp_servers//$'\n'/\", \"}\"" # double-quote and comma-delimit
+        $json_edit "$NTP_JSON" -a attributes.ntp.external_servers --raw -v "[ $ntp_servers ]"
+        echo "ntp will use the following servers: $ntp_servers"
+    fi
+fi
+
+for bc in crowbar dns network provisioner ntp; do
     json_to_merge=/var/lib/crowbar/config/$bc.json
     [ -f $json_to_merge ] || continue
 
