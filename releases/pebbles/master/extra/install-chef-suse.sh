@@ -708,7 +708,7 @@ done
 
 # Install optional barclamps if they're present
 for i in updater suse-manager-client nfs_client \
-    ceph cisco-ucs hyperv ceilometer ; do
+    ceph cisco-ucs hyperv heat ceilometer ; do
     if test -d $BARCLAMP_SRC/$i; then
         /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
     fi
