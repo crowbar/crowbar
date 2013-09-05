@@ -30,10 +30,19 @@ mkdir -p "$LOGDIR"
 
 die() { for l in "$@"; do echo "$(date '+%F %T %z'): $l"; done; exit 1; }
 
+
 [[ -d /opt/dell/barclamps ]] || die "Cannot find barclamps!"
-[[ $1 && -d /opt/dell/barclamps/$1 ]] || \
-    die "$1 is not the name of a barclamp." \
-    "If you don't want to test any particular barclamp, please pass crowbar as \$1."
+
+#parsing parameters
+option_sets=()
+while [[ $1 ]]; do
+  if [[ $1 && -d /opt/dell/barclamps/$1 ]]; then
+    to_test="$1"
+  else
+    option_sets+=("$1")
+  fi
+  shift
+done
 
 is_in() (
     m="$1"
@@ -152,6 +161,13 @@ deploy_barclamp() {
     crowbar "$1" proposal show smoketest > \
         "$LOGDIR/$1-default.json" || \
         die "Could not show smoketest proposal for $1"
+    #applying each of predefined sets
+    for opt_set in "${option_sets[@]}"; do
+       #applying pre-defined set of options
+       cat "$LOGDIR/$1-default.json" | /opt/dell/bin/options_set pfs > "$LOGDIR/$1-modified.json" || die "Failure setting ${opt_set} for $1"
+       crowbar "$1" --file "$LOGDIR/$1-modified.json" proposal edit smoketest || die "Failed to upload #{opt_set} enabled proposal for $1"
+       mv "$LOGDIR/$1-modified.json" "$LOGDIR/$1-default.json"
+    done
     if [[ -x $bc_dir/smoketest/modify-json ]]; then
             echo "$(date '+%F %T %z'): Editing smoketest proposal for $1"
         "$bc_dir/smoketest/modify-json" < \
@@ -219,7 +235,7 @@ run_hooks() {
 
 wait_for_ready
 
-for bc in $(barclamp_deps "$1"); do
+for bc in $(barclamp_deps "${to_test}"); do
     bc_dir="/opt/dell/barclamps/$bc"
     if ! barclamp_deployed "$bc"; then
         echo "$(date '+%F %T %z'): Deploying $bc."

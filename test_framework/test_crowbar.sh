@@ -52,6 +52,7 @@ Arguments:
    pause-after-admin: Causes the framework to pause after the admin node
                       has been deployed.
    admin-only: Only deploy an admin node -- do not spin up compute nodes.
+   xtra-args <parameter>: Additional parameters wich will be passed to smoketest tool.
    manual-deploy: By default, the framework will automatically launch the
                   crowbar install once the admin node is up using a default
                   name of admin.smoke.test.  Passing manual-deploy causes
