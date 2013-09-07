@@ -265,6 +265,9 @@ mkdir -p /opt/dell/doc
 rm -f /tmp/.crowbar_in_bootstrap
 service crowbar restart
 
+# By now, we have a machine key.  Load it.
+export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
+
 ###
 # This should vanish once we have a real bootstrapping story.
 ###
@@ -276,10 +279,17 @@ sleep 15
 curl --digest -u $(cat /etc/crowbar.install.key) \
     -X POST http://localhost:3000/api/v2/nodes -d "name=$FQDN" -d 'admin=true'
 
-# Converge the admin node
-# This creates a lot of output, so point it at /dev/null.
-curl --digest -u $(cat /etc/crowbar.install.key) \
-    -X POST http://localhost:3000/api/v2/converge >/dev/null
+tries=3
+converged=false
+while ((tries > 0)); do
+    echo "Converging all noderoles on $FQDN ($tries tries left):"
+    if crowbar converge; then
+        converged=true
+        break
+    fi
+    tries=$((tries - 1))
+done
+[[ $converged = false ]] && die "Could not converge $FQDN!"
 
 echo "Admin node deployed."
 
