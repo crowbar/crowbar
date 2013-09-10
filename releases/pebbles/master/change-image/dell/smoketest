@@ -164,7 +164,7 @@ deploy_barclamp() {
     #applying each of predefined sets
     for opt_set in "${option_sets[@]}"; do
        #applying pre-defined set of options
-       cat "$LOGDIR/$1-default.json" | /opt/dell/bin/options_set pfs > "$LOGDIR/$1-modified.json" || die "Failure setting ${opt_set} for $1"
+       cat "$LOGDIR/$1-default.json" | /opt/dell/bin/options_set ${opt_set} > "$LOGDIR/$1-modified.json" || die "Failure setting ${opt_set} for $1"
        crowbar "$1" --file "$LOGDIR/$1-modified.json" proposal edit smoketest || die "Failed to upload #{opt_set} enabled proposal for $1"
        mv "$LOGDIR/$1-modified.json" "$LOGDIR/$1-default.json"
     done
