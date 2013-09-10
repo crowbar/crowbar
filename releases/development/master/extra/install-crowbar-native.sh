@@ -275,6 +275,14 @@ export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
 # Wait for puma to come back to life.
 sleep 15
 
+# Create a stupid default admin network
+curl --digest -u $(cat /etc/crowbar.install.key) \
+    -X POST http://localhost:3000/network/v2/networks \
+    -d "name=admin" \
+    -d "deployment=system" \
+    -d "conduit=1g0" \
+    -d 'ranges=[ { "name": "admin", "first": "192.168.124.10/24", "last": "192.168.124.11/24"},{"name": "host", "first": "192.168.124.81/24", "last": "192.168.124.254/24"},{"name": "dhcp", "first": "192.168.124.21/24", "last": "192.168.124.80/24"}]'
+
 # Create the admin node entry.
 curl --digest -u $(cat /etc/crowbar.install.key) \
     -X POST http://localhost:3000/api/v2/nodes -d "name=$FQDN" -d 'admin=true'
