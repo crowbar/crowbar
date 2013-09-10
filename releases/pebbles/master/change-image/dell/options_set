@@ -7,6 +7,10 @@ case ARGV[0]
       "use_virtualenv" => true,
       "use_pip_cache" => true,
       "use_gitbarclamp" => true
+      },
+      "tempest" => {
+       "use_virtualenv" => true,
+       "use_pfs" => false
       } }
   when 'quantum_gre'
      preferences={"quantum" => {
