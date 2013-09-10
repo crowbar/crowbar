@@ -47,7 +47,6 @@ proposal = JSON.parse(STDIN.read)
 attributes = proposal["attributes"] || {}
 global = preferences["*"] || {}
 preferences.sort.map do |preference, config|
-  next if preference.to_s == "*"
   # apply global preferences
   attributes.each_pair do |key,value|
     attributes[key].apply(global)
