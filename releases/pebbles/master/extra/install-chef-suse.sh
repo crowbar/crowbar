@@ -807,6 +807,15 @@ if [ -f /root/.ssh/authorized_keys ]; then
     fi
 fi
 
+# Use current time zone
+(
+   . /etc/sysconfig/clock
+   if [ -n "$TIMEZONE" ]; then
+       echo "Will use $TIMEZONE for node installation"
+       $json_edit "$PROVISIONER_JSON" -a attributes.provisioner.timezone -v "$TIMEZONE"
+   fi
+)
+
 # Setup bind with correct local domain and DNS forwarders
 $json_edit "$DNS_JSON" -n -a attributes.dns.domain -v "$DOMAIN"
 custom_forwarders="$( json_read "$DNS_JSON" attributes.dns.forwarders )"
