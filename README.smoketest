@@ -9,6 +9,7 @@ The smoketest framework lives on the admin node, and consists of:
   * smoketest
     This is the front-end to the in-cluster side of the smoketest framework.
     It takes a single parameter, which is the name of a barclamp to smoketest.
+    smoketest must be run as root.
   * check_ready
     This checks to see if a node had transitioned to a given state.
     smoketest uses it internally.
