@@ -291,7 +291,7 @@ tries=3
 converged=false
 while ((tries > 0)); do
     echo "Converging all noderoles on $FQDN ($tries tries left):"
-    if crowbar converge; then
+    if /opt/dell/bin/crowbar converge; then
         converged=true
         break
     fi
