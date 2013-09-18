@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [[ ! -x /usr/bin/curl ]]; then
+   echo "No curl installed.  Please install curl."
+   exit 1
+fi
+
 export LANG="C"
 export LC_ALL="C"
 
