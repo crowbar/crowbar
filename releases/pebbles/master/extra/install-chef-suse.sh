@@ -811,7 +811,7 @@ fi
 (
    . /etc/sysconfig/clock
    if [ -n "$TIMEZONE" ]; then
-       echo "Will use $TIMEZONE for node installation"
+       echo "Will use $TIMEZONE timezone for node installation"
        $json_edit "$PROVISIONER_JSON" -a attributes.provisioner.timezone -v "$TIMEZONE"
    fi
 )
