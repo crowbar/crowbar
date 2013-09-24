@@ -4157,6 +4157,10 @@ reload_test_env() (
               export RAILS_ENV
               bundle exec rake \
                   railties:install:migrations \
+                  db:migrate
+              bundle exec script/rails generate delayed_job
+              bundle exec script/rails generate delayed_job:active_record
+              bundle exec rake \
                   db:migrate \
                   db:fixtures:dump \
                   RAILS_ENV=$RAILS_ENV
