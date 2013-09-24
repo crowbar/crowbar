@@ -517,7 +517,7 @@ end
 
 def get_rpm_file_list(rpm)
   cmd = "rpm -ql #{rpm}"
-  file_list = IO.popen(cmd).readlines().map { |line| line.rstrip }
+  file_list = `#{cmd}`.lines.map { |line| line.rstrip }
   raise cmd + " failed" unless $? == 0
   raise "got empty file list from #{cmd}" if file_list.empty?
   debug "obtained file list from #{rpm} rpm"
