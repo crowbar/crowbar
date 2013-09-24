@@ -131,60 +131,12 @@ EOF
     echo "$(date '+%F %T %z'): Arranging for gems to be installed"
     (   cd /tftpboot/gemsite/gems
         for gem in builder json net-http-digest_auth activesupport i18n \
-            daemons bluepill xml-simple libxml-ruby wsman cstruct ; do
+            daemons xml-simple libxml-ruby wsman cstruct ; do
             gem install --local --no-ri --no-rdoc $gem-*.gem || :
         done
         cd ..
-        gem generate_index)
-
-    mkdir -p /var/run/bluepill
-    mkdir -p /var/lib/bluepill
-    mkdir -p /etc/bluepill
-
-    # Copy all our pills to
-    cp "$DVD_PATH/extra/"*.pill /etc/bluepill
-    cp "$DVD_PATH/extra/chef-server.conf" /etc/nginx
-    cp "$DVD_PATH/extra/chef-client.pill" /tftpboot
-
-    [[ -L /opt/dell/extra ]] || ln -s "$DVD_PATH/extra" /opt/dell/extra
-
-    if [[ ! -x /etc/init.d/bluepill ]]; then
-
-        # Create an init script for bluepill
-        cat > /etc/init.d/bluepill <<EOF
-#!/bin/bash
-# chkconfig: 2345 90 10
-# description: Bluepill Daemon runner
-PATH=$PATH
-case \$1 in
-    start) for pill in /etc/bluepill/*.pill; do
-              [[ -f \$pill ]] || continue
-              bluepill load "\$pill"
-           done;;
-    stop) bluepill stop
-          bluepill quit;;
-    status) if ps aux |grep [b]luepilld; then
-             echo "Bluepill is running."
-             exit 0
-            else
-             echo "Bluepill is not running."
-             exit 1
-            fi;;
-    *) echo "\$1: Not supported.";;
-esac
-EOF
-
-        # enable the bluepill init script and disable the old sysv init scripts.
-        if which chkconfig &>/dev/null; then
-            chkconfig bluepill on
-        elif which update-rc.d &>/dev/null; then
-            update-rc.d bluepill defaults 90 10
-        else
-            echo "Don't know how to handle services on this system!"
-            exit 1
-        fi
-        chmod 755 /etc/init.d/bluepill
-    fi
+        gem generate_index
+    )
 fi
 
 if [[ $OS = ubuntu ]]; then
@@ -275,18 +227,43 @@ export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
 # Wait for puma to come back to life.
 sleep 15
 
+ip_re='([0-9a-f.:]+/[0-9]+)'
+
 # Create a stupid default admin network
-curl --digest -u $(cat /etc/crowbar.install.key) \
-    -X POST http://localhost:3000/network/v2/networks \
+curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
+    -X POST http://localhost:3000/network/api/v2/networks \
     -d "name=admin" \
     -d "deployment=system" \
-    -d "conduit=1g0" \
+    -d "conduit=1g0,1g1"  \
+    -d "use_team=true"  \
+    -d "team_mode=6"  \
     -d 'ranges=[ { "name": "admin", "first": "192.168.124.10/24", "last": "192.168.124.11/24"},{"name": "host", "first": "192.168.124.81/24", "last": "192.168.124.254/24"},{"name": "dhcp", "first": "192.168.124.21/24", "last": "192.168.124.80/24"}]'
 
 # Create the admin node entry.
-curl --digest -u $(cat /etc/crowbar.install.key) \
-    -X POST http://localhost:3000/api/v2/nodes -d "name=$FQDN" -d 'admin=true'
+curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
+    -X POST http://localhost:3000/api/v2/nodes \
+    -d "name=$FQDN" \
+    -d 'admin=true' \
+    -d 'alive=false' \
+    -d 'bootenv=disk'
 
+# Figure out what IP addresses we should have, and add them.
+netline=$(curl -f --digest -u $(cat /etc/crowbar.install.key) -X GET "http://localhost:3000/network/api/v2/networks/admin/allocations" -d "node=$(hostname -f)")
+nets=(${netline//,/ })
+for net in "${nets[@]}"; do
+    [[ $net =~ $ip_re ]] || continue
+    net=${BASH_REMATCH[1]}
+    # Make this more complicated and exact later.
+    ip addr add "$net" dev eth0 || :
+    echo "${net%/*} $FQDN" >> /etc/hosts
+done
+
+# Mark the node as alive.
+curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
+    -X PUT "http://localhost:3000/api/v2/nodes/$FQDN" \
+    -d 'alive=true'
+
+# Converge the admin node.
 tries=3
 converged=false
 while ((tries > 0)); do
