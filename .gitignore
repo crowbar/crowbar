@@ -15,5 +15,8 @@ sha1sums
 /.releases
 /barclamps/*/
 *.swp
+*.swo
+.swp
+.swo
 .chef/webui.pem
 .chef/knife.rb
