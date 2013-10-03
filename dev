@@ -4174,7 +4174,9 @@ reload_test_env() (
 run_server() {
   auto_reload_test_env
   cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
-  echo "Starting Rails app"
+  echo "Starting Rails app & background threads"
+  RAILS_ENV=development bundle exec script/delayed_job --queue=Annealer -n 1 start
+  RAILS_ENV=development bundle exec script/delayed_job --queue=NodeRoleRunner -n 10 start
   RAILS_ENV=development bundle exec script/rails s Puma development
 }
 
