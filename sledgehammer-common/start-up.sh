@@ -104,7 +104,7 @@ for d in $exports; do
     mount -t nfs $ADMIN_IP:$d $d
 done
 
-# Lagacy protection to make sure that support the old directory structure
+# legacy protection to make sure that we have the old directory structure
 [[ -e /var/log/crowbar/sledgehammer ]] && ln -sf /var/log/crowbar/sledgehammer /install-log
 
 export MAC BOOTDEV ADMIN_IP DOMAIN HOSTNAME HOSTNAME_MAC MYIP
