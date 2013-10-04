@@ -879,7 +879,7 @@ if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
 fi
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
-touch /tmp/deploying
+touch /var/run/crowbar/deploying
 # This works because
 #
 #   crowbar_framework/app/models/provisioner_service.rb
@@ -893,7 +893,7 @@ touch /tmp/deploying
 #
 #   /opt/dell/bin/looper_chef_client.sh
 #
-# which exits immediately if /tmp/deploying exists.
+# which exits immediately if /var/run/crowbar/deploying exists.
 
 # From here, you should probably read along with the equivalent steps in
 # install-chef.sh for comparison
@@ -964,7 +964,7 @@ echo_summary "Transitioning Administration Server to \"ready\""
 for state in "discovering" "discovered" "hardware-installing" \
     "hardware-installed" "installing" "installed" "readying" "ready"
 do
-    while [[ -f "/tmp/chef-client.lock" ]]; do sleep 1; done
+    while [[ -f "/var/run/crowbar/chef-client.lock" ]]; do sleep 1; done
     printf "$state: "
     $CROWBAR crowbar transition "$FQDN" "$state" || \
         die "Transition to $state failed!"
@@ -978,7 +978,7 @@ do
 done
 
 # OK, let looper_chef_client run normally now.
-rm /tmp/deploying
+rm /var/run/crowbar/deploying
 
 
 # Starting more services
