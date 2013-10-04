@@ -14,7 +14,13 @@ unless ARGV[1]
 end
 tree = nil
 if ARGV[0] == '-'
-  tree = JSON.parse STDIN.read
+  f = STDIN.read
+  begin 
+    tree = JSON.parse f 
+  rescue Exception=>e
+    STDERR.puts "Error parsing json #{f}"
+    STDERR.puts e
+  end
 elsif File.exists? ARGV[0]
   case ARGV[0].split('.')[-1]
   when "yml","yaml"
