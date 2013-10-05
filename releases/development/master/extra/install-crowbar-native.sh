@@ -245,7 +245,7 @@ curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
     -d "name=$FQDN" \
     -d 'admin=true' \
     -d 'alive=false' \
-    -d 'bootenv=disk'
+    -d 'bootenv=local'
 
 # Figure out what IP addresses we should have, and add them.
 netline=$(curl -f --digest -u $(cat /etc/crowbar.install.key) -X GET "http://localhost:3000/network/api/v2/networks/admin/allocations" -d "node=$(hostname -f)")
