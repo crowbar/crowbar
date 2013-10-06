@@ -200,6 +200,10 @@ class BarclampFS
       unless system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake railties:install:migrations' crowbar"
         fatal("Installing migrations failed.")
       end
+      debug "Making sure database is created #{@name}"
+      unless system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake db:create' crowbar"
+        fatal("Creating database failed.")
+      end
       debug "Running migrations for #{@name}"
       unless system "su -s /bin/bash -c 'RAILS_ENV=production bundle exec rake db:migrate' crowbar"
         fatal("Running migrations failed.")
