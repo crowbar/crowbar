@@ -21,7 +21,18 @@ if [[ -f /etc/redhat-release || -f /etc/centos-release ]]; then
 elif [[ -d /etc/apt ]]; then
     OS=ubuntu
     apt-get -y install ruby1.9.1 ruby1.9.1-dev \
-        libxml2-dev libxslt1-dev zlib1g-dev
+        libxml2-dev libxslt1-dev zlib1g-dev \
+        postgresql-9.3 postgresql-client-9.3 postgresql-contrib-9.3 libpq-dev
+    # Hack up local postgres to only listen on domain sockets.
+    service postgresql stop
+    cat >/etc/postgresql/9.3/main/pg_hba.conf <<EOF
+local   all             postgres                                peer
+local   all             all                                     trust
+EOF
+echo "listen_addresses = ''" >>/etc/postgresql/9.3/main/postgresql.conf
+sed -i '/^port/ s/5432/5439/' /etc/postgresql/9.3/main/postgresql.conf
+service postgresql start
+sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
 elif [[ -f /etc/SuSE-release ]]; then
     OS=suse
 else
