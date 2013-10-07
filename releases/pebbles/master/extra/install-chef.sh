@@ -368,9 +368,10 @@ pre_crowbar_fixups
 
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
 # Run chef-client to bring-up crowbar server
-chef_or_die "Failed to bring up Crowbar"
-# Make sure looper_chef_client is a NOOP until we are finished deploying
 mkdir -p /var/run/crowbar
+chef_or_die "Failed to bring up Crowbar"
+
+# Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /var/run/crowbar/deploying
 
 post_crowbar_fixups
