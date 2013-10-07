@@ -4126,6 +4126,30 @@ setup_test_env() (
 )
 
 reload_test_env() (
+    if ! psql postgresql://crowbar@:5439/template1 -c 'select true;' &>/dev/null; then
+        echo "Postgres is no configured for use by Crowbar!"
+        echo "You will need to:"
+        echo "Install Postgres version 9.3"
+        echo "If your distro does not have it pre-packaged, you can find it at"
+        echo "http://www.postgresql.org/download/"
+        echo "They have pre-build binary packages for most operating systems."
+        echo "You will need to install the server, client, and libpq development components."
+        echo
+        echo "Configure it to trust all connections coming over local Unix sockets"
+        echo "  Add the following line to pg_hba.conf and restart Postgres:"
+        echo "local  all   all    trust "
+        echo
+        echo "Configure postgres to listen on port 5439"
+        echo "  Add the following line to postgresql.conf and restart Postgres:"
+        echo "port = 5439"
+        echo
+        echo "Create a crowbar user for postgres with the following command:"
+        echo "createuser -p 5439 -d crowbar"
+        echo
+        echo "Verify that the Crowbar user can connect to Postgres:"
+        echo "psql postgresql://crowbar@:5439/template1 -c 'select true;'"
+        exit 1
+    fi
   local rake_task barclamps dbs_need_reload
   if test_env_needs_reset; then
       setup_test_env || exit 1
