@@ -368,9 +368,11 @@ pre_crowbar_fixups
 
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
 # Run chef-client to bring-up crowbar server
+mkdir -p /var/run/crowbar
 chef_or_die "Failed to bring up Crowbar"
+
 # Make sure looper_chef_client is a NOOP until we are finished deploying
-touch /tmp/deploying
+touch /var/run/crowbar/deploying
 
 post_crowbar_fixups
 
@@ -429,7 +431,7 @@ check_machine_role
 for state in "discovering" "discovered" "hardware-installing" \
     "hardware-installed" "installing" "installed" "readying" "ready"
 do
-    while [[ -f "/tmp/chef-client.lock" ]]; do sleep 1; done
+    while [[ -f "/var/run/crowbar/chef-client.lock" ]]; do sleep 1; done
     printf "$state: "
     crowbar crowbar transition "$FQDN" "$state" || \
         die "Transition to $state failed!"
@@ -442,7 +444,7 @@ do
 done
 
 # OK, let looper_chef_client run normally now.
-rm /tmp/deploying
+rm /var/run/crowbar/deploying
 
 # Spit out a warning message if we managed to not get an IP address
 IPSTR=$(crowbar network show default | parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
