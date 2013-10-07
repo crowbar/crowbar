@@ -4156,6 +4156,7 @@ reload_test_env() (
           (
               export RAILS_ENV
               bundle exec rake \
+                  db:create \
                   railties:install:migrations \
                   db:migrate
               bundle exec script/rails generate delayed_job
