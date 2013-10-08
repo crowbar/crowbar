@@ -1108,6 +1108,17 @@ all_supported_oses() {
     done
 }
 
+iso_boot_prep() {
+    # This has been split out so that distros that use varying boot file
+    # layouts can over-ride this function.
+    mkdir -p "$BUILD_DIR/isolinux"
+    chmod u+wr "$BUILD_DIR/isolinux"
+    rsync -rl --ignore-existing --inplace \
+        "$IMAGE_DIR/isolinux" "$BUILD_DIR"
+    chmod -R u+wr "$BUILD_DIR/isolinux"
+    sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/isolinux"
+}
+
 do_crowbar_build() {
     # Make sure only one instance of the ISO build runs at a time.
     # Otherwise you can easily end up with a corrupted image.
@@ -1357,12 +1368,8 @@ do_crowbar_build() {
         # Bind mount an empty directory on the $IMAGE_DIR instance.
         sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/$d"
     done
-    mkdir -p "$BUILD_DIR/isolinux"
-    chmod u+wr "$BUILD_DIR/isolinux"
-    rsync -rl --ignore-existing --inplace \
-        "$IMAGE_DIR/isolinux" "$BUILD_DIR"
-    chmod -R u+wr "$BUILD_DIR/isolinux"
-    sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/isolinux"
+
+    iso_boot_prep
 
     [[ $SHRINK_ISO && ! $GENERATE_MINIMAL_ISO ]] && shrink_iso
     # Make a file list and a link list.

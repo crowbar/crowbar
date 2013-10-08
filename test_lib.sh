@@ -28,7 +28,8 @@ SMOKETEST_VLANS[600]="192.168.128.1/24"
 
 ADMIN_HOSTNAMES=("cr0wbar.pwns.joo"
     "vltima.ratio.regvm"
-    "altanoma.nihil.non"
+    "admin.nihil.fit"
+    "omnia.fines.bon"
     "admin.smoke.test"
     "bork.bork.bork")
 
