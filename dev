@@ -3992,9 +3992,6 @@ barclamps_needing_reinstall() {
 databases_need_reload() {
     # $@ = list of barclamps to check for new migrations
     local bc barclamps=() p
-    [[ -f $CROWBAR_TEST_DIR/opt/dell/crowbar_framework/db/test.sqlite3 && \
-        $CROWBAR_TEST_DIR/opt/dell/crowbar_framework/db/development.sqlite3 ]] || \
-        return 0
     [[ $@ ]] && barclamps=("$@") || barclamps=($(barclamps_needing_reinstall))
     for bc in "${barclamps[@]}"; do
         for p in "crowbar_framework/db" "crowbar_framework/test/fixtures" \
@@ -4126,6 +4123,7 @@ setup_test_env() (
 )
 
 reload_test_env() (
+    export PGCLUSTER=9.3/main
     if ! psql postgresql://crowbar@:5439/template1 -c 'select true;' &>/dev/null; then
         echo "Postgres is no configured for use by Crowbar!"
         echo "You will need to:"
@@ -4179,6 +4177,7 @@ reload_test_env() (
           debug "Setting up DB for $RAILS_ENV environment ..."
           (
               export RAILS_ENV
+              export PGCLUSTER=9.3/main
               bundle exec rake \
                   db:create \
                   railties:install:migrations \
