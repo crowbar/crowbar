@@ -2159,6 +2159,7 @@ fetch_all() {
         die "Cannot create temporary storage for fetch results!"
     fetch_ci_tracking
     debug "Fetching updates:"
+    trap "kill -TERM -$$ && rm -rf $results_dir ; exit 1" INT QUIT
     for d in "$CROWBAR_DIR/barclamps/"* "$CROWBAR_DIR"; do
         [[ -d $d/.git ]] || continue
         if [[ $BADLINK ]]; then
