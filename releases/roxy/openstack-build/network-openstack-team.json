@@ -213,7 +213,7 @@
           "conduit": "intf1",
           "vlan": 500,
           "use_vlan": true,
-          "add_bridge": true,
+          "add_bridge": false,
           "subnet": "192.168.123.0",
           "netmask": "255.255.255.0",
           "broadcast": "192.168.123.255",
@@ -262,7 +262,7 @@
         },
         "os_sdn": {
               "conduit": "intf1",
-              "vlan": 700,
+              "vlan": 400,
               "use_vlan": true,
               "add_bridge": false,
               "subnet": "192.168.130.0",
