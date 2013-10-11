@@ -199,21 +199,21 @@
           "vlan": 300,
           "use_vlan": true,
           "add_bridge": false,
-          "subnet": "192.168.122.0",
+          "subnet": "192.168.126.0",
           "netmask": "255.255.255.0",
-          "broadcast": "192.168.122.255",
-          "router": "192.168.122.1",
+          "broadcast": "192.168.126.255",
+          "router": "192.168.126.1",
           "router_pref" : 5,
           "ranges": {
-            "host": { "start": "192.168.122.2", "end": "192.168.122.49" },
-            "dhcp": { "start": "192.168.122.50", "end": "192.168.122.127" }
+            "host": { "start": "192.168.126.2", "end": "192.168.126.49" },
+            "dhcp": { "start": "192.168.126.50", "end": "192.168.126.127" }
           }
         },
         "nova_fixed": {
           "conduit": "intf1",
           "vlan": 500,
           "use_vlan": true,
-          "add_bridge": true,
+          "add_bridge": false,
           "subnet": "192.168.123.0",
           "netmask": "255.255.255.0",
           "broadcast": "192.168.123.255",
@@ -229,11 +229,11 @@
           "vlan": 300,
           "use_vlan": true,
           "add_bridge": false,
-          "subnet": "192.168.122.128",
+          "subnet": "192.168.126.128",
           "netmask": "255.255.255.192",
-          "broadcast": "192.168.122.191",
+          "broadcast": "192.168.126.191",
           "ranges": {
-            "host": { "start": "192.168.122.129", "end": "192.168.122.191" }
+            "host": { "start": "192.168.126.129", "end": "192.168.126.191" }
           }
         },
         "bmc": {
@@ -260,6 +260,18 @@
             "host": { "start": "192.168.124.161", "end": "192.168.124.161" }
           }
         },
+        "os_sdn": {
+              "conduit": "intf1",
+              "vlan": 400,
+              "use_vlan": true,
+              "add_bridge": false,
+              "subnet": "192.168.130.0",
+              "netmask": "255.255.255.0",
+              "broadcast": "192.168.130.255",
+              "ranges": {
+                  "host": { "start": "192.168.130.10", "end": "192.168.130.254"}
+              }
+          },        
         "admin": {
           "conduit": "intf0",
           "vlan": 100,
