@@ -234,10 +234,6 @@ export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
 ###
 # This should vanish once we have a real bootstrapping story.
 ###
-
-# Wait for puma to come back to life.
-sleep 15
-
 ip_re='([0-9a-f.:]+/[0-9]+)'
 
 # Create a stupid default admin network
