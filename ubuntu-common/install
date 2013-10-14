@@ -30,10 +30,10 @@ fi
 if [[ "$2" == "--no-screen" ]]
 then
   echo "Crowbar install started NOT under screen."
-  script -f -c "$installer $1" /var/log/install.log
+  script -f -c "$installer $*" /var/log/install.log
 else
   screen -d -m -S crowbar-install -t 'Crowbar Install' \
-      script -f -c "$installer $1" /var/log/install.log
+      script -f -c "$installer $*" /var/log/install.log
   echo "Crowbar install started under screen."
   echo "You can attach to it by running:"
   echo "    sudo screen -r -S crowbar-install"
