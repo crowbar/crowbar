@@ -231,57 +231,60 @@ service crowbar restart
 # By now, we have a machine key.  Load it.
 export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
 
-###
-# This should vanish once we have a real bootstrapping story.
-###
-ip_re='([0-9a-f.:]+/[0-9]+)'
+# Eventaully, --wizard will become the default.
+if ! [[ $* = *--wizard* ]]; then
+    ###
+    # This should vanish once we have a real bootstrapping story.
+    ###
+    ip_re='([0-9a-f.:]+/[0-9]+)'
 
-# Create a stupid default admin network
-curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
-    -X POST http://localhost:3000/network/api/v2/networks \
-    -d "name=admin" \
-    -d "deployment=system" \
-    -d "conduit=1g0,1g1"  \
-    -d "use_team=true"  \
-    -d "team_mode=6"  \
-    -d 'ranges=[ { "name": "admin", "first": "192.168.124.10/24", "last": "192.168.124.11/24"},{"name": "host", "first": "192.168.124.81/24", "last": "192.168.124.254/24"},{"name": "dhcp", "first": "192.168.124.21/24", "last": "192.168.124.80/24"}]'
+    # Create a stupid default admin network
+    curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
+        -X POST http://localhost:3000/network/api/v2/networks \
+        -d "name=admin" \
+        -d "deployment=system" \
+        -d "conduit=1g0,1g1"  \
+        -d "use_team=true"  \
+        -d "team_mode=6"  \
+        -d 'ranges=[ { "name": "admin", "first": "192.168.124.10/24", "last": "192.168.124.11/24"},{"name": "host", "first": "192.168.124.81/24", "last": "192.168.124.254/24"},{"name": "dhcp", "first": "192.168.124.21/24", "last": "192.168.124.80/24"}]'
 
-# Create the admin node entry.
-curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
-    -X POST http://localhost:3000/api/v2/nodes \
-    -d "name=$FQDN" \
-    -d 'admin=true' \
-    -d 'alive=false' \
-    -d 'bootenv=local'
+    # Create the admin node entry.
+    curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
+        -X POST http://localhost:3000/api/v2/nodes \
+        -d "name=$FQDN" \
+        -d 'admin=true' \
+        -d 'alive=false' \
+        -d 'bootenv=local'
 
-# Figure out what IP addresses we should have, and add them.
-netline=$(curl -f --digest -u $(cat /etc/crowbar.install.key) -X GET "http://localhost:3000/network/api/v2/networks/admin/allocations" -d "node=$(hostname -f)")
-nets=(${netline//,/ })
-for net in "${nets[@]}"; do
-    [[ $net =~ $ip_re ]] || continue
-    net=${BASH_REMATCH[1]}
-    # Make this more complicated and exact later.
-    ip addr add "$net" dev eth0 || :
-    echo "${net%/*} $FQDN" >> /etc/hosts
-done
+    # Figure out what IP addresses we should have, and add them.
+    netline=$(curl -f --digest -u $(cat /etc/crowbar.install.key) -X GET "http://localhost:3000/network/api/v2/networks/admin/allocations" -d "node=$(hostname -f)")
+    nets=(${netline//,/ })
+    for net in "${nets[@]}"; do
+        [[ $net =~ $ip_re ]] || continue
+        net=${BASH_REMATCH[1]}
+        # Make this more complicated and exact later.
+        ip addr add "$net" dev eth0 || :
+        echo "${net%/*} $FQDN" >> /etc/hosts
+    done
 
-# Mark the node as alive.
-curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
-    -X PUT "http://localhost:3000/api/v2/nodes/$FQDN" \
-    -d 'alive=true'
-
-# Converge the admin node.
-tries=3
-converged=false
-while ((tries > 0)); do
-    echo "Converging all noderoles on $FQDN ($tries tries left):"
-    if /opt/dell/bin/crowbar converge; then
-        converged=true
-        break
-    fi
-    tries=$((tries - 1))
-done
-[[ $converged = false ]] && die "Could not converge $FQDN!"
+    # Mark the node as alive.
+    curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
+        -X PUT "http://localhost:3000/api/v2/nodes/$FQDN" \
+        -d 'alive=true'
+    
+    # Converge the admin node.
+    tries=3
+    converged=false
+    while ((tries > 0)); do
+        echo "Converging all noderoles on $FQDN ($tries tries left):"
+        if /opt/dell/bin/crowbar converge; then
+            converged=true
+            break
+        fi
+        tries=$((tries - 1))
+    done
+    [[ $converged = false ]] && die "Could not converge $FQDN!"
+fi
 
 echo "Admin node deployed."
 
