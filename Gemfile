@@ -11,6 +11,9 @@ gem "knife-essentials", "~> 0.7.6"
 
 gem "foodcritic", ">= 1.5.1"
 
+gem "delayed_job", "~> 4.0.0"
+gem "delayed_job_active_record", "~> 4.0.0"
+
 group :development do
   gem 'guard', ">= 1.8.0"
   gem 'guard-rsync', :git => "https://github.com/aspiers/guard-rsync.git", :branch => "crowbar"
