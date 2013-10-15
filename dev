@@ -4259,6 +4259,8 @@ clear_test_env() {
     RAILS_ENV=development bundle exec rake db:drop
     echo "Removing Test Directory"
     rm -rf "$CROWBAR_TEST_DIR"; 
+    echo "Restarting DB"
+    sudo service postgresql restart
 }
 
 # Create a new barclamp.
