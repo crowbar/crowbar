@@ -4004,7 +4004,8 @@ databases_need_reload() {
             return 0
         done
     done
-    return 1
+    # and also make sure that we have a database in postgresql database (1 = yes, 0 = no)
+    return $(psql -l | grep crowbar_development | wc -l )
 }
 
 reinstall_barclamps() {
@@ -4126,27 +4127,9 @@ setup_test_env() (
 reload_test_env() (
     export PGCLUSTER=9.3/main
     if ! psql postgresql://crowbar@:5439/template1 -c 'select true;' &>/dev/null; then
-        echo "Postgres is no configured for use by Crowbar!"
-        echo "You will need to:"
-        echo "Install Postgres version 9.3"
-        echo "If your distro does not have it pre-packaged, you can find it at"
-        echo "http://www.postgresql.org/download/"
-        echo "They have pre-build binary packages for most operating systems."
-        echo "You will need to install the server, client, and libpq development components."
-        echo
-        echo "Configure it to trust all connections coming over local Unix sockets"
-        echo "  Add the following line to pg_hba.conf and restart Postgres:"
-        echo "local  all   all    trust "
-        echo
-        echo "Configure postgres to listen on port 5439"
-        echo "  Add the following line to postgresql.conf and restart Postgres:"
-        echo "port = 5439"
-        echo
-        echo "Create a crowbar user for postgres with the following command:"
-        echo "createuser -p 5439 -d crowbar"
-        echo
-        echo "Verify that the Crowbar user can connect to Postgres:"
-        echo "psql postgresql://crowbar@:5439/template1 -c 'select true;'"
+        echo "Postgres 9.3 is not configured for use by Crowbar!"
+        echo "Please consult the dev-tool install instructions"
+        echo "verify using: psql postgresql://crowbar@:5439/template1 -c 'select true;'"
         exit 1
     fi
   local rake_task barclamps dbs_need_reload
@@ -4178,7 +4161,6 @@ reload_test_env() (
           debug "Setting up DB for $RAILS_ENV environment ..."
           (
               export RAILS_ENV
-              export PGCLUSTER=9.3/main
               bundle exec rake \
                   db:create \
                   railties:install:migrations \
@@ -4270,7 +4252,16 @@ run_BDD_tests() (
     [[ $final_result = pass ]]
 )
 
-clear_test_env() { rm -rf "$CROWBAR_TEST_DIR"; }
+clear_test_env() { 
+    cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
+    echo "Deleting Database"
+    export PGCLUSTER=9.3/main
+    RAILS_ENV=development bundle exec rake db:drop
+    echo "Removing Test Directory"
+    rm -rf "$CROWBAR_TEST_DIR"; 
+    echo "Restarting DB"
+    sudo service postgresql restart
+}
 
 # Create a new barclamp.
 create_barclamp() {
@@ -4282,7 +4273,6 @@ create_barclamp() {
 	git add .
 	git commit -m "Initial commit"
     )
-
 }
 
 erase_feature() { erase_release "feature/$1"; }
