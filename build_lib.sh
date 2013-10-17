@@ -51,19 +51,28 @@ declare -A CACHED_PACKAGES
 
 GEM_EXT_RE='^(.*)-\((.*)\)$'
 
+# Extract the contents of a single git file from a repository
+git_cat_file() (
+    # $1 = path to the repository.
+    # $2 = commit-ish to extract metadata from
+    # $3 = Full path in the repository to extract file info from.
+    local mode type sha name
+    [[ -d $1/.git || -f $1/.git ]] || \
+        die "$1 is not a git repository"
+    cd "$1"
+    branch_exists "$2" || die "$2 is not a branch in $1"
+    read mode type sha name < <(git ls-tree --full-tree "$2" "$3")
+    [[ $sha ]] || die "$3 does not exist in branch $2 in $1"
+    [[ $type = "blob" ]] || die "$3 is not a file"
+    git cat-file blob "$sha"
+)
+
 extract_barclamp_metadata() {
     # $1 = path to barclamp
     # $2 = git commit-ish to extract metadata from
     # Returns path to extracted crowbar.yml.
-    local mode type sha name
-    [[ -d $CROWBAR_DIR/barclamps/$1/.git || \
-        -f $CROWBAR_DIR/barclamps/$1/.git ]] || \
-        die "$1 is not a barclamp/."
     if [[ $2 ]]; then
-        read mode type sha name < <(cd "$CROWBAR_DIR/barclamps/$1"; git ls-tree "$2" crowbar.yml)
-        [[ $name ]] || return
-        [[ -f $CROWBAR_TMP/$sha.yml ]] || \
-            (cd "$CROWBAR_DIR/barclamps/$1"; git cat-file "$type" "$sha") > "$CROWBAR_TMP/$sha.yml"
+        git_cat_file "$1" "$2" "crowbar.yml" "$CROWBAR_TMP/$sha.yml"
         echo "$CROWBAR_TMP/$sha.yml"
     else
         echo "$CROWBAR_DIR/barclamps/$1/crowbar.yml"
