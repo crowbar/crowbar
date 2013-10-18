@@ -7,7 +7,7 @@ update_hostname() {
 }
 
 install_base_packages() {
-    > /etc/yum.repos.d/crowbar-xtras.repo
+    > /etc/zypp/repos.d/crowbar-xtras.repo
     # Make our local cache
     mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra"
     (cd "/tftpboot/$OS_TOKEN/crowbar-extra";
@@ -19,11 +19,11 @@ install_base_packages() {
         done
     )
 
-    log_to yum yum -q -y update
+    log_to zypper zypper update -l -y
 
     # Install the rpm and gem packages
-    log_to yum yum -q -y install rubygems gcc make ruby-devel \
-        libxml2-devel zlib-devel tcpdump nginx efibootmgr
+    log_to zypper zypper install -l -y rubygem\* gcc make ruby-devel \
+        libxml2-devel zlib-devel tcpdump nginx efibootmgr ruby-zyp\*
 
     # stop nginx
     service nginx stop
@@ -31,10 +31,10 @@ install_base_packages() {
 }
 
 bring_up_chef() {
-    log_to yum yum -q -y install rubygem-chef rubygem-kwalify
+    log_to zypper zypper install -l -y rubygem-chef rubygem-kwalify
     service chef-client stop
     killall chef-client
-    log_to yum yum -q -y install rubygem-chef-server \
+    log_to zypper zypper install -l -y rubygem-chef-server \
         curl-devel ruby-shadow patch
     (cd "$DVD_PATH/extra/patches"; chmod +x ./patch.sh; ./patch.sh) || exit 1
     # Default password in chef webui to password
@@ -53,13 +53,13 @@ bring_up_chef() {
 pre_crowbar_fixups() {
     #patch bad gemspecs.
     cp $DVD_PATH/extra/patches/*.gemspec \
-        /usr/lib/ruby/gems/1.8/specifications/
+        /usr/lib/ruby/gems/1.9.1/specifications/
 }
 
 post_crowbar_fixups() { : ; }
 
 update_admin_node() {
-    log_to yum yum -q -y upgrade
+    log_to zypper zypper upgrade -y -l
 }
 
 restart_ssh() {

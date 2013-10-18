@@ -48,13 +48,6 @@ gpgcheck=0
 EOF
 done
 
-## Commented out because not relevant with OpenSUSE
-# Make sure we only try to install x86_64 packages.
-# echo 'exclude = *.i?86' >>/etc/yum.conf
-# Nuke any non-64 bit packages that snuck in.
-# yum -y erase '*.i?86'
-# yum -y makecache
-
 zypper install -l -f createrepo
 
 for bc in "$BASEDIR/dell/barclamps/"*.rpm; do
@@ -72,12 +65,13 @@ gpgcheck=0
 EOF
 fi
 
-# for CentOS.
+# for OpenSUSE.
 (cd "$BASEDIR"; [[ -d Server ]] || ln -sf . Server)
 
 # We prefer rsyslog.
 zypper install -l -f rsyslog
 systemctl enable rsyslog
+rcsyslog restart
 
 ### Not needed on OpenSUSE ###
 # Make sure rsyslog picks up our stuff
@@ -149,4 +143,4 @@ for s in $(cat /proc/cmdline); do
     esac
 done
 
-ln -s /tftpboot/redhat_dvd/extra/install /opt/dell/bin/install-crowbar
+ln -s /tftpboot/opensuse_dvd/extra/install /opt/dell/bin/install-crowbar

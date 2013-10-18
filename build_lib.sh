@@ -1176,7 +1176,7 @@ do_crowbar_build() {
     [[ $VERSION ]] || VERSION="$(crowbar_version).dev"
 
     # Name of the built iso we will build
-    [[ $BUILT_ISO ]] || BUILT_ISO="crowbar-${VERSION}.iso"
+    [[ $BUILT_ISO ]] || BUILT_ISO="crowbar-${VERSION}-${OS}-${OS_VERSION}.iso"
 
     # If we were not passed a list of barclamps to include,
     # pull in all of the ones declared as submodules.

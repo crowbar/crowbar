@@ -254,6 +254,7 @@
       <package>glibc-locale</package>
       <package>gnu-unifont-bitmap-fonts</package>
       <package>grub</package>
+      <package>iputils</package>
       <package>less</package>
       <package>libaugeas0</package>
       <package>libdirectfb-1_6-0</package>
@@ -278,6 +279,7 @@
       <package>splashy</package>
       <package>sudo</package>
       <package>suspend</package>
+      <package>sysfsutils</package>
       <package>vim</package>
       <package>yast2-add-on-creator</package>
       <package>yast2-firstboot</package>
@@ -511,7 +513,6 @@
       <package>libedit0-32bit</package>
       <package>libelf0-32bit</package>
       <package>libelf1-32bit</package>
-      <package>libestr0</package>
       <package>libevent-2_0-5</package>
       <package>libevent-2_0-5-32bit</package>
       <package>libexif12</package>
@@ -566,7 +567,6 @@
       <package>libjbig2</package>
       <package>libjbig2-32bit</package>
       <package>libjpeg8-32bit</package>
-      <package>libjson0</package>
       <package>libjson0-32bit</package>
       <package>libkeyutils1-32bit</package>
       <package>liblcms1</package>
@@ -733,6 +733,7 @@
       <package>tar-lang</package>
       <package>tcsh</package>
       <package>tcsh-lang</package>
+      <package>tftp</package>
       <package>udev-mini</package>
       <package>udisks2</package>
       <package>udisks2-lang</package>
@@ -783,4 +784,55 @@
       <username>crowbar</username>
     </user>
   </users>
+  <scripts>
+    <chroot-scripts config:type="list">
+      <script>
+        <chrooted config:type="boolean">false</chrooted>
+        <debug config:type="boolean">true</debug>
+        <feedback config:type="boolean">false</feedback>
+        <feedback_type/>
+        <filename>Install_Crowbar.sh</filename>
+        <interpreter>shell</interpreter>
+        <location><![CDATA[]]></location>
+        <notification/>
+        <source><![CDATA[#/bin/bash
+# Remove the 'set -x' when dev is complete
+set -x
+(
+    ls -al /tmp
+    mount
+    mkdir -p /mnt/srv/tftpboot/opensuse_dvd/dell
+    cd /var/adm/mount/AP*
+    pwd
+    cp -a extra/. /mnt/srv/tftpboot/opensuse_dvd/.
+) &>/mnt/root/post-install-copy.log
+]]></source>
+      </script>
+    </chroot-scripts>
+    <post-scripts config:type="list">
+      <script>
+        <debug config:type="boolean">true</debug>
+        <feedback config:type="boolean">false</feedback>
+        <feedback_type/>
+        <filename>Post_Installer.sh</filename>
+        <interpreter>shell</interpreter>
+        <location><![CDATA[]]></location>
+        <network_needed config:type="boolean">false</network_needed>
+        <notification/>
+        <source><![CDATA[#!/bin/bash
+
+export OS_TOKEN="opensuse-c12.3"
+export BASEDIR="/tftpboot/opensuse_dvd"
+export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
+
+# Remove the 'set -x' when dev is complete
+set -x
+exec &>/root/post-install.log
+
+. /srv/tftpboot/opensuse_dvd/extra/common_install.sh
+~                                                      ]]></source>
+      </script>
+    </post-scripts>
+  </scripts>
+
 </profile>

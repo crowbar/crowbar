@@ -29,7 +29,7 @@ chroot_install() {
 
 install_rubygems() {
     in_chroot which gem &>/dev/null && return 0
-    chroot_install rubygems ruby-devel make gcc kernel-devel
+    chroot_install rubygems\* ruby-devel make gcc kernel-devel
 }
 
 # Fetch (but do not install) packages into the chroot environment
@@ -197,9 +197,9 @@ __make_chroot() {
     [[ $USE_PROXY = 1 && \
         -f $CHROOT/etc/sysconfig/proxy ]] && \
         in_chroot sed -ie "'/^PROXY_ENABLED/ s/yes/no/'" /etc/sysconfig/proxy
-    if [[ $ALLOW_CACHE_UPDATE = true ]]; then
-        in_chroot 'cp /etc/zypp/repos.d.old/* /etc/zypp/repos.d'
-    fi
+#    if [[ $ALLOW_CACHE_UPDATE = true ]]; then
+#        in_chroot 'cp /etc/zypp/repos.d.old/* /etc/zypp/repos.d'
+#    fi
 }
 
 # Extract version information from an RPM file
@@ -269,6 +269,28 @@ iso_boot_prep() {
     cp -a "$BUILD_DIR/extra/isolinux.cfg" "$BUILD_DIR/boot/x86_64/loader/"
     sudo mount -t tmpfs -o size=1K tmpfs "$IMAGE_DIR/boot"
 }
+
+get_boot_info() {
+    while read line; do
+        [[ ! $kernel && ( $line =~ $kernel_re ) ]] && \
+            kernel="${BASH_REMATCH[1]}" || :
+        [[ ! $kernel_params && ( $line =~ $append_re ) ]] && \
+            kernel_params=${BASH_REMATCH[2]} || :
+        [[ ! $initrd && $kernel_params && ( $kernel_params =~ $initrd_re ) ]] && {
+            kernel_params=${kernel_params/append=${BASH_REMATCH[1]}/}
+            initrd="${BASH_REMATCH[1]}"
+        } || :
+    done < "$LOOPDIR/boot/x86_64/loader/isolinux.cfg"
+
+    # Fix up our paths to the initrd and the kernel
+    for d in "$LOOPDIR/boot/x86_64/loader" "$LOOPDIR"; do
+        [[ -f $d/$kernel && -f $d/$initrd ]] || continue
+        kernel="$d/$kernel"
+        initrd="$d/$initrd"
+        break
+    done
+}
+
 
 __check_all_deps() {
     local pkgname pkg token rest bc ok line
