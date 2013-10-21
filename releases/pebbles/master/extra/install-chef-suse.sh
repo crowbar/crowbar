@@ -551,7 +551,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
 
     # install chef and its dependencies
     zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server \
-            couchdb java-1_6_0-ibm rubygem-activesupport
+            couchdb rubygem-activesupport
 
     # also need these (crowbar dependencies):
     zypper in rubygem-app_config rubygem-cstruct rubygem-kwalify rubygem-ruby-shadow \
