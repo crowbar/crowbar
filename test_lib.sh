@@ -28,7 +28,8 @@ SMOKETEST_VLANS[600]="192.168.128.1/24"
 
 ADMIN_HOSTNAMES=("cr0wbar.pwns.joo"
     "vltima.ratio.regvm"
-    "altanoma.nihil.non"
+    "admin.nihil.fit"
+    "omnia.fines.bon"
     "admin.smoke.test"
     "bork.bork.bork")
 
@@ -663,6 +664,29 @@ run_kvm() {
     wait_for_kvm "$vmname" "${waitargs[@]}" || return 1
 }
 
+# This is the Ubuntu/CentOS specific DVD bootloader introspector
+# - it may need to be replaced with a modified function in other OSs
+get_boot_info() {
+    while read line; do
+        [[ ! $kernel && ( $line =~ $kernel_re ) ]] && \
+            kernel="${BASH_REMATCH[1]}" || :
+        [[ ! $kernel_params && ( $line =~ $append_re ) ]] && \
+            kernel_params=${BASH_REMATCH[2]} || :
+        [[ ! $initrd && $kernel_params && ( $kernel_params =~ $initrd_re ) ]] && {
+            kernel_params=${kernel_params/append=${BASH_REMATCH[1]}/}
+            initrd="${BASH_REMATCH[1]}"
+        } || :
+    done < "$LOOPDIR/isolinux/isolinux.cfg"
+
+    # Fix up our paths to the initrd and the kernel
+    for d in "$LOOPDIR/isolinux" "$LOOPDIR"; do
+        [[ -f $d/$kernel && -f $d/$initrd ]] || continue
+        kernel="$d/$kernel"
+        initrd="$d/$initrd"
+        break
+    done
+}
+
 # This expects to be run with the testing lock held.
 # It boots the admin node from the .iso in the testing directory,
 # injecting the appropriate kernel parameters to make things
@@ -703,24 +727,8 @@ run_admin_node() {
         console_re='console=([^ ]+)'
         unset kernel kernel_params initrd
         
-        while read line; do
-            [[ ! $kernel && ( $line =~ $kernel_re ) ]] && \
-                kernel="${BASH_REMATCH[1]}" || :
-            [[ ! $kernel_params && ( $line =~ $append_re ) ]] && \
-                kernel_params=${BASH_REMATCH[2]} || :
-            [[ ! $initrd && $kernel_params && ( $kernel_params =~ $initrd_re ) ]] && {
-                kernel_params=${kernel_params/append=${BASH_REMATCH[1]}/}
-                initrd="${BASH_REMATCH[1]}"
-            } || :
-        done < "$LOOPDIR/isolinux/isolinux.cfg"
+        get_boot_info
         
-        # Fix up our paths to the initrd and the kernel
-        for d in "$LOOPDIR/isolinux" "$LOOPDIR"; do
-            [[ -f $d/$kernel && -f $d/$initrd ]] || continue
-            kernel="$d/$kernel"
-            initrd="$d/$initrd"
-            break
-        done
         [[ $kernel && -f $kernel && $kernel_params && $initrd && -f $initrd ]] || \
             die "Could not find our kernel!"
         kernel_params+=" crowbar.url=http://192.168.124.10:8091/config crowbar.debug.logdest=/dev/ttyS0 crowbar.use_serial_console=true"

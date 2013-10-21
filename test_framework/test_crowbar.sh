@@ -35,6 +35,7 @@ export CROWBAR_DIR
 
 . "$CROWBAR_DIR/build_lib.sh"
 . "$CROWBAR_DIR/test_lib.sh"
+. "$CROWBAR_DIR/${OS}-${OS_VERSION}-extra/-test_lib.sh"
 
 do_help() {
     cat <<EOF
