@@ -694,6 +694,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     touch "$d/nagios/recipes/common.rb"
     knife cookbook upload -o "$d" nagios
     rm -rf "$d"
+    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
 fi
 
 #
