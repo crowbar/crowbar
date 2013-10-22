@@ -42,6 +42,12 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     BARCLAMP_INSTALL_OPTS="--force"
     : ${CROWBAR_JSON:=/root/crowbar/crowbar.json}
     : ${BARCLAMP_SRC:=/root/crowbar/barclamps/}
+    mkdir -p /opt/dell/bin
+    for tool in extra/*; do
+        if [ -f $tool -a -x $tool ]; then
+            install -p -m 0755 $tool /opt/dell/bin/
+        fi
+    done
 fi
 
 LOGFILE=/var/log/crowbar/install.log
