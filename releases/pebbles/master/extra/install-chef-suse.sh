@@ -294,7 +294,7 @@ fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
     REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
-    zypper in rubygems rubygem-json createrepo
+    zypper -n in rubygems rubygem-json createrepo
 fi
 
 json_edit=/opt/dell/bin/json-edit
@@ -550,11 +550,11 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     fi
 
     # install chef and its dependencies
-    zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server \
+    zypper -n --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server \
             couchdb rubygem-activesupport
 
     # also need these (crowbar dependencies):
-    zypper in rubygem-app_config rubygem-cstruct rubygem-kwalify rubygem-ruby-shadow \
+    zypper -n in rubygem-app_config rubygem-cstruct rubygem-kwalify rubygem-ruby-shadow \
             rubygem-sass rubygem-i18n sleshammer tcpdump
 
     # Need this for provisioner to work:
