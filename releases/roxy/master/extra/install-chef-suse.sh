@@ -701,6 +701,11 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     knife cookbook upload -o "$d" nagios
     rm -rf "$d"
     $json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
+
+    # Some barclamps depend on the "pfsdeps" view. Fake it, to make the webui
+    # work for those.
+    install -m 0755 -d /opt/dell/crowbar_framework/app/views/barclamp/git/
+    touch /opt/dell/crowbar_framework/app/views/barclamp/git/_pfsdeps.html.haml
 fi
 
 #
