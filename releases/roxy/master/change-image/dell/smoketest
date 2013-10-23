@@ -15,6 +15,27 @@ if [[ ! -f /opt/dell/.all_nets ]]; then
     /opt/dell/bin/blocking_chef_client.sh
 fi
 
+DISTRO="ubuntu"
+if [ -f /etc/redhat-release ]; then
+  DISTRO="redhat"
+elif [ -f /etc/SuSE-release ]; then
+  DISTRO="suse"
+fi
+export DISTRO
+
+is_suse() {
+    [ "$DISTRO" = "suse" ]
+}
+
+is_redhat() {
+    [ "$DISTRO" = "redhat" ]
+}
+
+is_ubuntu() {
+    [ "$DISTRO" = "ubuntu" ]
+}
+
+export -f is_suse is_redhat is_ubuntu
 
 found_groups=()
 export LOGDIR=/var/log/smoketest
