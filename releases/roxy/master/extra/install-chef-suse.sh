@@ -701,7 +701,7 @@ fi
 # in cookbook dependencies)
 #
 for i in crowbar deployer dns ipmi logging network ntp provisioner \
-         database rabbitmq keystone swift glance cinder quantum nova \
+         database rabbitmq keystone swift glance cinder neutron nova \
          nova_dashboard openstack ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
 done
