@@ -35,7 +35,17 @@ is_ubuntu() {
     [ "$DISTRO" = "ubuntu" ]
 }
 
-export -f is_suse is_redhat is_ubuntu
+install_packages() {
+    if is_suse; then
+      zypper -n install $@
+    elif is_redhat; then
+      sudo yum --assumeyes install $@
+    else
+      sudo apt-get install -y $@
+    fi
+}
+
+export -f is_suse is_redhat is_ubuntu install_packages
 
 found_groups=()
 export LOGDIR=/var/log/smoketest
