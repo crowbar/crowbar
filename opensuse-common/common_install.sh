@@ -118,7 +118,7 @@ for s in $(cat /proc/cmdline); do
             ;;
         crowbar.authkey)
             mkdir -p "/root/.ssh"
-            printf "$VAL\n" | sed 's/\\040/ /g' >>/root/.ssh/authorized_keys
+            printf "$VAL\n" | sed 's/040/ /g' >>/root/.ssh/authorized_keys
             printf "$VAL\n" >>/opt/dell/barclamps/provisioner/chef/cookbooks/provisioner/templates/default/authorized_keys.erb
             ;;
         crowbar.debug)
