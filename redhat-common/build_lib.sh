@@ -131,11 +131,13 @@ add_offline_repos() (
 # For Fedora 17 and later packages are stored in subdirectories bucketed by
 # the first letter of the package name and lower cased
 __pkg_location() {
-    if [ "$OS" = "fedora" -a $OS_VERSION = 18 ]; then
+    if [ "$OS" = "fedora" ]; then
+        if [ "$OS_VERSION" -le 17 ]; then
+	    echo "$(find_cd_pool)/$pkg"
+	else
 	lowercase_pkg=${pkg,,}
         echo "$(find_cd_pool)/${lowercase_pkg:0:1}/$pkg"
-    else
-	echo "$(find_cd_pool)/$pkg"
+        fi
     fi
 }
 
