@@ -133,6 +133,6 @@ ln -s /srv/tftpboot/opensuse_dvd/extra/install /opt/dell/bin/install-crowbar
 echo "PermitRootLogin yes" >>/etc/ssh/sshd_config
 # HACK to work around semi-busted autoyast runlevel/systemd interaction
 systemctl enable sshd
-kexec -l /boot/vmlinux --append=root=/dev/sda2 --initrd=/boot/initrd
+kexec -l /boot/vmlinuz --append=root=/dev/sda2 --initrd=/boot/initrd
 
 exit 0
