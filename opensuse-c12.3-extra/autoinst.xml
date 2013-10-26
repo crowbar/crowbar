@@ -277,6 +277,7 @@
       <package>plymouth-plugin-script</package>
       <package>plymouth-scripts</package>
       <package>python</package>
+      <package>screen</package>
       <package>splashy</package>
       <package>sudo</package>
       <package>suspend</package>
@@ -807,6 +808,9 @@ set -x
     cp -a . /mnt/srv/tftpboot/opensuse_dvd/.
     cd /
     umount /mnt2
+    touch /var/lib/YaST2/reconfig_system
+    sed -i 's/\(FIRSTBOOT_FINISH_FILE=\*\).*/\1\"\/root\/firstboot\.xml\"/' /etc/sysconfig/firstboot
+    sed -i 's/\(FIRSTBOOT_FINISH_ACTION=\*\).*/\1\"reboot\"/' /etc/sysconfig/firstboot
 ) &>/mnt/root/post-install-copy.log
 ]]></source>
       </script>
@@ -836,5 +840,7 @@ exec &>/root/post-install.log
       </script>
     </post-scripts>
   </scripts>
-
+  <firstboot>
+      <firstboot_enabled config:type="boolean">true</firstboot_enabled>
+  </firstboot>
 </profile>
