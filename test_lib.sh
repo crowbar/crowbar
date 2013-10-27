@@ -31,6 +31,7 @@ ADMIN_HOSTNAMES=("cr0wbar.pwns.joo"
     "admin.nihil.fit"
     "omnia.fines.bon"
     "admin.smoke.test"
+    "eheyeh.asher.eheyeh"
     "bork.bork.bork")
 
 ADMIN_HOSTNAME=${ADMIN_HOSTNAMES[$(($RANDOM % ${#ADMIN_HOSTNAMES[@]}))]}
