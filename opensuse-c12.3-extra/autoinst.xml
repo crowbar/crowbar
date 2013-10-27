@@ -807,6 +807,8 @@ set -x
     cp -a . /mnt/srv/tftpboot/opensuse_dvd/.
     cd /
     umount /mnt2
+    sed -i 's/\(FIRSTBOOT_FINISH_ACTION=\*).*/\1\"reboot\"/' /etc/sysconfig/firstboot
+    touch /var/lib/YaST22/reconfig_system
 ) &>/mnt/root/post-install-copy.log
 ]]></source>
       </script>
