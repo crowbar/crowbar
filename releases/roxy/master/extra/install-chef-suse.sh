@@ -57,6 +57,12 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     BARCLAMP_INSTALL_OPTS="--force"
     : ${CROWBAR_JSON:=/root/crowbar/crowbar.json}
     : ${BARCLAMP_SRC:=/root/crowbar/barclamps/}
+    mkdir -p /opt/dell/bin
+    for tool in extra/*; do
+        if [ -f $tool -a -x $tool ]; then
+            install -p -m 0755 $tool /opt/dell/bin/
+        fi
+    done
 fi
 
 LOGFILE=/var/log/crowbar/install.log
@@ -309,7 +315,7 @@ fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
     REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
-    zypper in rubygems rubygem-json createrepo
+    zypper -n in rubygems rubygem-json createrepo
 fi
 
 json_edit=/opt/dell/bin/json-edit
@@ -565,11 +571,11 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     fi
 
     # install chef and its dependencies
-    zypper --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server \
-            couchdb java-1_6_0-ibm rubygem-activesupport
+    zypper -n --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server \
+            couchdb rubygem-activesupport
 
     # also need these (crowbar dependencies):
-    zypper in rubygem-app_config rubygem-cstruct rubygem-kwalify rubygem-ruby-shadow \
+    zypper -n in rubygem-app_config rubygem-cstruct rubygem-kwalify rubygem-ruby-shadow \
             rubygem-sass rubygem-i18n sleshammer tcpdump
 
     # Need this for provisioner to work:
@@ -709,6 +715,12 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     touch "$d/nagios/recipes/common.rb"
     knife cookbook upload -o "$d" nagios
     rm -rf "$d"
+    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
+
+    # Some barclamps depend on the "pfsdeps" view. Fake it, to make the webui
+    # work for those.
+    install -m 0755 -d /opt/dell/crowbar_framework/app/views/barclamp/git/
+    touch /opt/dell/crowbar_framework/app/views/barclamp/git/_pfsdeps.html.haml
 fi
 
 #
