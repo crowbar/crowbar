@@ -193,14 +193,18 @@ final_build_fixups() {
     (   cd "$BUILD_DIR/initrd";
         debug "Adding all nic drivers"
         for udeb in "$IMAGE_DIR/pool/main/l/linux/"nic-*-generic-*.udeb; do
-            ar x "$udeb"
-            tar xzf data.tar.gz
-            rm -rf debian-binary *.tar.gz
+             [[ -f $udeb ]] && {
+                ar x "$udeb"
+                tar xzf data.tar.gz
+                rm -rf debian-binary *.tar.gz
+            } 
         done
         # bnx2x nic drivers require firmware images from the kernel image .deb
-        ar x "$IMAGE_DIR/pool/main/l/linux/"linux-image-*-generic_*.deb
-        tar xjf data.tar.bz2 --wildcards './lib/firmware/*/bnx2x/*'
-        rm -rf debian-binary control.tar.gz data.tar.bz2
+        [[ -f "$IMAGE_DIR/pool/main/l/linux/"linux-image-*-generic_*.deb ]] \
+        && { ar x "$IMAGE_DIR/pool/main/l/linux/"linux-image-*-generic_*.deb
+           tar xjf data.tar.bz2 --wildcards './lib/firmware/*/bnx2x/*'
+           rm -rf debian-binary control.tar.gz data.tar.bz2
+        } 
         # Make sure installing off a USB connected DVD will work
         debug "Adding USB connected DVD support"
         mkdir -p var/lib/dpkg/info
