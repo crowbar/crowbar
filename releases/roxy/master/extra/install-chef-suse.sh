@@ -58,7 +58,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     : ${CROWBAR_JSON:=/root/crowbar/crowbar.json}
     : ${BARCLAMP_SRC:=/root/crowbar/barclamps/}
     mkdir -p /opt/dell/bin
-    for tool in extra/*; do
+    for tool in extra/* change-image/dell/*; do
         if [ -f $tool -a -x $tool ]; then
             install -p -m 0755 $tool /opt/dell/bin/
         fi
