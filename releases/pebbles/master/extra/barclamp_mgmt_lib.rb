@@ -498,6 +498,8 @@ def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
     temp.close!
   end
 
+  do_migrate = check_schema_migration(bc)
+
   if from_rpm
     rpm = 'crowbar-barclamp-' + File.basename(bc_path)
     debug "obtaining chef components from #{rpm} rpm"
@@ -513,6 +515,53 @@ def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
   end
 
   puts "Barclamp #{bc} (format v1) Chef Components Uploaded."
+
+  if do_migrate
+    debug "Migrating schema to new revision..."
+    File.open(log, "a") { |f| f.puts("======== Migrating #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
+    migrate_cmd = "cd #{CROWBAR_PATH} && rake --silent crowbar:schema_migrate_prod[#{bc}] 2>&1"
+    migrate_cmd_su = "su -s /bin/sh - crowbar sh -c \"#{migrate_cmd}\" >> #{log}"
+    debug "running #{migrate_cmd_su}"
+    unless system migrate_cmd_su
+      fatal "Failed to migrate barclamp #{bc} to new schema revision.", log
+    end
+    debug "\t executed: #{migrate_cmd_su}"
+    puts "Barclamp #{bc} (format v1) Chef Components Migrated."
+  else
+    debug "No need to migrate schema to new revision"
+  end
+end
+
+def check_schema_migration(bc)
+  template_file = File.join BASE_PATH, 'chef', 'data_bags', 'crowbar', "bc-template-#{bc}.json"
+  debug "Looking for new schema-revision in #{template_file}..."
+  new_schema_revision = nil
+  begin
+    if File.exists? template_file
+      template = JSON::load File.open(template_file, 'r')
+      new_schema_revision = template["deployment"][bc]["schema-revision"]
+      debug "New schema-revision for #{bc} is #{new_schema_revision}"
+    end
+  rescue StandardError
+    # pass
+  end
+  debug "No new schema-revision found for #{bc}" if new_schema_revision.nil?
+
+  debug "Looking for previous schema-revision..."
+  old_schema_revision = nil
+  begin
+    old_json = `knife data bag show -F json crowbar bc-template-#{bc} -k /etc/chef/webui.pem -u chef-webui 2> /dev/null`
+    if $?.success?
+      template = JSON::load old_json
+      old_schema_revision = template["deployment"][bc]["schema-revision"]
+      debug "Previous schema-revision for #{bc} is #{old_schema_revision}"
+    end
+  rescue StandardError
+    # pass
+  end
+  debug "No previous schema-revision found for #{bc}" if old_schema_revision.nil?
+
+  return old_schema_revision != new_schema_revision
 end
 
 def get_rpm_file_list(rpm)
