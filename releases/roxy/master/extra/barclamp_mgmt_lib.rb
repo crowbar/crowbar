@@ -245,7 +245,7 @@ def bc_replacer(item, bc, entity)
   debug "bc_replacer method called with debug option enabled"
   debug "bc_replacer args: item=#{item}, bc=#{bc}, entity=#{entity}"
 
-  new_item = item.clone  
+  new_item = item.clone
   new_item.gsub!(MODEL_SUBSTRING_BASE, bc)
   new_item.gsub!(MODEL_SUBSTRING_CAMEL, bc.camelize)
   new_item.gsub!(MODEL_SUBSTRING_HUMAN, bc.humanize)
@@ -555,6 +555,9 @@ def check_schema_migration(bc)
       template = JSON::load old_json
       old_schema_revision = template["deployment"][bc]["schema-revision"]
       debug "Previous schema-revision for #{bc} is #{old_schema_revision}"
+    else
+      debug "Failed to retrieve bc-template-#{bc}, no migration necessary"
+      return false
     end
   rescue StandardError
     # pass
