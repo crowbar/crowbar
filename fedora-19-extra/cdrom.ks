@@ -35,7 +35,7 @@ firewalld
 iptables-services
 kernel
 openssh
-syslinux-extlinux
+#syslinux-extlinux
 trousers
 
 -audit

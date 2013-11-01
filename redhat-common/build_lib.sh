@@ -20,6 +20,7 @@ chroot_update() { in_chroot /usr/bin/yum -y makecache; }
 
 # Install some packages in the chroot environment.
 chroot_install() {
+    in_chroot /usr/bin/yum --enablerepo=updates clean metadata
     if [[ $1 ]]; then
         in_chroot /usr/bin/yum -y install "$@"
     fi
