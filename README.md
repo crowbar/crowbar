@@ -1,32 +1,26 @@
-# Welcome to Crowbar [![Build Status](https://travis-ci.org/crowbar/travis-ci-crowbar.png?branch=master)](https://travis-ci.org/crowbar/travis-ci-crowbar) [![Coverage Status](https://coveralls.io/repos/crowbar/travis-ci-crowbar/badge.png?branch=master)](https://coveralls.io/r/crowbar/travis-ci-crowbar) [![Code Climate](https://codeclimate.com/github/crowbar/travis-ci-crowbar.png)](https://codeclimate.com/github/crowbar/travis-ci-crowbar) [![Dependency Status](https://gemnasium.com/crowbar/travis-ci-crowbar.png)](https://gemnasium.com/crowbar/travis-ci-crowbar)
+# Crowbar Documentation README
 
-## What is Crowbar?
+_This is not the documentation you are looking for, it is a pointer to the real documentation_
 
-Crowbar is an Open Source platform for server provisioning and
-deployment from bare metal. It provides server discovery, firmware
-upgrades, and operating system installation using PXE Boot. It deploys
-applications on top of functioning operating systems using chef.
+## Looking for Crowbar Resources?
 
-## Where did Crowbar come from?
+[The Crowbar website](http://crowbar.github.io) has links to all information and is our recommended starting place.
 
-Crowbar was developed by the [Dell CloudEdge Solutions Team]
-(http://dell.com/openstack) as an [OpenStack](http://OpenStack.org) installer,
-but has evolved as a much broader orchestration tool.
+## Specific Crowbar Documentation 
 
-## Documentation
+We track Crowbar documentation with the code so that we can track versions of documentation with the code.
 
-Please see [the wiki](https://github.com/crowbar/crowbar/wiki) for
-links to documentation.  You can also find substantial documentation
-under the [`doc/`](doc/) directory of this repository.
+Here are commonly requested references:
 
-## License
+* [Getting Started Guide](https://github.com/crowbar/barclamp-crowbar/tree/master/doc/gettingstarted.md)
+* [User Resources](https://github.com/crowbar/barclamp-crowbar/tree/master/doc/userguide.md)
+* [Developer Resources](https://github.com/crowbar/barclamp-crowbar/tree/master/doc/devguide.md)
+* [Crowbar Release Management](https://github.com/crowbar/barclamp-crowbar/tree/master/doc/releases.md)
 
-The code and documentation are distributed under the [Apache 2
-license](http://www.apache.org/licenses/LICENSE-2.0.html).
+> You may need to look in subdirectories under the links below for additional details.
 
-## Getting involved
+## Background
+Crowbar documentation is distributed into multiple places under the /doc directory of each Crowbar module (aka "barclamps").  When the modules are installed, Crowbar combines all the /doc directories into a master documentation set.  These directories are structured into subdirectories for general topics.  This structure is common across all barclamps in the [Crowbar project](https://github.com/crowbar/)
 
-Crowbar is a public project, and all contributions are welcome.
-Please see the [development wiki
-page](https://github.com/crowbar/crowbar/wiki/Development) for more
-information.
+> Please, do NOT add documentation in locations besides /doc!  If necessary, expand this README to include pointers to important /doc information.
+
