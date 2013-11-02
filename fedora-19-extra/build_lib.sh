@@ -43,7 +43,7 @@ ISO_MIRROR=http://mirrors.kernel.org/fedora/releases/$OS_VERSION/Fedora/x86_64/i
 
 # We always want to shrink the generated ISO, otherwise the install will
 # fail due to lookingfor packages on the second ISO that we don't have.
-SHRINK_ISO=true
+#SHRINK_ISO=true
 
 # The location of OS packages on $ISO
 find_cd_pool() ( echo "$IMAGE_DIR/Packages" )
