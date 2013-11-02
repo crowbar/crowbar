@@ -39,7 +39,7 @@ for bc in "$BASEDIR/dell/barclamps/"*.rpm; do
     cp "$bc" /opt/dell/rpms
 done
 if [[ -d /opt/dell/rpms ]]; then
-    (cd /opt/dell/rpms; createrepo -d -q .)
+#    (cd /opt/dell/rpms; createrepo -d -q .)
     cat >"/etc/zypp/repos.d/crowbar.repo" <<EOF
 [crowbar]
 name=Crowbar Packages
@@ -52,7 +52,7 @@ fi
 sed -i -e '/^id/ s/5/3/' /etc/inittab
 
 # We prefer rsyslog.
-zypper install -l -f rsyslog
+zypper install -l -f -n -y rsyslog
 systemctl enable rsyslog
 
 # put the chef files in place
@@ -86,10 +86,6 @@ chmod +x "$BASEDIR/extra/"*
 
 # This directory is the model to help users create new barclamps
 cp -r /opt/dell/barclamps/crowbar/crowbar_framework/barclamp_model /opt/dell || :
-
-# "Blacklisting IPv6".
-echo "blacklist ipv6" >>/etc/modprobe.d/50-blacklist-ipv6.conf
-echo "options ipv6 disable=1" >>/etc/modprobe.d/50-blacklist-ipv6.conf
 
 # Make sure the ownerships are correct
 chown -R crowbar.admin /opt/dell

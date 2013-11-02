@@ -251,7 +251,6 @@
       <package>Mesa-libGLESv2-2</package>
       <package>autoyast2</package>
       <package>autoyast2-installation</package>
-      <package>createrepo</package>
       <package>dmidecode</package>
       <package>glibc-locale</package>
       <package>gnu-unifont-bitmap-fonts</package>
@@ -279,6 +278,7 @@
       <package>plymouth-plugin-script</package>
       <package>plymouth-scripts</package>
       <package>python</package>
+      <package>rsync</package>
       <package>screen</package>
       <package>splashy</package>
       <package>sudo</package>
@@ -788,54 +788,27 @@
     </user>
   </users>
   <scripts>
-    <chroot-scripts config:type="list">
-      <script>
-        <chrooted config:type="boolean">false</chrooted>
-        <debug config:type="boolean">true</debug>
-        <feedback config:type="boolean">false</feedback>
-        <feedback_type/>
-        <filename>Install_Crowbar.sh</filename>
-        <interpreter>shell</interpreter>
-        <location><![CDATA[]]></location>
-        <notification/>
-        <source><![CDATA[#/bin/bash
-# Remove the 'set -x' when dev is complete
-set -x
-(
-    mkdir /mnt2
-    mount -o ro /dev/sr0 /mnt2
-    mkdir -p /mnt/srv/tftpboot/opensuse_dvd/dell
-    cd /mnt2
-    cp -a . /mnt/srv/tftpboot/opensuse_dvd/.
-    cd /
-    umount /mnt2
-) &>/mnt/root/post-install-copy.log
-]]></source>
-      </script>
-    </chroot-scripts>
     <init-scripts config:type="list">
       <script>
         <debug config:type="boolean">true</debug>
-        <feedback config:type="boolean">false</feedback>
-        <feedback_type/>
         <filename>Post_Installer.sh</filename>
         <interpreter>shell</interpreter>
-        <location><![CDATA[]]></location>
-        <network_needed config:type="boolean">true</network_needed>
-        <notification/>
         <source><![CDATA[#!/bin/bash
 export OS_TOKEN="opensuse-c12.3"
 export BASEDIR="/srv/tftpboot/opensuse_dvd"
 export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 
-# Remove the 'set -x' when dev is complete
-set -x
-
-exec &>/root/post-install.log
+mount -o ro /dev/sr0 /mnt
+mkdir -p /srv/tftpboot/opensuse_dvd/dell
+#(cd /mnt; tar cpf - .) | (cd /srv/tftpboot/opensuse_dvd; tar xvpf - .)
+rsync -av --log-file=/root/copy-dvd2tftpboot.log /mnt/. /srv/tftpboot/opensuse_dvd/.
+umount /mnt
 
 . /srv/tftpboot/opensuse_dvd/extra/common_install.sh
-rcnetwork restart
-rcsshd restart
+
+# Copy logs from autoyast area into /root
+cp -v /var/adm/autoyast/logs /root/
+
 ]]></source>
       </script>
     </init-scripts>
