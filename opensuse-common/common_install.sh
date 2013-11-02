@@ -6,10 +6,7 @@
     cd "/srv/tftpboot/$OS_TOKEN"
     ln -s ../opensuse_dvd install)
 
-REPO_URL="file:///srv/tftpboot/$OS_TOKEN/install/Server"
-[[ -d tftpboot/$OS_TOKEN/install/repodata ]] && \
-    REPO_URL="file:///tftpboot/$OS_TOKEN/install"
-
+REPO_URL="file:///srv/tftpboot/$OS_TOKEN/install/suse"
 cat >"/etc/zypp/repos.d/$OS_TOKEN-Base.repo" <<EOF
 [$OS_TOKEN-Base]
 name=$OS_TOKEN Base
@@ -24,7 +21,6 @@ for i in "$BASEDIR/dell/barclamps/"*".tar.gz"; do
     ( cd "/opt/dell/barclamps"; tar xzf "$i"; )
 done
 
-
 find /opt/dell/barclamps -type d -name cache -maxdepth 2 | while read src; do
     [[ -d $src/$OS_TOKEN/pkgs/repodata ]] || continue
     bc=${src%/cache}
@@ -36,8 +32,6 @@ baseurl=file://$src/$OS_TOKEN/pkgs
 gpgcheck=0
 EOF
 done
-
-zypper install -l -f createrepo
 
 for bc in "$BASEDIR/dell/barclamps/"*.rpm; do
     [[ -f $bc ]] || continue
@@ -53,9 +47,6 @@ baseurl=file:///opt/dell/rpms
 gpgcheck=0
 EOF
 fi
-
-# for OpenSUSE.
-(cd "$BASEDIR"; [[ -d Server ]] || ln -sf . Server)
 
 # Make runlevel 3 the default
 sed -i -e '/^id/ s/5/3/' /etc/inittab
@@ -131,8 +122,7 @@ done
 
 ln -s /srv/tftpboot/opensuse_dvd/extra/install /opt/dell/bin/install-crowbar
 echo "PermitRootLogin yes" >>/etc/ssh/sshd_config
-# HACK to work around semi-busted autoyast runlevel/systemd interaction
-systemctl enable sshd
-kexec -l /boot/vmlinuz --append=root=/dev/sda2 --initrd=/boot/initrd
+sync; sync; sync
+reboot -f
 
 exit 0

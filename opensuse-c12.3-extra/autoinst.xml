@@ -250,6 +250,8 @@
       <package>Mesa-libEGL1</package>
       <package>Mesa-libGLESv2-2</package>
       <package>autoyast2</package>
+      <package>autoyast2-installation</package>
+      <package>createrepo</package>
       <package>dmidecode</package>
       <package>glibc-locale</package>
       <package>gnu-unifont-bitmap-fonts</package>
@@ -288,7 +290,6 @@
       <package>yast2-python-bindings</package>
       <package>yast2-schema</package>
       <package>zypper</package>
-      <package>autoyast2-installation</package>
     </packages>
     <do_online_update config:type="boolean">false</do_online_update>
     <patterns config:type="list">
@@ -808,14 +809,11 @@ set -x
     cp -a . /mnt/srv/tftpboot/opensuse_dvd/.
     cd /
     umount /mnt2
-    sed -i 's/\(FIRSTBOOT_FINISH_FILE=\*\).*/\1\"\/root\/firstboot\.xml\"/' /etc/sysconfig/firstboot
-    sed -i 's/\(FIRSTBOOT_FINISH_ACTION=\*\).*/\1\"reboot\"/' /etc/sysconfig/firstboot
-    touch /var/lib/YaST22/reconfig_system
 ) &>/mnt/root/post-install-copy.log
 ]]></source>
       </script>
     </chroot-scripts>
-    <post-scripts config:type="list">
+    <init-scripts config:type="list">
       <script>
         <debug config:type="boolean">true</debug>
         <feedback config:type="boolean">false</feedback>
@@ -826,7 +824,6 @@ set -x
         <network_needed config:type="boolean">true</network_needed>
         <notification/>
         <source><![CDATA[#!/bin/bash
-
 export OS_TOKEN="opensuse-c12.3"
 export BASEDIR="/srv/tftpboot/opensuse_dvd"
 export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
@@ -836,11 +833,11 @@ set -x
 
 exec &>/root/post-install.log
 
-. /srv/tftpboot/opensuse_dvd/extra/common_install.sh]]></source>
+. /srv/tftpboot/opensuse_dvd/extra/common_install.sh
+rcnetwork restart
+rcsshd restart
+]]></source>
       </script>
-    </post-scripts>
+    </init-scripts>
   </scripts>
-  <firstboot>
-      <firstboot_enabled config:type="boolean">true</firstboot_enabled>
-  </firstboot>
 </profile>
