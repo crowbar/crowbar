@@ -12,6 +12,7 @@ for p in redhat_dvd ubuntu_dvd; do
     BASEDIR="$DVD_PATH"
     break
 done
+[[ -d /srv/tftpboot/opensuse_dvd ]] && DVD_PATH="/srv/tftpboot/opensuse_dvd"
 unset p
 
 touch /tmp/.crowbar_in_bootstrap
@@ -35,6 +36,25 @@ service postgresql start
 sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
 elif [[ -f /etc/SuSE-release ]]; then
     OS=suse
+    ( grep openSUSE /etc/SuSE-release ) && OS=opensuse
+    zypper install -y -l ruby ruby19 ruby-devel ruby19-devel libxml2-devel \ 
+        libxslt1 libxslt-devel libxslt-tools zlib-devel \
+        postgresql93 postgresql93-server postgresql93-contrib libpq5 \
+        libossp-uuid16 libcpg6
+    # Hack up local postgres to only listen on domain sockets.
+    # Need to start postresql to create database control directories
+    #  then stop it so we can edit the configuration.
+    rcpostgresql start
+    rcpostgreql stop
+    cat >/var/lib/pgsql/data/pg_hba.conf <<EOF
+local   all             postgres                                peer
+local   all             all                                     trust
+EOF
+echo "listen_addresses = ''" >>/var/lib/pgsql/data/postgresql.conf
+sed -i '/^port/ s/5432/5439/' /var/lib/pgsql/data/postgresql.conf
+sed -i 's/#port/port/' /var/lib/pgsql/data/postgresql.conf
+rcpostgresql restart
+sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
 else
     die "Staged on to unknown OS media!"
 fi

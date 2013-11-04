@@ -69,11 +69,6 @@ mkdir -p /opt/dell/bin
 finishing_scripts=(update_hostname.sh parse_node_data)
 ( cd "$BASEDIR/dell"; cp "${finishing_scripts[@]}" /opt/dell/bin; )
 
-# "Install h2n for named management"
-cd /opt/dell/
-tar -zxf "$BASEDIR/extra/h2n.tar.gz"
-ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n
-
 barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
 ( cd "/opt/dell/barclamps/crowbar/bin" &&  \
     cp "${barclamp_scripts[@]}" /opt/dell/bin || :)

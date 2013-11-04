@@ -24,7 +24,7 @@ if [[ -d /opt/dell/rpms ]]; then
 else
     installer="./install-chef.sh"
 fi
-cd /tftpboot/opensuse_dvd/extra
+cd /srv/tftpboot/opensuse_dvd/extra
 if screen -ls |grep -q crowbar-install; then
     echo "Crowbar install is already running."
     echo "You can attach to it with 'screen -r -S crowbar-install'"
