@@ -37,7 +37,7 @@ sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
 elif [[ -f /etc/SuSE-release ]]; then
     OS=suse
     ( grep openSUSE /etc/SuSE-release ) && OS=opensuse
-    zypper install -y -l ruby ruby19 ruby-devel ruby19-devel libxml2-devel \ 
+    zypper install -y -l ruby ruby19 ruby-devel ruby19-devel libxml2-devel \
         libxslt1 libxslt-devel libxslt-tools zlib-devel \
         postgresql93 postgresql93-server postgresql93-contrib libpq5 \
         libossp-uuid16 libcpg6
@@ -122,7 +122,7 @@ cat > /etc/rsyslog.d/10-noratelimit.conf <<EOF
 EOF
 
 # Bounce rsyslog to let it know our hostname is correct and not to rate limit
-if [[ $OS = suse ]]; then
+if [[[ $OS = suse ]] || [[ $OS = opensuse ]]]; then
     service syslog restart || :
 else
     service rsyslog restart || :
@@ -170,6 +170,36 @@ EOF
     )
 fi
 
+if [[ $OS = opensuse ]]; then
+    # Link the discovery image to an off-DVD location.
+    [[ -d ${DVD_PATH}/discovery ]] && mv "${DVD_PATH}/discovery" "/srv/tftpboot"
+
+    # Lift the gems off the install media for easy file serving.
+    mkdir -p /srv/tftpboot/gemsite/gems
+    find "/opt/dell/barclamps" -path '*/gems/*.gem' \
+        -exec ln -sf '{}' /srv/tftpboot/gemsite/gems ';'
+
+    # Arrange for all our gem binaries to be installed into /usr/local/bin
+    cat >/etc/gemrc <<EOF
+:sources:
+- file:///srv/tftpboot/gemsite/
+gem: --no-ri --no-rdoc --bindir /usr/local/bin
+EOF
+
+    # This is ugly, but there does not seem to be a better way
+    # to tell Chef to just look in a specific location for its gems.
+    echo "$(date '+%F %T %z'): Arranging for gems to be installed"
+    (   cd /srv/tftpboot/gemsite/gems
+        for gem in builder json net-http-digest_auth activesupport i18n \
+            daemons xml-simple libxml-ruby wsman cstruct ; do
+            gem install --local --no-ri --no-rdoc $gem-*.gem || :
+        done
+        cd ..
+        gem generate_index
+    )
+fi
+
+
 if [[ $OS = ubuntu ]]; then
     if ! dpkg-query -S /opt/dell/bin/crowbar_crowbar; then
         (   cd "$DVD_PATH/extra"
@@ -181,7 +211,7 @@ if [[ $OS = ubuntu ]]; then
 elif [[ $OS = redhat ]]; then
     yum -y makecache
     yum -y install 'crowbar-barclamp-*'
-elif [[ $OS = suse ]]; then
+elif [[[ $OS = suse ]] || [[ $OS = opensuse ]]]; then
     zypper --gpg-auto-import-keys -n in -t pattern Crowbar_Admin
 else
     die "Cannot install onto unknown OS $OS!"
@@ -192,7 +222,7 @@ fi
 ###
 
 # Install prerequisite gems
-if [[ $OS = suse ]]; then
+if [[[ $OS = suse ]] || [[ $OS = opensuse ]]]; then
     BUNDLE_INSTALL_ARGS="--local"
 else
     gem install bundler rake

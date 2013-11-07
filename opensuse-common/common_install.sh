@@ -113,7 +113,5 @@ done
 
 ln -s /srv/tftpboot/opensuse_dvd/extra/install /opt/dell/bin/install-crowbar
 echo "PermitRootLogin yes" >>/etc/ssh/sshd_config
-sync; sync; sync
-reboot -f
 
 exit 0
