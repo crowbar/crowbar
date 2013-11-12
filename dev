@@ -1185,7 +1185,19 @@ list_pull_requests() {
             cn=""
         fi
         ct="${id%%/*}"
-        echo "$idx: ($(cat "$cr")$cn) $(cat "$cf")"
+        lrepo=""
+        lurl=""
+        prq="$OPEN_PULL_REQUESTS/$id"
+        case $id in
+            singletons/*)
+               . <(source_prq_vars "$prq" "local")
+               lrepo="$prq_local_repo"
+               lurl=", $prq_github_url";;
+            bundles/*)
+                   lrepo="Multiple";;
+        esac
+
+        echo "$idx: ($(cat "$cr")$cn - $lrepo) $(cat "$cf")$lurl"
     done <"$OPEN_PULL_REQUESTS/pull_request_index"
 }
 
