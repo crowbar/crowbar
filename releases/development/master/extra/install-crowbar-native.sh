@@ -122,7 +122,7 @@ cat > /etc/rsyslog.d/10-noratelimit.conf <<EOF
 EOF
 
 # Bounce rsyslog to let it know our hostname is correct and not to rate limit
-if [[[ $OS = suse ]] || [[ $OS = opensuse ]]]; then
+if [[ ( $OS = suse ) || ( $OS = opensuse ) ]]; then
     service syslog restart || :
 else
     service rsyslog restart || :
@@ -211,7 +211,7 @@ if [[ $OS = ubuntu ]]; then
 elif [[ $OS = redhat ]]; then
     yum -y makecache
     yum -y install 'crowbar-barclamp-*'
-elif [[[ $OS = suse ]] || [[ $OS = opensuse ]]]; then
+elif [[ ( $OS = suse ) || ( $OS = opensuse ) ]]; then
     zypper --gpg-auto-import-keys -n in -t pattern Crowbar_Admin
 else
     die "Cannot install onto unknown OS $OS!"
@@ -222,7 +222,7 @@ fi
 ###
 
 # Install prerequisite gems
-if [[[ $OS = suse ]] || [[ $OS = opensuse ]]]; then
+if [[ ( $OS = suse ) || ( $OS = opensuse ) ]]; then
     BUNDLE_INSTALL_ARGS="--local"
 else
     gem install bundler rake
