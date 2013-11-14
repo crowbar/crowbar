@@ -19,8 +19,9 @@
   # the 1st choice is to use the code from the framework since it is most up to date
   # however, that code is not always available when installing
 
-require '/opt/dell/bin/barclamp_mgmt_lib.rb'
 require 'getoptlong'
+
+require File.expand_path('../barclamp_mgmt_lib', __FILE__)
 
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
@@ -56,7 +57,7 @@ usage if ARGV.length < 1
     debug "Using #{path}"
     bc_file = File.join path, 'crowbar.yml'
     unless File.exist? bc_file
-      path = File.join '/opt', 'dell', 'barclamps', path
+      path = File.join BARCLAMP_PATH, path
       bc_file = File.join path, 'crowbar.yml'
     end
     barclamp = YAML.load_file bc_file
