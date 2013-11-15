@@ -293,9 +293,7 @@ if ! [[ $* = *--wizard* ]]; then
         -X POST http://localhost:3000/network/api/v2/networks \
         -d "name=admin" \
         -d "deployment=system" \
-        -d "conduit=1g0,1g1"  \
-        -d "use_team=true"  \
-        -d "team_mode=6"  \
+        -d "conduit=1g0"  \
         -d 'ranges=[ { "name": "admin", "first": "192.168.124.10/24", "last": "192.168.124.11/24"},{"name": "host", "first": "192.168.124.81/24", "last": "192.168.124.254/24"},{"name": "dhcp", "first": "192.168.124.21/24", "last": "192.168.124.80/24"}]'
 
     # Create the admin node entry.
