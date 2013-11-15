@@ -4005,7 +4005,11 @@ databases_need_reload() {
         done
     done
     # and also make sure that we have a database in postgresql database (1 = yes, 0 = no)
-    return $(psql -l | grep crowbar_development | wc -l )
+    if psql -l postgresql://crowbar@:5439/template1 | grep -q crowbar_development; then
+        false
+    else
+        true
+    fi
 }
 
 reinstall_barclamps() {
@@ -4148,29 +4152,19 @@ reload_test_env() (
 
   if [[ $dbs_need_reload ]]; then
       cd "$CROWBAR_TEST_DIR/opt/dell/crowbar_framework"
-
-      # For some bizarre reason, rake db:drop in development
-      # also drops the test database.
-      # https://github.com/rails/rails/pull/2419
-      export RAILS_ENV=development
-      bundle exec rake db:drop
-
       # If you change these, don't forget to also update .travis.yml and
       # doc/devguide/testing!
       for RAILS_ENV in test development; do
           debug "Setting up DB for $RAILS_ENV environment ..."
           (
               export RAILS_ENV
-              bundle exec rake \
-                  db:create \
-                  railties:install:migrations \
-                  db:migrate
-              bundle exec script/rails generate delayed_job
+              echo "Dropping database for $RAILS_ENV"
+              bundle exec rake db:drop  || :
+              echo "Creating database for $RAILS_ENV"
+              bundle exec rake db:create || die "Cannot create database for $RAILS_ENV!"
+              bundle exec rake railties:install:migrations db:migrate
               bundle exec script/rails generate delayed_job:active_record
-              bundle exec rake \
-                  db:migrate \
-                  db:fixtures:dump \
-                  RAILS_ENV=$RAILS_ENV
+              bundle exec rake db:migrate db:fixtures:dump RAILS_ENV=$RAILS_ENV
           )
       done
   fi
