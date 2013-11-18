@@ -1,10 +1,5 @@
 #!/bin/bash
 
-if [ -z "$(type -p curl 2>/dev/null)" ]; then
-   echo "No curl installed.  Please install curl."
-   exit 1
-fi
-
 export LANG="C"
 export LC_ALL="C"
 
@@ -93,6 +88,9 @@ which gem &>/dev/null || \
 
 gem list -i json &>/dev/null || \
     die "JSON gem not installed.  Please install it with gem install json."
+
+[[ $(type -p curl 2>/dev/null) ]] || \
+    die "No curl installed.  Please install curl."
 
 set -o pipefail
 shopt -s extglob
