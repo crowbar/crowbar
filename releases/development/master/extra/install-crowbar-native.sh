@@ -19,6 +19,28 @@ touch /tmp/.crowbar_in_bootstrap
 if [[ -f /etc/redhat-release || -f /etc/centos-release ]]; then
     OS=redhat
     yum -y install ruby rubygems ruby-devel libxml2-devel zlib-devel gcc make
+elif [[ -f /etc/SuSE-release ]]; then
+    OS=suse
+    ( grep openSUSE /etc/SuSE-release ) && OS=opensuse
+    zypper ll | cut -f1 -d ' ' | xargs zypper --non-interactive rl
+    zypper install -y -l ruby ruby19 ruby-devel ruby19-devel libxml2-devel \
+        libxslt1 libxslt-devel libxslt-tools zlib-devel rsyslog \
+        postgresql93 postgresql93-server postgresql93-contrib libpq5 \
+        libossp-uuid16 libecpg6
+    # Hack up local postgres to only listen on domain sockets.
+    # Need to start postresql to create database control directories
+    #  then stop it so we can edit the configuration.
+    rcpostgresql start
+    rcpostgresql stop
+    cat >/var/lib/pgsql/data/pg_hba.conf <<EOF
+local   all             postgres                                peer
+local   all             all                                     trust
+EOF
+    echo "listen_addresses = ''" >>/var/lib/pgsql/data/postgresql.conf
+    sed -i '/^port/ s/5432/5439/' /var/lib/pgsql/data/postgresql.conf
+    sed -i 's/#port/port/' /var/lib/pgsql/data/postgresql.conf
+    rcpostgresql restart
+    sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
 elif [[ -d /etc/apt ]]; then
     OS=ubuntu
     apt-get -y install ruby1.9.1 ruby1.9.1-dev \
@@ -30,37 +52,17 @@ elif [[ -d /etc/apt ]]; then
 local   all             postgres                                peer
 local   all             all                                     trust
 EOF
-echo "listen_addresses = ''" >>/etc/postgresql/9.3/main/postgresql.conf
-sed -i '/^port/ s/5432/5439/' /etc/postgresql/9.3/main/postgresql.conf
-service postgresql start
-sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
-elif [[ -f /etc/SuSE-release ]]; then
-    OS=suse
-    ( grep openSUSE /etc/SuSE-release ) && OS=opensuse
-    zypper install -y -l ruby ruby19 ruby-devel ruby19-devel libxml2-devel \
-        libxslt1 libxslt-devel libxslt-tools zlib-devel \
-        postgresql93 postgresql93-server postgresql93-contrib libpq5 \
-        libossp-uuid16 libcpg6
-    # Hack up local postgres to only listen on domain sockets.
-    # Need to start postresql to create database control directories
-    #  then stop it so we can edit the configuration.
-    rcpostgresql start
-    rcpostgreql stop
-    cat >/var/lib/pgsql/data/pg_hba.conf <<EOF
-local   all             postgres                                peer
-local   all             all                                     trust
-EOF
-echo "listen_addresses = ''" >>/var/lib/pgsql/data/postgresql.conf
-sed -i '/^port/ s/5432/5439/' /var/lib/pgsql/data/postgresql.conf
-sed -i 's/#port/port/' /var/lib/pgsql/data/postgresql.conf
-rcpostgresql restart
-sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
+    echo "listen_addresses = ''" >>/etc/postgresql/9.3/main/postgresql.conf
+    sed -i '/^port/ s/5432/5439/' /etc/postgresql/9.3/main/postgresql.conf
+    service postgresql start
+    sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
 else
     die "Staged on to unknown OS media!"
 fi
 
-# On SUSE based installs we don't (yet) rely on the DVD being copied
-# the the harddisk. This might be subject to change.
+# On SUSE SLE based installs we don't (yet) rely on the DVD being copied
+# the the harddisk. This might be subject to change. On openSUSE we expect
+# the DVD to have been copied to the tftpboot directory.
 if [[ $OS != suse ]]; then
     [[ $DVD_PATH ]] || die "Cannot find our install source!"
 fi
@@ -78,7 +80,7 @@ export DEBUG=true
 if [[ $OS != suse ]]; then
     [[ $PATH != */opt/dell/bin* ]] || export PATH="$PATH:/opt/dell/bin"
     if [[ -f /etc/environment ]] && ! grep -q '/opt/dell/bin' /etc/environment; then
-        sed -i -e "/^PATH/ s@\"\(.*\)\"@\"$PATH\"@" /etc/environment 
+        sed -i -e "/^PATH/ s@\"\(.*\)\"@\"$PATH\"@" /etc/environment
     fi
     [[ ! $HOME || $HOME = / ]] && export HOME="/root"
     mkdir -p "$HOME"
@@ -114,17 +116,17 @@ if [[ $OS != suse ]]; then
     /opt/dell/bin/update_hostname.sh "$FQDN" || die "Could not update our hostname"
 fi
 
-# Set up rsyslog to not rate limit to avoid discarding exceptions
-cat > /etc/rsyslog.d/10-noratelimit.conf <<EOF
+# Bounce rsyslog to let it know our hostname is correct and not to rate limit
+if [[ $OS = suse ]]; then
+    service syslog restart || :
+else
+    # Set up rsyslog to not rate limit to avoid discarding exceptions
+    cat > /etc/rsyslog.d/10-noratelimit.conf <<EOF
 # Turn off rate limiting to prevent error discarding
 \$ModLoad imuxsock
 \$SystemLogRateLimitInterval 0
 EOF
 
-# Bounce rsyslog to let it know our hostname is correct and not to rate limit
-if [[ $OS = suse || $OS = opensuse ]]; then
-    service syslog restart || :
-else
     service rsyslog restart || :
 fi
 
@@ -140,7 +142,23 @@ sed -i -e 's/^\(GSSAPI\)/#\1/' \
     -e 's/#\(UseDNS.*\)yes/\1no/' /etc/ssh/sshd_config
 service sshd restart || :
 
-if [[ $OS != suse ]]; then
+if [[ $OS == opensuse ]]; then
+   # Link the discovery image to an off-DVD location.
+    # On SUSE the image is part of the crowbar-sledgehammer package
+    [[ -d ${DVD_PATH}/discovery ]] && mv "${DVD_PATH}/discovery" "/srv/tftpboot"
+    
+    # Lift the gems off the install media for easy file serving.
+    mkdir -p /srv/tftpboot/gemsite/gems
+    find "/opt/dell/barclamps" -path '*/gems/*.gem' \
+        -exec ln -sf '{}' /srv/tftpboot/gemsite/gems ';'
+    
+    # Arrange for all our gem binaries to be installed into /usr/local/bin
+    cat >/etc/gemrc <<EOF
+:sources:
+- file:///srv/tftpboot/gemsite/
+gem: --no-ri --no-rdoc --bindir /usr/local/bin
+EOF
+elif [[ $OS != suse ]]; then
     # Link the discovery image to an off-DVD location.
     # On SUSE the image is part of the crowbar-sledgehammer package
     [[ -d ${DVD_PATH}/discovery ]] && mv "${DVD_PATH}/discovery" "/tftpboot"
@@ -156,7 +174,6 @@ if [[ $OS != suse ]]; then
 - file:///tftpboot/gemsite/
 gem: --no-ri --no-rdoc --bindir /usr/local/bin
 EOF
-
     # This is ugly, but there does not seem to be a better way
     # to tell Chef to just look in a specific location for its gems.
     echo "$(date '+%F %T %z'): Arranging for gems to be installed"
@@ -211,8 +228,11 @@ if [[ $OS = ubuntu ]]; then
 elif [[ $OS = redhat ]]; then
     yum -y makecache
     yum -y install 'crowbar-barclamp-*'
-elif [[ $OS = suse || $OS = opensuse ]]; then
-    zypper --gpg-auto-import-keys -n in -t pattern Crowbar_Admin
+elif [[ $OS = suse ]]; then
+    zypper --gpg-auto-import-keys -n install -t pattern Crowbar_Admin
+elif [[ $OS = opensuse ]]; then
+    zypper install crowbar-barclamp-\*
+    sed -ie 's/tftpboot/srv\/tftpboot/' /opt/dell/crowbar_framework/Gemfile
 else
     die "Cannot install onto unknown OS $OS!"
 fi
@@ -222,7 +242,7 @@ fi
 ###
 
 # Install prerequisite gems
-if [[ $OS = suse || $OS = opensuse ]]; then
+if [[ $OS = suse ]]; then
     BUNDLE_INSTALL_ARGS="--local"
 else
     gem install bundler rake
@@ -243,7 +263,7 @@ chmod 0700 /var/run/crowbar
 # Fix up /etc/environment
 if ! grep -q '/opt/dell/bin' /etc/environment; then
     export PATH="$PATH:/opt/dell/bin"
-    sed -i -e "/^PATH/ s@\"\(.*\)\"@\"$PATH\"@" /etc/environment 
+    sed -i -e "/^PATH/ s@\"\(.*\)\"@\"$PATH\"@" /etc/environment
 fi
 
 # make sure RAILS_ENV is set to production

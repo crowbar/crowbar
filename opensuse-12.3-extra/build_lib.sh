@@ -1,15 +1,27 @@
 #!/bin/bash
+# This is sourced by build_crowbar.sh to enable it to stage Crowbar onto
+# OpenSUSE 12.3
+
 
 # OS information for the OS we are building crowbar on to.
 OS=opensuse
 OS_VERSION=12.3
-OS_TOKEN="$OS-$OS_VERSION"
+CHROOT_GEMDIR="usr/lib64/ruby/gems/1.9.1/cache"
+OSC_IMAGE_DIR=images
+OSC_MINSYS="base-meta-x86_64.tar.xz base-x86_64.tar.xz common-base-x86_64.tar.xz"
 
-# This replaces the do_crowbar_build function that is defined in $CROWBAR_DIR/build_lib.sh which
-#   gets sourced into the $CROWBAR_DIR/build_crowbar.sh script.
+# The name of the OS iso we are using as a base.
+[[ $ISO ]] || ISO="openSUSE-12.3-DVD-x86_64.iso"
+OS_ISO_SRC="http://download.opensuse.org/distribution/12.3/iso/"
 
-do_crowbar_build() {
+OS_REPO_POOL=""
 
-	[[ -x $CROWBAR_DIR/$OS_TOKEN-extra/kiwi ]] && cd $CROWBAR_DIR/$OS_TOKEN-extra/kiwi
-	[[ -f create_appliance.sh ]] && sudo ./create_appliance.sh
-}
+# We do not always want to shrink the generated ISO
+# At other times we may want to shrink the ISO otherwise the install will
+# fail due to lookingfor packages on the second ISO that we don't have.
+SHRINK_ISO=
+
+# The location of OS packages on $ISO
+find_cd_pool() ( echo "$IMAGE_DIR/suse/" )
+
+. "$CROWBAR_DIR/opensuse-common/build_lib.sh"
