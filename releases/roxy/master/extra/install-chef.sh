@@ -171,7 +171,7 @@ EOF
 # to tell Chef to just look in a specific location for its gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
 (   cd /tftpboot/gemsite/gems
-    for gem in builder json net-http-digest_auth activesupport i18n \
+    for gem in builder json net-http-digest_auth i18n activesupport \
         daemons bluepill xml-simple libxml-ruby wsman cstruct ; do
         gem install --local --no-ri --no-rdoc $gem-*.gem
     done
