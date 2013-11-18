@@ -224,6 +224,34 @@ if [[ ! -x /etc/init.d/bluepill ]]; then
         ps axu | grep '^chef.*chef-server-webui ' | awk '{print $2}' | xargs kill -9
     fi
 
+
+## Fix start. This is a workaround for a chef-solr issue, package "libcommons-fileupload-java-1.2.2-1ubuntu0.12.04.1" location of .jar file changed from "../../../java/commons-httpclient.jar" to
+# "/usr/share/maven-repo/commons-fileupload/commons-fileupload/1.2.2/commons-fileupload-1.2.2.jar" which caused chef-solr crash.
+
+declare -a broken pkgs files
+start_dir="/usr/share"
+for f in $(find $start_dir/solr -type l); do if [ ! -e "$f" ]; then echo -e "Broken link found: $f" && broken=("${broken[@]}" "$f") ; fi; done
+if [[ $broken ]]; then
+    for b in "${broken[@]}"; do
+        pkg_name=$(basename ${b/\.jar/})
+        echo -e "Searching for $pkg_name..."
+        pkgs=("${pkgs[@]}" "$(dpkg --list | grep -i $pkg_name | awk {'print $2'})")
+        [[ ! $pkgs ]] && echo "ERROR: No packages with  name matches $pkg_name" && exit 1
+        [[ ${pkgs[1]} ]] && echo "ERROR: More than one package matches name $pkg_name" && exit 1
+        pkg_version=$(dpkg --list | grep -i $pkg_name | awk {'print $3'})
+        java_pkg_ver=${pkg_version/\-*/}
+        files=$(dpkg -L ${pkgs[0]} | grep "$java_pkg_ver\.jar")
+        [[ ! $files ]] && echo "ERROR: No .jar files were found for suggested packages" && exit 1
+        [[ ${files[1]} ]] && echo "ERROR: More than one .jar file matches name $pkg_name" && exit 1
+        echo -e "Found package: ${pkgs[0]}\n version: $pkg_version\n java_pkg_verison: $java_pkg_ver\n jar: ${files[0]}\n Fixing symlink: $b"
+        ln -f -s ${files[0]} $b
+    done
+fi
+
+## Fix end.
+
+
+
     # Create an init script for bluepill
     cat > /etc/init.d/bluepill <<EOF
 #!/bin/bash
