@@ -209,10 +209,10 @@ with_build_lock() {
 # Test to see if Crowbar metadata for this release is tracked in
 # a seperate git repository, by convention checked out
 # in the releases directory.
-git_tracked_checkout() [[ -d $CROWBAR_DIR/releases/.git ]]
+git_tracked_checkout() [[ -d $CROWBAR_DIR/.releases/.git ]]
 
 # Test to see if we are using flat metadata in the releases directory.
-flat_checkout() { ! git_tracked_checkout && [[ -d $CROWBAR_DIR/releases ]]; }
+flat_checkout() { ! git_tracked_checkout && [[ -d $CROWBAR_DIR/releases/development/master ]]; }
 
 # Our general cleanup function.  It is called as a trap whenever the
 # build script exits, and it's job is to make sure we leave the local
@@ -893,6 +893,30 @@ get_rev() (
     fi
 )
 
+# Check out a branch, but be quiet about it unless something goes wrong.
+quiet_checkout() {
+    local res=''
+    res=$(git checkout -q "$@" 2>&1) && return
+    echo "$res" >&2
+    return 1
+}
+
+# Get thecurrent HEAD.  Prefer it in human-readable format
+# Assumes that $PWD is in the git repo you care about.
+get_current_head() {
+    local head=$(git symbolic-ref HEAD)
+    if [[ $head != refs/heads/* ]]; then
+        head=$(git rev-parse HEAD)
+        if [[ ! $head ]]; then
+            debug "Barclamp ${repo##*/}: Cannot find head commit."
+            return 1
+        fi
+    else
+        head=${head#refs/heads/}
+    fi
+    printf "%s" "$head"
+}
+
 # Run a git command in the build cache, assuming it is a git repository.
 in_cache() (
     cd "$CACHE_DIR"
@@ -936,13 +960,29 @@ get_repo_cfg() { in_repo git config --get "$1"; }
 git_config_has() { git config --get "$1" &>/dev/null; }
 current_build() { get_repo_cfg 'crowbar.build'; }
 
+# Get the current release we are working on, which is a function of
+# the currently checked-out branch.
+current_release() {
+    local rel
+    rel=$(current_build) || \
+        die "current_release: Cannot get current build information!"
+    echo "${rel%/*}"
+}
+
 # Source the appropriate metadata helper functions.
-if flat_checkout; then
-    . "$CROWBAR_DIR/flat_metadata.sh"
-elif git_tracked_checkout; then
+if git_tracked_checkout; then
     . "$CROWBAR_DIR/git_tracked_metadata.sh"
+elif flat_checkout; then
+    . "$CROWBAR_DIR/flat_metadata.sh"
 fi
 
+# Test to see if a barclamp is part of a specific build.
+barclamp_exists_in_build() {
+    __barclamp_exists_in_build "$1" && return 0
+    local build=${1%/*} bc=${1##*/} parent
+    parent=$(parent_build "$build")|| return 1
+    barclamp_exists_in_build "$parent"
+}
 
 # Given a build, give us the branch the barclamps will use.
 build_branch() {
@@ -964,6 +1004,68 @@ release_for_branch() {
         feature/*) echo "${1%/*}";;
         release/*) r="${1#release/}"; echo "${r%/*}";;
     esac
+}
+
+# Get or set the proper branch for a barclamp for a build.
+barclamp_branch_for_build() {
+    # $1 = build
+    # $2 = barclamp
+    # $3 = (optional) ref to pin the barclamp at.
+    local build=$1 bcfile
+    while [[ true ]]; do
+        __barclamp_exists_in_build "$build/$2" && break
+        build=$(parent_build "$build") || break
+    done
+    if [[ ! $3 ]]; then
+        if [[ $build ]]; then
+            get_barclamp_branch_for_build "$build" "$2"
+        else
+            echo "empty-branch"
+        fi
+        return 0
+    elif [[ $build ]]; then
+        in_barclamp "$2" git rev-parse --verify --quiet "$3" &>/dev/null || return 1
+        set_barclamp_branch_for_build "$build" "$2" "$3"
+    else
+        return 1
+    fi
+}
+
+# Given a build, see what barclamps will go into it.
+barclamps_in_build() {
+    local build bc p
+    build="${1:-$(current_build)}"
+    p="$(parent_build "$build")"
+    [[ $p ]] && barclamps_in_build "$p"
+    barclamps_from_build "$build"
+}
+
+# Given a release, find all the builds that are in it.
+builds_in_release() {
+    local release="${1:-$(current_release)}" p build b
+    local -A builds
+    release_exists "$release" || return 1
+    while read build; do
+        build_exists "$release/$build" || continue
+        p=$(parent_build "$release/$build")
+        if [[ $p && ${builds[$p]} != echoed  ]]; then
+            builds["$release/$build"]="$p"
+        else
+            echo "$build"
+            builds["$release/$build"]="echoed"
+        fi
+    done < <(__builds_in_release "$release")
+    while [[ true ]]; do
+        b=true
+        for build in "${!builds[@]}"; do
+            p="${builds[$build]}"
+            [[ $p = echoed || ${builds[$p]} != echoed ]] && continue
+            echo "${build##*/}"
+            builds[$build]=echoed
+            b=false
+        done
+        [[ $b = true ]] && break
+    done
 }
 
 crowbar_version() {
