@@ -1,6 +1,6 @@
 ! Crowbar 2.x Developers' Guide
 
-This document has been rehomed to [[https://github.com/crowbar/barclamp-crowbar/blob/master/doc/devguide.md]]
+This document has been rehomed to https://github.com/crowbar/barclamp-crowbar/blob/master/doc/devguide.md
 
 Much of the contents cross referenced here was out-of-date and not actively maintained.
 
