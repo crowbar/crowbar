@@ -20,6 +20,7 @@ chroot_update() { in_chroot /usr/bin/yum -y makecache; }
 
 # Install some packages in the chroot environment.
 chroot_install() {
+    in_chroot /usr/bin/yum --enablerepo=updates clean metadata
     if [[ $1 ]]; then
         in_chroot /usr/bin/yum -y install "$@"
     fi
@@ -131,11 +132,11 @@ add_offline_repos() (
 # For Fedora 17 and later packages are stored in subdirectories bucketed by
 # the first letter of the package name and lower cased
 __pkg_location() {
-    if [ "$OS" = "fedora" -a $OS_VERSION = 18 ]; then
-	lowercase_pkg=${pkg,,}
+    if [[ $OS = fedora ]] && ((OS_VERSION >= 17)); then
+        lowercase_pkg=${pkg,,}
         echo "$(find_cd_pool)/${lowercase_pkg:0:1}/$pkg"
     else
-	echo "$(find_cd_pool)/$pkg"
+        echo "$(find_cd_pool)/$pkg"
     fi
 }
 

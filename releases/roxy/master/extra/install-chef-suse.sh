@@ -73,7 +73,7 @@ mkdir -p "`dirname "$LOGFILE"`"
 run_succeeded=
 
 
-DIALOG_TITLE=" SUSE Cloud 2.0 "
+DIALOG_TITLE=" SUSE Cloud 3 "
 
 # Infrastructure for nice output/logging
 # --------------------------------------
@@ -314,7 +314,7 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-3-Pool SUSE-Cloud-3-Updates"
     zypper -n in rubygems rubygem-json createrepo
 fi
 
@@ -337,8 +337,8 @@ fi
 if [ -n "$PROVISIONER_JSON" ]; then
   for repo in SLE-Cloud \
               SLE-Cloud-PTF \
-              SUSE-Cloud-2.0-Pool \
-              SUSE-Cloud-2.0-Updates \
+              SUSE-Cloud-3-Pool \
+              SUSE-Cloud-3-Updates \
               SLES11-SP3-Pool \
               SLES11-SP3-Updates
   do
@@ -498,7 +498,7 @@ check_repo_product () {
 #   SP3-Updates is lacking products.xml
 #   Cloud: we don't have the final md5
 #   SUSE-Cloud-2.0-*: lacking products.xml
-REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-2.0-Pool SUSE-Cloud-2.0-Updates"
+REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-3-Pool SUSE-Cloud-3-Updates"
 
 check_repo_content \
     SLES11_SP3 \
@@ -531,8 +531,8 @@ fi
 
 check_repo_product SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product SUSE-Cloud-2.0-Pool    'SUSE Cloud 2.0'
-check_repo_product SUSE-Cloud-2.0-Updates 'SUSE Cloud 2.0'
+check_repo_product SUSE-Cloud-3-Pool    'SUSE Cloud 3'
+check_repo_product SUSE-Cloud-3-Updates 'SUSE Cloud 3'
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! LANG=C zypper if -t pattern cloud_admin 2> /dev/null | grep -q "^Installed: Yes$"; then
@@ -567,7 +567,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
         add_ibs_repo http://dist.suse.de/install/SLP/SLE-11-SP3-SDK-LATEST/x86_64/DVD1/ sdk-sp3
         add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP3:/GA/standard/ sp3-ga
         add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP3:/Update/standard/ sp3-update
-        add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud:/2.0/SLE_11_SP3/ cloud
+        add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud:/3/SLE_11_SP3/ cloud
     fi
 
     # install chef and its dependencies

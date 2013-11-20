@@ -6,10 +6,7 @@
     cd "/srv/tftpboot/$OS_TOKEN"
     ln -s ../opensuse_dvd install)
 
-REPO_URL="file:///srv/tftpboot/$OS_TOKEN/install/Server"
-[[ -d tftpboot/$OS_TOKEN/install/repodata ]] && \
-    REPO_URL="file:///tftpboot/$OS_TOKEN/install"
-
+REPO_URL="file:///srv/tftpboot/$OS_TOKEN/install/suse"
 cat >"/etc/zypp/repos.d/$OS_TOKEN-Base.repo" <<EOF
 [$OS_TOKEN-Base]
 name=$OS_TOKEN Base
@@ -24,7 +21,6 @@ for i in "$BASEDIR/dell/barclamps/"*".tar.gz"; do
     ( cd "/opt/dell/barclamps"; tar xzf "$i"; )
 done
 
-
 find /opt/dell/barclamps -type d -name cache -maxdepth 2 | while read src; do
     [[ -d $src/$OS_TOKEN/pkgs/repodata ]] || continue
     bc=${src%/cache}
@@ -37,15 +33,13 @@ gpgcheck=0
 EOF
 done
 
-zypper install -l -f createrepo
-
 for bc in "$BASEDIR/dell/barclamps/"*.rpm; do
     [[ -f $bc ]] || continue
     mkdir -p /opt/dell/rpms
     cp "$bc" /opt/dell/rpms
 done
 if [[ -d /opt/dell/rpms ]]; then
-    (cd /opt/dell/rpms; createrepo -d -q .)
+#    (cd /opt/dell/rpms; createrepo -d -q .)
     cat >"/etc/zypp/repos.d/crowbar.repo" <<EOF
 [crowbar]
 name=Crowbar Packages
@@ -54,14 +48,11 @@ gpgcheck=0
 EOF
 fi
 
-# for OpenSUSE.
-(cd "$BASEDIR"; [[ -d Server ]] || ln -sf . Server)
-
 # Make runlevel 3 the default
 sed -i -e '/^id/ s/5/3/' /etc/inittab
 
 # We prefer rsyslog.
-zypper install -l -f rsyslog
+zypper install -l -f -n -y rsyslog
 systemctl enable rsyslog
 
 # put the chef files in place
@@ -78,11 +69,6 @@ mkdir -p /opt/dell/bin
 finishing_scripts=(update_hostname.sh parse_node_data)
 ( cd "$BASEDIR/dell"; cp "${finishing_scripts[@]}" /opt/dell/bin; )
 
-# "Install h2n for named management"
-cd /opt/dell/
-tar -zxf "$BASEDIR/extra/h2n.tar.gz"
-ln -s /opt/dell/h2n-2.56/h2n /opt/dell/bin/h2n
-
 barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
 ( cd "/opt/dell/barclamps/crowbar/bin" &&  \
     cp "${barclamp_scripts[@]}" /opt/dell/bin || :)
@@ -95,10 +81,6 @@ chmod +x "$BASEDIR/extra/"*
 
 # This directory is the model to help users create new barclamps
 cp -r /opt/dell/barclamps/crowbar/crowbar_framework/barclamp_model /opt/dell || :
-
-# "Blacklisting IPv6".
-echo "blacklist ipv6" >>/etc/modprobe.d/50-blacklist-ipv6.conf
-echo "options ipv6 disable=1" >>/etc/modprobe.d/50-blacklist-ipv6.conf
 
 # Make sure the ownerships are correct
 chown -R crowbar.admin /opt/dell
@@ -131,8 +113,5 @@ done
 
 ln -s /srv/tftpboot/opensuse_dvd/extra/install /opt/dell/bin/install-crowbar
 echo "PermitRootLogin yes" >>/etc/ssh/sshd_config
-# HACK to work around semi-busted autoyast runlevel/systemd interaction
-systemctl enable sshd
-kexec -l /boot/vmlinuz --append=root=/dev/sda2 --initrd=/boot/initrd
 
 exit 0
