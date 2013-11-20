@@ -26,39 +26,30 @@ elif [[ -f /etc/SuSE-release ]]; then
     zypper install -y -l ruby ruby19 ruby-devel ruby19-devel libxml2-devel \
         libxslt1 libxslt-devel libxslt-tools zlib-devel rsyslog \
         postgresql93 postgresql93-server postgresql93-contrib libpq5 \
-        libossp-uuid16 libecpg6
-    # Hack up local postgres to only listen on domain sockets.
-    # Need to start postresql to create database control directories
-    #  then stop it so we can edit the configuration.
-    rcpostgresql start
-    rcpostgresql stop
-    cat >/var/lib/pgsql/data/pg_hba.conf <<EOF
-local   all             postgres                                peer
-local   all             all                                     trust
-EOF
-    echo "listen_addresses = ''" >>/var/lib/pgsql/data/postgresql.conf
-    sed -i '/^port/ s/5432/5439/' /var/lib/pgsql/data/postgresql.conf
-    sed -i 's/#port/port/' /var/lib/pgsql/data/postgresql.conf
-    rcpostgresql restart
-    sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
+        libossp-uuid16 libecpg6 postgresql93-devel libopenssl-devel
+    service postgresql start
+    PG_DIR=/var/lib/pgsql/data
 elif [[ -d /etc/apt ]]; then
     OS=ubuntu
     apt-get -y install ruby1.9.1 ruby1.9.1-dev \
         libxml2-dev libxslt1-dev zlib1g-dev \
         postgresql-9.3 postgresql-client-9.3 postgresql-contrib-9.3 libpq-dev
-    # Hack up local postgres to only listen on domain sockets.
-    service postgresql stop
-    cat >/etc/postgresql/9.3/main/pg_hba.conf <<EOF
-local   all             postgres                                peer
-local   all             all                                     trust
-EOF
-    echo "listen_addresses = ''" >>/etc/postgresql/9.3/main/postgresql.conf
-    sed -i '/^port/ s/5432/5439/' /etc/postgresql/9.3/main/postgresql.conf
-    service postgresql start
-    sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
+    PG_DIR=/etc/postgresql/9.3/main
 else
     die "Staged on to unknown OS media!"
 fi
+
+# Hack up local postgres to only listen on domain sockets.
+service postgresql stop
+cat >"$PG_DIR/pg_hba.conf" <<EOF
+local   all             postgres                                peer
+local   all             all                                     trust
+EOF
+echo "listen_addresses = ''" >>"$PG_DIR/postgresql.conf"
+sed -i 's/#port/port/' "$PG_DIR/postgresql.conf"
+sed -i '/^port/ s/5432/5439/' "$PG_DIR/postgresql.conf"
+service postgresql start
+sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
 
 # On SUSE SLE based installs we don't (yet) rely on the DVD being copied
 # the the harddisk. This might be subject to change. On openSUSE we expect
@@ -231,7 +222,7 @@ elif [[ $OS = redhat ]]; then
 elif [[ $OS = suse ]]; then
     zypper --gpg-auto-import-keys -n install -t pattern Crowbar_Admin
 elif [[ $OS = opensuse ]]; then
-    zypper install crowbar-barclamp-\*
+    zypper install -y -l 'crowbar-barclamp-*'
     sed -ie 's/tftpboot/srv\/tftpboot/' /opt/dell/crowbar_framework/Gemfile
 else
     die "Cannot install onto unknown OS $OS!"
