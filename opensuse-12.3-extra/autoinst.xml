@@ -788,7 +788,7 @@
     </user>
   </users>
   <scripts>
-    <chroot-scripts config:type="list">
+    <postpartitioning-scripts config:type="list">
       <script>
         <debug config:type="boolean">true</debug>
         <filename>Chroot-Installer.sh</filename>
@@ -799,22 +799,15 @@ export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 
 # This trap is necessary to void sigaction from systemd
 #  the cause of the SIGHUP signal has not yet been found
-
-# Need to trap signals that will kill the rsync command.=
-trap 'echo "Ignoring signal"' SIGHUP SIGTERM SIGINT
-sleep 10
-# A 10 second delay is needed to stop over the interrupt.
-
-mkdir /mnt2
-mount -o ro /dev/sr0 /mnt2
-mkdir -p /mnt/${BASEDIR}/dell
-cp -av /mnt2/. /mnt/${BASEDIR}/.
-umount /mnt2
+mkdir -p /mnt/${BASEDIR}
+cd /var/adm/mount/*
+cp -av . /mnt/${BASEDIR}/.
 ]]></source>
       </script>
-    </chroot-scripts>
-    <post-scripts config:type="list">
+    </postpartitioning-scripts>
+    <chroot-scripts config:type="list">
       <script>
+        <chrooted config:type="boolean">true</chrooted>
         <debug config:type="boolean">true</debug>
         <filename>Post_Installer.sh</filename>
         <interpreter>shell</interpreter>
@@ -823,51 +816,24 @@ export OS_TOKEN="opensuse-12.3"
 export BASEDIR="/srv/tftpboot/opensuse_dvd"
 export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 
-# This trap is necessary to void sigaction from systemd
-#  the cause of the SIGHUP signal has not yet been found
-
-# Need to trap signals that will kill the rsync command.=
-trap 'echo "Ignoring signal"' SIGHUP SIGTERM SIGINT
-sleep 10
-# A 10 second delay is needed to stop over the interrupt.
-
-# Carefully check the contents of the common_install.sh script
-#  do not add steps below this line unless you know what you are doing!
+exec >/root/common-install.log
+exec 2>/root/common-install.log
 
 . /srv/tftpboot/opensuse_dvd/extra/common_install.sh
 ]]></source>
       </script>
-    </post-scripts>
+    </chroot-scripts>
     <init-scripts config:type="list">
       <script>
         <debug config:type="boolean">true</debug>
-        <filename>InitScript.sh</filename>
+        <filename>Post_Installer.sh</filename>
         <interpreter>shell</interpreter>
         <source><![CDATA[#!/bin/bash
-export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
-
-# This trap is necessary to void sigaction from systemd
-#  the cause of the SIGHUP signal has not yet been found
-
-# Need to trap signals that will kill the rsync command.=
-trap 'echo "Ignoring signal"' SIGHUP SIGTERM SIGINT
-sleep 10
-# A 10 second delay is needed to stop over the interrupt.
-
-# Set up links to installation logs
-ln -sf /var/adm/autoinstall/logs /root/install-logs
-
-# Create README.install
-cat > /root/README.install <<EOF
-The /root/install-logs directory contains the autoyast-generated
-autoinstallation log files - each contains the output of the respective
-shell script it ran.
-EOF
-
-sync; sync; sync
-reboot -f
+        service network start
+        service sshd start
 ]]></source>
       </script>
     </init-scripts>
+
   </scripts>
 </profile>
