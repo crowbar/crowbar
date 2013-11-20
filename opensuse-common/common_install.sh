@@ -58,9 +58,6 @@ systemctl enable rsyslog
 # put the chef files in place
 cp "$BASEDIR/rsyslog.d/"* /etc/rsyslog.d/
 
-# Restart rsyslog to pick up out changes
-rcsyslog restart
-
 # Make sure /opt is created
 mkdir -p /opt/dell/bin
 
