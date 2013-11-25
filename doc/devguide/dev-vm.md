@@ -32,7 +32,7 @@ First you need to install KVM. On SUSE based systems, run:
 ### Enabling CPU virtualization acceleration
 
 [Intel VT-x]
-(http://en.wikipedia.org/wiki/X86_virtualization#Intel_virtualization_.28VT-x.29)
+(http://en.wikipedia.org/w/index.php?title=X86_virtualization#Intel_virtualization_.28VT-x.29)
 or [AMD-V]
 (http://en.wikipedia.org/wiki/X86_virtualization#AMD_virtualization_.28AMD-V.29)
 capable CPUs are required for hardware acceleration. This is usually disabled
