@@ -58,15 +58,8 @@ VERBOSE=true
 
 [[ $ALLOW_CACHE_UPDATE ]] || ALLOW_CACHE_UPDATE=true
 
-# Location to store .iso images that we use in the build process.
-# These are usually OS install DVDs that we will stage Crowbar on to.
-[[ $ISO_LIBRARY ]] || ISO_LIBRARY="$CACHE_DIR/iso"
-
 # This is the location that we will save the generated .iso to.
 [[ $ISO_DEST ]] || ISO_DEST="$PWD"
-
-# Directory that holds our Sledgehammer PXE tree.
-[[ $SLEDGEHAMMER_PXE_DIR ]] || SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot"
 
 # Location of the Crowbar checkout we are building from.
 [[ $CROWBAR_DIR ]] || CROWBAR_DIR="${0%/*}"
@@ -95,6 +88,15 @@ unset CROWBAR_BUILD_PID
 # Source our common build functions
 . "$CROWBAR_DIR/build_lib.sh" || exit 1
 . "$CROWBAR_DIR/test_lib.sh" || exit 1
+
+
+# Location to store .iso images that we use in the build process.
+# These are usually OS install DVDs that we will stage Crowbar on to.
+[[ $ISO_LIBRARY ]] || ISO_LIBRARY="$CACHE_DIR/iso"
+
+# Directory that holds our Sledgehammer PXE tree.
+[[ $SLEDGEHAMMER_PXE_DIR ]] || SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot"
+
 
 # Make sure that we actually know how to build the ISO we were asked to
 # build.  If we do not, print a helpful error message.
