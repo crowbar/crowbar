@@ -139,7 +139,6 @@
     <interfaces config:type="list">
       <interface>
         <bootproto>static</bootproto>
-        <device>eth0</device>
         <ipaddr>192.168.124.10</ipaddr>
         <netmask>255.255.255.0</netmask>
         <network>192.168.124.0</network>
