@@ -39,10 +39,11 @@ MAGIC_DOT = '@@ESCAPED_DOT@@'
 @remove = false
 
 def usage (rc)
-  puts "Usage: json-edit [options] filename"
+  puts "Usage: json-edit [options] <filename>"
   @options.each do |options|
     puts "  #{options[1]}"
   end
+  puts "  Use '-' for <filename> to use stdin/stdout for json input/ouput."
   exit rc
 end
 
@@ -98,7 +99,9 @@ def main()
     end
 
     filename = ARGV[0]
-    if File.exists?(filename)
+    if filename == '-'
+      json = JSON.parse(STDIN.read())
+    elsif File.exists?(filename)
       json = JSON.parse(File.open(filename).read())
     else
       json = JSON.parse("{}")
@@ -141,7 +144,11 @@ def main()
       end
     end
 
-    File.open(filename, 'w') {|f| f.write(JSON.pretty_generate(json)) }
+    if filename == '-'
+      puts JSON.pretty_generate(json)
+    else
+      File.open(filename, 'w') {|f| f.write(JSON.pretty_generate(json)) }
+    end
   rescue => ex
     puts "json-edit failed: #{ex.message}"
     ex.backtrace.each { |bt_line| puts "#{bt_line}" }
