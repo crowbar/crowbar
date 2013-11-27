@@ -180,7 +180,7 @@ for cmd in sudo chroot mkisofs ruby curl; do
 	die 1 "Please install $cmd before trying to build Crowbar."
 done
 
-flat_checkout || die "Checkout must be flat before starting build!"
+git_tracked_checkout || flat_checkout || die "Checkout must be flat before starting build!"
 
 # Parse our options.
 while [[ $1 ]]; do
