@@ -20,8 +20,7 @@
   # however, that code is not always available when installing
 
 require 'getoptlong'
-
-require File.expand_path('../barclamp_mgmt_lib', __FILE__)
+require 'barclamp_mgmt_lib'
 
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],

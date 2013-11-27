@@ -18,8 +18,7 @@
 
 require 'getoptlong'
 require 'pp'
-
-require File.expand_path('../barclamp_mgmt_lib', __FILE__)
+require 'barclamp_mgmt_lib'
 
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
@@ -121,7 +120,7 @@ debug "installing barclamps:"
 barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   debug "bc = #{bc.pretty_inspect}"
   begin
-    unless %r{^#{BARCLAMP_PATH}} =~ bc[:src]
+    unless /^#{BARCLAMP_PATH}/ =~ bc[:src]
       target=File.join(BARCLAMP_PATH, bc[:src].split("/")[-1])
       if File.directory? target
         debug "target directory #{target} exists"
