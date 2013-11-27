@@ -266,6 +266,9 @@
       <package>libply-splash-core2</package>
       <package>libply-splash-graphics2</package>
       <package>libply2</package>
+      <package>libestr0</package>
+      <package>libjson0</package>
+      <package>syslog-service</package>
       <package>libx86-1</package>
       <package>libxcb-dri2-0</package>
       <package>libxcb-xfixes0</package>
@@ -279,6 +282,7 @@
       <package>plymouth-scripts</package>
       <package>python</package>
       <package>rsync</package>
+      <package>rsyslog</package>
       <package>screen</package>
       <package>splashy</package>
       <package>sudo</package>
@@ -365,17 +369,14 @@
       <package>dbus-1-glib</package>
       <package>dbus-1-glib-32bit</package>
       <package>device-mapper-32bit</package>
-      <package>efibootmgr</package>
       <package>ethtool</package>
       <package>exim</package>
       <package>fbset</package>
       <package>fontconfig-32bit</package>
-      <package>fuse</package>
       <package>gcr-data</package>
       <package>gcr-lang</package>
       <package>gcr-prompter</package>
       <package>gcr-viewer</package>
-      <package>gd</package>
       <package>gd-32bit</package>
       <package>gdk-pixbuf-lang</package>
       <package>gdk-pixbuf-query-loaders</package>
@@ -385,21 +386,14 @@
       <package>glib-networking</package>
       <package>glib-networking-lang</package>
       <package>glib2-lang</package>
-      <package>glibc-extra</package>
       <package>gnome-icon-theme</package>
-      <package>gnome-keyring</package>
-      <package>gnome-keyring-lang</package>
-      <package>gnome-keyring-pam</package>
       <package>gpg2-lang</package>
-      <package>gptfdisk</package>
       <package>grub2-efi</package>
       <package>grub2-i386-efi</package>
       <package>grub2-x86_64-efi</package>
       <package>gsettings-desktop-schemas</package>
       <package>gsettings-desktop-schemas-lang</package>
-      <package>gtk3-branding-openSUSE</package>
       <package>gtk3-branding-upstream</package>
-      <package>gtk3-data</package>
       <package>gtk3-immodule-amharic</package>
       <package>gtk3-immodule-inuktitut</package>
       <package>gtk3-immodule-thai</package>
@@ -407,12 +401,7 @@
       <package>gtk3-lang</package>
       <package>gtk3-metatheme-adwaita</package>
       <package>gtk3-theming-engine-adwaita</package>
-      <package>gtk3-tools</package>
       <package>gtk3-tools-32bit</package>
-      <package>gvfs</package>
-      <package>gvfs-backend-afc</package>
-      <package>gvfs-backends</package>
-      <package>gvfs-fuse</package>
       <package>gvfs-lang</package>
       <package>iptables</package>
       <package>kernel-debug</package>
@@ -434,11 +423,8 @@
       <package>libX11-6-32bit</package>
       <package>libX11-xcb1-32bit</package>
       <package>libXau6-32bit</package>
-      <package>libXcomposite1</package>
       <package>libXcomposite1-32bit</package>
-      <package>libXcursor1</package>
       <package>libXcursor1-32bit</package>
-      <package>libXdamage1</package>
       <package>libXdamage1-32bit</package>
       <package>libXext6-32bit</package>
       <package>libXfixes3</package>
@@ -464,20 +450,15 @@
       <package>libasound2</package>
       <package>libasound2-32bit</package>
       <package>libassuan0-32bit</package>
-      <package>libatasmart4</package>
       <package>libatk-1_0-0</package>
       <package>libatk-1_0-0-32bit</package>
       <package>libatk-bridge-2_0-0</package>
       <package>libatk-bridge-2_0-0-32bit</package>
-      <package>libatspi0</package>
       <package>libatspi0-32bit</package>
       <package>libattr1-32bit</package>
       <package>libaudit1-32bit</package>
-      <package>libavahi-client3</package>
       <package>libavahi-client3-32bit</package>
-      <package>libavahi-common3</package>
       <package>libavahi-common3-32bit</package>
-      <package>libavahi-glib1</package>
       <package>libavahi-glib1-32bit</package>
       <package>libblkid1-32bit</package>
       <package>libblocxx6-32bit</package>
@@ -486,18 +467,13 @@
       <package>libbluray1</package>
       <package>libbluray1-32bit</package>
       <package>libbz2-1-32bit</package>
-      <package>libcairo-gobject2</package>
       <package>libcairo-gobject2-32bit</package>
       <package>libcairo2-32bit</package>
       <package>libcap-ng0-32bit</package>
       <package>libcap2-32bit</package>
-      <package>libcdio14</package>
       <package>libcdio14-32bit</package>
-      <package>libcdio_cdda1</package>
       <package>libcdio_cdda1-32bit</package>
-      <package>libcdio_paranoia1</package>
       <package>libcdio_paranoia1-32bit</package>
-      <package>libcolord1</package>
       <package>libcolord1-32bit</package>
       <package>libcom_err2-32bit</package>
       <package>libcrack2-32bit</package>
@@ -526,10 +502,8 @@
       <package>libfreetype6-32bit</package>
       <package>libfuse2-32bit</package>
       <package>libgcc_s1-32bit</package>
-      <package>libgck-1-0</package>
       <package>libgck-1-0-32bit</package>
       <package>libgck-modules-gnome-keyring</package>
-      <package>libgcr-3-1</package>
       <package>libgcr-3-1-32bit</package>
       <package>libgcrypt11-32bit</package>
       <package>libgdbm4-32bit</package>
@@ -552,7 +526,6 @@
       <package>libgsasl7</package>
       <package>libgssglue1-32bit</package>
       <package>libgthread-2_0-0-32bit</package>
-      <package>libgtk-3-0</package>
       <package>libgtk-3-0-32bit</package>
       <package>libgudev-1_0-0</package>
       <package>libgudev-1_0-0-32bit</package>
@@ -577,9 +550,7 @@
       <package>liblcms2-2</package>
       <package>liblcms2-2-32bit</package>
       <package>libldap-2_4-2-32bit</package>
-      <package>liblockdev1</package>
       <package>liblockdev1-32bit</package>
-      <package>libltdl7</package>
       <package>libltdl7-32bit</package>
       <package>liblua5_1-32bit</package>
       <package>liblzma5-32bit</package>
@@ -594,7 +565,6 @@
       <package>libnettle4-32bit</package>
       <package>libnfnetlink0</package>
       <package>libnfnetlink0-32bit</package>
-      <package>libnscd</package>
       <package>libnscd-32bit</package>
       <package>libntlm0</package>
       <package>libopenobex1</package>
@@ -612,7 +582,6 @@
       <package>libpng15-15-32bit</package>
       <package>libpolkit0-32bit</package>
       <package>libpopt0-32bit</package>
-      <package>libpq5</package>
       <package>libpq5-32bit</package>
       <package>libproxy1-32bit</package>
       <package>libpth20-32bit</package>
@@ -646,24 +615,19 @@
       <package>libtalloc2</package>
       <package>libtalloc2-32bit</package>
       <package>libtasn1-6-32bit</package>
-      <package>libtdb1</package>
       <package>libtdb1-32bit</package>
-      <package>libtevent0</package>
       <package>libtevent0-32bit</package>
       <package>libtiff5</package>
       <package>libtiff5-32bit</package>
       <package>libtirpc1-32bit</package>
       <package>libudev-mini1</package>
       <package>libudev1-32bit</package>
-      <package>libudisks2-0</package>
       <package>libupower-glib1</package>
       <package>libusb-0_1-4-32bit</package>
       <package>libusb-1_0-0-32bit</package>
-      <package>libusbmuxd2</package>
       <package>libusbmuxd2-32bit</package>
       <package>libustr-1_0-1-32bit</package>
       <package>libuuid1-32bit</package>
-      <package>libwbclient0</package>
       <package>libwbclient0-32bit</package>
       <package>libwrap0-32bit</package>
       <package>libxcb-glx0</package>
@@ -682,9 +646,6 @@
       <package>limal-nfs-server</package>
       <package>limal-nfs-server-perl</package>
       <package>lockdev</package>
-      <package>lsof</package>
-      <package>m4</package>
-      <package>make</package>
       <package>mawk</package>
       <package>metamail</package>
       <package>metatheme-adwaita-common</package>
@@ -693,7 +654,6 @@
       <package>msmtp</package>
       <package>msmtp-mta</package>
       <package>netcat-openbsd</package>
-      <package>nfs-client</package>
       <package>nfsidmap</package>
       <package>obex-data-server</package>
       <package>openSUSE-release-livetree-x11</package>
@@ -711,14 +671,10 @@
       <package>perl-XML-SAX-Base</package>
       <package>perl-XML-Twig</package>
       <package>perl-base-32bit</package>
-      <package>pm-utils</package>
       <package>postfix</package>
       <package>procmail</package>
       <package>psmisc</package>
-      <package>readline-doc</package>
-      <package>release-notes-openSUSE</package>
       <package>rpm-32bit</package>
-      <package>rsyslog</package>
       <package>samba-client</package>
       <package>sendmail</package>
       <package>shared-mime-info-lang</package>
@@ -738,13 +694,11 @@
       <package>tcsh-lang</package>
       <package>tftp</package>
       <package>udev-mini</package>
-      <package>udisks2</package>
       <package>udisks2-lang</package>
       <package>unixODBC</package>
       <package>unixODBC-32bit</package>
       <package>upower</package>
       <package>upower-lang</package>
-      <package>usbmuxd</package>
       <package>util-linux-lang</package>
       <package>xdg-utils</package>
       <package>xz-lang</package>
