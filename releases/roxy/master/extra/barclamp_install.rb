@@ -13,8 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: RobHirschfeld
+# Author: Rob Hirschfeld
+# Author: Thomas Boerger
 #
+
+$LOAD_PATH.unshift(File.dirname(__FILE__))
 
 require 'getoptlong'
 require 'pp'

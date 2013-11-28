@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Author: RobHirschfeld
+# Author: Rob Hirschfeld
+# Author: Thomas Boerger
 #
 
-  # the 1st choice is to use the code from the framework since it is most up to date
-  # however, that code is not always available when installing
+$LOAD_PATH.unshift(File.dirname(__FILE__))
 
 require 'getoptlong'
 require 'barclamp_mgmt_lib'
