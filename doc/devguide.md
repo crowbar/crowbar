@@ -1,7 +1,7 @@
 #Crowbar 2.x Developers' Guide
 
-This document has been rehomed to [https://github.com/crowbar/barclamp-crowbar/blob/master/doc/devguide.md](https://github.com/crowbar/barclamp-crowbar/blob/master/doc/devguide.md).
+As of July, 2013, the crowbar developers guide is part of the [Crowbar barcamp] (https://github.com/crowbar/barclamp-crowbar/blob/master/doc/devguide.md).
+That documentation is also included as part of the Crowbar installation.
 
-Much of the contents cross referenced here was out-of-date and not actively maintained.
+If you find links to this location, please update them to the new location.
 
->Please port the subdocuments to the *barclamp-crowbar/docs* area.  We do not want the root Crowbar repository (which is for builds) to house documentation.  We appologize for the confusion.
