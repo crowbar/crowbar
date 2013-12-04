@@ -23,10 +23,17 @@ elif [[ -f /etc/SuSE-release ]]; then
     OS=suse
     ( grep openSUSE /etc/SuSE-release ) && OS=opensuse
     zypper ll | cut -f1 -d ' ' | xargs zypper --non-interactive rl
-    zypper install -y -l ruby ruby19 ruby-devel ruby19-devel libxml2-devel \
-        libxslt1 libxslt-devel libxslt-tools zlib-devel rsyslog \
-        postgresql93 postgresql93-server postgresql93-contrib libpq5 \
-        libossp-uuid16 libecpg6 postgresql93-devel libopenssl-devel
+    if grep 13.1 /etc/SuSE-release; then
+        zypper install -y -l ruby ruby20 ruby-devel ruby20-devel \
+            libxml2-2 libxml2-devel libxslt1 libxslt-devel libxslt-tools \
+            zlib-devel postgresql93 postgresql93-server postgresql93-contrib \
+            libpq5 libossp-uuid16 libecpg6 postgresql93-devel libopenssl-devel
+    else
+        zypper install -y -l ruby ruby19 ruby-devel ruby19-devel libxml2-devel \
+            libxslt1 libxslt-devel libxslt-tools zlib-devel \
+            postgresql93 postgresql93-server postgresql93-contrib libpq5 \
+            libossp-uuid16 libecpg6 postgresql93-devel libopenssl-devel
+    fi
     service postgresql start
     PG_DIR=/var/lib/pgsql/data
 elif [[ -d /etc/apt ]]; then
