@@ -1174,10 +1174,12 @@ do_crowbar_build() {
     debug "Checking for Sledgehammer."
     # Make sure Sledgehammer has already been built and pre-staged.
     if ! [[ -f $SLEDGEHAMMER_PXE_DIR/initrd0.img ]]; then
-        debug "Slegehammer TFTP image missing!"
+        debug "Slegehammer TFTP image missing from ${SLEDGEHAMMER_PXE_DIR} !"
         debug "Attempting to build Sledgehammer:"
         "$CROWBAR_DIR/build_sledgehammer.sh" || \
             die "Unable to build Sledgehammer. Cannot build Crowbar."
+    else
+        echo "Sledgehammer initrd.0 file found in ${SLEDGEHAMMER_PXE_DIR}"
     fi
 
     # Fetch the OS ISO if we need to.
