@@ -14,6 +14,10 @@
 # limitations under the License.
 # 
 
+# README:
+# This script runs an installer image as a virtual machine allowing you to 
+# bootstrap an admin node.
+
 # This script expects to be able to run certian commands as root.
 # Either run it as a user who can sudo to root, or give the user
 # you are running it as the following sudo rights:
