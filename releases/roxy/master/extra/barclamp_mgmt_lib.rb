@@ -43,10 +43,8 @@ else
   ROOT_PATH = '/'
 end
 
-@@debug = ENV['DEBUG'] === "true"
-
 def debug(msg)
-  puts "DEBUG: " + msg if @@debug
+  puts "DEBUG: " + msg if ENV['DEBUG'] === "true"
 end
 
 def fatal(msg, log)
@@ -146,7 +144,7 @@ def generate_navigation
     order2 = 0
 
     yaml['nav'].each do |key, value|
-      if key == 'primary':
+      if key == 'primary'
         yaml['nav']['primary'].each do |k, v|
           primaries << { :order => order, :order2 => order2, :id => k, :link => v }
           order2 += 1
