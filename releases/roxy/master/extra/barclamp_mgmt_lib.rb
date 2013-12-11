@@ -257,7 +257,7 @@ end
 
 #merges localizations from config into the matching translation files
 def merge_i18n(yaml)
-  locales = yaml['locale_additions']
+  locales = yaml['locale_additions'] || {}
   locales.each do |key, value|
     #translation file (can be multiple)
     f = File.join CROWBAR_PATH, 'config', 'locales', "#{key}.yml"
