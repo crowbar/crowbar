@@ -2,15 +2,42 @@
 
 ## Personas
 
-| Name | Title | Notes |
-|------|-------|-------|
-| Oscar | Operations Chief | Knows of Chef or Puppet. Likely has some experience. Comfortable and likes Linux. Can work with network configuration, but does not own network. Has used VMware. |
-| Charlie | CIO | Concerned about time to market and ROI. Is working on commercial offering based on OpenStack. |
-| Denise | Cloud Developer | Working on adding features to OpenStack. Working on services to pair with OpenStack. Comfortable with Ruby code. |
-| Quick | Data Center Worker | Can operate systems. Can Power On/Off when supervised by Susan. In charge of rack and replacement of gear. Can Intiate Automation when directed and supervised, but not create automation. |
-| Sally | Support Center Worker | Person who takes calls about the installation. |
-| Susan | System Administrator | Responsible for the OS installation, tuning, config, the works. Knows of Chef/Puppet but decided they were not there yet, so wrote her own. Responsible for the Application Installation, but not the tuning or more than the base config. Responsible for Network connectivity to some point, but works with Networking Ops to ensure right. |
-| Albert | Security Analyst/Operations | Goal to prevent any Interaction with any Machine/OS/Application, unless the proper information/justification is supplied.|
+<TABLE border=0>
+  <TBODY>
+  <TR>
+    <TH>Name</TH>
+    <TH>Title</TH>
+    <TH>Notes</TH></TR>
+  <TR>
+    <TD>Oscar</TD>
+    <TD>Operations Chief</TD>
+    <TD>Knows of Chef or Puppet. Likely has some experience. Comfortable and   likes Linux. Can work with network configuration, but does not own   network. Has used VMware.</TD>
+  </TR>
+  <TR>
+    <TD>Charlie</TD>
+    <TD>CIO</TD>
+    <TD>Concerned about time to market and ROI. Is working on commercial offering based on OpenStack.</TD></TR>
+  <TR>
+    <TD>Denise</TD>
+    <TD>Cloud Developer</TD>
+    <TD>Working on adding features to OpenStack. Working on services to pair with OpenStack. Comfortable with Ruby code.</TD></TR>
+  <TR>
+    <TD>Quick</TD>
+    <TD>Data Center Worker</TD>
+    <TD>Can operate systems. Can power on/off when supervised by Susan. In charge of rack and replacement of gear. Can initiate automation when directed and supervised, but cannot create automation.</TD>
+  </TR>
+  <TR>
+    <TD>Sally</TD>
+    <TD>Support Center Worker</TD>
+    <TD>Person who takes calls about the installation.</TD></TR>
+	<TR>
+    <TD>Susan</TD>
+    <TD>System Administrator</TD>
+    <TD>Responsible for the OS installation, tuning, configuration, the works. Knows of Chef/Puppet but decided they were not there yet, so wrote her own. Responsible for the application installation, but not the tuning or more than the base configuration. Responsible for network connectivity to some point, but works with Networking Ops to ensure right.</TD></TR>
+	<TR>
+    <TD>Albert</TD>
+    <TD>Security Analyst/Operations</TD>
+    <TD>Goal is to prevent any interaction with any machine/OS/application, unless the proper information/justification is supplied.</TD></TR></TABLE>
 
 ## Use cases
 

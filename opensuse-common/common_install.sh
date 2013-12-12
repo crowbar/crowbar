@@ -48,18 +48,20 @@ gpgcheck=0
 EOF
 fi
 
+# We prefer rsyslog.
+if rpm -q rsyslog; then
+    zypper install -l -f -n -y rsyslog
+fi
+systemctl enable rsyslog.service
+
+# Put the chef files in place
+[[ -d $BASEDIR/rsyslog.d ]] && cp "$BASEDIR/rsyslog.d/"* /etc/rsyslog.d/
+
+# Install Crowbar RPM Packages
+zypper install -n -y --force-resolution crowbar-barclamp-\*
+
 # Make runlevel 3 the default
 sed -i -e '/^id/ s/5/3/' /etc/inittab
-
-# We prefer rsyslog.
-zypper install -l -f -n -y rsyslog
-systemctl enable rsyslog
-
-# put the chef files in place
-cp "$BASEDIR/rsyslog.d/"* /etc/rsyslog.d/
-
-# Restart rsyslog to pick up out changes
-rcsyslog restart
 
 # Make sure /opt is created
 mkdir -p /opt/dell/bin
@@ -69,18 +71,16 @@ mkdir -p /opt/dell/bin
 finishing_scripts=(update_hostname.sh parse_node_data)
 ( cd "$BASEDIR/dell"; cp "${finishing_scripts[@]}" /opt/dell/bin; )
 
-barclamp_scripts=(barclamp_install.rb barclamp_multi.rb)
-( cd "/opt/dell/barclamps/crowbar/bin" &&  \
-    cp "${barclamp_scripts[@]}" /opt/dell/bin || :)
-
 # Make sure the bin directory is executable
 chmod +x /opt/dell/bin/*
+chown root:root /opt/dell/bin/*
 
 # Make sure we can actaully install Crowbar
 chmod +x "$BASEDIR/extra/"*
 
 # This directory is the model to help users create new barclamps
-cp -r /opt/dell/barclamps/crowbar/crowbar_framework/barclamp_model /opt/dell || :
+#  Commented out until we need it again - if ever!
+# cp -r /opt/dell/barclamps/crowbar/crowbar_framework/barclamp_model /opt/dell || :
 
 # Make sure the ownerships are correct
 chown -R crowbar.admin /opt/dell
@@ -91,8 +91,8 @@ for s in $(cat /proc/cmdline); do
     case ${s%%=*} in # everything before the first =
         crowbar.hostname) CHOSTNAME=$VAL;;
         crowbar.url) CURL=$VAL;;
-        crowbar.use_serial_console)
-            sed -i "s/\"use_serial_console\": .*,/\"use_serial_console\": $VAL,/" /opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json;;
+#        crowbar.use_serial_console)
+#            sed -i "s/\"use_serial_console\": .*,/\"use_serial_console\": $VAL,/" /opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json;;
         crowbar.debug.logdest)
             echo "*.*    $VAL" >> /etc/rsyslog.d/00-crowbar-debug.conf
             mkdir -p "$BASEDIR/rsyslog.d"

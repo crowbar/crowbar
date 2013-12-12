@@ -9,28 +9,23 @@ This resource provides access to all the Crowbar *barclamps*
 
 ### Request
 
-```
-GET /api/v2/barclamps
-```
+`GET /api/v2/barclamps`
 
 ### Response
 
 Headers:
 
-```http
-HTTP/1.1 200 OK
+<pre>HTTP/1.1 200 OK
 Content-Type: application/vnd.crowbar+json; version=1.9; charset=utf-8
 X-Request-Id: 5f7a7e9a28bcc3dfab26b522a17016d9
 X-Runtime: 0.021580
 ETag: "7f7e86fb0b2538e200852a3af7f55c81"
 Cache-Control: max-age=0, private, must-revalidate
-Transfer-Encoding: chunked
-```
+Transfer-Encoding: chunked</pre>
 
 Body:
 
-```json
-[
+<pre>[
   {
     "description": "Self-referential barclamp enabling other barclamps",
     "order": 0,
@@ -123,35 +118,29 @@ Body:
       "self": { "href": "/api/v2/barclamps/12"}
     }
   }
-]
-```
+]</pre>
 
 ## Retrieve a specific barclamp
 
 ### Request
 
-```
-GET /api/v2/barclamps/:id
-```
+`GET /api/v2/barclamps/:id`
 
 #### Response
 
 Headers:
 
-```http 
-HTTP/1.1 200 OK
+<pre>HTTP/1.1 200 OK
 Content-Type: application/vnd.crowbar+json; version=1.9; charset=utf-8
 X-Request-Id: 5f7a7e9a28bcc3dfab26b522a17016d9
 X-Runtime: 0.021580
 ETag: "7f7e86fb0b2538e200852a3af7f55c81"
 Cache-Control: max-age=0, private, must-revalidate
-Transfer-Encoding: chunked
-```
+Transfer-Encoding: chunked</pre>
 
 Response:
 
-```json
-{
+<pre>{
   "description": "Dns",
   "order": 30,
   "api_version": "v2",
@@ -181,5 +170,4 @@ Response:
   "_links": {
     "self": { "href": "/api/v2/barclamps/12"}
   }
-}
-```
+}</pre>

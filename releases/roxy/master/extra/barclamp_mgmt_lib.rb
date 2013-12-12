@@ -30,9 +30,15 @@ MODEL_SUBSTRING_BASE = '==BC-MODEL=='
 MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
 MODEL_SUBSTRING_HUMAN = '==*BC-MODEL=='
 MODEL_SUBSTRING_CAPSS = '==%BC-MODEL=='
+
 if ENV["CROWBAR_DIR"]
-  MODEL_SOURCE = File.join ENV["CROWBAR_DIR"], "barclamps","crowbar","crowbar_framework",'barclamp_model'
-  BARCLAMP_PATH = File.join ENV["CROWBAR_DIR"], "barclamps"
+  BASE_PATH = ENV["CROWBAR_DIR"]
+  BARCLAMP_PATH = File.join BASE_PATH, 'barclamps'
+  CROWBAR_PATH = File.join BASE_PATH, 'crowbar_framework'
+  MODEL_SOURCE = File.join CROWBAR_PATH, 'barclamp_model'
+  BIN_PATH = File.join BASE_PATH, 'bin'
+  UPDATE_PATH = '/updates'
+  ROOT_PATH = '/'
 else
   BASE_PATH = File.join '/opt', 'dell'
   BARCLAMP_PATH = File.join BASE_PATH, 'barclamps'
@@ -146,7 +152,7 @@ def generate_navigation
     order2 = 0
 
     yaml['nav'].each do |key, value|
-      if key == 'primary':
+      if key == 'primary'
         yaml['nav']['primary'].each do |k, v|
           primaries << { :order => order, :order2 => order2, :id => k, :link => v }
           order2 += 1
@@ -172,12 +178,15 @@ def generate_navigation
   nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'
   File.open( nav_file, 'w') do |out|
     out.puts 'SimpleNavigation::Configuration.run do |navigation|'
+    out.puts '  navigation.selected_class = "active"'
+    out.puts '  navigation.active_leaf_class = "leaf"'
     out.puts '  navigation.items do |primary|'
+    out.puts '    primary.dom_class = "nav navbar-nav"'
     primaries.each do |primary|
-      out.puts "    primary.item :#{primary[:id]}, t('nav.#{primary[:id]}'), #{primary[:link]} do |secondary|"
+      out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]} do |secondary|"
       unless secondaries[primary[:id]].nil?
         secondaries[primary[:id]].each do |secondary|
-          out.puts "      secondary.item :#{secondary[:id]}, t('nav.#{secondary[:id]}'), #{secondary[:link]}"
+          out.puts "      secondary.item :#{secondary[:id]}, t(\"nav.#{secondary[:id]}\"), #{secondary[:link]}"
         end
       end
       out.puts "    end"
@@ -257,7 +266,7 @@ end
 
 #merges localizations from config into the matching translation files
 def merge_i18n(yaml)
-  locales = yaml['locale_additions']
+  locales = yaml['locale_additions'] || {}
   locales.each do |key, value|
     #translation file (can be multiple)
     f = File.join CROWBAR_PATH, 'config', 'locales', "#{key}.yml"

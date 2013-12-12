@@ -30,9 +30,15 @@ MODEL_SUBSTRING_BASE = '==BC-MODEL=='
 MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
 MODEL_SUBSTRING_HUMAN = '==*BC-MODEL=='
 MODEL_SUBSTRING_CAPSS = '==%BC-MODEL=='
+
 if ENV["CROWBAR_DIR"]
-  MODEL_SOURCE = File.join ENV["CROWBAR_DIR"], "barclamps","crowbar","crowbar_framework",'barclamp_model'
-  BARCLAMP_PATH = File.join ENV["CROWBAR_DIR"], "barclamps"
+  BASE_PATH = ENV["CROWBAR_DIR"]
+  BARCLAMP_PATH = File.join BASE_PATH, 'barclamps'
+  CROWBAR_PATH = File.join BASE_PATH, 'crowbar_framework'
+  MODEL_SOURCE = File.join CROWBAR_PATH, 'barclamp_model'
+  BIN_PATH = File.join BASE_PATH, 'bin'
+  UPDATE_PATH = '/updates'
+  ROOT_PATH = '/'
 else
   BASE_PATH = File.join '/opt', 'dell'
   BARCLAMP_PATH = File.join BASE_PATH, 'barclamps'
@@ -146,7 +152,7 @@ def generate_navigation
     order2 = 0
 
     yaml['nav'].each do |key, value|
-      if key == 'primary':
+      if key == 'primary'
         yaml['nav']['primary'].each do |k, v|
           primaries << { :order => order, :order2 => order2, :id => k, :link => v }
           order2 += 1

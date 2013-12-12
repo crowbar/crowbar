@@ -172,12 +172,11 @@ switch_barclamps_to_build() {
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         bc=${bc##*/}
         new_branch=$(barclamp_branch_for_build "$1" "$bc")
-        current_head=$(in_barclamp "$bc" git symbolic-ref HEAD 2>/dev/null || \
-            in_barclamp "$bc" git rev-parse HEAD)
+        current_head=$(in_barclamp "$bc" get_current_head)
         if [[ $new_branch =~ [0-9a-f]{40} && $new_branch = $current_head ]]; then
             # We want HEAD to be on a raw commit, and it is on the one we want.
             continue
-        elif [[ $current_head = refs/heads/$new_branch ]]; then
+        elif [[ $current_head = $new_branch ]]; then
             # We want HEAD to be on a branch, and it is on the one we want.
             continue
         elif [[ $new_branch = empty-branch ]]; then
@@ -207,16 +206,18 @@ switch_release() {
     local l br bc current_branch new_base rel repo
     local -A barclamps
     new_build="$(current_build)"
-    if build_exists "$1"; then
-        new_build="$1"
-    elif release_exists "$1"; then
-        new_build="$1/${new_build##*/}"
-        if ! build_exists "$new_build"; then
-            debug "Release $1 does not have build $new_build, switching to $1/master instead."
-            new_build="$1/master"
+    if [[ $1 ]]; then
+        if build_exists "$1"; then
+            new_build="$1"
+        elif release_exists "$1"; then
+            new_build="$1/${new_build##*/}"
+            if ! build_exists "$new_build"; then
+                debug "Release $1 does not have build $new_build, switching to $1/master instead."
+                new_build="$1/master"
+            fi
+        else
+            die "$1 is not a release or a build I can switch to!"
         fi
-    elif [[ $1 ]]; then
-        die "$1 is not a release or a build I can switch to!"
     fi
     barclamps_are_clean || \
         die "Crowbar repo must be clean before trying to switch releases!"
@@ -493,14 +494,6 @@ clone_barclamps() {
         github_fork "$(origin_remote)" crowbar || \
             die "Unable to create your fork of Crowbar."
     fi
-}
-
-# Check out a branch, but be quiet about it unless something goes wrong.
-quiet_checkout() {
-    local res=''
-    res=$(git checkout -q "$@" 2>&1) && return
-    echo "$res" >&2
-    return 1
 }
 
 # Update tracking branches for all remotes in a specific repo.
@@ -1178,7 +1171,19 @@ list_pull_requests() {
             cn=""
         fi
         ct="${id%%/*}"
-        echo "$idx: ($(cat "$cr")$cn) $(cat "$cf")"
+        lrepo=""
+        lurl=""
+        prq="$OPEN_PULL_REQUESTS/$id"
+        case $id in
+            singletons/*)
+               . <(source_prq_vars "$prq" "local")
+               lrepo="$prq_local_repo"
+               lurl=", $prq_github_url";;
+            bundles/*)
+                   lrepo="Multiple";;
+        esac
+
+        echo "$idx: ($(cat "$cr")$cn - $lrepo) $(cat "$cf")$lurl"
     done <"$OPEN_PULL_REQUESTS/pull_request_index"
 }
 
@@ -2627,6 +2632,87 @@ setup() {
     switch_release
 }
 
+# Given a release, find the "best" parent release.  This will only
+# be called if we don't already have metadata recorded for the
+# parent relationship of this release.
+find_best_parent() {
+    # $1 = release to find the "best" parent of.
+    #      If empty, use the release we are currently on.
+    local br distance best_distance ref candidate merge_base release
+    local best_candidates=()
+    if [[ $1 ]]; then
+        release_exists "$1" || \
+            die "find_best_parent: $1 is not a release"
+        release="$1"
+    else
+        release="$(current_release)"
+    fi
+    if candidate=$(parent_release "$release"); then
+        printf "%s\n" "$candidate"
+        return 0
+    elif [[ $release != feature/* ]]; then
+        echo "$release"
+        return 0
+    elif in_repo git_config_has "crowbar.releases.$release.parent"; then
+        set_parent_release "$(get_repo_cfg "crowbar.releases.$release.parent")" "$release"
+        parent_release "$release"
+        return 0
+    fi
+    debug "More than one good candidate for a parent of $release found."
+    debug "Please pick the one you want:"
+    select candidate in $(all_releases) "None of the above"; do
+        case $candidate in
+            'None of the above') die "Aborting.";;
+            '') continue;;
+            *) break;;
+        esac
+    done
+    echo "$candidate" > "$CROWBAR_DIR/releases/$release/parent"
+    in_repo git commit -m "Adding parent for $release" "releases/$release/parent"
+}
+
+
+# Create a new release branch structure based on the current state of the
+# Crowbar repositories.
+cut_release() {
+    local new_branch bc
+
+    [[ $1 ]] || die "cut_release: Please specify a name for the new release"
+
+    # Test to see if release exists.
+    release_exists "$1" && die "cut_release: Name already exists"
+    local can_cut=true
+    new_branch="$(release_branch $1)"
+    current_release=$(current_release)
+    barclamps_are_clean || \
+        die "Crowbar repo must be clean before trying to cut a release!"
+
+    clone_release "$current_release" "$1"
+    for build in $(builds_in_release "$current_release"); do
+        debug "Creating build $build in new release $1"
+        for bc in $(barclamps_from_build "$current_release/$build"); do
+            br="$(barclamp_branch_for_build "$current_release/$build" "$bc")"
+            [[ $br && $br != empty-branch ]] || continue
+            in_barclamp "$bc" git branch -f --no-track "$new_branch" "$br"
+            set_barclamp_branch_for_build "$1/$build" "$bc" "$new_branch"
+        done
+    done
+    [[ $1 = feature/* ]] && \
+        set_parent_release "$1" "$current_release"
+    (cd "$(release_cfg_dir "$1")"; git add .)
+    __release_update
+    if git_managed_cache && ! in_cache branch_exists "$new_branch"; then
+        debug "Creating $new_branch for $1 in the build cache"
+        if in_cache branch_exists "$(release_branch)"; then
+            in_cache git branch "$new_branch" "$(release_branch)"
+        else
+            in_cache git branch "$new_branch" master
+        fi
+    fi
+    debug "$1 created."
+    switch_release "$1"
+}
+
 # Test repository $1 to see if commit $2 is in sync with $3.
 # In this case, "in sync" is defined as:
 #  * $2 and $3 point at the same commit, or
@@ -2649,6 +2735,89 @@ branches_synced() {
     # reachable from $2.  If there are, then the branches are not synced.
     (cd "$1"; [[ ! $(git rev-list "$2..$3") ]] ) && return 0
     return 1
+}
+
+# Erase a release.  Complains if it is not merged into its parent release.
+erase_release() {
+    # $1 = release refix
+    local bc build whine=false current_br parent_br template_br
+    local -A branches
+    [[ $2 ]] && die "erase-feature only takes one argument"
+    [[ $1 = development ]] && die "Cannot erase the development release."
+    release_exists "$1" || die "$1 is not a release we can erase!"
+    [[ $1 = $(current_release) ]] && die "Cannot erase the release you are on!"
+    parent=$(find_best_parent "$1")
+    template_br=$(release_branch "$1")
+    for build in $(builds_in_release "$1"); do
+        if ! build_exists "$parent/$build"; then
+            debug "$build does not exist in $parent release."
+            whine=true
+            continue
+        fi
+        for bc in $(barclamps_from_build "$1/$build"); do
+            if ! __barclamp_exists_in_build "$parent/$build/$bc"; then
+                debug "$barclamp does not exist in $parent/$build"
+                whine=true
+                continue
+            fi
+            current_br=$(barclamp_branch_for_build "$1/$build" "$bc")
+            [[ $current_br && $current_br != empty-branch ]] || continue
+            parent_br=$(barclamp_branch_for_build "$parent/$build" "$bc")
+            if [[ ! $parent_br || $parent_br = empty-branch ]]; then
+                debug "$1/$build/$bc: branch ${release_refs[$bc]} is unique to $1."
+                whine=true
+            fi
+            if [[ $current_br != $template_br ]]; then
+                debug "Barclamp $bc is on $current_br, which is not the expected branch name." \
+                    "We expected it to be on $template_br"
+            fi
+            if ! in_barclamp "$bc" branches_synced . "$parent_br" "$current_br"; then
+                debug "barclamp $bc: $current_br is not merged into $parent_br"
+                whine=true
+            fi
+        done
+    done
+    if [[ $whine = true ]]; then
+        printf "$1 is not merged into $parent.  Really erase? (y/n): " >&2
+        read -n 1
+        [[ $REPLY != 'y' ]] && exit
+    fi
+    debug "Erasing branches for release $1"
+    for bc in $(barclamps_in_release "$1"); do
+        for current_br in $(barclamp_branches_for_release "$1" "$bc"); do
+            in_barclamp "$bc" git branch -D "${current_br}" &>/dev/null
+        done
+    done
+    debug "Erasing metadata for release $1"
+    __kill_release "$1"
+}
+
+# Given a release, show any redundant barclamp declarations.
+# This is intended to help manually clean up release metadata.
+show_duplicate_barclamps() {
+    local release=${1:-$(current_release)} build parent bc
+    local to_remove=()
+    for build in $(builds_in_release "$release"); do
+        build="$release/$build"
+        parent=$(parent_build "$build")
+        [[ $parent ]] || continue
+        local -A barclamps
+        for bc in $(barclamps_in_build "$parent"); do
+            barclamps["$bc"]=parent
+        done
+        for bc in $(barclamps_from_build "$build"); do
+            [[ ${barclamps[$bc]} ]] || continue
+            [[ $(get_barclamp_branch_for_build "$build" "$bc") = \
+                $(get_barclamp_branch_for_build "$parent" "$bc") ]] || continue
+            to_remove+=("$build: $bc")
+        done
+    done
+    if [[ $to_remove ]]; then
+        debug "Release $release has the following redundant barclamp metadata:"
+        printf "%s\n" "${to_remove[@]}" |sort -u
+    else
+        debug "No redundant barclamps in release $release"
+    fi
 }
 
 # Back up any local commits that are not already present on our upstreams,
@@ -2752,11 +2921,11 @@ __pin_release() {
 pin_release() {
     barclamps_are_clean || die "Crowbar must be clean before pinning $1"
     if __pin_release "$@"; then
-        git commit -m "Pinned barclamps in $1 to ${2:-current HEAD}"
+        __release_update "Pinned barclamps in $1 to ${2:-current HEAD}"
         switch_release
         return 0
     else
-        __pin_release_cleanup
+        __release_cleanup
         echo "Could not pin $1 to ${2:-current HEAD}, leaving things unchanged."
         return 1
     fi
@@ -2777,6 +2946,54 @@ unpin_release() {
     fi
     pin_release "$1" "$(build_branch "$build")"
 }
+
+
+# Create a new tagged release based on the current state of the repositories.
+cut_tagged_release() {
+    # $1 = name of the tag.
+    # $2 = build to cut from.
+    # The build we are cutting from would have already been pinned to the tag.
+    release_exists "$1" && die "Cannot cut tagged release $1, it already exists!"
+    build_exists "$2" || die "Cannot cut tagged release, basis build $2 does not exist!"
+    local bc ref f
+    # Start with a clone of the release.
+    clone_release "${2%/*}" "$1"
+    # Add tagged refs for all the barclamps we care about to
+    # the master build in the new release
+    for bc in $(barclamps_in_build "$2"); do
+        ref=$(barclamp_branch_for_build "$2" "$bc")
+        [[ $ref && $ref != empty-branch ]] || continue
+        # We assume that the barclamp tags have already been created.
+        __add_barclamp_to_build "$1/master" "$bc" "$1"
+    done
+    # Make sure we copy down build-specific non-barclamp metadata
+    (
+        cd "$(build_cfg_dir "$1/${2##*/}")"
+        target_dir="$(build_cfg_dir "$1/master")"
+        for f in *; do
+            [[ $f = barclamp-* ]] && continue
+            [[ $f = . || $f = .. || $f = parent ]] && continue
+            cp -aL "$f" "$target_dir"
+        done
+        (cd "$target_dir"; git add .)
+    )
+    # Exterminate all now-unneeded non-master builds
+    local build
+    while read build; do
+        [[ $build = master ]] && continue
+        __kill_build "$1/$build"
+    done < <(__builds_in_release "$1")
+    # Create a new fork in the build cache.
+    if git_managed_cache; then
+        local old_rel_br=$(release_branch "${2%/*}")
+        local rel_br="$(release_branch "$1")"
+        in_cache branch_exists "$old_rel_br" && \
+            in_cache git branch "$rel_br" "$old_rel_br"
+    fi
+    __release_update "Cut tagged release $1"
+    switch_release "$1"
+}
+
 
 # Find branches in barclamps for a given release that are not synced,
 # and show them.
@@ -2905,16 +3122,7 @@ merge_releases() {
             [[ ${current_builds[$build]} ]] || continue
             for bc in $(barclamps_from_build "$rel/$build"); do
                 [[ ${current_barclamps[$bc]} ]] || continue
-                head=$(git symbolic-ref HEAD)
-                if [[ $head != refs/heads/* ]]; then
-                    head=$(git rev-parse HEAD)
-                    if [[ ! $head ]]; then
-                        debug "Barclamp ${repo##*/}: Cannot find head commit."
-                        return 1
-                    fi
-                else
-                    head=${head#refs/heads/}
-                fi
+                head=$(get_current_head)
                 merge_one_release "$bc" "$thisrel/$build" "$rel/$build"
                 res=$?
                 in_barclamp "$bc" git checkout -q -f "${head}"
@@ -2942,16 +3150,7 @@ sync_repo() (
     # Repo is not clean, we will refuse to merge in any case.
     git_is_clean || exit 1
     # Merge upstream branches from our remotes
-    head=$(git symbolic-ref HEAD)
-    if [[ $head != refs/heads/* ]]; then
-        head=$(git rev-parse HEAD)
-        if [[ ! $head ]]; then
-            debug "Barclamp ${repo##*/}: Cannot find head commit."
-            return 1
-        fi
-    else
-        head=${head#refs/heads/}
-    fi
+    head=$(get_current_head)
     while read ref branch; do
         branch=${branch#refs/heads/}
         remote="$(remote_for_branch "$branch")" || continue
@@ -3625,6 +3824,8 @@ flatten_crowbar() {
     crowbar_is_clean && \
         [[ $(in_repo git symbolic-ref HEAD) = refs/heads/master ]] || \
         die "You must be on master to flatten the hierarchy!"
+    git_tracked_checkout && die "Cannot flatten Git tracked metadata"
+    flat_checkout && die "Crowbar is already flattened."
     while read sha ref; do
         # Special case handling for tags.
         # We make releases for them, and have their barclamp markers point to
@@ -3711,6 +3912,41 @@ flatten_crowbar() {
     in_repo git config 'crowbar.build' 'development/master'
     in_repo git commit -m "Added flattened Crowbar metadata."
     switch_release
+}
+
+# Transition from flat metadata to git tracked metadata.
+git_track_crowbar_metadata() {
+    local tmp_metadata="$CROWBAR_DIR/.releases"
+    flat_checkout || die "Crowbar metadata is not flat, cannot convert to git tracked!"
+    rm -rf "$tmp_metadata"
+    mkdir -p "$tmp_metadata"
+    (   cd "$tmp_metadata"
+        git init .
+        git checkout master
+        cat >README.crowbar-metadata <<EOF
+This is the crowbar release metadata tracking repository.
+There is a branch in this repository for each release of Crowbar
+that contains all the metadata for that release and the builds that
+are part of that release.
+EOF
+        git add README.crowbar-metadata
+        git commit -m "Initial commit")
+    local working_release
+    while read working_release; do
+        echo "Adding $working_release to git release tracking repository"
+        cfg_dir="$(release_cfg_dir "$working_release")"
+        (cd "$tmp_metadata"; git checkout master; git checkout -b "$working_release")
+        cp -a "$cfg_dir/"* "$tmp_metadata"
+        (cd "$tmp_metadata"; git add .; git commit -m "Added initial metadata for $working_release")
+    done < <(all_releases)
+    echo "Conversion to git tracked metadata finished."
+    echo "Please run ./dev switch to start using the new git tracked metadata."
+    echo "To remove the flat metadata, perform the following steps:"
+    echo
+    echo "\$ git rm -rf releases"
+    echo "\$ git commit -m \"Removing flat metadata in favor of git-tracked release metadata\""
+    echo
+    echo "After doing this, your releases will be tracked using the git repo based metadata."
 }
 
 # Purge submodule information from the master branch.
@@ -4271,6 +4507,7 @@ DEV_COMMANDS["fetch"]="fetch_all"
 DEV_COMMANDS["fetch-pull-requests"]="fetch_pull_requests_for_remote"
 DEV_COMMANDS["find-parent"]="find_best_parent"
 DEV_COMMANDS["flatten"]="flatten_crowbar"
+DEV_COMMANDS["gitify-meta"]="git_track_crowbar_metadata"
 DEV_COMMANDS["help"]="dev_help"
 DEV_COMMANDS["is_clean"]="crowbar_is_clean"
 DEV_COMMANDS["local-changes"]="find_local_changed_branches_for_release"
@@ -4329,6 +4566,7 @@ DEV_SHORT_HELP["fetch"]="              Fetch updates from configured upstream re
 DEV_SHORT_HELP["fetch-pull-requests"]="Fetch pull request information from a specific remote"
 DEV_SHORT_HELP["find-parent"]="        Find the closest parent of a release or feature."
 DEV_SHORT_HELP["flatten"]="            Flatten the main Crowbar repo branching structure."
+DEV_SHORT_HELP["gitify-meta"]="        Take flattened Crowbar metadata and put it in its own Git repo."
 DEV_SHORT_HELP["help"]="               Show detailed help."
 DEV_SHORT_HELP["is_clean"]="           Test to see if all work is committed."
 DEV_SHORT_HELP["local-changes"]="      Find local changes from upstream for a release"
@@ -4765,6 +5003,8 @@ DEV_LONG_HELP["ci"]="Crowbar Continuous Integration Helper.
     show-intents: Shows all the current and stale intents for a pull request.
     kill-stale-intents: Given a pull request ID, this will kill any stale intents
       that are hanging around and attempt to push them out."
+DEV_LONG_HELP["gitify-meta"]="Translate flattened Crowbar metadata from the releases/
+directory hierarchy, and put it in its own Git repository."
 
 # Verify that we have help for all commands, and exit if we don't.
 for cmd in "${!DEV_COMMANDS[@]}"; do

@@ -14,6 +14,10 @@
 # limitations under the License.
 # 
 
+# README:
+# This script runs an installer image as a virtual machine allowing you to 
+# bootstrap an admin node.
+
 # This script expects to be able to run certian commands as root.
 # Either run it as a user who can sudo to root, or give the user
 # you are running it as the following sudo rights:
@@ -49,7 +53,7 @@ NICS_PER_BRIDGE=1
 PHYSICAL_INTERFACES=("$3,deploy-br")
 make_virt_net
 
-kvm -drive "file=$1,if=ide,media=disk,snapshot=on" \
+"$KVM" -drive "file=$1,if=ide,media=disk,snapshot=on" \
     -cdrom "$2" \
     -net "nic,macaddr=52:54:00:00:00:8f,model=e1000" \
     -net "tap,ifname=admin-0-br,script=no,downscript=no" \

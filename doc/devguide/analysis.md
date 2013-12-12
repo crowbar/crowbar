@@ -1,4 +1,6 @@
-## Automated code analysis [![Code Climate](https://codeclimate.com/github/crowbar/travis-ci-crowbar.png)](https://codeclimate.com/github/crowbar/travis-ci-crowbar)
+## Automated Code Analysis
+
+[![Code Climate](https://codeclimate.com/github/crowbar/travis-ci-crowbar.png)](https://codeclimate.com/github/crowbar/travis-ci-crowbar)
 
 In addition to [automated testing and code coverage
 reports](testing.md), we make use of the awesome service at
