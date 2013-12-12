@@ -274,65 +274,6 @@ def merge_i18n(yaml)
   end
 end
 
-# makes sure that sass overrides are injected into the application.sass
-def merge_sass(yaml, bc, path, installing)
-  sass_path = File.join path, 'crowbar_framework', 'public', 'stylesheets', 'sass'
-  application_sass = File.join CROWBAR_PATH, 'public', 'stylesheets', 'sass', 'application.sass'
-  if File.exist? application_sass and File.exists? sass_path
-    sass_files = Dir.entries(sass_path).find_all { |r| r =~ /^_(.*).sass$/ }
-    # get entries from the applicaiton.sass file
-    sapp = []
-    File.open(application_sass,'r') do |f|
-      f.each_line { |l| sapp << l.chomp }
-    end
-    # figure out where to insert the sass item
-    top = -1
-    if !yaml['application_sass'].nil? and  yaml['application_sass']['add'] === 'top'
-      top = (sapp.find_index("// top of import list") || 3)+1
-    end
-    # remove items that we don't want
-    yaml['application_sass']['remove'].each do |item|
-      if installing and sapp.include? item
-        sapp.delete item
-        debug "removing '#{item}' from application.sass based on crowbar.yml"
-      elsif !installing and !sapp.include? item
-        if top>0
-          sapp.insert top, item
-        else
-          sapp << item
-        end
-        debug "restoring '#{item}' to application.sass based on crowbar.yml in position #{top}"
-      end
-    end unless yaml['application_sass'].nil? or yaml['application_sass']['remove'].nil?
-    # scan the sass files from the barclamp
-    sass_files.each do |sf|
-      entry = "@import #{sf[/^_(.*).sass$/,1]}"
-      # when installing, if not already in the application, add it
-      if installing and !sapp.include? entry
-        if top>0
-          sapp.insert top, entry
-        else
-          sapp << entry
-        end
-        debug "adding '#{entry}' to application.sass for #{sf} in position #{top}"
-        # when uninstalling, remove from applicaiton
-      elsif !installing
-        sapp.delete entry
-        debug "removing '#{entry}' from application.sass for #{sf}"
-      end
-    end
-    # write the new application sass
-    File.open(application_sass, 'w' ) do |out|
-      out.puts sapp
-    end
-    framework_permissions bc, path
-
-    debug "updated #{application_sass}"
-  else
-    debug "NOTE: skipping application sass update, #{application_sass} not found"
-  end
-end
-
 # helper for localization merge
 def merge_tree(key, value, target)
   if target.key? key
@@ -362,7 +303,6 @@ def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
     end
     FileUtils.rm filelist rescue nil
 
-    merge_sass yaml, bc, bc_path, false
     generate_navigation
     catalog bc_path
 
@@ -375,10 +315,6 @@ def framework_permissions(bc, bc_path)
   chmod_dir 0644, File.join(CROWBAR_PATH, 'db')
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'tmp')
   chmod_dir 0644, File.join(CROWBAR_PATH, 'tmp')
-  FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'public', 'stylesheets')
-  chmod_dir 0644, File.join(CROWBAR_PATH, 'public', 'stylesheets')
-  FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'public', 'stylesheets', 'sass')
-  chmod_dir 0644, File.join(CROWBAR_PATH, 'public', 'stylesheets', 'sass')
   debug "\tcopied crowbar_framework files"
 end
 
@@ -442,9 +378,6 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
   File.open( filelist, 'w' ) do |out|
     files.each { |line| out.puts line }
   end
-
-  debug "merge_sass"
-  merge_sass yaml, bc, bc_path, true
 
   # Migrate base crowbar schema if needed
   bc_schema_version = yaml["crowbar"]["proposal_schema_version"].to_i rescue 1
