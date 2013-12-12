@@ -299,6 +299,39 @@ service crowbar restart
 # By now, we have a machine key.  Load it.
 export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
 
+admin_net='
+{
+  "name": "admin",
+  "deployment": "system",
+  "conduit": "1g0",
+  "ranges": [
+    {
+      "name": "admin",
+      "first": "192.168.124.10/24",
+      "last": "192.168.124.11/24"
+    },
+    {
+      "name": "host",
+      "first": "192.168.124.81/24",
+      "last": "192.168.124.254/24"
+    },
+    {
+      "name": "dhcp",
+      "first": "192.168.124.21/24",
+      "last": "192.168.124.80/24"
+    }
+  ]
+}'
+
+admin_node="
+{
+  \"name\": \"$FQDN\",
+  \"admin\": true,
+  \"alive\": false,
+  \"bootenv\": \"local\"
+}
+"
+
 # Eventaully, --wizard will become the default.
 if ! [[ $* = *--wizard* ]]; then
     ###
@@ -307,20 +340,22 @@ if ! [[ $* = *--wizard* ]]; then
     ip_re='([0-9a-f.:]+/[0-9]+)'
 
     # Create a stupid default admin network
-    curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
-        -X POST http://localhost:3000/network/api/v2/networks \
-        -d "name=admin" \
-        -d "deployment=system" \
-        -d "conduit=1g0"  \
-        -d 'ranges=[ { "name": "admin", "first": "192.168.124.10/24", "last": "192.168.124.11/24"},{"name": "host", "first": "192.168.124.81/24", "last": "192.168.124.254/24"},{"name": "dhcp", "first": "192.168.124.21/24", "last": "192.168.124.80/24"}]'
+    crowbar networks create "$admin_net"
+    #curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
+    #    -X POST http://localhost:3000/network/api/v2/networks \
+    #    -d "name=admin" \
+    #    -d "deployment=system" \
+    #    -d "conduit=1g0"  \
+    #    -d 'ranges='
 
     # Create the admin node entry.
-    curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
-        -X POST http://localhost:3000/api/v2/nodes \
-        -d "name=$FQDN" \
-        -d 'admin=true' \
-        -d 'alive=false' \
-        -d 'bootenv=local'
+    crowbar nodes create "$admin_node"
+    #curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
+    #    -X POST http://localhost:3000/api/v2/nodes \
+    #    -d "name=$FQDN" \
+    #    -d 'admin=true' \
+    #    -d 'alive=false' \
+    #    -d 'bootenv=local'
 
     # Figure out what IP addresses we should have, and add them.
     netline=$(curl -f --digest -u $(cat /etc/crowbar.install.key) -X GET "http://localhost:3000/network/api/v2/networks/admin/allocations" -d "node=$(hostname -f)")
@@ -334,10 +369,10 @@ if ! [[ $* = *--wizard* ]]; then
     done
 
     # Mark the node as alive.
-    curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
-        -X PUT "http://localhost:3000/api/v2/nodes/$FQDN" \
-        -d 'alive=true'
-    
+    crowbar nodes update "$FQDN" '{"alive": true}'
+    #curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
+    #    -X PUT "http://localhost:3000/api/v2/nodes/$FQDN" \
+    #    -d 'alive=true'
     # Converge the admin node.
     tries=3
     converged=false
