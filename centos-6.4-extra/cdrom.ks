@@ -37,6 +37,7 @@ emacs-nox
 openssh
 createrepo
 screen
+gcc-c++
 
 %post --nochroot
 export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
