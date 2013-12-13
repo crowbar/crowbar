@@ -417,7 +417,7 @@ kill_vm() (
         fi
     done
     flock -u 65
-    echo"Could not kill $vmname, something went horribly wrong."
+    echo "Could not kill $vmname, something went horribly wrong."
     return 1
 ) 65>"$SMOKETEST_KVM_LOCK"
 
@@ -445,6 +445,11 @@ wait_for_kvm() {
     local lastres= thisres=
     # Use the same /proc/$kvmpid trick we used in kill_vm to
     # make sure we are watching the right process.
+    if [[ ! -d /proc/$kvmpid ]]; then
+        smoketest_update_status $vmname "No process ID $kvmpid, what happened to our VM?"
+        ps aux |grep kvm
+        die "We are done here."
+    fi
     (   cd "/proc/$kvmpid"
         # if /proc/$kvmpid/$cmdline does not contain the name of our
         # VM, something went horrbly wrong.
