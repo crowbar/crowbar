@@ -172,12 +172,15 @@ def generate_navigation
   nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'
   File.open( nav_file, 'w') do |out|
     out.puts 'SimpleNavigation::Configuration.run do |navigation|'
+    out.puts '  navigation.selected_class = "active"'
+    out.puts '  navigation.active_leaf_class = "leaf"'
     out.puts '  navigation.items do |primary|'
+    out.puts '    primary.dom_class = "nav navbar-nav"'
     primaries.each do |primary|
-      out.puts "    primary.item :#{primary[:id]}, t('nav.#{primary[:id]}'), #{primary[:link]} do |secondary|"
+      out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]} do |secondary|"
       unless secondaries[primary[:id]].nil?
         secondaries[primary[:id]].each do |secondary|
-          out.puts "      secondary.item :#{secondary[:id]}, t('nav.#{secondary[:id]}'), #{secondary[:link]}"
+          out.puts "      secondary.item :#{secondary[:id]}, t(\"nav.#{secondary[:id]}\"), #{secondary[:link]}"
         end
       end
       out.puts "    end"
