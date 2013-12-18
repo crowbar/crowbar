@@ -1,0 +1,64 @@
+#!/usr/bin/env ruby
+
+case ARGV[0]
+  when 'all_pfs'
+    preferences={ "*" => {
+      "use_gitrepo" => true,
+      "use_virtualenv" => true,
+      "use_pip_cache" => true,
+      "use_gitbarclamp" => true
+      },
+      "tempest" => {
+       "use_virtualenv" => true,
+       "use_pfs" => false
+      } }
+  when 'quantum_gre'
+     preferences={"quantum" => {
+       "networking_mode" => "gre"
+     } }
+  when 'tempest_pfs'
+     preferences={"tempest" => {
+       "use_virtualenv" => true,
+       "use_pfs" => false
+     } }
+  else
+      exit(1)
+end
+
+require 'rubygems'
+require 'json'
+
+# path for Hash class
+class Hash
+  def apply(path = {})
+    path.each_pair do |key,value|
+      if value.kind_of?(Hash) and self[key].kind_of?(Hash)
+        self[key] = self[key].apply(value)
+      else
+        if self.has_key?(key) and self[key].to_s != value.to_s
+          self[key] = value
+        end
+      end
+    end
+    self
+  end
+end
+
+# get proposal and preferences
+proposal = JSON.parse(STDIN.read)
+
+# extract attributes
+attributes = proposal["attributes"] || {}
+global = preferences["*"] || {}
+preferences.sort.map do |preference, config|
+  # apply global preferences
+  attributes.each_pair do |key,value|
+    attributes[key].apply(global)
+  end
+  if attributes.has_key? preference
+    # apply specific preferences
+    attributes[preference].apply(config)
+  end
+end
+puts JSON.pretty_generate(proposal)
+

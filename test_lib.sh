@@ -1168,6 +1168,7 @@ run_test() {
         [[ $line =~ $screen_re ]] && screen -S "${BASH_REMATCH[1]}" -X quit || :
     done < <(screen -ls)
     local tests_to_run=()
+    local xtra_args=()
     local network_mode=team
     # Process our commandline arguments.
     while [[ $1 ]]; do
@@ -1191,6 +1192,7 @@ run_test() {
             use-screen) unset DISPLAY;;
             online) online=true;;
             local_proxy) proxy="$2"; shift;;
+            xtra-arg) xtra_args+=("$2"); shift;;
             scratch);;
             *)
                 if [[ -d $CROWBAR_DIR/barclamps/$1 ]]; then
@@ -1248,7 +1250,7 @@ run_test() {
                 echo "$(date '+%F %T %z'): Compute nodes deployed."
                 for this_test in $running_test; do
                     echo "$(date '+%F %T %z'): Running smoketests for $this_test."
-                    if ! run_on $CROWBAR_IP /opt/dell/bin/smoketest "$this_test"; then
+                    if ! run_on $CROWBAR_IP /opt/dell/bin/smoketest "${xtra_args[@]}" "$this_test"; then
                         echo "$(date '+%F %T %z'): $this_test tests failed."
                         SMOKETEST_RESULTS+=("$this_test: Failed")
                         smoketest_get_cluster_logs "$running_test-tests-failed"
