@@ -717,7 +717,7 @@ run_admin_node() {
 
     smoketest_update_status admin "Creating disk image"
     screen -S "$SMOKETEST_SCREEN" -X screen -t Status "$CROWBAR_DIR/test_framework/watch_Status.sh"
-    qemu-img create -f raw "$smoketest_dir/admin.disk" 20G &>/dev/null
+    qemu-img create -f raw "$smoketest_dir/admin.disk" 25G &>/dev/null
 
     if [[ $online = true ]]; then
         if ! run_kvm "$nodename" -cdrom "$SMOKETEST_ISO" ; then
