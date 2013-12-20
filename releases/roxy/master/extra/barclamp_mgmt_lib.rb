@@ -49,10 +49,8 @@ else
   ROOT_PATH = '/'
 end
 
-@@debug = ENV['DEBUG'] === "true"
-
 def debug(msg)
-  puts "DEBUG: " + msg if @@debug
+  puts "DEBUG: " + msg if ENV['DEBUG'] === "true"
 end
 
 def fatal(msg, log)
