@@ -364,6 +364,10 @@ for role in crowbar deployer-client $NODE_ROLE; do
         die "Could not add $role to Chef. Crowbar bringup will fail."
 done
 
+# Create session store database
+rm -f /opt/dell/crowbar_framework/db/{migrate/,production.sqlite3,schema.rb}
+su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production rake db:sessions:create && RAILS_ENV=production rake db:migrate"
+
 pre_crowbar_fixups
 
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
