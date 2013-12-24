@@ -728,14 +728,14 @@ fi
 # in cookbook dependencies)
 #
 for i in crowbar deployer dns ipmi logging network ntp provisioner \
-         database rabbitmq keystone swift glance cinder neutron nova \
+         database rabbitmq keystone swift ceph glance cinder neutron nova \
          nova_dashboard openstack ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
 done
 
 # Install optional barclamps if they're present
 for i in updater suse-manager-client nfs_client \
-    ceph cisco-ucs hyperv heat ceilometer ; do
+    cisco-ucs hyperv heat ceilometer ; do
     if test -d $BARCLAMP_SRC/$i; then
         /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
     fi
