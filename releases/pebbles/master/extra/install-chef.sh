@@ -365,7 +365,8 @@ for role in crowbar deployer-client $NODE_ROLE; do
 done
 
 # Create session store database
-rm -f /opt/dell/crowbar_framework/db/{migrate/,production.sqlite3,schema.rb}
+rm -rf /opt/dell/crowbar_framework/db/migrate
+rm -f /opt/dell/crowbar_framework/db/{production.sqlite3,schema.rb}
 su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production rake db:sessions:create && RAILS_ENV=production rake db:migrate"
 
 pre_crowbar_fixups
