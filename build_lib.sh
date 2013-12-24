@@ -38,6 +38,7 @@ BC_QUERY_STRINGS["test_deps"]="smoketest requires"
 BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 BC_QUERY_STRINGS["supercedes"]="barclamp supercedes"
 BC_QUERY_STRINGS["git_repos"]="git_repo"
+BC_QUERY_STRINGS["pips"]="pips"
 
 # By default, do not try to update the cache or the metadata.
 # These will be unset if --update-cache is passed to the build.
@@ -46,7 +47,7 @@ ALLOW_CACHE_METADATA_UPDATE=false
 declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_SUPPORT BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS
 declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
-declare -A BC_SUPERCEDES BC_SRC_PKGS BC_GIT_REPOS
+declare -A BC_SUPERCEDES BC_SRC_PKGS BC_GIT_REPOS BC_PIPS
 declare -A CACHED_PACKAGES
 
 GEM_EXT_RE='^(.*)-\((.*)\)$'
@@ -113,6 +114,7 @@ get_one_barclamp_info() {
                 extra_files) BC_EXTRA_FILES["$1"]+="$line\n";;
                 os_support) BC_OS_SUPPORT["$1"]+="$line ";;
                 gems) BC_GEMS["$1"]+="$line ";;
+                pips) BC_PIPS["$1"]+="$line ";;
                 repos|os_repos) BC_REPOS["$1"]+="$line\n";;
                 ppas|os_ppas) [[ $PKG_TYPE = debs ]] || \
                     die "Cannot declare a PPA for $PKG_TYPE!"
@@ -835,7 +837,17 @@ update_barclamp_git_repo_cache() {
     return 1
 }
 
-
+# Check to see if the barclamp pip cache needs an update.
+any_pip_cache() { [[ ${BC_PIPS[*]} ]]; }
+barclamp_pip_cache_needs_update() {
+    [[ ${BC_PIPS[$1]} ]] || return 1
+}
+update_barclamp_pip_cache() {
+    bc_cache="$CACHE_DIR/barclamps/$1/files/pip_cache"
+    mkdir -p "$bc_cache"
+    pip bundle --no-install --ignore-installed --download "$bc_cache" "$bc_cache/../$1.pybundle" ${BC_PIPS[$1]}
+    dir2pi "$bc_cache"
+}
 
 # Some helper functions
 
@@ -1235,7 +1247,7 @@ do_crowbar_build() {
         is_barclamp "$bc" || die "Cannot find barclamp $bc!"
     done
     # Make sure that all our barclamps are properly staged.
-    for cache in pkg gem raw_pkg file git_repo; do
+    for cache in pkg pip gem raw_pkg file git_repo; do
         skipper="any_${cache}_cache"
         checker="barclamp_${cache}_cache_needs_update"
         updater="update_barclamp_${cache}_cache"
