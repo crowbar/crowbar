@@ -346,7 +346,8 @@ if [ -n "$PROVISIONER_JSON" ]; then
               SUSE-Cloud-3-Pool \
               SUSE-Cloud-3-Updates \
               SLES11-SP3-Pool \
-              SLES11-SP3-Updates
+              SLES11-SP3-Updates \
+              SLE-HAE-11-SP3
   do
       if test -n "`json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.${repo//./\\\\.}.url`"; then
           REPOS_SKIP_CHECKS+=" ${repo#SLE-}"
@@ -506,6 +507,9 @@ check_repo_product () {
 #   SUSE-Cloud-2.0-*: lacking products.xml
 REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-3-Pool SUSE-Cloud-3-Updates"
 
+# HAE add-on should remain optional for now
+REPOS_SKIP_CHECKS+=" SLE-HAE-11-SP3"
+
 check_repo_content \
     SLES11_SP3 \
     /srv/tftpboot/suse-11.3/install \
@@ -516,12 +520,16 @@ check_repo_content \
     /srv/tftpboot/repos/Cloud \
     1558be86e7354d31e71e7c8c2574031a
 
+check_repo_content \
+    SLE-HAE-11-SP3 \
+    /srv/tftpboot/repos/SLE-HAE-11-SP3 \
+    cda7c9e30ac1489d6b4ab8802e9f1244
 
 if skip_check_for_repo "Cloud-PTF"; then
     echo "Skipping check for Cloud-PTF due to \$REPOS_SKIP_CHECKS"
 else
     if ! [ -e "/srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml" ]; then
-        # Only do this for CROWBAR_FROM_GIT , as usually the crowbar package
+        # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
         # creates the repo metadata for Cloud-PTF
         if [ -n $CROWBAR_FROM_GIT ]; then
             echo "Creating repo skeleton to make AutoYaST happy."
@@ -539,6 +547,20 @@ check_repo_product SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SUSE-Cloud-3-Pool    'SUSE Cloud 3'
 check_repo_product SUSE-Cloud-3-Updates 'SUSE Cloud 3'
+
+if ! [ -e "/srv/tftpboot/repos/SLE-HAE-11-SP3/content" ]; then
+    # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
+    # creates the repo metadata for SLE-HAE-11-SP3
+    if [ -n $CROWBAR_FROM_GIT ]; then
+        echo "Creating repo skeleton to make AutoYaST happy."
+        if ! [ -d /srv/tftpboot/repos/SLE-HAE-11-SP3 ]; then
+            mkdir /srv/tftpboot/repos/SLE-HAE-11-SP3
+        fi
+        /usr/bin/createrepo /srv/tftpboot/repos/SLE-HAE-11-SP3
+    else
+        die "SLE-HAE-11-SP3 has not been set up correctly; did the crowbar rpm fail to install correctly?"
+    fi
+fi
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! LANG=C zypper if -t pattern cloud_admin 2> /dev/null | grep -q "^Installed: Yes$"; then
