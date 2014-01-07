@@ -576,7 +576,8 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
 
     # also need these (crowbar dependencies):
     zypper -n in rubygem-app_config rubygem-cstruct rubygem-kwalify rubygem-ruby-shadow \
-            rubygem-sass rubygem-i18n sleshammer tcpdump
+            rubygem-sass rubygem-i18n sleshammer tcpdump rubygem-sprockets-helpers \
+            rubygem-sprockets-sass rubygem-sqlite3
 
     # Need this for provisioner to work:
     mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
