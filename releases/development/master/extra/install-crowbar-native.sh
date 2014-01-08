@@ -243,7 +243,8 @@ fi
 if [[ $OS = suse ]]; then
     BUNDLE_INSTALL_ARGS="--local"
 else
-    gem install bundler rake
+    gem install bundler --version '~> 1.3.0'
+    gem install rake
     BUNDLE_INSTALL_ARGS="--path vendor/bundle"
 fi
 
