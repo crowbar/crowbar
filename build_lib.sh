@@ -845,8 +845,10 @@ barclamp_pip_cache_needs_update() {
 update_barclamp_pip_cache() {
     bc_cache="$CACHE_DIR/barclamps/$1/files/pip_cache"
     mkdir -p "$bc_cache"
-    pip bundle --no-install --ignore-installed --download "$bc_cache" "$bc_cache/../$1.pybundle" ${BC_PIPS[$1]}
-    dir2pi "$bc_cache"
+    # Download all pips and create PyPI repository
+    pip2pi "$bc_cache" ${BC_PIPS[$1]}
+    # Remove all index.html files for rejecting on errors with finding required version on install stage
+    find "$bc_cache" -type f -iname "index.html" -exec rm {} \;
 }
 
 # Some helper functions
