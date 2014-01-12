@@ -1171,17 +1171,6 @@ do_crowbar_build() {
         mkdir -p "$d"
     done
 
-    debug "Checking for Sledgehammer."
-    # Make sure Sledgehammer has already been built and pre-staged.
-    if ! [[ -f $SLEDGEHAMMER_PXE_DIR/initrd0.img ]]; then
-        debug "Slegehammer TFTP image missing from ${SLEDGEHAMMER_PXE_DIR} !"
-        debug "Attempting to build Sledgehammer:"
-        "$CROWBAR_DIR/build_sledgehammer.sh" || \
-            die "Unable to build Sledgehammer. Cannot build Crowbar."
-    else
-        echo "Sledgehammer initrd.0 file found in ${SLEDGEHAMMER_PXE_DIR}"
-    fi
-
     # Fetch the OS ISO if we need to.
     [[ -f $ISO_LIBRARY/$ISO ]] || fetch_os_iso
 
@@ -1324,8 +1313,20 @@ do_crowbar_build() {
 
     final_build_fixups
 
+    debug "Checking for Sledgehammer."
+    # Make sure Sledgehammer has already been built and pre-staged.
+    # See if the provisioner is providing its own sledgehammer.
+    # If it is, then use it instead.
+    if [[ -d $CROWBAR_DIR/barclamps/provisioner/sledgehammer-common ]]; then
+        SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/barclamps/provisioner/tftpboot/"
+    elif ! [[ -f $SLEDGEHAMMER_PXE_DIR/initrd0.img ]]; then
+        debug "Slegehammer TFTP image missing from ${SLEDGEHAMMER_PXE_DIR} !"
+        debug "Attempting to build Sledgehammer:"
+        "$CROWBAR_DIR/build_sledgehammer.sh" || \
+            die "Unable to build Sledgehammer. Cannot build Crowbar."
+    fi
     # Copy over the bits that Sledgehammer will look for.
-    debug "Copying over Sledgehammer bits"
+    debug "Copying over Sledgehammer bits from $SLEDGEHAMMER_PXE_DIR"
     cp -a "$SLEDGEHAMMER_PXE_DIR"/* "$BUILD_DIR/discovery"
 
     # Make our image
