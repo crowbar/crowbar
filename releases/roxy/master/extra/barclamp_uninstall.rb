@@ -25,16 +25,18 @@ require 'barclamp_mgmt_lib'
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
+  [ '--restart-crowbar', '-r', GetoptLong::NO_ARGUMENT ],
   [ '--rpm', GetoptLong::NO_ARGUMENT ]
 )
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--rpm] [--debug] /path/to/old/barclamp"
+  puts "#{__FILE__} [--help] [--rpm] [--debug] [--restart-crowbar-app] /path/to/old/barclamp"
   exit
 end
 
 from_rpm = false
+restart_crowbar_app = false
 
 opts.each do |opt, arg|
   case opt
@@ -45,6 +47,8 @@ opts.each do |opt, arg|
     debug "debug mode is enabled"
     when "--rpm"
     from_rpm = true
+    when "--restart-crowbar"
+    restart_crowbar_app = true
   end
 end
 
@@ -70,6 +74,10 @@ usage if ARGV.length < 1
       exit -3
     end
     #exit -3 if err
+
+    if restart_crowbar_app
+      system("service crowbar reload")
+    end
+
     exit 0
   end
- 

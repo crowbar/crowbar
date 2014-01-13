@@ -27,17 +27,19 @@ opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
   [ '--force', '-f', GetoptLong::NO_ARGUMENT ],
+  [ '--restart-crowbar', '-r', GetoptLong::NO_ARGUMENT ],
   [ '--rpm', GetoptLong::NO_ARGUMENT ]
 )
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--rpm] [--debug] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--rpm] [--debug] [--restart-crowbar-app] /path/to/new/barclamp"
   exit
 end
 
 force_install = false
 from_rpm = false
+restart_crowbar_app = false
 
 opts.each do |opt, arg|
   case opt
@@ -50,6 +52,8 @@ opts.each do |opt, arg|
     force_install = true
     when "--rpm"
     from_rpm = true
+    when "--restart-crowbar"
+    restart_crowbar_app = true
   end
 end
 
@@ -197,6 +201,10 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
     puts "Install of #{bc[:name]} failed."
     exit -3
   end
+end
+
+if restart_crowbar_app
+  system("service crowbar reload")
 end
 
 rm_tmpdir(tmpdir)
