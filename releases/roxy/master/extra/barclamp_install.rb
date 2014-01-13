@@ -26,7 +26,7 @@ opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
   [ '--force', '-f', GetoptLong::NO_ARGUMENT ],
-  [ '--restart-crowbar-app', '-a', GetoptLong::NO_ARGUMENT ],
+  [ '--restart-crowbar', '-r', GetoptLong::NO_ARGUMENT ],
   [ '--rpm', GetoptLong::NO_ARGUMENT ]
 )
 
@@ -51,7 +51,7 @@ opts.each do |opt, arg|
     force_install = true
     when "--rpm"
     from_rpm = true
-    when "--restart-crowbar-app"
+    when "--restart-crowbar"
     restart_crowbar_app = true
   end
 end
