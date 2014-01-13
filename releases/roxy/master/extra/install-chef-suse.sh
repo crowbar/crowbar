@@ -581,15 +581,6 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
 
     # Need this for provisioner to work:
     mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
-    cat > /srv/tftpboot/discovery/pxelinux.cfg/default <<EOF
-DEFAULT pxeboot
-TIMEOUT 20
-PROMPT 0
-LABEL pxeboot
-        KERNEL vmlinuz0
-        APPEND initrd=initrd0.img root=/sledgehammer.iso rootfstype=iso9660 rootflags=loop
-ONERROR LOCALBOOT 0
-EOF
     # create Compatibility link /tftpboot -> /srv/tftpboot (this is part of
     # the crowbar package when not in $CROWBAR_FROM_GIT)
     if ! [ -e /tftpboot ]; then
