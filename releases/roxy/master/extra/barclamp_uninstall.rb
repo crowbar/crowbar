@@ -74,9 +74,10 @@ usage if ARGV.length < 1
       exit -3
     end
     #exit -3 if err
+
+    if restart_crowbar_app
+      system("service crowbar reload")
+    end
+
     exit 0
   end
- 
-if restart_crowbar_app
-  system("service crowbar reload")
-end
