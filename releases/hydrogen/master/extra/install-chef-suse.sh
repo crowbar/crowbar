@@ -428,6 +428,7 @@ EOF
 }
 
 sign_repositories () {
+  create_gpg_key
   # Currently we only sign the Cloud-PTF repository
   if [ -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml ]; then
     if [ ! -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.asc -o \

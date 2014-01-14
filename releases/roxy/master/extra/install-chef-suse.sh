@@ -428,11 +428,11 @@ EOF
 }
 
 sign_repositories () {
+  create_gpg_key
   # Currently we only sign the Cloud-PTF repository
   if [ -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml ]; then
     if [ ! -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.asc -o \
          ! -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.key ]; then
-      create_gpg_key
       echo "Signing Cloud-PTF repository"
       gpg -a --detach-sign /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml
       gpg -a --export > /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.key
@@ -581,15 +581,6 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
 
     # Need this for provisioner to work:
     mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
-    cat > /srv/tftpboot/discovery/pxelinux.cfg/default <<EOF
-DEFAULT pxeboot
-TIMEOUT 20
-PROMPT 0
-LABEL pxeboot
-        KERNEL vmlinuz0
-        APPEND initrd=initrd0.img root=/sledgehammer.iso rootfstype=iso9660 rootflags=loop
-ONERROR LOCALBOOT 0
-EOF
     # create Compatibility link /tftpboot -> /srv/tftpboot (this is part of
     # the crowbar package when not in $CROWBAR_FROM_GIT)
     if ! [ -e /tftpboot ]; then
