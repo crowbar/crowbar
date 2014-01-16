@@ -6,6 +6,18 @@
     exec 2>/var/log/smoketest.log
 }
 
+found_groups=()
+export LOGDIR=/var/log/smoketest
+if [[ -f /etc/crowbar.install.key ]]; then
+    read CROWBAR_KEY </etc/crowbar.install.key
+    export CROWBAR_KEY
+else
+    die "Cannot find crowbar key!"
+fi
+export PATH="/opt/dell/bin:$PATH"
+set -o pipefail
+mkdir -p "$LOGDIR"
+
 if [[ ! -f /opt/dell/.all_nets ]]; then
     touch /opt/dell/.all_nets
     for n in "public host" "storage host" "nova_fixed router"; do
@@ -46,18 +58,6 @@ install_packages() {
 }
 
 export -f is_suse is_redhat is_ubuntu install_packages
-
-found_groups=()
-export LOGDIR=/var/log/smoketest
-if [[ -f /etc/crowbar.install.key ]]; then
-    read CROWBAR_KEY </etc/crowbar.install.key
-    export CROWBAR_KEY
-else
-    die "Cannot find crowbar key!"
-fi
-export PATH="/opt/dell/bin:$PATH"
-set -o pipefail
-mkdir -p "$LOGDIR"
 
 die() { for l in "$@"; do echo "$(date '+%F %T %z'): $l"; done; exit 1; }
 
