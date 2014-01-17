@@ -66,6 +66,13 @@ mkdir -p "$CACHE_DIR" "$IMAGE_DIR" "$CHROOT"
     die "$CROWBAR_DIR is not a git checkout of Crowbar!"
 export CROWBAR_DIR
 
+# If the provisioner provides a build_sledgehammer,sh, use it instead.
+if [[ -x $CROWBAR_DIR/barclamps/provisioner/build_sledgehammer.sh ]]; then
+    (cd "$CROWBAR_DIR/barclamps/provisioner/"
+        ./build_sledgehammer.sh)
+    exit $?
+fi
+
 # Directory that holds our Sledgehammer PXE tree.
 [[ $SLEDGEHAMMER_PXE_DIR ]] || SLEDGEHAMMER_PXE_DIR="$CACHE_DIR/tftpboot"
 
