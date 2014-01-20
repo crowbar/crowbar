@@ -18,7 +18,9 @@ unset p
 touch /tmp/.crowbar_in_bootstrap
 if [[ -f /etc/redhat-release || -f /etc/centos-release ]]; then
     OS=redhat
-    yum -y install ruby rubygems ruby-devel libxml2-devel zlib-devel gcc make
+    yum -y install ruby rubygems ruby-devel libxml2-devel zlib-devel gcc make \
+      postgresql93 postgresql93-server postgresql93-contrib \
+      libpq5 libossp-uuid16 libecpg6
 elif [[ -f /etc/SuSE-release ]]; then
     OS=suse
     ( grep openSUSE /etc/SuSE-release ) && OS=opensuse
@@ -59,7 +61,7 @@ service postgresql start
 sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
 
 # On SUSE SLE based installs we don't (yet) rely on the DVD being copied
-# the the harddisk. This might be subject to change. On openSUSE we expect
+# to the harddisk. This might be subject to change. On openSUSE we expect
 # the DVD to have been copied to the tftpboot directory.
 if [[ $OS != suse ]]; then
     [[ $DVD_PATH ]] || die "Cannot find our install source!"
