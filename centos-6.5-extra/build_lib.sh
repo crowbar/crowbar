@@ -1,6 +1,6 @@
 #!/bin/bash
 # This is sourced by build_crowbar.sh to enable it to stage Crowbar onto
-# CentOS 6.4
+# CentOS 6.5
 
 
 # OS information for the OS we are building crowbar on to.

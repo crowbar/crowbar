@@ -45,7 +45,7 @@ export PS4='${BASH_SOURCE}@${LINENO}(${FUNCNAME[0]}): '
 exec > /root/post-install.log 2>&1
 
 BASEDIR="/tftpboot/redhat_dvd"
-OS_TOKEN="centos-6.4"
+OS_TOKEN="centos-6.5"
 # copy the install image.
 mkdir -p "$BASEDIR"
 (   cd "$BASEDIR"
