@@ -19,7 +19,7 @@ touch /tmp/.crowbar_in_bootstrap
 if [[ -f /etc/redhat-release || -f /etc/centos-release ]]; then
     OS=redhat
     yum -y install ruby libxml2-devel zlib-devel gcc make ruby-irb ruby-doc \
-      postgresql93 postgresql93-server postgresql93-contrib libpqxx \
+      postgresql93 postgresql93-server postgresql93-contrib libpqxx
 elif [[ -f /etc/SuSE-release ]]; then
     OS=suse
     ( grep openSUSE /etc/SuSE-release ) && OS=opensuse
