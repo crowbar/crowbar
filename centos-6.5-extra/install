@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-export OS_TOKEN=centos-6.4
+export OS_TOKEN=centos-6.5
 
 if [[ -d /opt/dell/rpms ]]; then
     installer="./install-crowbar-native.sh"
