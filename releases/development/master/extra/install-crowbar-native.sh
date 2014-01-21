@@ -99,6 +99,11 @@ if [[ $OS != suse ]]; then
     fi
 fi
 
+[[ -f /opt/dell/crowbar_framework/.version ]] || {
+    mkdir -p /opt/dell/crowbar_framework
+    ln -sf "$DVD_PATH/dell/Version" /opt/dell/crowbar_framework/.version
+}
+
 fqdn_re='^[0-9a-zA-Z.-]+$'
 # Make sure there is something of a domain name
 export DOMAINNAME=${FQDN#*.}
