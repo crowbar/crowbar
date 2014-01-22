@@ -335,6 +335,20 @@ admin_net='
   ]
 }'
 
+bmc_net='
+{
+  "name": "bmc",
+  "deployment": "system",
+  "conduit": "1g1",
+  "ranges": [
+    {
+      "name": "bmc",
+      "first": "10.10.10.1/24",
+      "last": "10.10.10.254/24"
+    }
+  ]
+}'
+
 admin_node="
 {
   \"name\": \"$FQDN\",
@@ -371,6 +385,19 @@ if ! [[ $* = *--wizard* ]]; then
 
     # Figure out what IP addresses we should have, and add them.
     netline=$(curl -f --digest -u $(cat /etc/crowbar.install.key) -X GET "http://localhost:3000/network/api/v2/networks/admin/allocations" -d "node=$(hostname -f)")
+    nets=(${netline//,/ })
+    for net in "${nets[@]}"; do
+        [[ $net =~ $ip_re ]] || continue
+        net=${BASH_REMATCH[1]}
+        # Make this more complicated and exact later.
+        ip addr add "$net" dev eth0 || :
+        echo "${net%/*} $FQDN" >> /etc/hosts
+    done
+
+    # create bmc network
+    /opt/dell/bin/crowbar networks create "$bmc_net"
+    # Figure out what IP addresses we should have, and add them.
+    netline=$(curl -f --digest -u $(cat /etc/crowbar.install.key) -X GET "http://localhost:3000/network/api/v2/networks/bmc/allocations" -d "node=$(hostname -f)")
     nets=(${netline//,/ })
     for net in "${nets[@]}"; do
         [[ $net =~ $ip_re ]] || continue
