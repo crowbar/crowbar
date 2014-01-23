@@ -606,6 +606,17 @@ fi
 
 echo_summary "Starting required services"
 
+# Write default RabbitMQ configuration (if the package doesn't provide one).
+if [ ! -f /etc/rabbitmq/rabbitmq.config ] ; then
+    cat << EOF > /etc/rabbitmq/rabbitmq.config
+[
+ {rabbit,
+  [{disk_free_limit, 50000000}]
+ }
+].
+EOF
+fi
+
 chkconfig rabbitmq-server on
 ensure_service_running rabbitmq-server '^Node .+ with Pid [0-9]+: running'
 
