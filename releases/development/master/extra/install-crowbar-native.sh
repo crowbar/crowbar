@@ -18,8 +18,9 @@ unset p
 touch /tmp/.crowbar_in_bootstrap
 if [[ -f /etc/redhat-release || -f /etc/centos-release ]]; then
     OS=redhat
-    yum -y install ruby libxml2-devel zlib-devel gcc make ruby-irb ruby-doc \
+    yum -y install ruby libxml2-devel zlib-devel gcc make \
       postgresql93 postgresql93-server postgresql93-contrib libpqxx
+    PG_DIR=/var/lib/pgsql/9.3/data
 elif [[ -f /etc/SuSE-release ]]; then
     OS=suse
     ( grep openSUSE /etc/SuSE-release ) && OS=opensuse
@@ -219,7 +220,6 @@ EOF
         gem generate_index
     )
 fi
-
 
 if [[ $OS = ubuntu ]]; then
     if ! dpkg-query -S /opt/dell/bin/crowbar_crowbar; then
