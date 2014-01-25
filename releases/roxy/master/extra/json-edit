@@ -117,10 +117,10 @@ def main()
     # element delimiters.  Notice that the 1st parameter to gsub is a
     # String not a Regexp.
     elements = @attribute.gsub('\.', MAGIC_DOT).split('.')
+    elements.map! {|element| element.gsub(MAGIC_DOT, '.')}
     data = json
 
     elements[0, elements.length - 1].each { |element|
-      element.gsub!(MAGIC_DOT, '.')
       if not (data.has_key?(element) && data[element].is_a?(Hash))
         if @remove
           exit 0
