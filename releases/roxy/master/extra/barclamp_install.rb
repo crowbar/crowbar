@@ -38,6 +38,7 @@ end
 
 force_install = false
 from_rpm = false
+@@debug = false
 
 opts.each do |opt, arg|
   case opt
