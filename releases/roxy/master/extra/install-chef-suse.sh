@@ -40,6 +40,7 @@ while test $# -gt 0; do
         -h|--help|--usage|-\?) usage ;;
         -v|--verbose) CROWBAR_VERBOSE=1 ;;
         --from-git) CROWBAR_FROM_GIT=1 ;;
+        --with-ha) CROWBAR_HA=1 ;;
         *) ;;
     esac
     shift
@@ -314,7 +315,7 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-3-Pool SUSE-Cloud-3-Updates"
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-3-Pool SUSE-Cloud-3-Updates SLE11-SP3-HA"
     zypper -n in rubygems rubygem-json createrepo
 fi
 
@@ -340,7 +341,8 @@ if [ -n "$PROVISIONER_JSON" ]; then
               SUSE-Cloud-3-Pool \
               SUSE-Cloud-3-Updates \
               SLES11-SP3-Pool \
-              SLES11-SP3-Updates
+              SLES11-SP3-Updates \
+              SLE-11-SP3-HA
   do
       if test -n "`json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.${repo//./\\\\.}.url`"; then
           REPOS_SKIP_CHECKS+=" ${repo#SLE-}"
@@ -510,6 +512,13 @@ check_repo_content \
     /srv/tftpboot/repos/Cloud \
     1558be86e7354d31e71e7c8c2574031a
 
+if [ -n "$CROWBAR_HA" ]; then
+  check_repo_content \
+      SLE11_SP3_HA \
+      /srv/tftpboot/repos/SLE-11-SP3-HA \
+      cda7c9e30ac1489d6b4ab8802e9f1244
+fi
+
 
 if skip_check_for_repo "Cloud-PTF"; then
     echo "Skipping check for Cloud-PTF due to \$REPOS_SKIP_CHECKS"
@@ -568,6 +577,9 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
         add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP3:/GA/standard/ sp3-ga
         add_ibs_repo http://dist.suse.de/ibs/SUSE:/SLE-11-SP3:/Update/standard/ sp3-update
         add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud:/3/SLE_11_SP3/ cloud
+        if [ -n "$CROWBAR_HA" ]; then
+          add_ibs_repo http://dist.suse.de/install/SLP/SLE-11-SP3-HA-GM/x86_64/CD1 sp3-ha
+        fi
     fi
 
     # install chef and its dependencies
