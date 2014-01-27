@@ -41,7 +41,7 @@ opts.each do |opt, arg|
     when "--help"
     usage
     when "--debug"
-    @@debug = true
+    ENV['DEBUG'] = 'true'
     debug "debug mode is enabled"
     when "--rpm"
     from_rpm = true
