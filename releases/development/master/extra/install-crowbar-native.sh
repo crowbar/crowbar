@@ -18,8 +18,11 @@ unset p
 touch /tmp/.crowbar_in_bootstrap
 if [[ -f /etc/redhat-release || -f /etc/centos-release ]]; then
     OS=redhat
-    yum -y install ruby libxml2-devel zlib-devel gcc make ruby-irb ruby-doc \
+    yum -y install ruby libxml2-devel zlib-devel gcc make \
       postgresql93 postgresql93-server postgresql93-contrib libpqxx
+    PGSVCNAME=postgresql-9.3
+    PG_DIR=/var/lib/pgsql/9.3/data
+    service ${PGSVCNAME} initdb
 elif [[ -f /etc/SuSE-release ]]; then
     OS=suse
     ( grep openSUSE /etc/SuSE-release ) && OS=opensuse
@@ -35,6 +38,7 @@ elif [[ -f /etc/SuSE-release ]]; then
             postgresql93 postgresql93-server postgresql93-contrib libpq5 \
             libossp-uuid16 libecpg6 postgresql93-devel libopenssl-devel
     fi
+    PGSVCNAME=postgresql
     service postgresql start
     PG_DIR=/var/lib/pgsql/data
 elif [[ -d /etc/apt ]]; then
@@ -43,12 +47,13 @@ elif [[ -d /etc/apt ]]; then
         libxml2-dev libxslt1-dev zlib1g-dev \
         postgresql-9.3 postgresql-client-9.3 postgresql-contrib-9.3 libpq-dev
     PG_DIR=/etc/postgresql/9.3/main
+    PGSVCNAME=postgresql
 else
     die "Staged on to unknown OS media!"
 fi
 
 # Hack up local postgres to only listen on domain sockets.
-service postgresql stop
+service ${PGSVCNAME} stop
 cat >"$PG_DIR/pg_hba.conf" <<EOF
 local   all             postgres                                peer
 local   all             all                                     trust
@@ -56,7 +61,7 @@ EOF
 echo "listen_addresses = ''" >>"$PG_DIR/postgresql.conf"
 sed -i 's/#port/port/' "$PG_DIR/postgresql.conf"
 sed -i '/^port/ s/5432/5439/' "$PG_DIR/postgresql.conf"
-service postgresql start
+service ${PGSVCNAME} start
 sudo -H -u postgres createuser -p 5439 -d -S -R -w crowbar
 
 # On SUSE SLE based installs we don't (yet) rely on the DVD being copied
@@ -219,7 +224,6 @@ EOF
         gem generate_index
     )
 fi
-
 
 if [[ $OS = ubuntu ]]; then
     if ! dpkg-query -S /opt/dell/bin/crowbar_crowbar; then
