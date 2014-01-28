@@ -35,6 +35,7 @@ def usage()
 end
 
 from_rpm = false
+@@debug = false
 
 opts.each do |opt, arg|
   case opt
