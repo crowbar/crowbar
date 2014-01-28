@@ -44,7 +44,7 @@ opts.each do |opt, arg|
     when "--help"
     usage
     when "--debug"
-    @@debug = true
+    ENV['DEBUG'] = 'true'
     debug "debug mode is enabled"
     when "--force"
     force_install = true
@@ -187,7 +187,7 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
       raise e
     end
   rescue StandardError => e
-    if @@debug
+    if ENV['DEBUG'] === 'true'
       debug "temporary directory #{tmpdir} will be left for debugging if it exists"
     else
       rm_tmpdir(tmpdir)
