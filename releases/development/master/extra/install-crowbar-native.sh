@@ -339,7 +339,7 @@ bmc_net='
 {
   "name": "bmc",
   "deployment": "system",
-  "conduit": "bmc",
+  "conduit": "1g1",
   "ranges": [
     {
       "name": "bmc",
