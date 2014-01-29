@@ -325,7 +325,7 @@ admin_net='
     {
       "name": "host",
       "first": "192.168.124.81/24",
-      "last": "192.168.124.254/24"
+      "last": "192.168.124.160/24"
     },
     {
       "name": "dhcp",
@@ -339,12 +339,12 @@ bmc_net='
 {
   "name": "bmc",
   "deployment": "system",
-  "conduit": "1g1",
+  "conduit": "bmc",
   "ranges": [
     {
       "name": "bmc",
-      "first": "10.10.10.1/24",
-      "last": "10.10.10.254/24"
+      "first": "192.168.124.161/24",
+      "last": "192.168.124.254/24"
     }
   ]
 }'
