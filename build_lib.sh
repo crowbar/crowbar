@@ -855,10 +855,10 @@ update_barclamp_pip_cache() {
     rm -rf "$bc_cache"
     mkdir -p "$bc_cache"
     # Download all pips and create PyPI repository
-    pip2pi "$bc_cache" ${BC_PIPS[$1]}
+    pip2pi "$bc_cache" ${BC_PIPS[$1]} || die "Can't prepare pip cache for $1 barclamp"
     # Remove all index.html files for rejecting on errors with finding required version on install stage
     find "$bc_cache" -type f -iname "index.html" -exec rm {} \;
-    [[ $CURRENT_CACHE_BRANCH ]] && ( cd "$bc_cache" && git add "*.zip" )
+    [[ $CURRENT_CACHE_BRANCH ]] && ( cd "$bc_cache" && git add ./ )
 }
 
 # Some helper functions
