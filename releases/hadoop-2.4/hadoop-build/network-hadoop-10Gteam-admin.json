@@ -98,7 +98,7 @@
         "pattern": "team/.*/.*namenode",
         "conduit_list": { 
            "prod": {
-            "if_list": [ "10g1", "10g2" ],
+            "if_list": [ "10g1", "10g3" ],
             "team_mode": 6
                }
            }
@@ -106,7 +106,7 @@
         "pattern": "team/.*/.*filernode",
         "conduit_list": { 
            "prod": {
-            "if_list": [ "10g1", "10g2" ],
+            "if_list": [ "10g1", "10g3" ],
             "team_mode": 6
                }
            }
@@ -115,7 +115,7 @@
         "pattern": "team/.*/.*journalingnode",
         "conduit_list": { 
            "prod": {
-            "if_list": [ "10g1", "10g2" ],
+            "if_list": [ "10g1", "10g3" ],
             "team_mode": 6
                }
           }
@@ -127,13 +127,13 @@
               "if_list": [ "10g1" ]
             },
             "admin": {
-              "if_list": [ "10g2" ]
+              "if_list": [ "10g1" ]
             },
             "mgmt": {
               "if_list": [ "1g1" ]
             },
             "public": {
-              "if_list": [ "10g3" ]
+              "if_list": [ "10g2" ]
             }
           }
         },
