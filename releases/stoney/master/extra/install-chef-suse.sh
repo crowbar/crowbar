@@ -73,7 +73,7 @@ mkdir -p "`dirname "$LOGFILE"`"
 run_succeeded=
 
 
-DIALOG_TITLE=" SUSE Cloud 3 "
+DIALOG_TITLE=" SUSE Cloud 4 "
 
 # Infrastructure for nice output/logging
 # --------------------------------------
@@ -314,7 +314,7 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-3-Pool SUSE-Cloud-3-Updates"
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-4-Pool SUSE-Cloud-4-Updates"
     zypper -n in rubygems rubygem-json createrepo
 fi
 
@@ -337,8 +337,8 @@ fi
 if [ -n "$PROVISIONER_JSON" ]; then
   for repo in SLE-Cloud \
               SLE-Cloud-PTF \
-              SUSE-Cloud-3-Pool \
-              SUSE-Cloud-3-Updates \
+              SUSE-Cloud-4-Pool \
+              SUSE-Cloud-4-Updates \
               SLES11-SP3-Pool \
               SLES11-SP3-Updates
   do
@@ -497,8 +497,7 @@ check_repo_product () {
 # FIXME: repos that we cannot check yet:
 #   SP3-Updates is lacking products.xml
 #   Cloud: we don't have the final md5
-#   SUSE-Cloud-2.0-*: lacking products.xml
-REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-3-Pool SUSE-Cloud-3-Updates"
+REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-4-Pool SUSE-Cloud-4-Updates"
 
 check_repo_content \
     SLES11_SP3 \
@@ -531,8 +530,8 @@ fi
 
 check_repo_product SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product SUSE-Cloud-3-Pool    'SUSE Cloud 3'
-check_repo_product SUSE-Cloud-3-Updates 'SUSE Cloud 3'
+check_repo_product SUSE-Cloud-4-Pool    'SUSE Cloud 4'
+check_repo_product SUSE-Cloud-4-Updates 'SUSE Cloud 4'
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! LANG=C zypper if -t pattern cloud_admin 2> /dev/null | grep -q "^Installed: Yes$"; then
