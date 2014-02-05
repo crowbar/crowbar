@@ -396,16 +396,6 @@ if ! [[ $* = *--wizard* ]]; then
 
     # create bmc network
     /opt/dell/bin/crowbar networks create "$bmc_net"
-    # Figure out what IP addresses we should have, and add them.
-    netline=$(curl -f --digest -u $(cat /etc/crowbar.install.key) -X GET "http://localhost:3000/network/api/v2/networks/bmc/allocations" -d "node=$(hostname -f)")
-    nets=(${netline//,/ })
-    for net in "${nets[@]}"; do
-        [[ $net =~ $ip_re ]] || continue
-        net=${BASH_REMATCH[1]}
-        # Make this more complicated and exact later.
-        ip addr add "$net" dev eth0 || :
-        echo "${net%/*} $FQDN" >> /etc/hosts
-    done
 
     # Mark the node as alive.
     crowbar nodes update "$FQDN" '{"alive": true}'
