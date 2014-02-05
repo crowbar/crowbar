@@ -840,15 +840,25 @@ update_barclamp_git_repo_cache() {
 # Check to see if the barclamp pip cache needs an update.
 any_pip_cache() { [[ ${BC_PIPS[*]} ]]; }
 barclamp_pip_cache_needs_update() {
-    [[ ${BC_PIPS[$1]} ]] || return 1
+    local bc_cache="$CACHE_DIR/barclamps/$1/files/pip_cache"
+    if [[ ${BC_PIPS[$1]} ]]; then
+        if [[ ! -d ${bc_cache} || $ALLOW_CACHE_UPDATE = true ]]; then
+            debug "Pips for barclamp $1 is not cached, and needs it."
+            return 0
+        fi
+    fi
+    return 1
 }
 update_barclamp_pip_cache() {
-    bc_cache="$CACHE_DIR/barclamps/$1/files/pip_cache"
+    local bc_cache="$CACHE_DIR/barclamps/$1/files/pip_cache"
+    which pip2pi &>/dev/null || die "Please install pip2pi before updating the pip cache!"
+    rm -rf "$bc_cache"
     mkdir -p "$bc_cache"
     # Download all pips and create PyPI repository
-    pip2pi "$bc_cache" ${BC_PIPS[$1]}
+    pip2pi "$bc_cache" ${BC_PIPS[$1]} || die "Can't prepare pip cache for $1 barclamp"
     # Remove all index.html files for rejecting on errors with finding required version on install stage
     find "$bc_cache" -type f -iname "index.html" -exec rm {} \;
+    [[ $CURRENT_CACHE_BRANCH ]] && ( cd "$bc_cache" && git add ./ )
 }
 
 # Some helper functions
@@ -1254,7 +1264,7 @@ do_crowbar_build() {
             printf "\e[0G\e[2K%s" "$bc"
             $checker "$bc" || continue
             echo
-            [[ $ALLOW_CACHE_UPDATE = true || $cache = git_repo || $cache = pip ]] || {
+            [[ $ALLOW_CACHE_UPDATE = true || $cache = git_repo ]] || {
                 echo "Need up update $cache cache for $bc, but updates are disabled."
                 echo "Please rerun the build with the --update-cache option."
                 exit 1
