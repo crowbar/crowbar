@@ -339,10 +339,10 @@ bmc_net='
 {
   "name": "bmc",
   "deployment": "system",
-  "conduit": "1g1",
+  "conduit": "bmc",
   "ranges": [
     {
-      "name": "bmc",
+      "name": "host",
       "first": "192.168.124.161/24",
       "last": "192.168.124.254/24"
     }
