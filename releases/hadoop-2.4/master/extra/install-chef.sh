@@ -224,6 +224,25 @@ if [[ ! -x /etc/init.d/bluepill ]]; then
         ps axu | grep '^chef.*chef-server-webui ' | awk '{print $2}' | xargs kill -9
     fi
 
+    # This is a hack to allow everything to allow jumbo-sized Chef objects to be indexed.
+    # Bump frame_max for all applicable things
+
+    # For fine work, get a bigger hammer.
+    while read gemdir; do
+        while read fname; do
+            sed -i '/:frame_max/ s/131072/524288/g' "$fname"
+        done < <(grep -rl frame_max "$gemdir")
+    done < <(find /  -type d -path '*/gems/*/gems')
+
+    if [[ ! -f /etc/rabbitmq/rabbitmq.config ]]; then
+        mkdir -p /etc/rabbitmq
+        cat > /etc/rabbitmq/rabbitmq.config <<EOF
+[
+  {rabbit, [{frame_max, 524288}]}
+].
+EOF
+    fi
+
     # Create an init script for bluepill
     cat > /etc/init.d/bluepill <<EOF
 #!/bin/bash
