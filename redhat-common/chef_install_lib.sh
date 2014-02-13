@@ -23,7 +23,7 @@ install_base_packages() {
 
     # Install the rpm and gem packages
     log_to yum yum -q -y install rubygems gcc make ruby-devel \
-        libxml2-devel zlib-devel tcpdump nginx efibootmgr
+        libxml2-devel zlib-devel tcpdump nginx efibootmgr sqlite-devel
 
     # stop nginx
     service nginx stop

@@ -16,7 +16,7 @@ install_base_packages() {
     log_to apt /usr/bin/debconf-set-selections ./debsel.conf
     log_to apt apt-get -y install rubygems gcc ruby tcpdump \
         libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev nginx-light \
-        ipmitool efibootmgr
+        ipmitool efibootmgr libsqlite3-dev
 
     # stop nginx
     service nginx stop

@@ -1,20 +1,20 @@
 #!/bin/bash
 #
-# Script: instal-chef.sh
-#
-# Copyright (c) 2011 Dell Inc.
+# Copyright 2011-2013, Dell
+# Copyright 2013-2014, SUSE LINUX Products GmbH
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 if [[ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]]; then
     echo "Crowbar is already installed, refusing to let install run."
@@ -41,7 +41,10 @@ admin_node_up=
 
 # Create log directory and secure it
 mkdir -p /var/log/crowbar/install
-chmod 0750 /var/log/crowbar
+chmod 0755 /var/log/crowbar
+
+touch /var/log/crowbar/production.{out,log}
+chown crowbar:crowbar /var/log/crowbar/production.{out,log}
 
 # Run a command and log its output.
 log_to() {
@@ -170,13 +173,57 @@ EOF
 # This is ugly, but there does not seem to be a better way
 # to tell Chef to just look in a specific location for its gems.
 echo "$(date '+%F %T %z'): Arranging for gems to be installed"
-(   cd /tftpboot/gemsite/gems
-    for gem in builder json net-http-digest_auth i18n activesupport \
-        daemons bluepill xml-simple libxml-ruby wsman cstruct ; do
-        gem install --local --no-ri --no-rdoc $gem-*.gem
+(
+    cd /tftpboot/gemsite/gems
+
+    GEMS=(
+        # rails stuff
+        rails-2.3.17
+        rake-0.8.7
+        rack-1.1.6
+
+        # crowbar stuff
+        app_config-1.0.2
+        haml-3.1.6
+        hike-1.2.1
+        i18n-0.4.2
+        json-1.6.1
+        kwalify-0.7.2
+        multi_json-1.0.3
+        sass-3.2.12
+        simple-navigation-3.7.0
+        sprockets-2.10.1
+        sprockets-sass-1.0.2
+        sprockets-helpers-1.1.0
+        sqlite3-1.3.6
+        syslogger-1.3.0
+        tilt-1.3.3
+        mime-types-1.18
+
+        # install stuff
+        builder-3.2.2
+        bundler-1.0.21
+        bluepill-0.0.45
+        cstruct-1.0.1
+        daemons-1.1.9
+        eventmachine-1.0.3
+        libxml-ruby-1.1.3
+        net-http-digest_auth-1.1.1
+        net-ssh-multi-1.1
+        state_machine-0.9.4
+        rainbows-4.3.1
+        wsman-0.0.1
+        xml-simple-1.1.3
+    )
+
+    for GEM in ${GEMS[@]}
+    do
+        gem install --local --no-ri --no-rdoc ${GEM}.gem
     done
+
     cd ..
-    gem generate_index)
+    gem generate_index
+)
 
 mkdir -p /var/run/bluepill
 mkdir -p /var/lib/bluepill
@@ -198,8 +245,6 @@ fi
 
 bluepill load /etc/bluepill/rubygems-server.pill
 sleep 5
-
-gem install eventmachine kwalify app_config
 
 if [[ ! -x /etc/init.d/bluepill ]]; then
 
@@ -364,10 +409,9 @@ for role in crowbar deployer-client $NODE_ROLE; do
         die "Could not add $role to Chef. Crowbar bringup will fail."
 done
 
-# Create session store database
-rm -rf /opt/dell/crowbar_framework/db/migrate
-rm -f /opt/dell/crowbar_framework/db/{production.sqlite3,schema.rb}
-su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production rake db:sessions:create && RAILS_ENV=production rake db:migrate"
+echo "$(date '+%F %T %z'): Create session store database"
+rm -rf /opt/dell/crowbar_framework/db/{migrate,schema.rb,*.sqlite3}
+su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production rake db:sessions:create db:migrate"
 
 pre_crowbar_fixups
 
