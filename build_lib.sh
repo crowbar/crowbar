@@ -852,13 +852,14 @@ barclamp_pip_cache_needs_update() {
 update_barclamp_pip_cache() {
     local bc_cache="$CACHE_DIR/barclamps/$1/files/pip_cache"
     which pip2pi &>/dev/null || die "Please install pip2pi before updating the pip cache!"
-    rm -rf "$bc_cache"
+    [[ $CURRENT_CACHE_BRANCH ]] && in_cache git rm -r "$bc_cache"
+    sudo rm -rf "$bc_cache"
     mkdir -p "$bc_cache"
     # Download all pips and create PyPI repository
     pip2pi "$bc_cache" ${BC_PIPS[$1]} || die "Can't prepare pip cache for $1 barclamp"
     # Remove all index.html files for rejecting on errors with finding required version on install stage
     find "$bc_cache" -type f -iname "index.html" -exec rm {} \;
-    [[ $CURRENT_CACHE_BRANCH ]] && ( cd "$bc_cache" && git add ./ )
+    [[ $CURRENT_CACHE_BRANCH ]] && in_cache git add "$bc_cache"
 }
 
 # Some helper functions
