@@ -51,6 +51,12 @@ if [ $(id -u) -gt 0 ]; then
     exit 1
 fi
 
+if [ -z "$HOME" ]; then
+    echo "The HOME environment variable is not set."
+    echo ""
+    exit 1
+fi
+
 BARCLAMP_INSTALL_OPTS="--rpm"
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
