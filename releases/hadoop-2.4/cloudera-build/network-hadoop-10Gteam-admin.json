@@ -6,7 +6,7 @@
       "start_up_delay": 30,
       "mode": "team",
       "teaming": {
-        "mode": 6
+        "mode": 5
       },
       "interface_map": [
         {
@@ -61,11 +61,11 @@
        "conduit_list": { 
         "prod": {
            "if_list": [ "10g1", "10g3" ],
-           "team_mode": 6
+           "team_mode": 5
          },
             "public": {
               "if_list": [ "10g2", "10g4" ],
-                "team_mode": 6
+                "team_mode": 5
             },
          "mgmt": {
            "if_list": [ "1g1" ]
@@ -77,11 +77,11 @@
           "conduit_list": { 
            "prod": {
               "if_list": [ "10g1", "10g3" ],
-              "team_mode": 6
+              "team_mode": 5
             },
             "public" : {
             "if_list": [ "10g2", "10g4" ],
-            "team_mode" : 6
+            "team_mode" : 5
             }
           }
         },
@@ -90,7 +90,7 @@
           "conduit_list": { 
              "prod": {
               "if_list": [ "10g1", "10g2" ],
-              "team_mode": 6
+              "team_mode": 5
             }
           }
         },
@@ -99,7 +99,7 @@
         "conduit_list": { 
            "prod": {
             "if_list": [ "10g1", "10g3" ],
-            "team_mode": 6
+            "team_mode": 5
                }
            }
         },         {
@@ -107,7 +107,7 @@
         "conduit_list": { 
            "prod": {
             "if_list": [ "10g1", "10g3" ],
-            "team_mode": 6
+            "team_mode": 5
                }
            }
         },
@@ -116,7 +116,7 @@
         "conduit_list": { 
            "prod": {
             "if_list": [ "10g1", "10g3" ],
-            "team_mode": 6
+            "team_mode": 5
                }
           }
         },
