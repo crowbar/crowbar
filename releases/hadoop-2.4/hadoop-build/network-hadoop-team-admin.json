@@ -6,7 +6,7 @@
       "start_up_delay": 30,
       "mode": "team",
       "teaming": {
-        "mode": 6
+        "mode": 5
       },
       "interface_map": [
         {
@@ -60,11 +60,11 @@
        "pattern": "team/.*/crowbar-config-default",
        "conduit_list": { 
         "prod": {
-           "if_list": [ "1g2", "1g3" ],
-           "team_mode": 6
+           "if_list": [ "1g1", "1g3" ],
+           "team_mode": 5
          },
             "public": {
-              "if_list": [ "1g1" ]
+              "if_list": [ "1g2" ]
             },
          "mgmt": {
            "if_list": [ "1g4" ]
@@ -75,8 +75,8 @@
           "pattern": "team/.*/.*namenode",
           "conduit_list": { 
            "prod": {
-              "if_list": [ "1g1", "1g2", "1g3" ],
-              "team_mode": 6
+              "if_list": [ "1g1", "1g3" ],
+              "team_mode": 5
             },
             "mgmt": {
               "if_list": [ "1g4" ]
@@ -87,42 +87,42 @@
           "pattern": "team/.*/.*edgenode",
           "conduit_list": { 
            "prod": {
-              "if_list": [ "1g1", "1g2" ],
-              "team_mode": 6
+              "if_list": [ "1g1", "1g3" ],
+              "team_mode": 5
             },
             "public" : {
-               "if_list": [ "1g3", "1g4" ],
-               "team_mode" : 6
+               "if_list": [ "1g2", "1g4" ],
+               "team_mode" : 5
             }
           }
         },
      {
-          "pattern": "team/.*/.*/.*filernode",
+          "pattern": "team/.*/.*filernode",
           "conduit_list": { 
              "prod": {
-              "if_list": [ "1g1", "1g2" ],
-              "team_mode": 6
+              "if_list": [ "1g1", "1g3" ],
+              "team_mode": 5
             }
           }
         },
      {
-          "pattern": "team/.*/.*/.*datanode",
+          "pattern": "team/.*/.*journalingnode",
+          "conduit_list": { 
+             "prod": {
+              "if_list": [ "1g1", "1g3" ],
+              "team_mode": 5
+            }
+          }
+        },    
+     {
+          "pattern": "team/.*/.*datanode",
           "conduit_list": { 
              "prod": {
               "if_list": [ "1g1", "1g2" ],
-              "team_mode": 6
+              "team_mode": 5
             }
           }
         },
-     {
-          "pattern": "team/.*/.*/.*journalingnode",
-          "conduit_list": { 
-             "prod": {
-              "if_list": [ "1g1", "1g2" ],
-              "team_mode": 6
-            }
-          }
-        },        
         {
           "pattern": ".*/.*/.*",
           "conduit_list": { 
