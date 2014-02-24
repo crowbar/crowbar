@@ -346,7 +346,9 @@ if [ -n "$PROVISIONER_JSON" ]; then
               SUSE-Cloud-4-Pool \
               SUSE-Cloud-4-Updates \
               SLES11-SP3-Pool \
-              SLES11-SP3-Updates
+              SLES11-SP3-Updates \
+              SLE11-HAE-SP3-Pool \
+              SLE11-HAE-SP3-Updates
   do
       if test -n "`json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.${repo//./\\\\.}.url`"; then
           REPOS_SKIP_CHECKS+=" ${repo#SLE-}"
@@ -505,6 +507,9 @@ check_repo_product () {
 #   Cloud: we don't have the final md5
 REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-4-Pool SUSE-Cloud-4-Updates"
 
+# HAE add-on should remain optional for now
+REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
+
 check_repo_content \
     SLES11_SP3 \
     /srv/tftpboot/suse-11.3/install \
@@ -520,7 +525,7 @@ if skip_check_for_repo "Cloud-PTF"; then
     echo "Skipping check for Cloud-PTF due to \$REPOS_SKIP_CHECKS"
 else
     if ! [ -e "/srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml" ]; then
-        # Only do this for CROWBAR_FROM_GIT , as usually the crowbar package
+        # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
         # creates the repo metadata for Cloud-PTF
         if [ -n $CROWBAR_FROM_GIT ]; then
             echo "Creating repo skeleton to make AutoYaST happy."
@@ -536,6 +541,8 @@ fi
 
 check_repo_product SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
+check_repo_product SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3'
+check_repo_product SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3'
 check_repo_product SUSE-Cloud-4-Pool    'SUSE Cloud 4'
 check_repo_product SUSE-Cloud-4-Updates 'SUSE Cloud 4'
 
@@ -735,7 +742,7 @@ fi
 # Take care that the barclamps are installed in the right order (as expressed
 # in cookbook dependencies)
 #
-for i in crowbar deployer dns ipmi logging network ntp provisioner \
+for i in crowbar deployer dns ipmi logging network ntp provisioner pacemaker \
          database rabbitmq keystone swift ceph glance cinder neutron nova \
          nova_dashboard openstack ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
