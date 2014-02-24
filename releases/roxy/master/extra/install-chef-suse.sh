@@ -743,7 +743,7 @@ fi
 # Take care that the barclamps are installed in the right order (as expressed
 # in cookbook dependencies)
 #
-for i in crowbar deployer dns ipmi logging network ntp provisioner \
+for i in crowbar deployer dns ipmi logging network ntp provisioner pacemaker \
          database rabbitmq keystone swift ceph glance cinder neutron nova \
          nova_dashboard openstack ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
