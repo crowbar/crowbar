@@ -1182,8 +1182,7 @@ list_pull_requests() {
             bundles/*)
                    lrepo="Multiple";;
         esac
-
-        echo "$idx: ($(cat "$cr")$cn - $lrepo) $(cat "$cf")$lurl"
+        echo "$idx: ($(cat "$cr")$cn) $(cat "$cf")$lurl"
     done <"$OPEN_PULL_REQUESTS/pull_request_index"
 }
 
