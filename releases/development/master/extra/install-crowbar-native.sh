@@ -325,12 +325,26 @@ admin_net='
     {
       "name": "host",
       "first": "192.168.124.81/24",
-      "last": "192.168.124.254/24"
+      "last": "192.168.124.160/24"
     },
     {
       "name": "dhcp",
       "first": "192.168.124.21/24",
       "last": "192.168.124.80/24"
+    }
+  ]
+}'
+
+bmc_net='
+{
+  "name": "bmc",
+  "deployment": "system",
+  "conduit": "1g1",
+  "ranges": [
+    {
+      "name": "bmc",
+      "first": "192.168.124.161/24",
+      "last": "192.168.124.254/24"
     }
   ]
 }'
@@ -379,6 +393,9 @@ if ! [[ $* = *--wizard* ]]; then
         ip addr add "$net" dev eth0 || :
         echo "${net%/*} $FQDN" >> /etc/hosts
     done
+
+    # create bmc network
+    /opt/dell/bin/crowbar networks create "$bmc_net"
 
     # Mark the node as alive.
     crowbar nodes update "$FQDN" '{"alive": true}'
