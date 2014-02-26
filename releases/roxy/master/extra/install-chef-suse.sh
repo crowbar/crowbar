@@ -486,12 +486,12 @@ check_repo_content () {
 }
 
 check_repo_product () {
-    repo="$1" expected_summary="$2"
+    repo="$1" expected_summary="$2" create_if_missing="$3"
     products_xml=/srv/tftpboot/repos/$repo/repodata/products.xml
     if ! grep -q "<summary>$2</summary>" $products_xml; then
         if skip_check_for_repo "$repo"; then
             echo "Ignoring failed repo check for $repo due to \$REPOS_SKIP_CHECKS ($products_xml is missing summary '$expected_summary')"
-            if ! [ -d /srv/tftpboot/repos/$repo ]; then
+            if [ ! -d /srv/tftpboot/repos/$repo -a "x$create_if_missing" != "xfalse" ]; then
                 echo "Creating repo skeleton to make AutoYaST happy."
                 mkdir /srv/tftpboot/repos/$repo
                 /usr/bin/createrepo /srv/tftpboot/repos/$repo
@@ -542,8 +542,8 @@ fi
 
 check_repo_product SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3'
-check_repo_product SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3'
+check_repo_product SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
+check_repo_product SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
 check_repo_product SUSE-Cloud-3-Pool    'SUSE Cloud 3'
 check_repo_product SUSE-Cloud-3-Updates 'SUSE Cloud 3'
 
