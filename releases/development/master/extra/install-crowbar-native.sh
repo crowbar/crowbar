@@ -339,10 +339,10 @@ bmc_net='
 {
   "name": "bmc",
   "deployment": "system",
-  "conduit": "1g1",
+  "conduit": "bmc",
   "ranges": [
     {
-      "name": "bmc",
+      "name": "host",
       "first": "192.168.124.161/24",
       "last": "192.168.124.254/24"
     }
@@ -374,6 +374,9 @@ if ! [[ $* = *--wizard* ]]; then
     #    -d "conduit=1g0"  \
     #    -d 'ranges='
 
+    # create bmc network
+    /opt/dell/bin/crowbar networks create "$bmc_net"
+
     # Create the admin node entry.
     crowbar nodes create "$admin_node"
     #curl -s -f --digest -u $(cat /etc/crowbar.install.key) \
@@ -393,9 +396,6 @@ if ! [[ $* = *--wizard* ]]; then
         ip addr add "$net" dev eth0 || :
         echo "${net%/*} $FQDN" >> /etc/hosts
     done
-
-    # create bmc network
-    /opt/dell/bin/crowbar networks create "$bmc_net"
 
     # Mark the node as alive.
     crowbar nodes update "$FQDN" '{"alive": true}'
