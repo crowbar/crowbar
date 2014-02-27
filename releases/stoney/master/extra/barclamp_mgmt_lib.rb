@@ -26,6 +26,8 @@ require 'active_support/all'
 require 'pp'
 require 'i18n'
 
+I18n.enforce_available_locales = true
+
 MODEL_SUBSTRING_BASE = '==BC-MODEL=='
 MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
 MODEL_SUBSTRING_HUMAN = '==*BC-MODEL=='
@@ -138,6 +140,7 @@ def generate_navigation
 
   barclamps = File.join CROWBAR_PATH, 'barclamps'
   list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
+
   list.each do |bc_file|
     yaml = YAML.load_file File.join(barclamps, bc_file)
     next if yaml['nav'].nil?
@@ -147,20 +150,57 @@ def generate_navigation
     else
       order = yaml['crowbar']['order'].to_i
     end
+
     order2 = 0
 
     yaml['nav'].each do |key, value|
       if key == 'primary'
-        yaml['nav']['primary'].each do |k, v|
-          primaries << { :order => order, :order2 => order2, :id => k, :link => v }
+        yaml['nav']['primary'].each do |key, attrs|
+          next if attrs.nil?
+
+          if attrs.is_a? Hash
+            link = case
+            when attrs["route"]
+              if attrs["params"]
+                "#{attrs["route"]}(#{attrs["params"].inspect})"
+              else
+                attrs["route"]
+              end
+            when attrs["path"]
+              '"attrs["path"]"'
+            end
+
+            primaries << { :order => order, :order2 => order2, :id => key, :link => link }
+          else
+            primaries << { :order => order, :order2 => order2, :id => key, :link => attrs }
+          end
+
           order2 += 1
         end
       else
         primary = key
         secondaries[primary] = [] if secondaries[primary].nil?
-        value.each do |k, v|
-          next if v.nil?
-          secondaries[primary] << { :order => order, :order2 => order2, :id => k, :link => v }
+
+        value.each do |key, attrs|
+          next if attrs.nil?
+
+          if attrs.is_a? Hash
+            link = case
+            when attrs["route"]
+              if attrs["params"]
+                "#{attrs["route"]}(#{attrs["params"].inspect})"
+              else
+                attrs["route"]
+              end
+            when attrs["path"]
+              attrs["path"].inspect
+            end
+
+            secondaries[primary] << { :order => order, :order2 => order2, :id => key, :link => link }
+          else
+            secondaries[primary] << { :order => order, :order2 => order2, :id => key, :link => attrs }
+          end
+
           order2 += 1
         end
       end
@@ -175,9 +215,30 @@ def generate_navigation
 
   nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'
   File.open( nav_file, 'w') do |out|
+
+
+    out.puts '# -*- encoding : utf-8 -*-'
+    out.puts '#'
+    out.puts '# Copyright 2011-2013, Dell'
+    out.puts '# Copyright 2013-2014, SUSE LINUX Products GmbH'
+    out.puts '#'
+    out.puts '# Licensed under the Apache License, Version 2.0 (the "License");'
+    out.puts '# you may not use this file except in compliance with the License.'
+    out.puts '# You may obtain a copy of the License at'
+    out.puts '#'
+    out.puts '#   http://www.apache.org/licenses/LICENSE-2.0'
+    out.puts '#'
+    out.puts '# Unless required by applicable law or agreed to in writing, software'
+    out.puts '# distributed under the License is distributed on an "AS IS" BASIS,'
+    out.puts '# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.'
+    out.puts '# See the License for the specific language governing permissions and'
+    out.puts '# limitations under the License.'
+    out.puts '#'
+    out.puts ''
     out.puts 'SimpleNavigation::Configuration.run do |navigation|'
     out.puts '  navigation.selected_class = "active"'
     out.puts '  navigation.active_leaf_class = "leaf"'
+    out.puts ''
     out.puts '  navigation.items do |primary|'
     out.puts '    primary.dom_class = "nav navbar-nav"'
     primaries.each do |primary|
@@ -262,25 +323,6 @@ def bc_replacer(item, bc, entity)
   return new_item
 end
 
-#merges localizations from config into the matching translation files
-def merge_i18n(yaml)
-  locales = yaml['locale_additions'] || {}
-  locales.each do |key, value|
-    #translation file (can be multiple)
-    f = File.join CROWBAR_PATH, 'config', 'locales', "#{key}.yml"
-    if File.exist? f
-      debug "merging translation for #{f}"
-      master = YAML.load_file f
-      master = merge_tree(key, value, master)
-      File.open( f, 'w' ) do |out|
-        YAML.dump( master, out )
-      end
-    else
-      puts "WARNING: Did not attempt tranlation merge for #{f} because file was not found."
-    end
-  end
-end
-
 # helper for localization merge
 def merge_tree(key, value, target)
   if target.key? key
@@ -359,10 +401,6 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
       files += bc_cloner('chef', bc, nil, bc_path, BASE_PATH, false)
       debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
     end
-
-    # merge i18n information (rpm packages already have this done)
-    debug "merge_i18n"
-    merge_i18n yaml
   end
 
   # we don't install these files in the right place from rpm
