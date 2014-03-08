@@ -841,24 +841,19 @@ update_barclamp_git_repo_cache() {
 any_pip_cache() { [[ ${BC_PIPS[*]} ]]; }
 barclamp_pip_cache_needs_update() {
     local bc_cache="$CACHE_DIR/barclamps/$1/files/pip_cache"
-    if [[ ${BC_PIPS[$1]} ]]; then
-        if [[ ! -d ${bc_cache} || $ALLOW_CACHE_UPDATE = true ]]; then
-            debug "Pips for barclamp $1 is not cached, and needs it."
-            return 0
-        fi
-    fi
-    return 1
+    [[ $need_update = true || ${FORCE_BARCLAMP_UPDATE["$1"]} = true ]] && return 0
+    mkdir -p "$bc_cache"
+    $CROWBAR_DIR/pip-bundler.py -c "$bc_cache" ${BC_PIPS[$1]} && return 1
+    return 0
 }
 update_barclamp_pip_cache() {
     local bc_cache="$CACHE_DIR/barclamps/$1/files/pip_cache"
-    which pip2pi &>/dev/null || die "Please install pip2pi before updating the pip cache!"
-    [[ $CURRENT_CACHE_BRANCH ]] && in_cache git rm -r "$bc_cache"
-    sudo rm -rf "$bc_cache"
+    which pip &>/dev/null || die "Please install pip before updating the pip cache!"
+    [[ $CURRENT_CACHE_BRANCH ]] && in_cache git rm -rf "$bc_cache"
     mkdir -p "$bc_cache"
     # Download all pips and create PyPI repository
-    pip2pi "$bc_cache" ${BC_PIPS[$1]} || die "Can't prepare pip cache for $1 barclamp"
+    $CROWBAR_DIR/pip-bundler.py -f -c "$bc_cache" ${BC_PIPS[$1]} || die "Cen't create pip cache for $1"
     # Remove all index.html files for rejecting on errors with finding required version on install stage
-    find "$bc_cache" -type f -iname "index.html" -exec rm {} \;
     [[ $CURRENT_CACHE_BRANCH ]] && in_cache git add "$bc_cache"
 }
 
