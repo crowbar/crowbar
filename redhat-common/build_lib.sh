@@ -109,12 +109,12 @@ __barclamp_pkg_metadata_needs_update() (
 )
 
 __make_barclamp_pkg_metadata () {
-    in_chroot "cd /mnt; createrepo -d -q ."
+    in_chroot "cd /mnt; createrepo -d --workers 4 -q ."
     sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
     touch "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/repodata"
     if [[ $CURRENT_CACHE_BRANCH ]]; then
         CACHE_NEEDS_COMMIT=true
-        in_cache git add "barclamps/$bc/$OS_TOKEN/pkgs/repodata"
+        in_cache git add -A "barclamps/$bc/$OS_TOKEN/pkgs/repodata"
     fi
 }
 
