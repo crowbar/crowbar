@@ -59,7 +59,7 @@ class Bundler:
 
             if package_requires is not None:
                 for req in open(package_requires):
-                    if len(req.strip()) is 0:
+                    if len(req.strip()) is 0 or req.strip().startswith('#'):
                         continue
                     dependencies.append(req.strip())
 
