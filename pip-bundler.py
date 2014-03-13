@@ -7,6 +7,7 @@ from pip.util import splitext
 from pip.exceptions import DistributionNotFound
 from pip.index import PackageFinder
 from pip.req import InstallRequirement
+from pip.req import parse_requirements
 
 
 #Check pip version before working
@@ -58,11 +59,8 @@ class Bundler:
                 package_requires = os.path.join("tmp", package_name, "tools/pip-requires")
 
             if package_requires is not None:
-                for req in open(package_requires):
-                    if len(req.strip()) is 0:
-                        continue
-                    dependencies.append(req.strip())
-
+                install_reqs = parse_requirements(package_requires)
+                dependencies = [str(ir.req) for ir in install_reqs]
 
             if os.path.isdir(os.path.join("tmp")):
                 shutil.rmtree(os.path.join("tmp"))
