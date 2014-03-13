@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
 # Copyright 2011, Dell
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,8 +25,6 @@ require 'tempfile'
 require 'active_support/all'
 require 'pp'
 require 'i18n'
-
-I18n.enforce_available_locales = true
 
 MODEL_SUBSTRING_BASE = '==BC-MODEL=='
 MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
