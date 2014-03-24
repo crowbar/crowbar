@@ -234,11 +234,14 @@ def generate_navigation
     out.puts '#'
     out.puts ''
     out.puts 'SimpleNavigation::Configuration.run do |navigation|'
+    out.puts '  navigation.renderer = SimpleNavigationRenderers::Bootstrap3'
+    out.puts ''
     out.puts '  navigation.selected_class = "active"'
     out.puts '  navigation.active_leaf_class = "leaf"'
     out.puts ''
     out.puts '  navigation.items do |primary|'
     out.puts '    primary.dom_class = "nav navbar-nav"'
+    out.puts ''
     primaries.each do |primary|
       out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]} do |secondary|"
       unless secondaries[primary[:id]].nil?
