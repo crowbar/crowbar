@@ -177,6 +177,7 @@ class CrowbarNetwork
   attr_reader :ranges
   attr_reader :conduit
   attr_reader :vlan
+  attr_reader :use_vlan
 
   def initialize name, json
     @name = name
@@ -409,6 +410,16 @@ def validate_networks databag
 
   if not @networks['public'].subnet_addr_full.include?(@networks['nova_floating'].subnet_addr_full)
     raise "'nova_floating' network must be a subnetwork of 'public' network"
+  end
+
+  if @networks['public'].use_vlan != @networks['nova_floating'].use_vlan
+    raise "The 'Use VLAN' setting (JSON attribute: 'use_vlan') of the 'nova_floating' and 'public' networks must be the same."
+  end
+
+  if @networks['public'].use_vlan
+    if @networks['public'].vlan != @networks['nova_floating'].vlan
+      raise "'nova_floating' network must have the same VLAN configuration as 'public' network"
+    end
   end
 
   if @networks['bmc'].subnet_addr_full != @networks['admin'].subnet_addr_full
