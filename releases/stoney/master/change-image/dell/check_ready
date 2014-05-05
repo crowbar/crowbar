@@ -62,7 +62,7 @@ admin_node = '192.168.124.10' if not admin_node
 target_state = 'ready' unless target_state
 conn = ''
 res = authenticate(Net::HTTP::Get,
-                   URI.parse("http://#{admin_node}:3000/crowbar/machines/1.0/show?name=#{node}"))
+                   URI.parse("http://#{admin_node}:3000/crowbar/machines/1.0/show/#{node}.json"))
 die(4,"Did not get good response from Crowbar") unless res.code == '200'
 state = JSON.parse(res.body)
 puts "#{node} is #{state["state"]}."

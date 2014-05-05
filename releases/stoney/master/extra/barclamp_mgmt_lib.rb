@@ -235,6 +235,7 @@ def generate_navigation
     out.puts ''
     out.puts 'SimpleNavigation::Configuration.run do |navigation|'
     out.puts '  navigation.renderer = SimpleNavigationRenderers::Bootstrap3'
+    out.puts '  navigation.consider_item_names_as_safe = true'
     out.puts ''
     out.puts '  navigation.selected_class = "active"'
     out.puts '  navigation.active_leaf_class = "leaf"'
