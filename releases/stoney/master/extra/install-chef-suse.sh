@@ -26,7 +26,6 @@
 # instructions.
 
 set -e
-set -x
 
 usage () {
     # do not document --from-git option; it's for developers only
