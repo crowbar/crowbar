@@ -1,13 +1,13 @@
-#! /bin/bash -e
-# vim: sw=4 et
+#!/bin/bash
 #
-# Copyright 2012-2013, SUSE
+# Copyright 2011-2013, Dell
+# Copyright 2013-2014, SUSE LINUX Products GmbH
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#  http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,6 +24,9 @@
 # For development and testing use, call the script with the '--from-git'
 # option. Use the appropriate dev VM and follow the corresponding setup
 # instructions.
+
+set -e
+set -x
 
 usage () {
     # do not document --from-git option; it's for developers only
@@ -766,9 +769,8 @@ knife node run_list add "$FQDN" role["$NODE_ROLE"]
 chef-client
 
 # Create session store database
-rm -rf /opt/dell/crowbar_framework/db/migrate
 rm -f /opt/dell/crowbar_framework/db/{production.sqlite3,schema.rb}
-su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production rake db:sessions:create && RAILS_ENV=production rake db:migrate"
+su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production rake db:create db:migrate"
 
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
