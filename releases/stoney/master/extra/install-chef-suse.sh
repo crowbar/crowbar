@@ -715,7 +715,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     touch "$d/nagios/recipes/common.rb"
     knife cookbook upload -o "$d" nagios
     rm -rf "$d"
-    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
+    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.nagios --raw -v "[ \"\" ]"
 
     # Some barclamps depend on the "pfsdeps" view. Fake it, to make the webui
     # work for those.
@@ -823,8 +823,8 @@ if test -z "`json_read "$CROWBAR_JSON" attributes.crowbar.users.crowbar`"; then
     $json_edit "$CROWBAR_JSON" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
 fi
 # we don't use ganglia at all, and we don't want nagios by default
-$json_edit "$CROWBAR_JSON"    -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
-$json_edit "$CROWBAR_JSON" -n -a attributes.crowbar.instances.nagios --raw -v "[ ]"
+$json_edit "$CROWBAR_JSON"    -a attributes.crowbar.instances.ganglia --raw -v "[ \"\" ]"
+$json_edit "$CROWBAR_JSON" -n -a attributes.crowbar.instances.nagios --raw -v "[ \"\" ]"
 
 # Use existing SSH authorized keys
 if [ -f /root/.ssh/authorized_keys ]; then
