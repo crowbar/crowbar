@@ -217,8 +217,6 @@ def generate_navigation
 
   nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'
   File.open( nav_file, 'w') do |out|
-
-
     out.puts '# -*- encoding : utf-8 -*-'
     out.puts '#'
     out.puts '# Copyright 2011-2013, Dell'
@@ -247,15 +245,21 @@ def generate_navigation
     out.puts '  navigation.items do |primary|'
     out.puts '    primary.dom_class = "nav navbar-nav"'
     out.puts ''
+
     primaries.each do |primary|
-      out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]} do |secondary|"
-      unless secondaries[primary[:id]].nil?
-        secondaries[primary[:id]].each do |secondary|
-          out.puts "      secondary.item :#{secondary[:id]}, t(\"nav.#{secondary[:id]}\"), #{secondary[:link]}"
+      if secondaries[primary[:id]].to_a.empty?
+        out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]}"
+      else
+        out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]} do |secondary|"
+        unless secondaries[primary[:id]].nil?
+          secondaries[primary[:id]].each do |secondary|
+            out.puts "      secondary.item :#{secondary[:id]}, t(\"nav.#{secondary[:id]}\"), #{secondary[:link]}"
+          end
         end
+        out.puts "    end"
       end
-      out.puts "    end"
     end
+
     out.puts '  end'
     out.puts 'end'
   end
