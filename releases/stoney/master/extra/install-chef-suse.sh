@@ -1,13 +1,13 @@
-#! /bin/bash -e
-# vim: sw=4 et
+#!/bin/bash
 #
-# Copyright 2012-2013, SUSE
+# Copyright 2011-2013, Dell
+# Copyright 2013-2014, SUSE LINUX Products GmbH
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#  http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,6 +24,8 @@
 # For development and testing use, call the script with the '--from-git'
 # option. Use the appropriate dev VM and follow the corresponding setup
 # instructions.
+
+set -e
 
 usage () {
     # do not document --from-git option; it's for developers only
@@ -632,23 +634,6 @@ fi
 chkconfig rabbitmq-server on
 ensure_service_running rabbitmq-server '^Node .+ with Pid [0-9]+: running'
 
-if rabbitmqctl list_vhosts | grep -q '^/chef$'; then
-    : /chef vhost already added
-else
-    rabbitmqctl add_vhost /chef
-fi
-
-if rabbitmqctl list_users 2>&1 | grep -q '^chef	'; then
-    : chef user already added
-else
-    rabbit_chef_password=$( dd if=/dev/urandom count=1 bs=16 2>/dev/null | base64 | tr -d / )
-    rabbitmqctl add_user chef "$rabbit_chef_password"
-    # Update "amqp_pass" in  /etc/chef/server.rb and solr.rb
-    sed -i 's/amqp_pass ".*"/amqp_pass "'"$rabbit_chef_password"'"/' /etc/chef/{server,solr}.rb
-fi
-
-rabbitmqctl set_permissions -p /chef chef ".*" ".*" ".*"
-
 chkconfig couchdb on
 ensure_service_running couchdb
 
@@ -730,7 +715,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     touch "$d/nagios/recipes/common.rb"
     knife cookbook upload -o "$d" nagios
     rm -rf "$d"
-    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
+    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.nagios --raw -v "[ \"\" ]"
 
     # Some barclamps depend on the "pfsdeps" view. Fake it, to make the webui
     # work for those.
@@ -783,9 +768,8 @@ knife node run_list add "$FQDN" role["$NODE_ROLE"]
 chef-client
 
 # Create session store database
-rm -rf /opt/dell/crowbar_framework/db/migrate
 rm -f /opt/dell/crowbar_framework/db/{production.sqlite3,schema.rb}
-su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production rake db:sessions:create && RAILS_ENV=production rake db:migrate"
+su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production rake db:create db:migrate"
 
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
@@ -839,8 +823,8 @@ if test -z "`json_read "$CROWBAR_JSON" attributes.crowbar.users.crowbar`"; then
     $json_edit "$CROWBAR_JSON" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
 fi
 # we don't use ganglia at all, and we don't want nagios by default
-$json_edit "$CROWBAR_JSON"    -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
-$json_edit "$CROWBAR_JSON" -n -a attributes.crowbar.instances.nagios --raw -v "[ ]"
+$json_edit "$CROWBAR_JSON"    -a attributes.crowbar.instances.ganglia --raw -v "[ \"\" ]"
+$json_edit "$CROWBAR_JSON" -n -a attributes.crowbar.instances.nagios --raw -v "[ \"\" ]"
 
 # Use existing SSH authorized keys
 if [ -f /root/.ssh/authorized_keys ]; then
@@ -976,7 +960,7 @@ $CROWBAR crowbar proposal show default >/var/log/crowbar/default-proposal.json
 $CROWBAR crowbar proposal commit default || \
     die "Could not commit default proposal!"
     
-$CROWBAR crowbar show default >/var/log/crowbar/default.json
+$CROWBAR crowbar proposal show default >/var/log/crowbar/default.json
 
 crowbar_up=true
 chef-client
@@ -1044,7 +1028,7 @@ ensure_service_running chef-client
 echo_summary "Performing post-installation sanity checks"
 
 # Spit out a warning message if we managed to not get an IP address
-IP=$($CROWBAR network show default | json_read - attributes.network.networks.admin.ranges.admin.start)
+IP=$($CROWBAR network proposal show default | json_read - attributes.network.networks.admin.ranges.admin.start)
 ip addr | grep -q "$IP" || {
     die "eth0 not configured, but should have been."
 }

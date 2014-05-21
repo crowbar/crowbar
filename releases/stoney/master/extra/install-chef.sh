@@ -451,7 +451,7 @@ fi
 crowbar crowbar proposal show default >/var/log/crowbar/default-proposal.json
 crowbar crowbar proposal commit default || \
     die "Could not commit default proposal!"
-crowbar crowbar show default >/var/log/crowbar/default.json
+crowbar crowbar proposal show default >/var/log/crowbar/default.json
 # have die change our status to problem if we fail
 crowbar_up=true
 chef_or_die "Chef run after default proposal commit failed!"
@@ -496,7 +496,7 @@ done
 rm /var/run/crowbar/deploying
 
 # Spit out a warning message if we managed to not get an IP address
-IPSTR=$(crowbar network show default | parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
+IPSTR=$(crowbar network proposal show default | parse_node_data -a attributes.network.networks.admin.ranges.admin.start)
 IP=${IPSTR##*=}
 ip addr | grep -q $IP || {
     echo "$(date '+%F %T %z'): eth0 not configured, but should have been."
