@@ -785,6 +785,15 @@ chef-client
 # Create session store database
 rm -rf /opt/dell/crowbar_framework/db/migrate
 rm -f /opt/dell/crowbar_framework/db/{production.sqlite3,schema.rb}
+
+if [ -n "$CROWBAR_FROM_GIT" ]; then
+    # FIXME: This workaround can be removed once rspec packages are available.
+    # Until then, remove the rspec related tasks to avoid rake complainig about
+    # missing dependencies. (This is not an issue for package based installs,
+    # since the rake task are part of the -devel subpackage which is not
+    # installed by default.
+    rm -f /opt/dell/crowbar_framework/lib/tasks/rspec.rake
+fi
 su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production rake db:sessions:create && RAILS_ENV=production rake db:migrate"
 
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
