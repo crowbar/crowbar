@@ -23,10 +23,10 @@ REQUIRED_NETWORKS = {
   'admin' => ['admin', 'dhcp', 'host', 'switch'],
   'bmc' => ['host'],
   'bmc_vlan' => ['host'],
-  'nova_fixed' => ['dhcp', 'router'],
+  'nova_fixed' => ['dhcp'],
   'nova_floating' => ['host'],
   'os_sdn' => ['host'],
-  'public' => ['dhcp', 'host'],
+  'public' => ['host'],
   'storage' => ['host']
 }
 
