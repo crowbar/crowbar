@@ -233,16 +233,18 @@ def bc_cloner(item, bc, entity, source, target, replace)
   return files
 end
 
-# fix permissions
+# Fix file permissions. Note: This doesn't change directory permissions
 def chmod_dir(value, path)
   f = Dir.entries(path).find_all { |e| !e.start_with? '.'}
   f.each do |i|
     file = File.join(path,i)
-    if File.exists? file
+    if File.directory? file
+      debug "\tchmod_dir: #{file} is a directory. Skipping it."
+    elsif File.exists? file
       FileUtils.chmod value, file
       debug "\tchmod 0#{value.to_s(8)} for #{file}"
     else
-      puts "WARN: missing file #{file} for chmod #{value} operation."
+      puts "chmod_dir: WARN: missing file #{file} for chmod #{value} operation."
     end
   end
 end
