@@ -199,13 +199,17 @@ def generate_navigation
     out.puts '  navigation.items do |primary|'
     out.puts '    primary.dom_class = "nav navbar-nav"'
     primaries.each do |primary|
-      out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]} do |secondary|"
-      unless secondaries[primary[:id]].nil?
-        secondaries[primary[:id]].each do |secondary|
-          out.puts "      secondary.item :#{secondary[:id]}, t(\"nav.#{secondary[:id]}\"), #{secondary[:link]}"
+      if secondaries[primary[:id]].to_a.empty?
+        out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]}"
+      else
+        out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]} do |secondary|"
+        unless secondaries[primary[:id]].nil?
+          secondaries[primary[:id]].each do |secondary|
+            out.puts "      secondary.item :#{secondary[:id]}, t(\"nav.#{secondary[:id]}\"), #{secondary[:link]}"
+          end
         end
+        out.puts "    end"
       end
-      out.puts "    end"
     end
     out.puts '  end'
     out.puts 'end'
