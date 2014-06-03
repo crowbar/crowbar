@@ -262,25 +262,6 @@ def bc_replacer(item, bc, entity)
   return new_item
 end
 
-#merges localizations from config into the matching translation files
-def merge_i18n(yaml)
-  locales = yaml['locale_additions'] || {}
-  locales.each do |key, value|
-    #translation file (can be multiple)
-    f = File.join CROWBAR_PATH, 'config', 'locales', "#{key}.yml"
-    if File.exist? f
-      debug "merging translation for #{f}"
-      master = YAML.load_file f
-      master = merge_tree(key, value, master)
-      File.open( f, 'w' ) do |out|
-        YAML.dump( master, out )
-      end
-    else
-      puts "WARNING: Did not attempt tranlation merge for #{f} because file was not found."
-    end
-  end
-end
-
 # helper for localization merge
 def merge_tree(key, value, target)
   if target.key? key
@@ -359,10 +340,6 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
       files += bc_cloner('chef', bc, nil, bc_path, BASE_PATH, false)
       debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
     end
-
-    # merge i18n information (rpm packages already have this done)
-    debug "merge_i18n"
-    merge_i18n yaml
   end
 
   # we don't install these files in the right place from rpm
