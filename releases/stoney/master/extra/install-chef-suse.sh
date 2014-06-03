@@ -1,4 +1,4 @@
-#! /bin/bash -e
+#!/bin/bash
 #
 # Copyright 2011-2013, Dell
 # Copyright 2013-2014, SUSE LINUX Products GmbH
@@ -24,6 +24,8 @@
 # For development and testing use, call the script with the '--from-git'
 # option. Use the appropriate dev VM and follow the corresponding setup
 # instructions.
+
+set -e
 
 usage () {
     # do not document --from-git option; it's for developers only
