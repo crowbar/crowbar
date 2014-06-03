@@ -174,7 +174,7 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
         File.exists?("#{target}/sha1sums") and \
         system "/bin/bash -c 'diff -q <(sort \"#{bc[:src]}/sha1sums\") <(sort \"#{target}/sha1sums\")'"
         debug "syncing \"#{bc[:src]}\" directory and \"#{target}\" directory"
-        system "rsync -r \"#{bc[:src]}/\" \"#{target}\""
+        system "rsync -a \"#{bc[:src]}/\" \"#{target}\""
       end
       bc[:src] = target
     end
