@@ -986,7 +986,7 @@ $CROWBAR crowbar proposal show default >/var/log/crowbar/default-proposal.json
 $CROWBAR crowbar proposal commit default || \
     die "Could not commit default proposal!"
     
-$CROWBAR crowbar show default >/var/log/crowbar/default.json
+$CROWBAR crowbar proposal show default >/var/log/crowbar/default.json
 
 crowbar_up=true
 chef-client
@@ -1054,7 +1054,7 @@ ensure_service_running chef-client
 echo_summary "Performing post-installation sanity checks"
 
 # Spit out a warning message if we managed to not get an IP address
-IP=$($CROWBAR network show default | json_read - attributes.network.networks.admin.ranges.admin.start)
+IP=$($CROWBAR network proposal show default | json_read - attributes.network.networks.admin.ranges.admin.start)
 ip addr | grep -q "$IP" || {
     die "eth0 not configured, but should have been."
 }
