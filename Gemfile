@@ -1,6 +1,5 @@
 source 'https://rubygems.org'
 
-gem "chef", "~> 10.14.0"
 gem "knife-essentials", "~> 0.7.6" 
 
 # not working at the moment due to array in cookbookpath
