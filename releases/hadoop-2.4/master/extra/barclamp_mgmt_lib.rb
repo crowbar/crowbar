@@ -146,7 +146,7 @@ def generate_navigation
     order2 = 0
 
     yaml['nav'].each do |key, value|
-      if key == 'primary':
+      if key == 'primary'
         yaml['nav']['primary'].each do |k, v|
           primaries << { :order => order, :order2 => order2, :id => k, :link => v }
           order2 += 1
