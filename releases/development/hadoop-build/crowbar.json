@@ -10,6 +10,12 @@
         "ipmi": [
           "default"
         ],
+        "bios": [
+          "default"
+        ],
+        "raid": [
+          "default"
+        ],
         "provisioner": [
           "default"
         ],
@@ -43,17 +49,14 @@
         }
       },
       "bios-settings": {
-        "Virtualization": "Virtualization",
-        "Storage": "Storage"
+        "Hadoop": "Hadoop"
       },
       "raid-settings": {
         "JBOD Only": "JBODOnly",
         "Single RAID 10": "SingleRaid10"
       },
       "node-usage": {
-        "Nova": "Nova",
-        "Swift": "Swift",
-        "Glance": "Glance"
+        "hadoop": "hadoop"
       }
     },
     "rails": {

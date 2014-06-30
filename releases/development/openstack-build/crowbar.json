@@ -10,6 +10,12 @@
         "ipmi": [
           "default"
         ],
+        "bios": [
+          "default"
+        ],
+        "raid": [
+          "default"
+        ],
         "provisioner": [
           "default"
         ],
