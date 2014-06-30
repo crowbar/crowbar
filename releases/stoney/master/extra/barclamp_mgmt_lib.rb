@@ -390,7 +390,9 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
 
   # Migrate base crowbar schema if needed
   bc_schema_version = yaml["crowbar"]["proposal_schema_version"].to_i rescue 1
-  if bc_schema_version < 2
+  latest_version    = 3
+
+  if bc_schema_version < latest_version
     name = yaml['barclamp']['name']
     schema_file = File.join BASE_PATH, 'chef','data_bags','crowbar', "bc-template-#{name}.schema"
     if File.exists? schema_file
@@ -398,15 +400,17 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
       File.open(schema_file, 'r') { |f|
         a = f.readlines
       }
-      need_status = a.grep(/^\s+\"crowbar-status\"/).empty?
-      need_failed = a.grep(/^\s+\"crowbar-failed\"/).empty?
-      if need_status or need_failed
+      need_status = bc_schema_version < 2 && a.grep(/^\s+\"crowbar-status\"/).empty?
+      need_failed = bc_schema_version < 2 && a.grep(/^\s+\"crowbar-failed\"/).empty?
+      need_applied = bc_schema_version < 3 && a.grep(/^\s+\"crowbar-applied\"/).empty?
+      if need_status or need_failed or need_applied
         File.open(schema_file, 'w') { |f|
           a.each do |line|
             f.write(line)
             if line =~ /crowbar-queued/
               f.write("            \"crowbar-status\": { \"type\": \"str\" },\n") if need_status
               f.write("            \"crowbar-failed\": { \"type\": \"str\" },\n") if need_failed
+              f.write("            \"crowbar-applied\": { \"type\": \"str\" },\n") if need_applied
             end
           end
         }
