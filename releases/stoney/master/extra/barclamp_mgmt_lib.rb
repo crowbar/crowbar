@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+#!/usr/bin/env ruby
 #
 # Copyright 2011-2013, Dell
 # Copyright 2013-2014, SUSE LINUX Products GmbH
@@ -175,19 +175,41 @@ def generate_navigation
 
   nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'
   File.open( nav_file, 'w') do |out|
+    out.puts '#'
+    out.puts '# Copyright 2011-2013, Dell'
+    out.puts '# Copyright 2013-2014, SUSE LINUX Products GmbH'
+    out.puts '#'
+    out.puts '# Licensed under the Apache License, Version 2.0 (the "License");'
+    out.puts '# you may not use this file except in compliance with the License.'
+    out.puts '# You may obtain a copy of the License at'
+    out.puts '#'
+    out.puts '#   http://www.apache.org/licenses/LICENSE-2.0'
+    out.puts '#'
+    out.puts '# Unless required by applicable law or agreed to in writing, software'
+    out.puts '# distributed under the License is distributed on an "AS IS" BASIS,'
+    out.puts '# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.'
+    out.puts '# See the License for the specific language governing permissions and'
+    out.puts '# limitations under the License.'
+    out.puts '#'
+    out.puts ''
     out.puts 'SimpleNavigation::Configuration.run do |navigation|'
     out.puts '  navigation.selected_class = "active"'
     out.puts '  navigation.active_leaf_class = "leaf"'
+    out.puts ''
     out.puts '  navigation.items do |primary|'
     out.puts '    primary.dom_class = "nav navbar-nav"'
     primaries.each do |primary|
-      out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]} do |secondary|"
-      unless secondaries[primary[:id]].nil?
-        secondaries[primary[:id]].each do |secondary|
-          out.puts "      secondary.item :#{secondary[:id]}, t(\"nav.#{secondary[:id]}\"), #{secondary[:link]}"
+      if secondaries[primary[:id]].to_a.empty?
+        out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]}"
+      else
+        out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]} do |secondary|"
+        unless secondaries[primary[:id]].nil?
+          secondaries[primary[:id]].each do |secondary|
+            out.puts "      secondary.item :#{secondary[:id]}, t(\"nav.#{secondary[:id]}\"), #{secondary[:link]}"
+          end
         end
+        out.puts "    end"
       end
-      out.puts "    end"
     end
     out.puts '  end'
     out.puts 'end'
@@ -262,25 +284,6 @@ def bc_replacer(item, bc, entity)
   new_item.gsub!('Copyright 2011, Dell', "Copyright #{Time.now.year}, #{entity}")
   debug "bc_replacer returns new_item=#{new_item}"
   return new_item
-end
-
-#merges localizations from config into the matching translation files
-def merge_i18n(yaml)
-  locales = yaml['locale_additions'] || {}
-  locales.each do |key, value|
-    #translation file (can be multiple)
-    f = File.join CROWBAR_PATH, 'config', 'locales', "#{key}.yml"
-    if File.exist? f
-      debug "merging translation for #{f}"
-      master = YAML.load_file f
-      master = merge_tree(key, value, master)
-      File.open( f, 'w' ) do |out|
-        YAML.dump( master, out )
-      end
-    else
-      puts "WARNING: Did not attempt tranlation merge for #{f} because file was not found."
-    end
-  end
 end
 
 # helper for localization merge
@@ -361,10 +364,6 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
       files += bc_cloner('chef', bc, nil, bc_path, BASE_PATH, false)
       debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
     end
-
-    # merge i18n information (rpm packages already have this done)
-    debug "merge_i18n"
-    merge_i18n yaml
   end
 
   # we don't install these files in the right place from rpm

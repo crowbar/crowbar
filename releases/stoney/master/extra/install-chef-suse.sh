@@ -1,4 +1,4 @@
-#! /bin/bash -e
+#!/bin/bash
 #
 # Copyright 2011-2013, Dell
 # Copyright 2013-2014, SUSE LINUX Products GmbH
@@ -24,6 +24,8 @@
 # For development and testing use, call the script with the '--from-git'
 # option. Use the appropriate dev VM and follow the corresponding setup
 # instructions.
+
+set -e
 
 usage () {
     # do not document --from-git option; it's for developers only
@@ -984,7 +986,7 @@ $CROWBAR crowbar proposal show default >/var/log/crowbar/default-proposal.json
 $CROWBAR crowbar proposal commit default || \
     die "Could not commit default proposal!"
     
-$CROWBAR crowbar show default >/var/log/crowbar/default.json
+$CROWBAR crowbar proposal show default >/var/log/crowbar/default.json
 
 crowbar_up=true
 chef-client
@@ -1052,7 +1054,7 @@ ensure_service_running chef-client
 echo_summary "Performing post-installation sanity checks"
 
 # Spit out a warning message if we managed to not get an IP address
-IP=$($CROWBAR network show default | json_read - attributes.network.networks.admin.ranges.admin.start)
+IP=$($CROWBAR network proposal show default | json_read - attributes.network.networks.admin.ranges.admin.start)
 ip addr | grep -q "$IP" || {
     die "eth0 not configured, but should have been."
 }
