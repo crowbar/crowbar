@@ -4,33 +4,59 @@
   "attributes": {
     "crowbar": {
       "instances": {
-        "deployer": [ "default" ],
-        "ipmi": [ "default" ],
-        "bios": [ "default" ],
-        "raid": [ "default" ],
-        "provisioner": [ "default" ],
-        "network": [ "default" ],
-        "ntp": [ "default" ],
-        "dns": [ "default" ],
-        "nagios": [ "default" ],
-        "ganglia": [ "default" ],
-        "logging": [ "default" ]
+        "deployer": [
+          "default"
+        ],
+        "ipmi": [
+          "default"
+        ],
+        "bios": [
+          "default"
+        ],
+        "raid": [
+          "default"
+        ],
+        "provisioner": [
+          "default"
+        ],
+        "network": [
+          "default"
+        ],
+        "ntp": [
+          "default"
+        ],
+        "dns": [
+          "default"
+        ],
+        "nagios": [
+          "default"
+        ],
+        "ganglia": [
+          "default"
+        ],
+        "logging": [
+          "default"
+        ]
       },
       "realm": "Crowbar - By selecting OK are agreeing to the License Agreement",
       "web_port": 3000,
       "users": {
-        "machine-install": { "password": "machine_password" },
-        "crowbar": { "password": "crowbar" }
+        "machine-install": {
+          "password": "machine_password"
+        },
+        "crowbar": {
+          "password": "crowbar"
+        }
       },
       "bios-settings": {
-         "Hadoop": "Hadoop"
+        "Hadoop": "Hadoop"
       },
       "raid-settings": {
-         "JBOD Only" : "JBODOnly",
-         "Single RAID 10": "SingleRaid10" 
+        "JBOD Only": "JBODOnly",
+        "Single RAID 10": "SingleRaid10"
       },
       "node-usage": {
-        "hadoop" : "hadoop"
+        "hadoop": "hadoop"
       }
     },
     "rails": {
@@ -41,15 +67,21 @@
   "deployment": {
     "crowbar": {
       "crowbar-revision": 0,
-      "elements": {},
+      "elements": {
+        
+      },
       "element_order": [
-        [ "crowbar" ]
+        [
+          "crowbar"
+        ]
       ],
       "config": {
         "environment": "crowbar-config-test",
         "mode": "full",
         "transitions": false,
-        "transition_list": [ ]
+        "transition_list": [
+          
+        ]
       }
     }
   }
