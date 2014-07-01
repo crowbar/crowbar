@@ -1,8 +1,0 @@
-Bluepill.application("chef-client") do |app|
-  app.process("chef-client") do |process|
-    process.start_command = "/usr/bin/chef-client -c /etc/chef/client.rb -i 900 -s 20"
-    process.stdout = process.stderr = "/var/log/chef/client.log"
-    process.stop_grace_time = 5.seconds
-    process.daemonize = true
-  end
-end
