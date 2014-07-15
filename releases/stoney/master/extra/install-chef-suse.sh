@@ -517,6 +517,10 @@ check_repo_content \
     /srv/tftpboot/suse-11.3/install \
     d0bb700ab51c180200995dfdf5a6ade8
 
+if [ -L /srv/tftpboot/suse-11.3/install ]; then
+    die "/srv/tftpboot/suse-11.3/install cannot be a symbolic link"
+fi
+
 check_repo_content \
     Cloud \
     /srv/tftpboot/repos/Cloud \
