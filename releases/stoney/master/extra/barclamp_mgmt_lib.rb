@@ -409,7 +409,7 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
             if line =~ /crowbar-queued/
               f.write("            \"crowbar-status\": { \"type\": \"str\" },\n") if need_status
               f.write("            \"crowbar-failed\": { \"type\": \"str\" },\n") if need_failed
-              f.write("            \"crowbar-applied\": { \"type\": \"str\" },\n") if need_applied
+              f.write("            \"crowbar-applied\": { \"type\": \"bool\" },\n") if need_applied
             end
           end
         }
