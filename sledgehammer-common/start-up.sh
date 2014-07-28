@@ -16,6 +16,7 @@ is_suse && {
 }
 
 # Figure out where we PXE booted from.
+MAC=
 bootif_re='BOOTIF=([^ ]+)'
 ip_re='inet ([0-9.]+)/([0-9]+)'
 ik_re='crowbar\.install\.key=([^ ]+)'
@@ -37,7 +38,6 @@ elif [[ -d /sys/firmware/efi ]]; then
     done < <(efibootmgr -v)
 
     if [[ ${boot_entries["$current_bootent"]} =~ $efimac_re ]]; then
-        MAC=''
         for o in 0 2 4 6 8 10; do
             MAC+="${BASH_REMATCH[1]:$o:2}:"
         done
