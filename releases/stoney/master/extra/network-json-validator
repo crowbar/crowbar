@@ -98,6 +98,13 @@ class CrowbarConduit
       raise "conduit '#{@name}' has no list of interfaces"
     end
 
+    @if_list.each do |iface|
+      m = /^([-+?]?)(\d{1,3}[mg])(\d+)$/.match(iface) # [1]=sign, [2]=speed, [3]=count
+      if m.nil? || !%w{10m 100m 1g 10g}.include?(m[2])
+        raise "invalid interface '#{iface}' in conduit '#{@name}'"
+      end
+    end
+
     unless @team_mode.nil?
       if not (0..6).member?(@team_mode)
         raise "invalid teaming mode '#{@team_mode}' for conduit '#{@name}': must be a value between 0 and 6, see https://www.kernel.org/doc/Documentation/networking/bonding.txt"
