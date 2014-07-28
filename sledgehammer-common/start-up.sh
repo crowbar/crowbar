@@ -24,7 +24,7 @@ if [[ $(cat /proc/cmdline) =~ $bootif_re ]]; then
     MAC="${MAC#*:}"
 elif [[ -d /sys/firmware/efi ]]; then
     declare -A boot_entries
-    bootent_re='^Boot([0-9]{4})'
+    bootent_re='^Boot([0-9a-fA-F]{4})'
     efimac_re='MAC\(([0-9a-f]+)'
     while read line; do
         k="${line%% *}"
