@@ -1,5 +1,0 @@
-#!/bin/bash
-while read line; do
-      [[ $line = $2:* ]] || continue
-      echo ${line#$2:}
-done < <(knife search node "$1")
