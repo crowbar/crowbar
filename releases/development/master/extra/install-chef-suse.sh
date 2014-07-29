@@ -400,7 +400,7 @@ fi
 
 # output details, that will make remote debugging via bugzilla much easier  
 # for us
-/usr/bin/zypper lr -d  || :
+/usr/bin/zypper -n lr -d  || :
 /bin/rpm -qV crowbar || :
 /usr/bin/lscpu  || :
 /bin/df -h  || :
@@ -568,7 +568,7 @@ add_ibs_repo () {
     url="$1"
     alias="$2"
     if ! [ -f /etc/zypp/repos.d/$alias.repo ]; then
-        zypper ar $url $alias
+        zypper -n ar $url $alias
     else
         echo "Repo: $alias already exists. Skipping."
     fi
