@@ -109,7 +109,7 @@ pipe_show_and_log () {
     if use_dialog; then
         t=$(mktemp)
         cat - > $t
-        dialog --title "$DIALOG_TITLE" --textbox -- $t $(($(wc -l <$t)+4)) 75 >&3
+        dialog --keep-tite --title "$DIALOG_TITLE" --textbox -- $t $(($(wc -l <$t)+4)) 75 >&3
         rm -f $t
         dialog --clear >&3
     fi
@@ -129,7 +129,8 @@ spinner () {
     while [ true ]; do
         local temp=${spinstr#?}
         if use_dialog; then
-            printf "\n%s [%c]" "$msg... " "$spinstr" | dialog --title "$DIALOG_TITLE" \
+            printf "\n%s [%c]" "$msg... " "$spinstr" | dialog \
+                --keep-tite --title "$DIALOG_TITLE" \
                 --keep-window --progressbox 5 70 >&3
         else
             printf "[%c]" "$spinstr" >&3
