@@ -554,8 +554,8 @@ check_repo_product SUSE-Cloud-4-Pool    'SUSE Cloud 4'
 check_repo_product SUSE-Cloud-4-Updates 'SUSE Cloud 4'
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
-    if ! LANG=C zypper if -t pattern cloud_admin 2> /dev/null | grep -q "^Installed: Yes$"; then
-        die "cloud_admin pattern is not installed; please install with \"zypper in -t pattern cloud_admin\". Aborting."
+    if ! rpm -q patterns-cloud-admin &> /dev/null; then
+        die "patterns-cloud-admin package is not installed; please install with \"zypper in -t pattern cloud_admin\" or \"zypper in patterns-cloud-admin\". Aborting."
     fi
 fi
 
