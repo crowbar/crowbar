@@ -109,7 +109,7 @@ pipe_show_and_log () {
     if use_dialog; then
         t=$(mktemp)
         cat - > $t
-        dialog --title "$DIALOG_TITLE" --textbox -- $t $(($(wc -l <$t)+4)) 75 >&3
+        dialog --keep-tite --title "$DIALOG_TITLE" --textbox -- $t $(($(wc -l <$t)+4)) 75 >&3
         rm -f $t
         dialog --clear >&3
     fi
@@ -129,7 +129,8 @@ spinner () {
     while [ true ]; do
         local temp=${spinstr#?}
         if use_dialog; then
-            printf "\n%s [%c]" "$msg... " "$spinstr" | dialog --title "$DIALOG_TITLE" \
+            printf "\n%s [%c]" "$msg... " "$spinstr" | dialog \
+                --keep-tite --title "$DIALOG_TITLE" \
                 --keep-window --progressbox 5 70 >&3
         else
             printf "[%c]" "$spinstr" >&3
@@ -517,6 +518,10 @@ check_repo_content \
     /srv/tftpboot/suse-11.3/install \
     d0bb700ab51c180200995dfdf5a6ade8
 
+if [ -L /srv/tftpboot/suse-11.3/install ]; then
+    die "/srv/tftpboot/suse-11.3/install cannot be a symbolic link"
+fi
+
 check_repo_content \
     Cloud \
     /srv/tftpboot/repos/Cloud \
@@ -549,8 +554,8 @@ check_repo_product SUSE-Cloud-4-Pool    'SUSE Cloud 4'
 check_repo_product SUSE-Cloud-4-Updates 'SUSE Cloud 4'
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
-    if ! LANG=C zypper if -t pattern cloud_admin 2> /dev/null | grep -q "^Installed: Yes$"; then
-        die "cloud_admin pattern is not installed; please install with \"zypper in -t pattern cloud_admin\". Aborting."
+    if ! rpm -q patterns-cloud-admin &> /dev/null; then
+        die "patterns-cloud-admin package is not installed; please install with \"zypper in -t pattern cloud_admin\" or \"zypper in patterns-cloud-admin\". Aborting."
     fi
 fi
 
@@ -752,7 +757,7 @@ done
 
 # Install optional barclamps if they're present
 for i in updater suse-manager-client nfs_client \
-    cisco-ucs hyperv heat ceilometer ; do
+    cisco-ucs hyperv heat ceilometer trove tempest ; do
     if test -d $BARCLAMP_SRC/$i; then
         /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
     fi
