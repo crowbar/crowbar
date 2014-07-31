@@ -652,6 +652,8 @@ else
     rabbitmqctl add_user chef "$rabbit_chef_password"
     # Update "amqp_pass" in  /etc/chef/server.rb and solr.rb
     sed -i 's/amqp_pass ".*"/amqp_pass "'"$rabbit_chef_password"'"/' /etc/chef/{server,solr}.rb
+    # chef-server is way too verbose in :info, with nothing useful in the log
+    sed -i 's/log_level  *:.*/log_level :warn/' /etc/chef/server.rb
 fi
 
 rabbitmqctl set_permissions -p /chef chef ".*" ".*" ".*"
