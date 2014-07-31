@@ -12,171 +12,231 @@
         {
           "pattern": "PowerEdge R610",
           "bus_order": [
-            "0000:00/0000:00:01",
-            "0000:00/0000:00:03"
+            "0000:00\/0000:00:01",
+            "0000:00\/0000:00:03"
           ]
         },
         {
           "pattern": "PowerEdge R710",
           "bus_order": [
-            "0000:00/0000:00:01",
-            "0000:00/0000:00:03"
+            "0000:00\/0000:00:01",
+            "0000:00\/0000:00:03"
           ]
         },
         {
           "pattern": "PowerEdge C6145",
           "bus_order": [
-            "0000:00/0000:00:04",
-            "0000:00/0000:00:02"
+            "0000:00\/0000:00:04",
+            "0000:00\/0000:00:02"
           ]
         },
         {
           "pattern": "PowerEdge C2100",
           "bus_order": [
-            "0000:00/0000:00:1c",
-            "0000:00/0000:00:07",
-            "0000:00/0000:00:09",
-            "0000:00/0000:00:01"
+            "0000:00\/0000:00:1c",
+            "0000:00\/0000:00:07",
+            "0000:00\/0000:00:09",
+            "0000:00\/0000:00:01"
           ]
         },
         {
           "pattern": "C6100",
           "bus_order": [
-            "0000:00/0000:00:01",
-            "0000:00/0000:00:03",
-            "0000:00/0000:00:07"
+            "0000:00\/0000:00:01",
+            "0000:00\/0000:00:03",
+            "0000:00\/0000:00:07"
           ]
         },
         {
           "pattern": "product",
           "bus_order": [
-            "0000:00/0000:00:01",
-            "0000:00/0000:00:02"
+            "0000:00\/0000:00:01",
+            "0000:00\/0000:00:02"
           ]
         }
       ],
       "conduit_map": [
         {
-          "pattern": "team/.*/crowbar-config-default",
-          "conduit_list": { 
+          "pattern": "team\/.*\/crowbar-config-default",
+          "conduit_list": {
             "intf0": {
-              "if_list": [ "1g1", "1g2" ],
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
               "team_mode": 6
             },
             "intf1": {
-              "if_list": [ "1g1", "1g2" ],
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
               "team_mode": 6
             },
             "intf2": {
-              "if_list": [ "1g1", "1g2" ],
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
               "team_mode": 6
             }
           }
         },
         {
-	 "pattern": "team/.*/nova-multi-compute",
-	 "conduit_list": { 
-	   "intf0": {
-	     "if_list": [ "1g1", "1g2" ],
-	     "team_mode": 5
-	   },
-	   "intf1": {
-	     "if_list": [ "1g1", "1g2" ],
-	     "team_mode": 5
-	   },
-	   "intf2": {
-	     "if_list": [ "1g1", "1g2" ],
-	     "team_mode": 5
-	   }
-	 }
-        },
-	{
-	 "pattern": "team/.*/nova.*",
-	 "conduit_list": { 
-	   "intf0": {
-	     "if_list": [ "1g1", "1g2" ],
-	     "team_mode": 5
-	   },
-	   "intf1": {
-	     "if_list": [ "1g1", "1g2" ],
-	     "team_mode": 5
-	   },
-	   "intf2": {
-	     "if_list": [ "1g1", "1g2" ],
-	     "team_mode": 5
-	   }
-	 }
-        },
-        {
-	 "pattern": "team/.*/.*",
-	 "conduit_list": { 
-	   "intf0": {
-	     "if_list": [ "1g1", "1g2" ],
-	     "team_mode": 6
-	   },
-	   "intf1": {
-	     "if_list": [ "1g1", "1g2" ],
-	     "team_mode": 6
-	   },
-	   "intf2": {
-	     "if_list": [ "1g1", "1g2" ],
-	     "team_mode": 6
-	   }
-	 }
-        },
-        {
-          "pattern": "dual/.*/.*",
-          "conduit_list": { 
+          "pattern": "team\/.*\/nova-multi-compute",
+          "conduit_list": {
             "intf0": {
-              "if_list": [ "1g1" ]
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
+              "team_mode": 5
             },
             "intf1": {
-              "if_list": [ "1g2" ]
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
+              "team_mode": 5
             },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
+              "team_mode": 5
             }
           }
         },
         {
-          "pattern": "single/.*/.*",
-          "conduit_list": { 
+          "pattern": "team\/.*\/nova.*",
+          "conduit_list": {
             "intf0": {
-              "if_list": [ "1g1" ]
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
+              "team_mode": 5
             },
             "intf1": {
-              "if_list": [ "1g1" ]
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
+              "team_mode": 5
             },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
+              "team_mode": 5
             }
           }
         },
         {
-          "pattern": ".*/.*/.*",
-          "conduit_list": { 
+          "pattern": "team\/.*\/.*",
+          "conduit_list": {
             "intf0": {
-              "if_list": [ "1g1" ]
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
+              "team_mode": 6
             },
             "intf1": {
-              "if_list": [ "1g1" ]
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
+              "team_mode": 6
             },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [
+                "1g1",
+                "1g2"
+              ],
+              "team_mode": 6
             }
           }
         },
         {
-          "pattern": "mode/1g_adpt_count/role",
-          "conduit_list": { 
+          "pattern": "dual\/.*\/.*",
+          "conduit_list": {
             "intf0": {
-              "if_list": [ "1g1" ]
+              "if_list": [
+                "1g1"
+              ]
             },
             "intf1": {
-              "if_list": [ "1g1" ]
+              "if_list": [
+                "1g2"
+              ]
             },
             "intf2": {
-              "if_list": [ "1g1" ]
+              "if_list": [
+                "1g1"
+              ]
+            }
+          }
+        },
+        {
+          "pattern": "single\/.*\/.*",
+          "conduit_list": {
+            "intf0": {
+              "if_list": [
+                "1g1"
+              ]
+            },
+            "intf1": {
+              "if_list": [
+                "1g1"
+              ]
+            },
+            "intf2": {
+              "if_list": [
+                "1g1"
+              ]
+            }
+          }
+        },
+        {
+          "pattern": ".*\/.*\/.*",
+          "conduit_list": {
+            "intf0": {
+              "if_list": [
+                "1g1"
+              ]
+            },
+            "intf1": {
+              "if_list": [
+                "1g1"
+              ]
+            },
+            "intf2": {
+              "if_list": [
+                "1g1"
+              ]
+            }
+          }
+        },
+        {
+          "pattern": "mode\/1g_adpt_count\/role",
+          "conduit_list": {
+            "intf0": {
+              "if_list": [
+                "1g1"
+              ]
+            },
+            "intf1": {
+              "if_list": [
+                "1g1"
+              ]
+            },
+            "intf2": {
+              "if_list": [
+                "1g1"
+              ]
             }
           }
         }
@@ -191,7 +251,10 @@
           "netmask": "255.255.255.0",
           "broadcast": "192.168.125.255",
           "ranges": {
-            "host": { "start": "192.168.125.10", "end": "192.168.125.239" }
+            "host": {
+              "start": "192.168.125.10",
+              "end": "192.168.125.239"
+            }
           }
         },
         "public": {
@@ -203,10 +266,16 @@
           "netmask": "255.255.255.0",
           "broadcast": "192.168.122.255",
           "router": "192.168.122.1",
-          "router_pref" : 5,
+          "router_pref": 5,
           "ranges": {
-            "host": { "start": "192.168.122.2", "end": "192.168.122.49" },
-            "dhcp": { "start": "192.168.122.50", "end": "192.168.122.127" }
+            "host": {
+              "start": "192.168.122.2",
+              "end": "192.168.122.49"
+            },
+            "dhcp": {
+              "start": "192.168.122.50",
+              "end": "192.168.122.127"
+            }
           }
         },
         "nova_fixed": {
@@ -218,10 +287,16 @@
           "netmask": "255.255.255.0",
           "broadcast": "192.168.123.255",
           "router": "192.168.123.1",
-          "router_pref" : 20,
+          "router_pref": 20,
           "ranges": {
-            "router": { "start": "192.168.123.1", "end": "192.168.123.49" },
-            "dhcp": { "start": "192.168.123.50", "end": "192.168.123.254" }
+            "router": {
+              "start": "192.168.123.1",
+              "end": "192.168.123.49"
+            },
+            "dhcp": {
+              "start": "192.168.123.50",
+              "end": "192.168.123.254"
+            }
           }
         },
         "nova_floating": {
@@ -233,7 +308,10 @@
           "netmask": "255.255.255.192",
           "broadcast": "192.168.122.191",
           "ranges": {
-            "host": { "start": "192.168.122.129", "end": "192.168.122.191" }
+            "host": {
+              "start": "192.168.122.129",
+              "end": "192.168.122.191"
+            }
           }
         },
         "bmc": {
@@ -245,7 +323,10 @@
           "netmask": "255.255.255.0",
           "broadcast": "192.168.124.255",
           "ranges": {
-            "host": { "start": "192.168.124.162", "end": "192.168.124.240" }
+            "host": {
+              "start": "192.168.124.162",
+              "end": "192.168.124.240"
+            }
           }
         },
         "bmc_vlan": {
@@ -257,21 +338,27 @@
           "netmask": "255.255.255.0",
           "broadcast": "192.168.124.255",
           "ranges": {
-            "host": { "start": "192.168.124.161", "end": "192.168.124.161" }
+            "host": {
+              "start": "192.168.124.161",
+              "end": "192.168.124.161"
+            }
           }
         },
         "os_sdn": {
-              "conduit": "intf1",
-              "vlan": 400,
-              "use_vlan": true,
-              "add_bridge": false,
-              "subnet": "192.168.130.0",
-              "netmask": "255.255.255.0",
-              "broadcast": "192.168.130.255",
-              "ranges": {
-                  "host": { "start": "192.168.130.10", "end": "192.168.130.254"}
-              }
-          },
+          "conduit": "intf1",
+          "vlan": 400,
+          "use_vlan": true,
+          "add_bridge": false,
+          "subnet": "192.168.130.0",
+          "netmask": "255.255.255.0",
+          "broadcast": "192.168.130.255",
+          "ranges": {
+            "host": {
+              "start": "192.168.130.10",
+              "end": "192.168.130.254"
+            }
+          }
+        },
         "admin": {
           "conduit": "intf0",
           "vlan": 100,
@@ -281,12 +368,24 @@
           "netmask": "255.255.255.0",
           "broadcast": "192.168.124.255",
           "router": "192.168.124.1",
-          "router_pref" : 10,
+          "router_pref": 10,
           "ranges": {
-            "admin": { "start": "192.168.124.10", "end": "192.168.124.11" },
-            "dhcp": { "start": "192.168.124.21", "end": "192.168.124.80" },
-            "host": { "start": "192.168.124.81", "end": "192.168.124.160" },
-            "switch": { "start": "192.168.124.241", "end": "192.168.124.250" }
+            "admin": {
+              "start": "192.168.124.10",
+              "end": "192.168.124.11"
+            },
+            "dhcp": {
+              "start": "192.168.124.21",
+              "end": "192.168.124.80"
+            },
+            "host": {
+              "start": "192.168.124.81",
+              "end": "192.168.124.160"
+            },
+            "switch": {
+              "start": "192.168.124.241",
+              "end": "192.168.124.250"
+            }
           }
         }
       }
@@ -295,20 +394,31 @@
   "deployment": {
     "network": {
       "crowbar-revision": 0,
-      "elements": {},
+      "elements": {
+        
+      },
       "element_states": {
-        "network": [ "readying", "ready", "applying" ]
+        "network": [
+          "readying",
+          "ready",
+          "applying"
+        ]
       },
       "element_order": [
-        [ "network" ]
+        [
+          "network"
+        ]
       ],
       "config": {
         "environment": "network-base-config",
         "mode": "full",
         "transitions": true,
-        "transition_list": [ "discovered", "reset", "delete" ]
+        "transition_list": [
+          "discovered",
+          "reset",
+          "delete"
+        ]
       }
     }
   }
 }
-

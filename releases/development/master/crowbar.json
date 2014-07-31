@@ -4,33 +4,56 @@
   "attributes": {
     "crowbar": {
       "instances": {
-        "deployer": [ "default" ],
-        "ipmi": [ "default" ],
-        "provisioner": [ "default" ],
-        "network": [ "default" ],
-        "ntp": [ "default" ],
-        "dns": [ "default" ],
-        "nagios": [ "default" ],
-        "ganglia": [ "default" ],
-        "logging": [ "default" ]
+        "deployer": [
+          "default"
+        ],
+        "ipmi": [
+          "default"
+        ],
+        "provisioner": [
+          "default"
+        ],
+        "network": [
+          "default"
+        ],
+        "ntp": [
+          "default"
+        ],
+        "dns": [
+          "default"
+        ],
+        "nagios": [
+          "default"
+        ],
+        "ganglia": [
+          "default"
+        ],
+        "logging": [
+          "default"
+        ]
       },
-      "realm": "Crowbar",
+      "realm": "Crowbar - By selecting OK are agreeing to the License Agreement",
       "web_port": 3000,
       "users": {
-        "crowbar": { "password": "crowbar" }
+        "machine-install": {
+          "password": "machine_password"
+        },
+        "crowbar": {
+          "password": "crowbar"
+        }
       },
       "bios-settings": {
-          "Virtualization" : "Virtualization",
-	  "Storage" : "Storage"
+        "Virtualization": "Virtualization",
+        "Storage": "Storage"
       },
       "raid-settings": {
-          "JBOD Only": "JBODOnly",
-          "Single RAID 10": "SingleRaid10"
+        "JBOD Only": "JBODOnly",
+        "Single RAID 10": "SingleRaid10"
       },
       "node-usage": {
-          "Nova": "Nova",
-	  "Swift": "Swift",
-	  "Glance": "Glance"
+        "Nova": "Nova",
+        "Swift": "Swift",
+        "Glance": "Glance"
       }
     },
     "rails": {
@@ -41,17 +64,22 @@
   "deployment": {
     "crowbar": {
       "crowbar-revision": 0,
-      "elements": {},
+      "elements": {
+        
+      },
       "element_order": [
-        [ "crowbar" ]
+        [
+          "crowbar"
+        ]
       ],
       "config": {
         "environment": "crowbar-config-test",
         "mode": "full",
         "transitions": false,
-        "transition_list": [ ]
+        "transition_list": [
+          
+        ]
       }
     }
   }
 }
-
