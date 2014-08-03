@@ -652,8 +652,6 @@ else
     rabbitmqctl add_user chef "$rabbit_chef_password"
     # Update "amqp_pass" in  /etc/chef/server.rb and solr.rb
     sed -i 's/amqp_pass ".*"/amqp_pass "'"$rabbit_chef_password"'"/' /etc/chef/{server,solr}.rb
-    # chef-server is way too verbose in :info, with nothing useful in the log
-    sed -i 's/log_level  *:.*/log_level :warn/' /etc/chef/server.rb
 fi
 
 rabbitmqctl set_permissions -p /chef chef ".*" ".*" ".*"
@@ -663,6 +661,8 @@ ensure_service_running couchdb
 
 chmod o-rwx /etc/chef /etc/chef/{server,solr}.rb
 
+# chef-server is way too verbose in :info, with nothing useful in the log
+sed -i 's/log_level  *:.*/log_level :warn/' /etc/chef/server.rb
 # increase chef-solr index field size
 perl -i -pe 's{<maxFieldLength>.*</maxFieldLength>}{<maxFieldLength>200000</maxFieldLength>}' /var/lib/chef/solr/conf/solrconfig.xml
 
