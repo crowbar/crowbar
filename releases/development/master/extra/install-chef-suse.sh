@@ -706,9 +706,9 @@ done
 knife node -y bulk delete ".*"
 knife role -y bulk delete ".*"
 
-cat <<EOF
-This can cause warnings about /etc/chef/client.rb missing and
-the run list being empty; they can be safely ignored.
+cat > /etc/chef/client.rb <<EOF
+chef_server_url 'http://$IPv4_addr:4000'
+enable_reporting false
 EOF
 
 chef-client
