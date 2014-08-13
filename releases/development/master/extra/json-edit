@@ -122,7 +122,13 @@ def main()
     elements.map! {|element| element.gsub(MAGIC_DOT, '.')}
     data = json
 
+    parent_attribute = nil
+    current_attribute = nil
+
     elements[0, elements.length - 1].each { |element|
+      parent_attribute = current_attribute
+      current_attribute = parent_attribute.nil? ? element : "#{parent_attribute}.#{element.gsub('.', '\.')}"
+
       if data.is_a?(Hash)
         unless data.has_key?(element) && (data[element].is_a?(Hash) || data[element].is_a?(Array))
           if @remove
@@ -136,13 +142,13 @@ def main()
         index = element.to_i
 
         is_integer = index.to_s == element
-        raise "invalid index for array: #{element}" if not is_integer
+        raise "invalid index for array #{parent_attribute}: #{element}" if not is_integer
 
         if index > data.length
           if @remove
             exit 0
           elsif index > data.length
-            raise "array too small for index: #{element}"
+            raise "array #{parent_attribute} too small for index: #{element}"
           end
         end
 
@@ -159,11 +165,12 @@ def main()
 
         data = data[index]
       else
-        raise "unexpected type while trying to get #{element}"
+        raise "#{parent_attribute} is not an array nor a hash"
       end
     }
 
     last_element = elements[-1]
+    parent_attribute = current_attribute
 
     if data.is_a?(Hash)
       unless @remove
@@ -184,7 +191,7 @@ def main()
       index = last_element.to_i
 
       is_integer = index.to_s == last_element
-      raise "invalid index for array: #{last_element}" if not is_integer
+      raise "invalid index for array #{parent_attribute}: #{last_element}" if not is_integer
 
       if @remove
         if index < data.length
@@ -193,7 +200,7 @@ def main()
           exit 0
         end
       else
-        raise "array too small for index: #{last_element}" unless index <= data.length
+        raise "array #{parent_attribute} too small for index: #{last_element}" unless index <= data.length
 
         if @no_clobber and index < data.length
           puts "Not overwriting #{@attribute}"
@@ -207,7 +214,7 @@ def main()
         end
       end
     else
-      raise "unexpected type while trying to edit #{element}"
+      raise "#{parent_attribute} is not an array nor a hash"
     end
 
     if filename == '-'
