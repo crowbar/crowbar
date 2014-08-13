@@ -134,6 +134,10 @@ def main()
           if @remove
             exit 0
           end
+          if data.has_key?(element) && @no_clobber
+            puts "Not overwriting #{current_attribute}"
+            exit 0
+          end
           data[element] = {}
         end
 
@@ -158,6 +162,10 @@ def main()
 
         unless data[index].is_a?(Hash) || data[index].is_a?(Array)
           if @remove
+            exit 0
+          end
+          if @no_clobber
+            puts "Not overwriting #{current_attribute}"
             exit 0
           end
           data[index] = {}
