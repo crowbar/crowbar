@@ -524,8 +524,8 @@ else
         d0bb700ab51c180200995dfdf5a6ade8
 fi
 
-if [ -L $MEDIA ]; then
-    die "$MEDIA cannot be a symbolic link"
+if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
+    die "$MEDIA must exist and any possible symlinks must not point outside /srv/tftpboot/ directory, as otherwise the PXE server can not access it."
 fi
 
 check_repo_content \
