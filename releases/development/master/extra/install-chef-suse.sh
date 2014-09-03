@@ -758,8 +758,8 @@ fi
 # in cookbook dependencies)
 #
 for i in crowbar deployer dns ipmi logging network ntp provisioner pacemaker \
-         database rabbitmq keystone swift ceph glance cinder neutron nova \
-         nova_dashboard openstack ; do
+         database rabbitmq openstack keystone swift ceph glance cinder neutron \
+         nova nova_dashboard ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
 done
 
