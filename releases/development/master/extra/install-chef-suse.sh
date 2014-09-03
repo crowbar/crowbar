@@ -520,7 +520,7 @@ if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content;
 else
     check_repo_content \
         SLES11_SP3 \
-        $MEDIA/install \
+        $MEDIA \
         d0bb700ab51c180200995dfdf5a6ade8
 fi
 
