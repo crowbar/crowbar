@@ -81,7 +81,7 @@ mkdir -p "`dirname "$LOGFILE"`"
 run_succeeded=
 
 
-DIALOG_TITLE=" SUSE Cloud 4 "
+DIALOG_TITLE=" SUSE Cloud 5 "
 
 # Infrastructure for nice output/logging
 # --------------------------------------
@@ -323,7 +323,7 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-4-Pool SUSE-Cloud-4-Updates"
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates"
     zypper -n in rubygems rubygem-json createrepo
 fi
 
@@ -346,8 +346,8 @@ fi
 if [ -n "$PROVISIONER_JSON" ]; then
   for repo in SLE-Cloud \
               SLE-Cloud-PTF \
-              SUSE-Cloud-4-Pool \
-              SUSE-Cloud-4-Updates \
+              SUSE-Cloud-5-Pool \
+              SUSE-Cloud-5-Updates \
               SLES11-SP3-Pool \
               SLES11-SP3-Updates \
               SLE11-HAE-SP3-Pool \
@@ -508,7 +508,7 @@ check_repo_product () {
 # FIXME: repos that we cannot check yet:
 #   SP3-Updates is lacking products.xml
 #   Cloud: we don't have the final md5
-REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-4-Pool SUSE-Cloud-4-Updates"
+REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates"
 
 # HAE add-on should remain optional for now
 REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
@@ -556,8 +556,8 @@ check_repo_product SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
 check_repo_product SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_product SUSE-Cloud-4-Pool    'SUSE Cloud 4'
-check_repo_product SUSE-Cloud-4-Updates 'SUSE Cloud 4'
+check_repo_product SUSE-Cloud-5-Pool    'SUSE Cloud 5'
+check_repo_product SUSE-Cloud-5-Updates 'SUSE Cloud 5'
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! rpm -q patterns-cloud-admin &> /dev/null; then
