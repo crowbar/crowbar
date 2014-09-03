@@ -513,13 +513,19 @@ REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-4-Pool SUSE-Cloud-4-Upd
 # HAE add-on should remain optional for now
 REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
 
-check_repo_content \
-    SLES11_SP3 \
-    /srv/tftpboot/suse-11.3/install \
-    d0bb700ab51c180200995dfdf5a6ade8
+MEDIA=/srv/tftpboot/suse-11.3/install
 
-if [ -L /srv/tftpboot/suse-11.3/install ]; then
-    die "/srv/tftpboot/suse-11.3/install cannot be a symbolic link"
+if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
+    echo "Detected SUSE Cloud Deps media."
+else
+    check_repo_content \
+        SLES11_SP3 \
+        $MEDIA \
+        d0bb700ab51c180200995dfdf5a6ade8
+fi
+
+if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
+    die "$MEDIA must exist and any possible symlinks must not point outside /srv/tftpboot/ directory, as otherwise the PXE server can not access it."
 fi
 
 check_repo_content \
