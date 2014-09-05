@@ -532,19 +532,15 @@ else
         d0bb700ab51c180200995dfdf5a6ade8
 fi
 
-if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
-    die "$MEDIA must exist and any possible symlinks must not point outside /srv/tftpboot/ directory, as otherwise the PXE server can not access it."
-fi
-
-MEDIA=/srv/tftpboot/suse-12.0/install
-
 #TODO no check_repo_content SLES12 $MEDIA until the official iso is out
 
-if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
-    die "$MEDIA must exist and any possible symlinks must not point outside /srv/tftpboot/ directory, as otherwise the PXE server can not access it."
-fi
+for MEDIA in /srv/tftpboot/suse-{11.3,12.0}/install; do
+  if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
+      die "$MEDIA must exist and any possible symlinks must not point outside /srv/tftpboot/ directory, as otherwise the PXE server can not access it."
+  fi
+done
 
-#TODO check_repo_content SLE12-Cloud-Compute
+#TODO check_repo_content SLE12-Cloud-Compute once we have official repo
 
 check_repo_content \
     Cloud \
