@@ -323,7 +323,7 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates SLES12-Pool SLES12-Updates SUSE-Cloud-5-SLE12-Pool SUSE-Cloud-5-SLE12-Updates"
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates SLES12-Pool SLES12-Updates SLE12-Cloud-5-Compute-Pool SLE12-Cloud-5-Compute-Updates"
 
     zypper -n in rubygems rubygem-json createrepo
 fi
@@ -357,8 +357,8 @@ if [ -n "$PROVISIONER_JSON" ]; then
               SLES12-Updates \
               SLE12-Cloud-Compute \
               SLE12-Cloud-Compute-PTF \
-              SUSE-Cloud-5-SLE12-Pool \
-              SUSE-Cloud-5-SLE12-Updates
+              SLE12-Cloud-5-Compute-Pool \
+              SLE12-Cloud-5-Compute-Updates
   do
       if test -n "`json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.${repo//./\\\\.}.url`"; then
           REPOS_SKIP_CHECKS+=" ${repo#SLE-}"
@@ -579,8 +579,8 @@ check_repo_product SUSE-Cloud-5-Updates 'SUSE Cloud 5'
 
 check_repo_product SLES12-Pool          'SUSE Linux Enterprise Server 12'
 check_repo_product SLES12-Updates       'SUSE Linux Enterprise Server 12'
-check_repo_product SUSE-Cloud-5-SLE12-Pool 'SUSE Cloud 5 for SLES 12'
-check_repo_product SUSE-Cloud-5-SLE12-Updates 'SUSE Cloud 5 for SLES 12'
+check_repo_product SLE12-Cloud-5-Compute-Pool 'SUSE Cloud 5 for SLES 12'
+check_repo_product SLE12-Cloud-5-Compute-Updates 'SUSE Cloud 5 for SLES 12'
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! rpm -q patterns-cloud-admin &> /dev/null; then
