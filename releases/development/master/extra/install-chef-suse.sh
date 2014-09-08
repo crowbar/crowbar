@@ -323,7 +323,8 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates"
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates SLES12-Pool SLES12-Updates SLE12-Cloud-5-Compute-Pool SLE12-Cloud-5-Compute-Updates"
+
     zypper -n in rubygems rubygem-json createrepo
 fi
 
@@ -351,7 +352,13 @@ if [ -n "$PROVISIONER_JSON" ]; then
               SLES11-SP3-Pool \
               SLES11-SP3-Updates \
               SLE11-HAE-SP3-Pool \
-              SLE11-HAE-SP3-Updates
+              SLE11-HAE-SP3-Updates \
+              SLES12-Pool \
+              SLES12-Updates \
+              SLE12-Cloud-Compute \
+              SLE12-Cloud-Compute-PTF \
+              SLE12-Cloud-5-Compute-Pool \
+              SLE12-Cloud-5-Compute-Updates
   do
       if test -n "`json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.${repo//./\\\\.}.url`"; then
           REPOS_SKIP_CHECKS+=" ${repo#SLE-}"
@@ -405,7 +412,7 @@ fi
 /usr/bin/lscpu  || :
 /bin/df -h  || :
 /usr/bin/free -m || :
-/bin/ls -la /srv/tftpboot/repos/ /srv/tftpboot/repos/Cloud/ /srv/tftpboot/suse-11.3/install/ || :
+/bin/ls -la /srv/tftpboot/repos/ /srv/tftpboot/repos/Cloud/ /srv/tftpboot/suse-{11.3,12.0}/install/ || :
 
 if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb ]; then
     # The autoyast profile might not exist yet when CROWBAR_FROM_GIT is enabled
@@ -451,6 +458,7 @@ sign_repositories () {
       echo "Cloud-PTF repository is already signed"
     fi
   fi
+# TODO sign SLE12-Cloud-Compute-PTF ?
 }
 
 skip_check_for_repo () {
@@ -525,9 +533,15 @@ else
         d0bb700ab51c180200995dfdf5a6ade8
 fi
 
-if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
-    die "$MEDIA must exist and any possible symlinks must not point outside /srv/tftpboot/ directory, as otherwise the PXE server can not access it."
-fi
+#TODO no check_repo_content SLES12 $MEDIA until the official iso is out
+
+for MEDIA in /srv/tftpboot/suse-{11.3,12.0}/install; do
+  if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
+      die "$MEDIA must exist and any possible symlinks must not point outside /srv/tftpboot/ directory, as otherwise the PXE server can not access it."
+  fi
+done
+
+#TODO check_repo_content SLE12-Cloud-Compute once we have official repo
 
 check_repo_content \
     Cloud \
@@ -559,6 +573,11 @@ check_repo_product SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availabili
 check_repo_product SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
 check_repo_product SUSE-Cloud-5-Pool    'SUSE Cloud 5'
 check_repo_product SUSE-Cloud-5-Updates 'SUSE Cloud 5'
+
+check_repo_product SLES12-Pool          'SUSE Linux Enterprise Server 12'
+check_repo_product SLES12-Updates       'SUSE Linux Enterprise Server 12'
+check_repo_product SLE12-Cloud-5-Compute-Pool 'SUSE Cloud 5 for SLES 12'
+check_repo_product SLE12-Cloud-5-Compute-Updates 'SUSE Cloud 5 for SLES 12'
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! rpm -q patterns-cloud-admin &> /dev/null; then
