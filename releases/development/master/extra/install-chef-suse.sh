@@ -574,10 +574,11 @@ check_repo_product SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availabili
 check_repo_product SUSE-Cloud-5-Pool    'SUSE Cloud 5'
 check_repo_product SUSE-Cloud-5-Updates 'SUSE Cloud 5'
 
-check_repo_product SLES12-Pool          'SUSE Linux Enterprise Server 12'
-check_repo_product SLES12-Updates       'SUSE Linux Enterprise Server 12'
-check_repo_product SLE12-Cloud-5-Compute-Pool 'SUSE Cloud 5 for SLES 12'
-check_repo_product SLE12-Cloud-5-Compute-Updates 'SUSE Cloud 5 for SLES 12'
+# TODO do not check until these repositories really exist with correct metadata...
+#check_repo_product SLES12-Pool          'SUSE Linux Enterprise Server 12'
+#check_repo_product SLES12-Updates       'SUSE Linux Enterprise Server 12'
+#check_repo_product SLE12-Cloud-5-Compute-Pool 'SUSE Cloud 5 for SLES 12'
+#check_repo_product SLE12-Cloud-5-Compute-Updates 'SUSE Cloud 5 for SLES 12'
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! rpm -q patterns-cloud-admin &> /dev/null; then
