@@ -513,13 +513,20 @@ REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-4-Pool SUSE-Cloud-4-Upd
 # HAE add-on should remain optional for now
 REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
 
-check_repo_content \
-    SLES11_SP3 \
-    /srv/tftpboot/suse-11.3/install \
-    d0bb700ab51c180200995dfdf5a6ade8
+MEDIA=/srv/tftpboot/suse-11.3/install
 
-if [ -L /srv/tftpboot/suse-11.3/install ]; then
-    die "/srv/tftpboot/suse-11.3/install cannot be a symbolic link"
+if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
+    echo "Detected SUSE Cloud Deps media."
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool"
+else
+    check_repo_content \
+        SLES11_SP3 \
+        $MEDIA \
+        d0bb700ab51c180200995dfdf5a6ade8
+fi
+
+if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
+    die "$MEDIA must exist and any possible symlinks must not point outside /srv/tftpboot/ directory, as otherwise the PXE server can not access it."
 fi
 
 check_repo_content \
@@ -752,8 +759,8 @@ fi
 # in cookbook dependencies)
 #
 for i in crowbar deployer dns ipmi logging network ntp provisioner pacemaker \
-         database rabbitmq keystone swift ceph glance cinder neutron nova \
-         nova_dashboard openstack ; do
+         database rabbitmq openstack keystone swift ceph glance cinder neutron \
+         nova nova_dashboard ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
 done
 
