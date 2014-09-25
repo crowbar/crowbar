@@ -122,28 +122,107 @@ def main()
     elements.map! {|element| element.gsub(MAGIC_DOT, '.')}
     data = json
 
+    parent_attribute = nil
+    current_attribute = nil
+
     elements[0, elements.length - 1].each { |element|
-      if not (data.has_key?(element) && data[element].is_a?(Hash))
-        if @remove
-          exit 0
+      parent_attribute = current_attribute
+      current_attribute = parent_attribute.nil? ? element : "#{parent_attribute}.#{element.gsub('.', '\.')}"
+
+      if data.is_a?(Hash)
+        unless data.has_key?(element) && (data[element].is_a?(Hash) || data[element].is_a?(Array))
+          if @remove
+            exit 0
+          end
+          if data.has_key?(element) && @no_clobber
+            puts "Not overwriting #{current_attribute}"
+            exit 0
+          end
+          data[element] = {}
         end
-        data[element] = {}
+
+        data = data[element]
+      elsif data.is_a?(Array)
+        index = element.to_i
+
+        is_integer = index.to_s == element
+        raise "invalid index for array #{parent_attribute}: #{element}" if not is_integer
+
+        if index > data.length
+          if @remove
+            exit 0
+          elsif index > data.length
+            raise "array #{parent_attribute} too small for index: #{element}"
+          end
+        end
+
+        if data.length == index
+          data << {}
+        end
+
+        unless data[index].is_a?(Hash) || data[index].is_a?(Array)
+          if @remove
+            exit 0
+          end
+          if @no_clobber
+            puts "Not overwriting #{current_attribute}"
+            exit 0
+          end
+          data[index] = {}
+        end
+
+        data = data[index]
+      else
+        raise "#{parent_attribute} is not an array nor a hash"
       end
-      data = data[element]
     }
 
-    unless @remove
-      if @no_clobber and data.has_key?(elements[-1])
-        puts "Not overwriting #{@attribute}"
+    last_element = elements[-1]
+    parent_attribute = current_attribute
+
+    if data.is_a?(Hash)
+      unless @remove
+        if @no_clobber and data.has_key?(last_element)
+          puts "Not overwriting #{@attribute}"
+          exit 0
+        else
+          data[last_element] = real_value
+        end
       else
-        data[elements[-1]] = real_value
+        if data.has_key?(last_element)
+          data.delete(last_element)
+        else
+          exit 0
+        end
+      end
+    elsif data.is_a?(Array)
+      index = last_element.to_i
+
+      is_integer = index.to_s == last_element
+      raise "invalid index for array #{parent_attribute}: #{last_element}" if not is_integer
+
+      if @remove
+        if index < data.length
+          data.delete_at(index)
+        else
+          exit 0
+        end
+      else
+        raise "array #{parent_attribute} too small for index: #{last_element}" unless index <= data.length
+
+        if @no_clobber and index < data.length
+          puts "Not overwriting #{@attribute}"
+          exit 0
+        end
+
+        if index == data.length
+          data << real_value
+        else
+          data[index] = real_value
+        end
       end
     else
-      if data.has_key?(elements[-1])
-        data.delete(elements[-1])
-      else
-        exit 0
-      end
+      raise "#{parent_attribute} is not an array nor a hash"
     end
 
     if filename == '-'
