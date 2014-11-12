@@ -26,6 +26,10 @@ require 'active_support/all'
 require 'pp'
 require 'i18n'
 
+if I18n.respond_to? :enforce_available_locales
+  I18n.enforce_available_locales = false
+end
+
 MODEL_SUBSTRING_BASE = '==BC-MODEL=='
 MODEL_SUBSTRING_CAMEL = '==^BC-MODEL=='
 MODEL_SUBSTRING_HUMAN = '==*BC-MODEL=='
