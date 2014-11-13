@@ -411,7 +411,7 @@ done
 
 echo "$(date '+%F %T %z'): Create session store database"
 rm -f /opt/dell/crowbar_framework/db/*.sqlite3
-su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production rake db:create db:migrate"
+su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production ./bin/rake db:create db:migrate"
 
 pre_crowbar_fixups
 

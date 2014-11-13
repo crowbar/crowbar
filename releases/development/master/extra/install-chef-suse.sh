@@ -812,18 +812,9 @@ knife node run_list add "$FQDN" role["$NODE_ROLE"]
 
 chef-client
 
-if [ -n "$CROWBAR_FROM_GIT" ]; then
-    # FIXME: This workaround can be removed once rspec packages are available.
-    # Until then, remove the rspec related tasks to avoid rake complainig about
-    # missing dependencies. (This is not an issue for package based installs,
-    # since the rake task are part of the -devel subpackage which is not
-    # installed by default.
-    rm -f /opt/dell/crowbar_framework/lib/tasks/rspec.rake
-fi
-
 # Create session store database
 rm -f /opt/dell/crowbar_framework/db/*.sqlite3
-su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production rake db:create db:migrate"
+su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production ./bin/rake db:create db:migrate"
 
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar

@@ -197,6 +197,8 @@ def generate_navigation
     out.puts '#'
     out.puts ''
     out.puts 'SimpleNavigation::Configuration.run do |navigation|'
+    out.puts '  navigation.renderer = SimpleNavigationRenderers::Bootstrap3'
+    out.puts ''
     out.puts '  navigation.selected_class = "active"'
     out.puts '  navigation.active_leaf_class = "leaf"'
     out.puts ''
@@ -468,7 +470,7 @@ def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
   if do_migrate
     debug "Migrating schema to new revision..."
     File.open(log, "a") { |f| f.puts("======== Migrating #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
-    migrate_cmd = "cd #{CROWBAR_PATH} && rake --silent crowbar:schema_migrate_prod[#{bc}] 2>&1"
+    migrate_cmd = "cd #{CROWBAR_PATH} && ./bin/rake --silent crowbar:schema_migrate_prod[#{bc}] 2>&1"
     migrate_cmd_su = "su -s /bin/sh - crowbar sh -c \"#{migrate_cmd}\" >> #{log}"
     debug "running #{migrate_cmd_su}"
     unless system migrate_cmd_su
