@@ -817,7 +817,13 @@ rm -f /opt/dell/crowbar_framework/db/*.sqlite3
 su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production ./bin/rake db:create db:migrate"
 
 # Create the secret key base
-su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && ./bin/rake secret" >| /etc/crowbar.secret.key
+SECRET_KEY=$(
+    su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && ./bin/rake secret"
+)
+
+cat<<EOF > /opt/dell/crowbar_framework/config/secret_key.env
+SECRET_KEY_BASE=${SECRET_KEY}
+EOF
 
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
