@@ -329,13 +329,12 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
 fi
 
 json_edit=/opt/dell/bin/json-edit
-parse_node_data=$BARCLAMP_SRC/provisioner/updates/parse_node_data
 json_read () {
     file="$1" attr="$2"
     if [ "$file" = '-' ]; then
-        $parse_node_data -a "$attr"
+        /opt/dell/bin/json-read -a "$attr"
     elif [ -f "$file" ]; then
-        $parse_node_data "$file" -a "$attr"
+        /opt/dell/bin/json-read "$file" -a "$attr"
     fi | sed "s/^[^=]*=//g"
 }
 
