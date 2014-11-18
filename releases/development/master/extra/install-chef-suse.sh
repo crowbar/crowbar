@@ -353,7 +353,11 @@ if [ -n "$PROVISIONER_JSON" ]; then
               SLE11-HAE-SP3-Pool \
               SLE11-HAE-SP3-Updates
   do
-      if test -n "`json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.${repo//./\\\\.}.url`"; then
+      common_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.common.${repo//./\\\\.}.url )"
+      sles11_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.suse-11\\.3.${repo//./\\\\.}.url )"
+      sles12_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.suse-12\\.0.${repo//./\\\\.}.url )"
+
+      if [ -n "$common_check" -o -n "$sles12_check" -o -n "$sles11_check" ]; then
           REPOS_SKIP_CHECKS+=" ${repo#SLE-}"
       fi
   done
