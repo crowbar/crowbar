@@ -25,6 +25,7 @@ require 'tempfile'
 require 'active_support/all'
 require 'pp'
 require 'i18n'
+require 'pathname'
 
 if I18n.respond_to? :enforce_available_locales
   I18n.enforce_available_locales = false
@@ -134,51 +135,98 @@ def catalog(bc_path)
   end
 end
 
+def stringify_options(hash)
+  hash.map do |key, value|
+    case
+    when key == :if
+      "#{key}: proc { #{value} }"
+    when key == :unless
+      "#{key}: proc { #{value} }"
+    else
+      if value.is_a? Hash
+        "#{key}: { #{stringify_options(value)} }"
+      else
+        "#{key}: #{value.inspect}"
+      end
+    end
+  end.join(", ")
+end
+
+def prepare_navigation(hash, breadcrumb, indent, level)
+  temp = hash.sort_by do |key, values|
+    values["order"].to_i
+  end
+
+  [].tap do |result|
+    ActiveSupport::OrderedHash[temp].each do |key, values|
+      current_path = breadcrumb.dup.push key
+
+      order = values.delete("order")
+      url = values.delete("url")
+      route = values.delete("route")
+      params = values.delete("params")
+      path = values.delete("path")
+      html = values.delete("html")
+      options = values.delete("options") || {}
+
+      options.symbolize_keys!
+
+      link = case
+      when route
+        if params
+          "#{route}(#{stringify_options(params)})"
+        else
+          route
+        end
+      when path
+        if html
+          options[:link] = html
+        end
+
+        path.inspect
+      when url
+        url.inspect
+      end
+
+      options_string = stringify_options(options)
+      options_string.prepend(", ") unless options_string.empty?
+
+      if values.keys.empty?
+        result.push "level#{level}.item :#{key}, t(\"nav.#{current_path.join(".")}\"), #{link}#{options_string}".indent(indent)
+      else
+        result.push "level#{level}.item :#{key}, t(\"nav.#{current_path.join(".")}.title\"), #{link}#{options_string} do |level#{level + 1}|".indent(indent)
+        result.push prepare_navigation(values, current_path, indent + 2, level + 1)
+        result.push "end".indent(indent)
+      end
+    end
+  end.flatten
+end
+
 def generate_navigation
   debug "Generating navigation"
 
-  primaries = []
-  secondaries = {}
+  barclamps = Pathname.new(
+    File.join(CROWBAR_PATH, "barclamps")
+  )
 
-  barclamps = File.join CROWBAR_PATH, 'barclamps'
-  list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
-  list.each do |bc_file|
-    yaml = YAML.load_file File.join(barclamps, bc_file)
-    next if yaml['nav'].nil?
+  current = {}
 
-    unless yaml['crowbar']['navigation_order'].nil?
-      order = yaml['crowbar']['navigation_order'].to_i
-    else
-      order = yaml['crowbar']['order'].to_i
-    end
-    order2 = 0
+  barclamps.children.each do |barclamp|
+    next unless barclamp.extname == ".yml"
 
-    yaml['nav'].each do |key, value|
-      if key == 'primary'
-        yaml['nav']['primary'].each do |k, v|
-          primaries << { :order => order, :order2 => order2, :id => k, :link => v }
-          order2 += 1
-        end
-      else
-        primary = key
-        secondaries[primary] = [] if secondaries[primary].nil?
-        value.each do |k, v|
-          next if v.nil?
-          secondaries[primary] << { :order => order, :order2 => order2, :id => k, :link => v }
-          order2 += 1
-        end
-      end
-    end
+    config = YAML.load_file(
+      barclamp.to_s
+    )
+
+    next if config["nav"].nil?
+
+    current.deep_merge! config["nav"]
   end
 
-  primaries.sort! { |x,y| [x[:order], x[:order2]] <=> [y[:order], y[:order2]] }
-  primaries.each do |primary|
-    next if secondaries[primary[:id]].nil?
-    secondaries[primary[:id]].sort! { |x,y| [x[:order], x[:order2]] <=> [y[:order], y[:order2]] }
-  end
-
-  nav_file = File.join CROWBAR_PATH, 'config', 'navigation.rb'
-  File.open( nav_file, 'w') do |out|
+  File.open(
+    File.join(CROWBAR_PATH, 'config', 'navigation.rb'),
+    'w'
+  ) do |out|
     out.puts '#'
     out.puts '# Copyright 2011-2013, Dell'
     out.puts '# Copyright 2013-2014, SUSE LINUX Products GmbH'
@@ -203,21 +251,11 @@ def generate_navigation
     out.puts '  navigation.selected_class = "active"'
     out.puts '  navigation.active_leaf_class = "leaf"'
     out.puts ''
-    out.puts '  navigation.items do |primary|'
-    out.puts '    primary.dom_class = "nav navbar-nav"'
-    primaries.each do |primary|
-      if secondaries[primary[:id]].to_a.empty?
-        out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]}"
-      else
-        out.puts "    primary.item :#{primary[:id]}, t(\"nav.#{primary[:id]}\"), #{primary[:link]} do |secondary|"
-        unless secondaries[primary[:id]].nil?
-          secondaries[primary[:id]].each do |secondary|
-            out.puts "      secondary.item :#{secondary[:id]}, t(\"nav.#{secondary[:id]}\"), #{secondary[:link]}"
-          end
-        end
-        out.puts "    end"
-      end
-    end
+    out.puts '  navigation.items do |level1|'
+    out.puts '    level1.dom_class = "nav navbar-nav"'
+
+    out.puts prepare_navigation(current, [], 4, 1).join("\n")
+
     out.puts '  end'
     out.puts 'end'
   end
