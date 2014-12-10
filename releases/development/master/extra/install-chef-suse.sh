@@ -817,7 +817,7 @@ su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=produ
 
 # Create the secrets env
 cat<<EOF > /opt/dell/crowbar_framework/config/secrets.env
-export SECRET_KEY_BASE=$(strings /dev/urandom | grep -o '[a-fA-F0-9]' | head -n 128 | tr -d '\n')
+export SECRET_KEY_BASE=$(cd /opt/dell/crowbar_framework && RAILS_ENV=production ./bin/rake secret)
 EOF
 
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
