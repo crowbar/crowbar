@@ -154,7 +154,7 @@ end
 
 def prepare_navigation(hash, breadcrumb, indent, level)
   temp = hash.sort_by do |key, values|
-    values["order"].to_i
+    values["order"] || 1000
   end
 
   [].tap do |result|
