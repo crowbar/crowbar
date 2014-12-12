@@ -91,7 +91,7 @@ def main()
       puts "#{attr}=#{data}"
     end
   rescue => ex
-    puts "parse_node_data failed: #{ex.message}"
+    puts "json-read failed: #{ex.message}"
     ex.backtrace.each { |bt_line| puts "#{bt_line}" }
     exit -1
   end
