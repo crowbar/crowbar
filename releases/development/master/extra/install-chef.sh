@@ -413,6 +413,11 @@ echo "$(date '+%F %T %z'): Create session store database"
 rm -f /opt/dell/crowbar_framework/db/*.sqlite3
 su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production ./bin/rake db:create db:migrate"
 
+# Create the secrets env
+cat<<EOF > /opt/dell/crowbar_framework/config/secrets.env
+export SECRET_KEY_BASE=$(cd /opt/dell/crowbar_framework && RAILS_ENV=production ./bin/rake secret)
+EOF
+
 pre_crowbar_fixups
 
 echo "$(date '+%F %T %z'): Bringing up Crowbar..."
@@ -472,7 +477,7 @@ check_machine_role
 ##
 # if we have baked in BMC support, make sure the BMC is responsive.
 [[ -f /updates/unbmc.sh ]] && . /updates/unbmc.sh $OS_TOKEN
- 
+
 # transition though all the states to ready.  Make sure that
 # Chef has completly finished with transition before proceeding
 # to the next.
