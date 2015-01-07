@@ -54,6 +54,8 @@ BC_FILTERS = [
   "+ /doc/",
   "+ /etc/",
   "+ /updates/",
+  "- navigation.rb",
+  "- catalog.yml",
   "- /*",
 ]
 
