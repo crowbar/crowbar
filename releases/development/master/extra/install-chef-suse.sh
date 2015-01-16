@@ -333,7 +333,7 @@ fi
 if [ -n "$CROWBAR_FROM_GIT" ]; then
     REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-OpenStack-Cloud-SLE11-6-Pool SUSE-OpenStack-Cloud-SLE11-6-Updates SLES12-Pool SLES12-Updates SUSE-OpenStack-Cloud-6-Pool SUSE-OpenStack-Cloud-6-Updates"
 
-    zypper -n in rubygems rubygem-json createrepo
+    zypper -n in ruby2.1-rubygem-json-1_7 createrepo
 fi
 
 json_edit=/opt/dell/bin/json-edit
@@ -639,7 +639,6 @@ check_or_create_ptf_repository 12.0 Cloud-PTF
 # Currently we only sign the Cloud-PTF repository
 sign_repositories 11.3 Cloud-PTF
 sign_repositories 12.0 Cloud-PTF
-
 # Setup helper for git
 # --------------------
 
@@ -669,13 +668,11 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     fi
 
     # install chef and its dependencies
-    zypper -n --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server \
-            couchdb rubygem-activesupport
+    zypper -n --gpg-auto-import-keys in ruby2.1-rubygem-chef-server ruby2.1-rubygem-chef \
+        rabbitmq-server couchdb ruby2.1-rubygem-activesupport
 
     # also need these (crowbar dependencies):
-    zypper -n in rubygem-app_config rubygem-cstruct rubygem-kwalify rubygem-ruby-shadow \
-            rubygem-sass rubygem-i18n sleshammer tcpdump rubygem-sprockets-helpers \
-            rubygem-sprockets-sass rubygem-sqlite3
+    zypper -n in sleshammer tcpdump
 
     # Need this for provisioner to work:
     mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
