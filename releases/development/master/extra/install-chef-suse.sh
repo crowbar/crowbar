@@ -675,23 +675,6 @@ fi
 chkconfig rabbitmq-server on
 ensure_service_running rabbitmq-server '^Node .+ with Pid [0-9]+: running'
 
-if rabbitmqctl list_vhosts | grep -q '^/chef$'; then
-    : /chef vhost already added
-else
-    rabbitmqctl add_vhost /chef
-fi
-
-if rabbitmqctl list_users 2>&1 | grep -q '^chef	'; then
-    : chef user already added
-else
-    rabbit_chef_password=$( dd if=/dev/urandom count=1 bs=16 2>/dev/null | base64 | tr -d / )
-    rabbitmqctl add_user chef "$rabbit_chef_password"
-    # Update "amqp_pass" in  /etc/chef/server.rb and solr.rb
-    sed -i 's/amqp_pass ".*"/amqp_pass "'"$rabbit_chef_password"'"/' /etc/chef/{server,solr}.rb
-fi
-
-rabbitmqctl set_permissions -p /chef chef ".*" ".*" ".*"
-
 chkconfig couchdb on
 ensure_service_running couchdb
 
