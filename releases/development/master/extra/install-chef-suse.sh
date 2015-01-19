@@ -357,7 +357,9 @@ if [ -n "$PROVISIONER_JSON" ]; then
               SLE12-Cloud-Compute \
               SLE12-Cloud-Compute-PTF \
               SLE-12-Cloud-Compute5-Pool \
-              SLE-12-Cloud-Compute5-Updates
+              SLE-12-Cloud-Compute5-Updates \
+              SUSE-Storage-1.0-Pool \
+              SUSE-Storage-1.0-Updates
   do
       common_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.common.${repo//./\\\\.}.url )"
       sles11_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.suse-11\\.3.${repo//./\\\\.}.url )"
@@ -523,6 +525,9 @@ REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Upd
 # HAE add-on should remain optional for now
 REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
 
+# Storage should remain optional for now
+REPOS_SKIP_CHECKS+=" SUSE-Storage-1.0-Pool SUSE-Storage-1.0-Updates"
+
 MEDIA=/srv/tftpboot/suse-11.3/install
 
 if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
@@ -582,6 +587,9 @@ check_repo_product SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availabili
 check_repo_product SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
 check_repo_product SUSE-Cloud-5-Pool    'SUSE Cloud 5'
 check_repo_product SUSE-Cloud-5-Updates 'SUSE Cloud 5'
+check_repo_product SUSE-Storage-1.0-Pool 'SUSE Enterprise Storage 1.0' 'false'
+check_repo_product SUSE-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
+
 
 # TODO do not check until these repositories really exist with correct metadata...
 #check_repo_product SLES12-Pool          'SUSE Linux Enterprise Server 12'
