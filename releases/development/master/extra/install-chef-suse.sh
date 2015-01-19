@@ -585,9 +585,9 @@ check_repo_product SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
 check_repo_product SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_product SUSE-Cloud-5-Pool    'SUSE Cloud 5'
-check_repo_product SUSE-Cloud-5-Updates 'SUSE Cloud 5'
-check_repo_product SUSE-Storage-1.0-Pool 'SUSE Enterprise Storage 1.0' 'false'
+check_repo_product SUSE-Cloud-5-Pool      'SUSE Cloud 5'
+check_repo_product SUSE-Cloud-5-Updates   'SUSE Cloud 5'
+check_repo_product SUSE-Storage-1.0-Pool    'SUSE Enterprise Storage 1.0' 'false'
 check_repo_product SUSE-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
 
 
