@@ -417,7 +417,7 @@ fi
 /usr/bin/lscpu  || :
 /bin/df -h  || :
 /usr/bin/free -m || :
-/bin/ls -la /srv/tftpboot/repos/ /srv/tftpboot/repos/Cloud/ /srv/tftpboot/suse-{11.3,12.0}/install/ || :
+/bin/ls -la /srv/tftpboot/suse-{11.3,12.0}/{repos/,repos/Cloud/,install/} || :
 
 if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb ]; then
     # The autoyast profile might not exist yet when CROWBAR_FROM_GIT is enabled
@@ -452,12 +452,12 @@ EOF
 sign_repositories () {
   create_gpg_key
   # Currently we only sign the Cloud-PTF repository
-  if [ -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml ]; then
-    if [ ! -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.asc -o \
-         ! -f /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.key ]; then
+  if [ -f /srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml ]; then
+    if [ ! -f /srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml.asc -o \
+         ! -f /srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml.key ]; then
       echo "Signing Cloud-PTF repository"
-      gpg -a --detach-sign /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml
-      gpg -a --export > /srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml.key
+      gpg -a --detach-sign /srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml
+      gpg -a --export > /srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml.key
     else
       echo "Cloud-PTF repository is already signed"
     fi
@@ -501,19 +501,19 @@ check_repo_content () {
 }
 
 check_repo_product () {
-    repo="$1" expected_summary="$2" create_if_missing="$3"
-    products_xml=/srv/tftpboot/repos/$repo/repodata/products.xml
-    if ! grep -q "<summary>$2</summary>" $products_xml; then
+    version="$1" repo="$2" expected_summary="$3" create_if_missing="$4"
+    products_xml=/srv/tftpboot/suse-$version/repos/$repo/repodata/products.xml
+    if ! grep -q "<summary>$expected_summary</summary>" $products_xml; then
         if skip_check_for_repo "$repo"; then
-            echo "Ignoring failed repo check for $repo due to \$REPOS_SKIP_CHECKS ($products_xml is missing summary '$expected_summary')"
-            if [ ! -d /srv/tftpboot/repos/$repo -a "x$create_if_missing" != "xfalse" ]; then
+            echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($products_xml is missing summary '$expected_summary')"
+            if [ ! -d /srv/tftpboot/suse-$version/repos/$repo -a "x$create_if_missing" != "xfalse" ]; then
                 echo "Creating repo skeleton to make AutoYaST happy."
-                mkdir /srv/tftpboot/repos/$repo
-                /usr/bin/createrepo /srv/tftpboot/repos/$repo
+                mkdir /srv/tftpboot/suse-$version/repos/$repo
+                /usr/bin/createrepo /srv/tftpboot/suse-$version/repos/$repo
             fi
             return 0
         fi
-        die "$repo does not contain the right repository ($products_xml is missing summary '$expected_summary')"
+        die "$repo ($version) does not contain the right repository ($products_xml is missing summary '$expected_summary')"
     fi
 }
 
@@ -559,36 +559,36 @@ check_media_links $MEDIA
 
 check_repo_content \
     Cloud \
-    /srv/tftpboot/repos/Cloud \
+    /srv/tftpboot/suse-11.3/repos/Cloud \
     1558be86e7354d31e71e7c8c2574031a
 
 
 if skip_check_for_repo "Cloud-PTF"; then
     echo "Skipping check for Cloud-PTF due to \$REPOS_SKIP_CHECKS"
 else
-    if ! [ -e "/srv/tftpboot/repos/Cloud-PTF/repodata/repomd.xml" ]; then
+    if ! [ -e "/srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml" ]; then
         # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
         # creates the repo metadata for Cloud-PTF
         if [ -n $CROWBAR_FROM_GIT ]; then
             echo "Creating repo skeleton to make AutoYaST happy."
-            if ! [ -d /srv/tftpboot/repos/Cloud-PTF ]; then
-                mkdir /srv/tftpboot/repos/Cloud-PTF
+            if ! [ -d /srv/tftpboot/suse-11.3/repos/Cloud-PTF ]; then
+                mkdir /srv/tftpboot/suse-11.3/repos/Cloud-PTF
             fi
-            /usr/bin/createrepo /srv/tftpboot/repos/Cloud-PTF
+            /usr/bin/createrepo /srv/tftpboot/suse-11.3/repos/Cloud-PTF
         else
             die "Cloud-PTF has not been set up correctly; did the crowbar rpm fail to install correctly?"
         fi
     fi
 fi
 
-check_repo_product SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_product SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_product SUSE-Cloud-5-Pool      'SUSE Cloud 5'
-check_repo_product SUSE-Cloud-5-Updates   'SUSE Cloud 5'
-check_repo_product SUSE-Enterprise-Storage-1.0-Pool    'SUSE Enterprise Storage 1.0' 'false'
-check_repo_product SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
+check_repo_product 11.3 SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
+check_repo_product 11.3 SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
+check_repo_product 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
+check_repo_product 11.3 SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
+check_repo_product 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
+check_repo_product 11.3 SUSE-Cloud-5-Updates   'SUSE Cloud 5'
+check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Pool    'SUSE Enterprise Storage 1.0' 'false'
+check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
 
 
 # TODO do not check until these repositories really exist with correct metadata...
