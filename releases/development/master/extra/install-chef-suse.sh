@@ -579,6 +579,42 @@ check_media_links $MEDIA
 
 [ -e /srv/tftpboot/suse-12.0/install ] && check_media_links /srv/tftpboot/suse-12.0/install
 
+# Automatically create symlinks for SMT-mirrored repos if they exist
+for repo in SLES11-SP3-Pool \
+            SLES11-SP3-Updates \
+            SUSE-Cloud-5-Pool \
+            SUSE-Cloud-5-Updates \
+            SLE11-HAE-SP3-Pool \
+            SLE11-HAE-SP3-Updates; do
+  cloud_dir=/srv/tftpboot/suse-11.3/repos/$repo
+  smt_dir=/srv/www/htdocs/repo/\$RCE/$repo/sle-11-x86_64
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+done
+
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SLES12-Pool
+smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12/x86_64/product
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SLES12-Updates
+smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/x86_64/update
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SLE-12-Cloud-Compute5-Pool
+smt_dir=/srv/www/htdocs/repo/SUSE/Products/12-Cloud-Compute/5/x86_64/product
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SLE-12-Cloud-Compute5-Updates
+smt_dir=/srv/www/htdocs/repo/SUSE/Updates/12-Cloud-Compute/5/x86_64/update
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-1.0-Pool
+smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/1.0/x86_64/product
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-1.0-Updates
+smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/1.0/x86_64/update
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
 #TODO check_repo_content SLE12-Cloud-Compute once we have official repo
 
 check_repo_content \
