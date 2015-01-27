@@ -564,10 +564,10 @@ check_repo_tag () {
         ;;
      esac
 
-    skip_check_for_repo "$repo"
-    ignore_failure=$?
+    ignore_failure=1
+    skip_check_for_repo "$repo" || ignore_failure=0
 
-    if [ ! -d $repo_dir -a \( $ignore_failure -eq 0 -o "$create_if_missing" == "false" \) ]; then
+    if [ ! -d $repo_dir -a \( $ignore_failure -eq 1 -o "$create_if_missing" == "false" \) ]; then
         if [ "$create_if_missing" != "false" ]; then
             echo "Creating repo skeleton for $repo ($version) to make AutoYaST happy."
             mkdir $repo_dir
@@ -579,7 +579,7 @@ check_repo_tag () {
     fi
 
     if ! grep -q "<$tag>$expected</$tag>" $xml; then
-        if [ $ignore_failure -eq 0 ]; then
+        if [ $ignore_failure -eq 1 ]; then
             echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($xml is missing $tag tag '$expected')"
             return 0
         fi
