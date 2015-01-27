@@ -615,6 +615,13 @@ check_repo_content \
     /srv/tftpboot/suse-11.3/repos/Cloud \
     1558be86e7354d31e71e7c8c2574031a
 
+check_repo_product 11.3 SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
+check_repo_product 11.3 SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
+check_repo_product 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
+check_repo_product 11.3 SUSE-Cloud-5-Updates   'SUSE Cloud 5'
+check_repo_product 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
+check_repo_product 11.3 SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
+
 # Checks for SLE12 media (currently optional)
 MEDIA=/srv/tftpboot/suse-12.0/install
 if [ -e $MEDIA ]; then
@@ -637,13 +644,6 @@ if [ -e $MEDIA ]; then
   check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Pool    'SUSE Enterprise Storage 1.0' 'false'
   check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
 fi
-
-check_repo_product 11.3 SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product 11.3 SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_product 11.3 SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_product 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
-check_repo_product 11.3 SUSE-Cloud-5-Updates   'SUSE Cloud 5'
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! rpm -q patterns-cloud-admin &> /dev/null; then
