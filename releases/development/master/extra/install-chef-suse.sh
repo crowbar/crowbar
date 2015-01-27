@@ -499,7 +499,7 @@ skip_check_for_repo () {
     return 1
 }
 
-check_repo_content () {
+check_media_content () {
     repo_name="$1" repo_path="$2" md5="$3"
 
     if skip_check_for_repo "$repo_name"; then
@@ -647,7 +647,7 @@ if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content;
     echo "Detected SUSE Cloud Deps media."
     REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool"
 else
-    check_repo_content \
+    check_media_content \
         SLES11_SP3 \
         $MEDIA \
         d0bb700ab51c180200995dfdf5a6ade8
@@ -655,7 +655,7 @@ fi
 
 check_media_links $MEDIA
 
-check_repo_content \
+check_media_content \
     Cloud \
     /srv/tftpboot/suse-11.3/repos/Cloud \
     1558be86e7354d31e71e7c8c2574031a
@@ -670,14 +670,14 @@ check_repo_tag repo    11.3 SLE11-HAE-SP3-Updates  'updates://zypp-patches.suse.
 # Checks for SLE12 media (currently optional)
 MEDIA=/srv/tftpboot/suse-12.0/install
 if [ -e $MEDIA ]; then
-  check_repo_content \
+  check_media_content \
       SLES12 \
       $MEDIA \
       b52c0f2b41a6a10d49cc89edcdc1b13d
 
   check_media_links $MEDIA
 
-  check_repo_content \
+  check_media_content \
       SLE12-Cloud-Compute \
       /srv/tftpboot/suse-12.0/repos/SLE12-Cloud-Compute \
       1f2cdc1f7593a4091623d7792fb61237
