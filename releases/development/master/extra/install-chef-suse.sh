@@ -541,6 +541,23 @@ check_repo_product () {
     fi
 }
 
+check_repo_repo_tag () {
+    version="$1" repo="$2" expected_repo_tag="$3" create_if_missing="$4"
+    repomd_xml=/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml
+    if ! grep -q "<repo>$expected_repo_tag</repo>" $repomd_xml; then
+        if skip_check_for_repo "$repo"; then
+            echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($repomd_xml is missing repo tag '$expected_repo_tag')"
+            if [ ! -d /srv/tftpboot/suse-$version/repos/$repo -a "x$create_if_missing" != "xfalse" ]; then
+                echo "Creating repo skeleton to make AutoYaST happy."
+                mkdir /srv/tftpboot/suse-$version/repos/$repo
+                /usr/bin/createrepo /srv/tftpboot/suse-$version/repos/$repo
+            fi
+            return 0
+        fi
+        die "$repo ($version) does not contain the right repository ($repomd_xml is missing repo tag '$expected_repo_tag')"
+    fi
+}
+
 check_media_links () {
     MEDIA=$1
     if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
@@ -615,12 +632,12 @@ check_repo_content \
     /srv/tftpboot/suse-11.3/repos/Cloud \
     1558be86e7354d31e71e7c8c2574031a
 
-check_repo_product 11.3 SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product 11.3 SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
-check_repo_product 11.3 SUSE-Cloud-5-Updates   'SUSE Cloud 5'
-check_repo_product 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_product 11.3 SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
+check_repo_repo_tag 11.3 SLES11-SP3-Pool        'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/pool/x86_64'
+check_repo_repo_tag 11.3 SLES11-SP3-Updates     'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/update/x86_64'
+check_repo_product  11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
+check_repo_repo_tag 11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
+check_repo_product  11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
+check_repo_repo_tag 11.3 SLE11-HAE-SP3-Updates  'updates://zypp-patches.suse.de/autobuild/SLE_HAE/11-SP3/update/x86_64' 'false'
 
 # Checks for SLE12 media (currently optional)
 MEDIA=/srv/tftpboot/suse-12.0/install
@@ -637,12 +654,12 @@ if [ -e $MEDIA ]; then
       /srv/tftpboot/suse-12.0/repos/SLE12-Cloud-Compute \
       1f2cdc1f7593a4091623d7792fb61237
 
-  check_repo_product 12.0 SLES12-Pool    'SUSE Linux Enterprise Server 12'
-  check_repo_product 12.0 SLES12-Updates 'SUSE Linux Enterprise Server 12'
-  check_repo_product 12.0 SLE-12-Cloud-Compute5-Pool    'SUSE Cloud 5 for SLES 12'
-  check_repo_product 12.0 SLE-12-Cloud-Compute5-Updates 'SUSE Cloud 5 for SLES 12'
-  check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Pool    'SUSE Enterprise Storage 1.0' 'false'
-  check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
+  check_repo_repo_tag 12.0 SLES12-Pool                         'obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/x86_64'
+  check_repo_repo_tag 12.0 SLES12-Updates                      'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:x86_64/update'
+  check_repo_repo_tag 12.0 SLE-12-Cloud-Compute5-Pool          'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/suse-sle12-cloud-compute/5/POOL/x86_64'
+  check_repo_product  12.0 SLE-12-Cloud-Compute5-Updates       'SUSE Cloud 5 for SLES 12'
+  check_repo_repo_tag 12.0 SUSE-Enterprise-Storage-1.0-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/ses/1/POOL/x86_64' 'false'
+  check_repo_product  12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
 fi
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
