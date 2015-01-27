@@ -564,8 +564,6 @@ else
         d0bb700ab51c180200995dfdf5a6ade8
 fi
 
-#TODO no check_repo_content SLES12 $MEDIA until the official iso is out
-
 check_media_links () {
     MEDIA=$1
     if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
@@ -575,9 +573,18 @@ check_media_links () {
 
 check_media_links $MEDIA
 
-# SLE12 is currently optional
+# Checks for SLE12 media (currently optional)
+MEDIA=/srv/tftpboot/suse-12.0/install
+if [ -e $MEDIA ]; then
+  check_repo_content \
+      SLES12 \
+      $MEDIA \
+      b52c0f2b41a6a10d49cc89edcdc1b13d
 
-[ -e /srv/tftpboot/suse-12.0/install ] && check_media_links /srv/tftpboot/suse-12.0/install
+  check_media_links $MEDIA
+else
+  REPOS_SKIP_CHECKS+=" SLE12-Cloud-Compute SLES12-Pool SLES12-Updates SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
+fi
 
 # Automatically create symlinks for SMT-mirrored repos if they exist
 for repo in SLES11-SP3-Pool \
