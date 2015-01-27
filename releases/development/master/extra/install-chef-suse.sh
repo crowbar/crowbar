@@ -633,14 +633,11 @@ smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/1.0/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
 # FIXME: repos that we cannot check yet:
-#   SP3-Updates is lacking products.xml
-#   Cloud / SLE12-Cloud-Compute: we don't have the final md5
-REPOS_SKIP_CHECKS+=" Cloud SLE12-Cloud-Compute SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
-
-# HAE add-on should remain optional for now
-REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
-
-# Storage should remain optional for now
+#   Cloud medias: no final md5sum
+REPOS_SKIP_CHECKS+=" Cloud SLE12-Cloud-Compute"
+#   Cloud 5 Pool / Updates: non-existing repos
+REPOS_SKIP_CHECKS+=" SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
+#   Storage 1.0 Pool / Updates: non-existing repos
 REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
 
 # Checks for SLE11 medias
