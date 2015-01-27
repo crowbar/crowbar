@@ -587,7 +587,7 @@ test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 # FIXME: repos that we cannot check yet:
 #   SP3-Updates is lacking products.xml
 #   Cloud / SLE12-Cloud-Compute: we don't have the final md5
-REPOS_SKIP_CHECKS+=" Cloud SLE12-Cloud-Compute SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates"
+REPOS_SKIP_CHECKS+=" Cloud SLE12-Cloud-Compute SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
 
 # HAE add-on should remain optional for now
 REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
@@ -629,8 +629,13 @@ if [ -e $MEDIA ]; then
       SLE12-Cloud-Compute \
       /srv/tftpboot/suse-12.0/repos/SLE12-Cloud-Compute \
       1f2cdc1f7593a4091623d7792fb61237
-else
-  REPOS_SKIP_CHECKS+=" SLE12-Cloud-Compute SLES12-Pool SLES12-Updates SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
+
+  check_repo_product 12.0 SLES12-Pool    'SUSE Linux Enterprise Server 12'
+  check_repo_product 12.0 SLES12-Updates 'SUSE Linux Enterprise Server 12'
+  check_repo_product 12.0 SLE-12-Cloud-Compute5-Pool    'SUSE Cloud 5 for SLES 12'
+  check_repo_product 12.0 SLE-12-Cloud-Compute5-Updates 'SUSE Cloud 5 for SLES 12'
+  check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Pool    'SUSE Enterprise Storage 1.0' 'false'
+  check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
 fi
 
 check_repo_product 11.3 SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
@@ -639,15 +644,6 @@ check_repo_product 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Avail
 check_repo_product 11.3 SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
 check_repo_product 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
 check_repo_product 11.3 SUSE-Cloud-5-Updates   'SUSE Cloud 5'
-check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Pool    'SUSE Enterprise Storage 1.0' 'false'
-check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
-
-
-# TODO do not check until these repositories really exist with correct metadata...
-#check_repo_product SLES12-Pool          'SUSE Linux Enterprise Server 12'
-#check_repo_product SLES12-Updates       'SUSE Linux Enterprise Server 12'
-#check_repo_product SLE-12-Cloud-Compute5-Pool 'SUSE Cloud 5 for SLES 12'
-#check_repo_product SLE-12-Cloud-Compute5-Updates 'SUSE Cloud 5 for SLES 12'
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! rpm -q patterns-cloud-admin &> /dev/null; then
