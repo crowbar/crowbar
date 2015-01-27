@@ -586,8 +586,8 @@ test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
 # FIXME: repos that we cannot check yet:
 #   SP3-Updates is lacking products.xml
-#   Cloud: we don't have the final md5
-REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates"
+#   Cloud / SLE12-Cloud-Compute: we don't have the final md5
+REPOS_SKIP_CHECKS+=" Cloud SLE12-Cloud-Compute SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates"
 
 # HAE add-on should remain optional for now
 REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
@@ -624,11 +624,14 @@ if [ -e $MEDIA ]; then
       b52c0f2b41a6a10d49cc89edcdc1b13d
 
   check_media_links $MEDIA
+
+  check_repo_content \
+      SLE12-Cloud-Compute \
+      /srv/tftpboot/suse-12.0/repos/SLE12-Cloud-Compute \
+      1f2cdc1f7593a4091623d7792fb61237
 else
   REPOS_SKIP_CHECKS+=" SLE12-Cloud-Compute SLES12-Pool SLES12-Updates SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
 fi
-
-#TODO check_repo_content SLE12-Cloud-Compute once we have official repo
 
 check_repo_product 11.3 SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product 11.3 SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
