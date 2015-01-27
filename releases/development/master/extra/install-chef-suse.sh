@@ -567,7 +567,7 @@ check_repo_tag () {
     skip_check_for_repo "$repo"
     ignore_failure=$?
 
-    if [ ! -d $repo_dir -a $ignore_failure -eq 0 ]; then
+    if [ ! -d $repo_dir -a \( $ignore_failure -eq 0 -o "$create_if_missing" == "false" \) ]; then
         if [ "$create_if_missing" != "false" ]; then
             echo "Creating repo skeleton for $repo ($version) to make AutoYaST happy."
             mkdir $repo_dir
