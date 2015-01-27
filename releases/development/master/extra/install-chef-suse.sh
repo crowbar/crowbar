@@ -541,50 +541,12 @@ check_repo_product () {
     fi
 }
 
-# FIXME: repos that we cannot check yet:
-#   SP3-Updates is lacking products.xml
-#   Cloud: we don't have the final md5
-REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates"
-
-# HAE add-on should remain optional for now
-REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
-
-# Storage should remain optional for now
-REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
-
-MEDIA=/srv/tftpboot/suse-11.3/install
-
-if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
-    echo "Detected SUSE Cloud Deps media."
-    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool"
-else
-    check_repo_content \
-        SLES11_SP3 \
-        $MEDIA \
-        d0bb700ab51c180200995dfdf5a6ade8
-fi
-
 check_media_links () {
     MEDIA=$1
     if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
         die "$MEDIA must exist and any possible symlinks must not point outside /srv/tftpboot/ directory, as otherwise the PXE server can not access it."
     fi
 }
-
-check_media_links $MEDIA
-
-# Checks for SLE12 media (currently optional)
-MEDIA=/srv/tftpboot/suse-12.0/install
-if [ -e $MEDIA ]; then
-  check_repo_content \
-      SLES12 \
-      $MEDIA \
-      b52c0f2b41a6a10d49cc89edcdc1b13d
-
-  check_media_links $MEDIA
-else
-  REPOS_SKIP_CHECKS+=" SLE12-Cloud-Compute SLES12-Pool SLES12-Updates SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
-fi
 
 # Automatically create symlinks for SMT-mirrored repos if they exist
 for repo in SLES11-SP3-Pool \
@@ -622,12 +584,51 @@ cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-1.0-Updates
 smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/1.0/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-#TODO check_repo_content SLE12-Cloud-Compute once we have official repo
+# FIXME: repos that we cannot check yet:
+#   SP3-Updates is lacking products.xml
+#   Cloud: we don't have the final md5
+REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates"
+
+# HAE add-on should remain optional for now
+REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
+
+# Storage should remain optional for now
+REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
+
+# Checks for SLE11 medias
+MEDIA=/srv/tftpboot/suse-11.3/install
+
+if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
+    echo "Detected SUSE Cloud Deps media."
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool"
+else
+    check_repo_content \
+        SLES11_SP3 \
+        $MEDIA \
+        d0bb700ab51c180200995dfdf5a6ade8
+fi
+
+check_media_links $MEDIA
 
 check_repo_content \
     Cloud \
     /srv/tftpboot/suse-11.3/repos/Cloud \
     1558be86e7354d31e71e7c8c2574031a
+
+# Checks for SLE12 media (currently optional)
+MEDIA=/srv/tftpboot/suse-12.0/install
+if [ -e $MEDIA ]; then
+  check_repo_content \
+      SLES12 \
+      $MEDIA \
+      b52c0f2b41a6a10d49cc89edcdc1b13d
+
+  check_media_links $MEDIA
+else
+  REPOS_SKIP_CHECKS+=" SLE12-Cloud-Compute SLES12-Pool SLES12-Updates SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
+fi
+
+#TODO check_repo_content SLE12-Cloud-Compute once we have official repo
 
 check_repo_product 11.3 SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product 11.3 SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
