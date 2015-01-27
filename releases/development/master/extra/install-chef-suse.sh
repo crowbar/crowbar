@@ -549,15 +549,26 @@ check_repo_key () {
 
 check_repo_product () {
     version="$1" repo="$2" expected_summary="$3" create_if_missing="$4"
-    products_xml=/srv/tftpboot/suse-$version/repos/$repo/repodata/products.xml
+    repo_dir=/srv/tftpboot/suse-$version/repos/$repo
+    products_xml=$repo_dir/repodata/products.xml
+
+    skip_check_for_repo "$repo"
+    ignore_failure=$?
+
+    if [ ! -d $repo_dir -a $ignore_failure -eq 0 ]; then
+        if [ "$create_if_missing" != "false" ]; then
+            echo "Creating repo skeleton for $repo ($version) to make AutoYaST happy."
+            mkdir $repo_dir
+            /usr/bin/createrepo $repo_dir
+        else
+            echo "Optional repo $repo ($version) is missing."
+        fi
+        return 0
+    fi
+
     if ! grep -q "<summary>$expected_summary</summary>" $products_xml; then
-        if skip_check_for_repo "$repo"; then
+        if [ $ignore_failure -eq 0 ]; then
             echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($products_xml is missing summary '$expected_summary')"
-            if [ ! -d /srv/tftpboot/suse-$version/repos/$repo -a "x$create_if_missing" != "xfalse" ]; then
-                echo "Creating repo skeleton to make AutoYaST happy."
-                mkdir /srv/tftpboot/suse-$version/repos/$repo
-                /usr/bin/createrepo /srv/tftpboot/suse-$version/repos/$repo
-            fi
             return 0
         fi
         die "$repo ($version) does not contain the right repository ($products_xml is missing summary '$expected_summary')"
@@ -568,15 +579,26 @@ check_repo_product () {
 
 check_repo_repo_tag () {
     version="$1" repo="$2" expected_repo_tag="$3" create_if_missing="$4"
-    repomd_xml=/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml
+    repo_dir=/srv/tftpboot/suse-$version/repos/$repo
+    repomd_xml=$repo_dir/repodata/repomd.xml
+
+    skip_check_for_repo "$repo"
+    ignore_failure=$?
+
+    if [ ! -d $repo_dir -a $ignore_failure -eq 0 ]; then
+        if [ "$create_if_missing" != "false" ]; then
+            echo "Creating repo skeleton for $repo ($version) to make AutoYaST happy."
+            mkdir $repo_dir
+            /usr/bin/createrepo $repo_dir
+        else
+            echo "Optional repo $repo ($version) is missing."
+        fi
+        return 0
+    fi
+
     if ! grep -q "<repo>$expected_repo_tag</repo>" $repomd_xml; then
-        if skip_check_for_repo "$repo"; then
+        if [ $ignore_failure -eq 0 ]; then
             echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($repomd_xml is missing repo tag '$expected_repo_tag')"
-            if [ ! -d /srv/tftpboot/suse-$version/repos/$repo -a "x$create_if_missing" != "xfalse" ]; then
-                echo "Creating repo skeleton to make AutoYaST happy."
-                mkdir /srv/tftpboot/suse-$version/repos/$repo
-                /usr/bin/createrepo /srv/tftpboot/suse-$version/repos/$repo
-            fi
             return 0
         fi
         die "$repo ($version) does not contain the right repository ($repomd_xml is missing repo tag '$expected_repo_tag')"
