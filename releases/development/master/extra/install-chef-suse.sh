@@ -524,6 +524,29 @@ check_repo_content () {
     fi
 }
 
+check_repo_key () {
+    version="$1" repo="$2"
+    repomd_key=/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key
+    if [ ! -f $repomd_key ]; then
+      die "$repo ($version) does not seem to be signed"
+    else
+      case "`md5sum $repomd_key | awk '{print $1}'`" in
+        a0857768a900ae6bb1e6c8af62460ce3|b2740847428d13d201642ca9cf89bec7)
+          # SLE11 keys
+          ;;
+        9a62177e1c6852d48453ed3909956d6b)
+          # SLE12 key
+          ;;
+        6e2920076653964b7de9d6d0421955bb)
+          # Devel:Cloud key
+          ;;
+        *)
+          die "$repo ($version) does not seem to be signed with the right key"
+          ;;
+      esac
+    fi
+}
+
 check_repo_product () {
     version="$1" repo="$2" expected_summary="$3" create_if_missing="$4"
     products_xml=/srv/tftpboot/suse-$version/repos/$repo/repodata/products.xml
@@ -539,6 +562,8 @@ check_repo_product () {
         fi
         die "$repo ($version) does not contain the right repository ($products_xml is missing summary '$expected_summary')"
     fi
+
+    check_repo_key $version $repo
 }
 
 check_repo_repo_tag () {
@@ -556,6 +581,8 @@ check_repo_repo_tag () {
         fi
         die "$repo ($version) does not contain the right repository ($repomd_xml is missing repo tag '$expected_repo_tag')"
     fi
+
+    check_repo_key $version $repo
 }
 
 check_media_links () {
