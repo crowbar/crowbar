@@ -424,6 +424,29 @@ if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb 
     /usr/bin/grep media_url /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb
 fi
 
+check_or_create_ptf_repository () {
+  version="$1"
+  repo="$2"
+
+  if skip_check_for_repo "$repo"; then
+      echo "Skipping check for $repo ($version) due to \$REPOS_SKIP_CHECKS"
+  else
+      if ! [ -e "/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml" ]; then
+          # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
+          # creates the repo metadata for Cloud-PTF
+          if [ -n $CROWBAR_FROM_GIT ]; then
+              echo "Creating repo skeleton to make AutoYaST happy."
+              if ! [ -d /srv/tftpboot/suse-$version/repos/$repo ]; then
+                  mkdir /srv/tftpboot/suse-$version/repos/$repo
+              fi
+              /usr/bin/createrepo /srv/tftpboot/suse-$version/repos/$repo
+          else
+              die "$repo ($version) has not been set up correctly; did the crowbar rpm fail to install correctly?"
+          fi
+      fi
+  fi
+}
+
 create_gpg_key () {
   # To sign the repositories the admin node needs a gpg key - create one, if
   # it's not present
@@ -450,19 +473,20 @@ EOF
 }
 
 sign_repositories () {
+  version="$1"
+  repo="$2"
+
   create_gpg_key
-  # Currently we only sign the Cloud-PTF repository
-  if [ -f /srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml ]; then
-    if [ ! -f /srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml.asc -o \
-         ! -f /srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml.key ]; then
-      echo "Signing Cloud-PTF repository"
-      gpg -a --detach-sign /srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml
-      gpg -a --export > /srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml.key
+  if [ -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml ]; then
+    if [ ! -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.asc -o \
+         ! -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key ]; then
+      echo "Signing $repo ($version) repository"
+      gpg -a --detach-sign /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml
+      gpg -a --export > /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key
     else
-      echo "Cloud-PTF repository is already signed"
+      echo "$repo ($version) repository is already signed"
     fi
   fi
-# TODO sign SLE12-Cloud-Compute-PTF ?
 }
 
 skip_check_for_repo () {
@@ -562,25 +586,6 @@ check_repo_content \
     /srv/tftpboot/suse-11.3/repos/Cloud \
     1558be86e7354d31e71e7c8c2574031a
 
-
-if skip_check_for_repo "Cloud-PTF"; then
-    echo "Skipping check for Cloud-PTF due to \$REPOS_SKIP_CHECKS"
-else
-    if ! [ -e "/srv/tftpboot/suse-11.3/repos/Cloud-PTF/repodata/repomd.xml" ]; then
-        # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
-        # creates the repo metadata for Cloud-PTF
-        if [ -n $CROWBAR_FROM_GIT ]; then
-            echo "Creating repo skeleton to make AutoYaST happy."
-            if ! [ -d /srv/tftpboot/suse-11.3/repos/Cloud-PTF ]; then
-                mkdir /srv/tftpboot/suse-11.3/repos/Cloud-PTF
-            fi
-            /usr/bin/createrepo /srv/tftpboot/suse-11.3/repos/Cloud-PTF
-        else
-            die "Cloud-PTF has not been set up correctly; did the crowbar rpm fail to install correctly?"
-        fi
-    fi
-fi
-
 check_repo_product 11.3 SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product 11.3 SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
 check_repo_product 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
@@ -603,7 +608,11 @@ if [ -z "$CROWBAR_FROM_GIT" ]; then
     fi
 fi
 
-sign_repositories
+check_or_create_ptf_repository 11.3 Cloud-PTF
+check_or_create_ptf_repository 12.0 SLE12-Cloud-Compute-PTF
+# Currently we only sign the Cloud-PTF repository
+sign_repositories 11.3 Cloud-PTF
+sign_repositories 12.0 SLE12-Cloud-Compute-PTF
 
 # Setup helper for git
 # --------------------
