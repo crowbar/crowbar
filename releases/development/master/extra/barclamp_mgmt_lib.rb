@@ -77,6 +77,7 @@ def bc_install(from_rpm, bc, bc_path, yaml)
     raise "ERROR: could not install barclamp #{bc} because #{yaml["barclamp"]["crowbar_layout"]} is unknown layout."
   end
   generate_navigation
+  generate_assets_manifest
   catalog bc_path
 end
 
@@ -261,6 +262,29 @@ def generate_navigation
   end
 end
 
+def generate_assets_manifest
+  debug "Generating assets manifest"
+
+  manifests = Pathname.new(
+    File.join(CROWBAR_PATH, "barclamps", "manifests")
+  )
+
+  merged_json = {}
+
+  manifests.children.each do |manifest|
+    next unless manifest.extname == ".json"
+    json = JSON.parse (File.open(manifest.to_s, 'r').read())
+    merged_json.deep_merge!(json) unless json.nil?
+  end
+
+  File.open(
+    File.join(CROWBAR_PATH, 'public', 'assets', 'manifest.json'),
+    'w'
+  ) do |out|
+    JSON.dump(merged_json, out)
+  end
+end
+
 # copies paths from one place to another (recursive)
 def bc_cloner(item, bc, entity, source, target, replace)
   debug "bc_cloner method called with debug option enabled"
@@ -361,6 +385,7 @@ def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
     FileUtils.rm filelist rescue nil
 
     generate_navigation
+    generate_assets_manifest
     catalog bc_path
 
     debug "Barclamp #{bc} UNinstalled"
@@ -426,6 +451,19 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
   FileUtils.mkdir yml_path unless File.directory? yml_path
   FileUtils.cp yml_barclamp, yml_created
   files << yml_created
+
+  # copy over the manifest.json file, needed to update assets manifest
+  manifest_path = File.join CROWBAR_PATH, 'barclamps', 'manifests'
+  manifest_barclamp = File.join bc_path, "manifest.json"
+  manifest_created = File.join(manifest_path, "#{bc}.json")
+  FileUtils.mkdir manifest_path unless File.directory? manifest_path
+  if File.exists? manifest_barclamp
+    FileUtils.cp manifest_barclamp, manifest_created
+    files << manifest_created
+  else
+    # make sure there's no old manifest
+    FileUtils.rm manifest_created rescue nil
+  end
 
   filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
   File.open( filelist, 'w' ) do |out|
