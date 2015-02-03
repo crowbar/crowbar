@@ -59,9 +59,9 @@ def debug(msg)
 end
 
 def fatal(msg, log = nil, exit_code = 1)
-  str  = "ERROR: #{msg}  Aborting; "
+  str  = "ERROR: #{msg}  Aborting."
   if log
-    str += "Examine #{log} for more info."
+    str += " Examine #{log} for more info."
   end
   puts str
   exit exit_code
