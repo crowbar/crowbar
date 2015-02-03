@@ -58,9 +58,13 @@ def debug(msg)
   puts "DEBUG: " + msg if ENV['DEBUG'] === "true"
 end
 
-def fatal(msg, log)
-  puts "ERROR: #{msg}  Aborting; examine #{log} for more info."
-  exit 1
+def fatal(msg, log = nil, exit_code = 1)
+  str  = "ERROR: #{msg}  Aborting; "
+  if log
+    str += "Examine #{log} for more info."
+  end
+  puts str
+  exit exit_code
 end
 
 # entry point for scripts

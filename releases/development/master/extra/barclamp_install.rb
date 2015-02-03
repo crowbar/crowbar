@@ -109,14 +109,22 @@ candidates.each do |bc|
     puts "Barclamp at #{bc} has no name, skipping"
     next
   end
-  order = 9999
-  if barclamp["crowbar"] and barclamp["crowbar"]["order"] and \
-    barclamp["crowbar"]["order"].to_i 
-    order = barclamp["crowbar"]["order"].to_i
-  end
-  barclamps[name] = { :src => bc, :name => name, :order => order, :yaml => barclamp }
+
+  # We assume the barclamp and crowbar keys exist and their values are hashes.
+  version = (barclamp["barclamp"]["version"] || 0).to_i
+  order   = (barclamp["crowbar"]["order"] || 9999).to_i
+
+  barclamps[name] = { :src => bc, :name => name, :order => order, :yaml => barclamp, :version => version }
   debug "barclamp[#{name}] = #{barclamps[name].pretty_inspect}"
 end
+
+debug "checking barclamp versions:"
+barclamps.values.sort_by{|v| v[:order]}.each do |bc|
+  if bc[:yaml]["nav"] && bc[:version] < 1
+    fatal("Refusing to install #{bc[:name]} barclamp version < 1 due to incompatible navigation.", nil, -1)
+  end
+end
+debug "done"
 
 debug "installing barclamps:"
 barclamps.values.sort_by{|v| v[:order]}.each do |bc|
