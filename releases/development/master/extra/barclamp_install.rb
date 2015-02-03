@@ -121,7 +121,7 @@ end
 debug "checking barclamp versions:"
 barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   if bc[:yaml]["nav"] && bc[:version] < 1
-    fatal("Refusing to install #{bc[:name]} barclamp version < 1 due to incompatible navigation.", "logs")
+    fatal("Refusing to install #{bc[:name]} barclamp version < 1 due to incompatible navigation.", nil, -1)
   end
 end
 debug "done"
