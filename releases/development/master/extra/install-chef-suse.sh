@@ -714,6 +714,22 @@ fi
 
 echo_summary "Starting required services"
 
+# Add frame_max setting as environment variable, because it's just a workaround
+if [ $(rpm -q --qf "%{version}" rubygem-chef | cut -d . -f 1) -ne 10 ]; then
+    die "Please remove the frame_max setting in rabbitmq."
+fi
+
+if test -f /etc/rabbitmq/rabbitmq-env.conf && \
+   grep -q ^SERVER_START_ARGS= /etc/rabbitmq/rabbitmq-env.conf && \
+   ! grep -q '^SERVER_START_ARGS=.*-rabbit frame_max 0' /etc/rabbitmq/rabbitmq-env.conf; then
+  die "SERVER_START_ARGS already defined in /etc/rabbitmq/rabbitmq-env.conf, without \"-rabbit frame_max 0\""
+elif ! ( test -f /etc/rabbitmq/rabbitmq-env.conf && \
+   grep -q ^SERVER_START_ARGS= /etc/rabbitmq/rabbitmq-env.conf ); then
+  echo '# Workaround for bunny version required by chef not supporting frames' >> /etc/rabbitmq/rabbitmq-env.conf
+  echo '# http://bugzilla.suse.com/show_bug.cgi?id=910815' >> /etc/rabbitmq/rabbitmq-env.conf
+  echo 'SERVER_START_ARGS="-rabbit frame_max 0"' >> /etc/rabbitmq/rabbitmq-env.conf
+fi
+
 # Write default RabbitMQ configuration (if the package doesn't provide one).
 if [ ! -f /etc/rabbitmq/rabbitmq.config ] ; then
     cat << EOF > /etc/rabbitmq/rabbitmq.config
