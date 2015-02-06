@@ -489,112 +489,18 @@ sign_repositories () {
   fi
 }
 
-skip_check_for_repo () {
-    repo="$1"
-    for skipped_repo in $REPOS_SKIP_CHECKS; do
-        if [ "$repo" = "$skipped_repo" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-check_media_content () {
-    repo_name="$1" repo_path="$2" md5="$3"
-
-    if skip_check_for_repo "$repo_name"; then
-        echo "Skipping check for $repo_name due to \$REPOS_SKIP_CHECKS"
-        return 0
+for repos_check in \
+    "$(dirname $0)/repos-check-suse" \
+    "/usr/lib/suse-cloud/repos-check"; do
+    if [ -f $repos_check ]; then
+        . $repos_check
+        break
     fi
+done
 
-    if ! [ -e "$repo_path/content.asc" ]; then
-        if [ -n "$CROWBAR_FROM_GIT" ]; then
-            die "$repo has not been set up yet; please see https://github.com/SUSE/cloud/wiki/Crowbar"
-        else
-            die "$repo_name has not been set up at $repo_path\n\nPlease check the steps in the installation guide."
-        fi
-    fi
-
-    if [ -n "$CROWBAR_FROM_GIT" ]; then
-        echo "Skipping md5 check for $repo_name due to \$CROWBAR_FROM_GIT"
-    else
-        if [ "`md5sum $repo_path/content | awk '{print $1}'`" != "$md5" ]; then
-            die "$repo_name does not contain the expected repository ($repo_path/content failed MD5 checksum)"
-        fi
-    fi
-}
-
-check_repo_key () {
-    version="$1" repo="$2"
-    repomd_key=/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key
-    if [ ! -f $repomd_key ]; then
-      die "$repo ($version) does not seem to be signed"
-    else
-      case "`md5sum $repomd_key | awk '{print $1}'`" in
-        a0857768a900ae6bb1e6c8af62460ce3|b2740847428d13d201642ca9cf89bec7)
-          # SLE11 keys
-          ;;
-        9a62177e1c6852d48453ed3909956d6b)
-          # SLE12 key
-          ;;
-        6e2920076653964b7de9d6d0421955bb)
-          # Devel:Cloud key
-          ;;
-        *)
-          die "$repo ($version) does not seem to be signed with the right key"
-          ;;
-      esac
-    fi
-}
-
-check_repo_tag () {
-    tag="$1" version="$2" repo="$3" expected="$4" create_if_missing="$5"
-
-    repo_dir=/srv/tftpboot/suse-$version/repos/$repo
-
-    case "$tag" in
-      summary)
-        xml=$repo_dir/repodata/products.xml
-        ;;
-      repo)
-        xml=$repo_dir/repodata/repomd.xml
-        ;;
-      *)
-        die "Internal error: unknown tag $tag for check_repo_tag"
-        ;;
-     esac
-
-    ignore_failure=1
-    skip_check_for_repo "$repo" || ignore_failure=0
-
-    if [ ! -d $repo_dir -a \( $ignore_failure -eq 1 -o "$create_if_missing" == "false" \) ]; then
-        if [ "$create_if_missing" != "false" ]; then
-            echo "Creating repo skeleton for $repo ($version) to make AutoYaST happy."
-            mkdir $repo_dir
-            /usr/bin/createrepo $repo_dir
-        else
-            echo "Optional repo $repo ($version) is missing."
-        fi
-        return 0
-    fi
-
-    if ! grep -q "<$tag>$expected</$tag>" $xml; then
-        if [ $ignore_failure -eq 1 ]; then
-            echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($xml is missing $tag tag '$expected')"
-            return 0
-        fi
-        die "$repo ($version) does not contain the right repository ($xml is missing $tag tag '$expected')"
-    fi
-
-    check_repo_key $version $repo
-}
-
-check_media_links () {
-    MEDIA=$1
-    if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
-        die "$MEDIA must exist and any possible symlinks must not point outside /srv/tftpboot/ directory, as otherwise the PXE server can not access it."
-    fi
-}
+if [ -z "$(type -t skip_check_for_repo)" ]; then
+    die "Broken setup: no repos-check helper library"
+fi
 
 # Automatically create symlinks for SMT-mirrored repos if they exist
 for repo in SLES11-SP3-Pool \
