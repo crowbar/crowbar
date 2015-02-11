@@ -489,95 +489,18 @@ sign_repositories () {
   fi
 }
 
-skip_check_for_repo () {
-    repo="$1"
-    for skipped_repo in $REPOS_SKIP_CHECKS; do
-        if [ "$repo" = "$skipped_repo" ]; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-check_repo_content () {
-    repo_name="$1" repo_path="$2" md5="$3"
-
-    if skip_check_for_repo "$repo_name"; then
-        echo "Skipping check for $repo_name due to \$REPOS_SKIP_CHECKS"
-        return 0
+for repos_check in \
+    "$(dirname $0)/repos-check-suse" \
+    "/usr/lib/suse-cloud/repos-check"; do
+    if [ -f $repos_check ]; then
+        . $repos_check
+        break
     fi
+done
 
-    if ! [ -e "$repo_path/content.asc" ]; then
-        if [ -n "$CROWBAR_FROM_GIT" ]; then
-            die "$repo has not been set up yet; please see https://github.com/SUSE/cloud/wiki/Crowbar"
-        else
-            die "$repo_name has not been set up at $repo_path\n\nPlease check the steps in the installation guide."
-        fi
-    fi
-
-    if [ -n "$CROWBAR_FROM_GIT" ]; then
-        echo "Skipping md5 check for $repo_name due to \$CROWBAR_FROM_GIT"
-    else
-        if [ "`md5sum $repo_path/content | awk '{print $1}'`" != "$md5" ]; then
-            die "$repo_name does not contain the expected repository ($repo_path/content failed MD5 checksum)"
-        fi
-    fi
-}
-
-check_repo_product () {
-    version="$1" repo="$2" expected_summary="$3" create_if_missing="$4"
-    products_xml=/srv/tftpboot/suse-$version/repos/$repo/repodata/products.xml
-    if ! grep -q "<summary>$expected_summary</summary>" $products_xml; then
-        if skip_check_for_repo "$repo"; then
-            echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($products_xml is missing summary '$expected_summary')"
-            if [ ! -d /srv/tftpboot/suse-$version/repos/$repo -a "x$create_if_missing" != "xfalse" ]; then
-                echo "Creating repo skeleton to make AutoYaST happy."
-                mkdir /srv/tftpboot/suse-$version/repos/$repo
-                /usr/bin/createrepo /srv/tftpboot/suse-$version/repos/$repo
-            fi
-            return 0
-        fi
-        die "$repo ($version) does not contain the right repository ($products_xml is missing summary '$expected_summary')"
-    fi
-}
-
-# FIXME: repos that we cannot check yet:
-#   SP3-Updates is lacking products.xml
-#   Cloud: we don't have the final md5
-REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates"
-
-# HAE add-on should remain optional for now
-REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
-
-# Storage should remain optional for now
-REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
-
-MEDIA=/srv/tftpboot/suse-11.3/install
-
-if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
-    echo "Detected SUSE Cloud Deps media."
-    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool"
-else
-    check_repo_content \
-        SLES11_SP3 \
-        $MEDIA \
-        d0bb700ab51c180200995dfdf5a6ade8
+if [ -z "$(type -t skip_check_for_repo)" ]; then
+    die "Broken setup: no repos-check helper library"
 fi
-
-#TODO no check_repo_content SLES12 $MEDIA until the official iso is out
-
-check_media_links () {
-    MEDIA=$1
-    if [[ ! "$(readlink -e ${MEDIA})" =~ ^/srv/tftpboot/.* ]]; then
-        die "$MEDIA must exist and any possible symlinks must not point outside /srv/tftpboot/ directory, as otherwise the PXE server can not access it."
-    fi
-}
-
-check_media_links $MEDIA
-
-# SLE12 is currently optional
-
-[ -e /srv/tftpboot/suse-12.0/install ] && check_media_links /srv/tftpboot/suse-12.0/install
 
 # Automatically create symlinks for SMT-mirrored repos if they exist
 for repo in SLES11-SP3-Pool \
@@ -615,28 +538,63 @@ cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-1.0-Updates
 smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/1.0/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-#TODO check_repo_content SLE12-Cloud-Compute once we have official repo
+# FIXME: repos that we cannot check yet:
+#   Cloud medias: no final md5sum
+REPOS_SKIP_CHECKS+=" Cloud SLE12-Cloud-Compute"
+#   Cloud 5 Pool / Updates: non-existing repos
+REPOS_SKIP_CHECKS+=" SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
+#   Storage 1.0 Pool / Updates: non-existing repos
+REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
 
-check_repo_content \
+# Checks for SLE11 medias
+MEDIA=/srv/tftpboot/suse-11.3/install
+
+if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
+    echo "Detected SUSE Cloud Deps media."
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool"
+else
+    check_media_content \
+        SLES11_SP3 \
+        $MEDIA \
+        d0bb700ab51c180200995dfdf5a6ade8
+fi
+
+check_media_links $MEDIA
+
+check_media_content \
     Cloud \
     /srv/tftpboot/suse-11.3/repos/Cloud \
     1558be86e7354d31e71e7c8c2574031a
 
-check_repo_product 11.3 SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product 11.3 SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_product 11.3 SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_product 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
-check_repo_product 11.3 SUSE-Cloud-5-Updates   'SUSE Cloud 5'
-check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Pool    'SUSE Enterprise Storage 1.0' 'false'
-check_repo_product 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
+check_repo_tag repo    11.3 SLES11-SP3-Pool        'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/pool/x86_64'
+check_repo_tag repo    11.3 SLES11-SP3-Updates     'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/update/x86_64'
+check_repo_tag summary 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
+check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
+check_repo_tag summary 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
+check_repo_tag repo    11.3 SLE11-HAE-SP3-Updates  'updates://zypp-patches.suse.de/autobuild/SLE_HAE/11-SP3/update/x86_64' 'false'
 
+# Checks for SLE12 media (currently optional)
+MEDIA=/srv/tftpboot/suse-12.0/install
+if [ -e $MEDIA ]; then
+  check_media_content \
+      SLES12 \
+      $MEDIA \
+      b52c0f2b41a6a10d49cc89edcdc1b13d
 
-# TODO do not check until these repositories really exist with correct metadata...
-#check_repo_product SLES12-Pool          'SUSE Linux Enterprise Server 12'
-#check_repo_product SLES12-Updates       'SUSE Linux Enterprise Server 12'
-#check_repo_product SLE-12-Cloud-Compute5-Pool 'SUSE Cloud 5 for SLES 12'
-#check_repo_product SLE-12-Cloud-Compute5-Updates 'SUSE Cloud 5 for SLES 12'
+  check_media_links $MEDIA
+
+  check_media_content \
+      SLE12-Cloud-Compute \
+      /srv/tftpboot/suse-12.0/repos/SLE12-Cloud-Compute \
+      1f2cdc1f7593a4091623d7792fb61237
+
+  check_repo_tag repo    12.0 SLES12-Pool                         'obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/x86_64'
+  check_repo_tag repo    12.0 SLES12-Updates                      'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:x86_64/update'
+  check_repo_tag repo    12.0 SLE-12-Cloud-Compute5-Pool          'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/suse-sle12-cloud-compute/5/POOL/x86_64'
+  check_repo_tag summary 12.0 SLE-12-Cloud-Compute5-Updates       'SUSE Cloud 5 for SLES 12'
+  check_repo_tag repo    12.0 SUSE-Enterprise-Storage-1.0-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/ses/1/POOL/x86_64' 'false'
+  check_repo_tag summary 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
+fi
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! rpm -q patterns-cloud-admin &> /dev/null; then
