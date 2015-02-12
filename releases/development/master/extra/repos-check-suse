@@ -64,9 +64,13 @@ check_media_content () {
 }
 
 check_repo_key () {
-    version="$1" repo="$2"
+    version="$1" repo="$2" ignore_failure="$3"
     repomd_key=/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key
     if [ ! -f $repomd_key ]; then
+      if [ $ignore_failure -eq 1 ]; then
+          echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS (repo does not seem to be signed)"
+          return 0
+      fi
       die "$repo ($version) does not seem to be signed"
     else
       case "`md5sum $repomd_key | awk '{print $1}'`" in
@@ -80,6 +84,10 @@ check_repo_key () {
           # Devel:Cloud key
           ;;
         *)
+          if [ $ignore_failure -eq 1 ]; then
+              echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS (repo does not seem to be signed with the right key)"
+              return 0
+          fi
           die "$repo ($version) does not seem to be signed with the right key"
           ;;
       esac
@@ -97,6 +105,9 @@ check_repo_tag () {
         ;;
       repo)
         xml=$repo_dir/repodata/repomd.xml
+        ;;
+      key)
+        xml=
         ;;
       *)
         die "Internal error: unknown tag $tag for check_repo_tag"
@@ -117,15 +128,17 @@ check_repo_tag () {
         return 0
     fi
 
-    if ! grep -q "<$tag>$expected</$tag>" $xml; then
-        if [ $ignore_failure -eq 1 ]; then
-            echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($xml is missing $tag tag '$expected')"
-            return 0
+    if [ -n "$xml" ]; then
+        if ! grep -q "<$tag>$expected</$tag>" $xml; then
+            if [ $ignore_failure -eq 1 ]; then
+                echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($xml is missing $tag tag '$expected')"
+                return 0
+            fi
+            die "$repo ($version) does not contain the right repository ($xml is missing $tag tag '$expected')"
         fi
-        die "$repo ($version) does not contain the right repository ($xml is missing $tag tag '$expected')"
     fi
 
-    check_repo_key $version $repo
+    check_repo_key $version $repo $ignore_failure
 }
 
 check_media_links () {

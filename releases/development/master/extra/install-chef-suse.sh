@@ -542,7 +542,7 @@ test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 #   Cloud medias: no final md5sum
 REPOS_SKIP_CHECKS+=" Cloud SLE12-Cloud-Compute"
 #   Cloud 5 Pool / Updates: non-existing repos
-REPOS_SKIP_CHECKS+=" SUSE-Cloud-5-Updates SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
+REPOS_SKIP_CHECKS+=" SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
 #   Storage 1.0 Pool / Updates: non-existing repos
 REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
 
@@ -569,7 +569,8 @@ check_media_content \
 check_repo_tag repo    11.3 SLES11-SP3-Pool        'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/pool/x86_64'
 check_repo_tag repo    11.3 SLES11-SP3-Updates     'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/update/x86_64'
 check_repo_tag summary 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
-check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
+#check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
+check_repo_tag key     11.3 SUSE-Cloud-5-Updates
 check_repo_tag summary 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
 check_repo_tag repo    11.3 SLE11-HAE-SP3-Updates  'updates://zypp-patches.suse.de/autobuild/SLE_HAE/11-SP3/update/x86_64' 'false'
 
