@@ -542,7 +542,7 @@ test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 #   Cloud medias: no final md5sum
 REPOS_SKIP_CHECKS+=" Cloud SLE12-Cloud-Compute"
 #   Cloud 5 Pool / Updates: non-existing repos
-REPOS_SKIP_CHECKS+=" SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
+REPOS_SKIP_CHECKS+=" SUSE-Cloud-5-Updates SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
 #   Storage 1.0 Pool / Updates: non-existing repos
 REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
 
