@@ -575,7 +575,7 @@ check_repo_tag repo    11.3 SLE11-HAE-SP3-Updates  'updates://zypp-patches.suse.
 
 # Checks for SLE12 media (currently optional)
 MEDIA=/srv/tftpboot/suse-12.0/install
-if [ -e $MEDIA ]; then
+if [ -e $MEDIA/install/boot/x86_64/common ]; then
   check_media_content \
       SLES12 \
       $MEDIA \
