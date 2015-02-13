@@ -488,27 +488,26 @@ check_repo_content () {
     fi
 }
 
-check_repo_product () {
-    repo="$1" expected_summary="$2" create_if_missing="$3"
-    products_xml=/srv/tftpboot/repos/$repo/repodata/products.xml
-    if ! grep -q "<summary>$2</summary>" $products_xml; then
-        if skip_check_for_repo "$repo"; then
-            echo "Ignoring failed repo check for $repo due to \$REPOS_SKIP_CHECKS ($products_xml is missing summary '$expected_summary')"
-            if [ ! -d /srv/tftpboot/repos/$repo -a "x$create_if_missing" != "xfalse" ]; then
-                echo "Creating repo skeleton to make AutoYaST happy."
-                mkdir /srv/tftpboot/repos/$repo
-                /usr/bin/createrepo /srv/tftpboot/repos/$repo
-            fi
-            return 0
+check_repomd () {
+    repo="$1" expected_repotag="$2" create_if_missing="$3"
+    # See if we can verify the signature
+    repodata="/srv/tftpboot/repos/$repo/repodata/"
+    if ! su nobody -c "gpg --keyring $repodata/repomd.xml.key --verify $repodata/repomd.xml.asc >/dev/null"; then
+        die "Cannot validate $repodata/repomd.xml. Does it contain the right repository?"
+    fi
+
+    if ! grep -q "<repo>.*$2</repo>" $repodata/repomd.xml; then
+        if [ ! -d /srv/tftpboot/repos/$repodata -a "x$create_if_missing" != "xfalse" ]; then
+            echo "Creating repo skeleton to make AutoYaST happy."
+            mkdir /srv/tftpboot/repos/$repodata
+            /usr/bin/createrepo /srv/tftpboot/repos/$repodata
         fi
-        die "$repo does not contain the right repository ($products_xml is missing summary '$expected_summary')"
     fi
 }
 
 # FIXME: repos that we cannot check yet:
-#   SP3-Updates is lacking products.xml
 #   Cloud: we don't have the final md5
-REPOS_SKIP_CHECKS+=" Cloud SLES11-SP3-Updates SUSE-Cloud-4-Pool SUSE-Cloud-4-Updates"
+REPOS_SKIP_CHECKS+="Cloud SUSE-Cloud-4-Pool SUSE-Cloud-4-Updates"
 
 # HAE add-on should remain optional for now
 REPOS_SKIP_CHECKS+=" SLE11-HAE-SP3-Pool SLE11-HAE-SP3-Updates"
@@ -553,12 +552,12 @@ else
     fi
 fi
 
-check_repo_product SLES11-SP3-Pool        'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product SLES11-SP3-Updates     'SUSE Linux Enterprise Server 11 SP3'
-check_repo_product SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_product SLE11-HAE-SP3-Updates  'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_product SUSE-Cloud-4-Pool    'SUSE Cloud 4'
-check_repo_product SUSE-Cloud-4-Updates 'SUSE Cloud 4'
+check_repomd SLES11-SP3-Pool      '/SLE_SERVER/11-SP3/pool/x86_64'
+check_repomd SLES11-SP3-Updates   '/SLE_SERVER/11-SP3/update/x86_64'
+check_repomd SLE11-HAE-SP3-Pool   '/SLE_HAE/11-SP3/pool/x86_64' 'false'
+check_repomd SLE11-HAE-SP3-Updates  '/SLE_HAE/11-SP3/update/x86_64' 'false'
+check_repomd SUSE-Cloud-4-Pool    '/SUSE_CLOUD/4/pool/x86_64'
+check_repomd SUSE-Cloud-4-Updates '/SUSE_CLOUD/4/update/x86_64'
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! rpm -q patterns-cloud-admin &> /dev/null; then
