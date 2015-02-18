@@ -539,10 +539,8 @@ smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/1.0/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
 # FIXME: repos that we cannot check yet:
-#   Cloud medias: no final md5sum
-REPOS_SKIP_CHECKS+=" Cloud SLE12-Cloud-Compute"
 #   Cloud 5 Pool / Updates: non-existing repos
-REPOS_SKIP_CHECKS+=" SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
+REPOS_SKIP_CHECKS+=" SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
 #   Storage 1.0 Pool / Updates: non-existing repos
 REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
 
@@ -564,12 +562,13 @@ check_media_links $MEDIA
 check_media_content \
     Cloud \
     /srv/tftpboot/suse-11.3/repos/Cloud \
-    1558be86e7354d31e71e7c8c2574031a
+    #1558be86e7354d31e71e7c8c2574031a
 
 check_repo_tag repo    11.3 SLES11-SP3-Pool        'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/pool/x86_64'
 check_repo_tag repo    11.3 SLES11-SP3-Updates     'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/update/x86_64'
 check_repo_tag summary 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
-check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
+#check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
+check_repo_tag key     11.3 SUSE-Cloud-5-Updates
 check_repo_tag summary 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
 check_repo_tag repo    11.3 SLE11-HAE-SP3-Updates  'updates://zypp-patches.suse.de/autobuild/SLE_HAE/11-SP3/update/x86_64' 'false'
 
@@ -586,7 +585,7 @@ if [ -e $MEDIA/install/boot/x86_64/common ]; then
   check_media_content \
       SLE12-Cloud-Compute \
       /srv/tftpboot/suse-12.0/repos/SLE12-Cloud-Compute \
-      1f2cdc1f7593a4091623d7792fb61237
+      #1f2cdc1f7593a4091623d7792fb61237
 
   check_repo_tag repo    12.0 SLES12-Pool                         'obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/x86_64'
   check_repo_tag repo    12.0 SLES12-Updates                      'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:x86_64/update'

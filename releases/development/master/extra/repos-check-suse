@@ -38,6 +38,27 @@ skip_check_for_repo () {
     return 1
 }
 
+check_key_file () {
+  key_file=$1
+
+  case "`md5sum $key_file | awk '{print $1}'`" in
+    a0857768a900ae6bb1e6c8af62460ce3|b2740847428d13d201642ca9cf89bec7)
+      # SLE11 keys
+      ;;
+    9a62177e1c6852d48453ed3909956d6b)
+      # SLE12 key
+      ;;
+    6e2920076653964b7de9d6d0421955bb)
+      # Devel:Cloud key
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  return 0
+}
+
 check_media_content () {
     repo_name="$1" repo_path="$2" md5="$3"
 
@@ -54,35 +75,36 @@ check_media_content () {
         fi
     fi
 
-    if [ -n "$CROWBAR_FROM_GIT" ]; then
-        echo "Skipping md5 check for $repo_name due to \$CROWBAR_FROM_GIT"
-    else
-        if [ "`md5sum $repo_path/content | awk '{print $1}'`" != "$md5" ]; then
-            die "$repo_name does not contain the expected repository ($repo_path/content failed MD5 checksum)"
+    if [ -n "$md5" ]; then
+        if [ -n "$CROWBAR_FROM_GIT" ]; then
+            echo "Skipping md5 check for $repo_name due to \$CROWBAR_FROM_GIT"
+        else
+            if [ "`md5sum $repo_path/content | awk '{print $1}'`" != "$md5" ]; then
+                die "$repo_name does not contain the expected repository ($repo_path/content failed MD5 checksum)"
+            fi
         fi
+    fi
+
+    if ! check_key_file $repo_path/content.key; then
+        die "$repo_name does not contain the expected repository (content does not seem to be signed with the right key)"
     fi
 }
 
 check_repo_key () {
-    version="$1" repo="$2"
+    version="$1" repo="$2" ignore_failure="$3"
     repomd_key=/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key
     if [ ! -f $repomd_key ]; then
+      if [ $ignore_failure -eq 1 ]; then
+          echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS (repo does not seem to be signed)"
+          return 0
+      fi
       die "$repo ($version) does not seem to be signed"
-    else
-      case "`md5sum $repomd_key | awk '{print $1}'`" in
-        a0857768a900ae6bb1e6c8af62460ce3|b2740847428d13d201642ca9cf89bec7)
-          # SLE11 keys
-          ;;
-        9a62177e1c6852d48453ed3909956d6b)
-          # SLE12 key
-          ;;
-        6e2920076653964b7de9d6d0421955bb)
-          # Devel:Cloud key
-          ;;
-        *)
-          die "$repo ($version) does not seem to be signed with the right key"
-          ;;
-      esac
+    elif ! check_key_file $repomd_key; then
+      if [ $ignore_failure -eq 1 ]; then
+          echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS (repo does not seem to be signed with the right key)"
+          return 0
+      fi
+      die "$repo ($version) does not seem to be signed with the right key"
     fi
 }
 
@@ -97,6 +119,9 @@ check_repo_tag () {
         ;;
       repo)
         xml=$repo_dir/repodata/repomd.xml
+        ;;
+      key)
+        xml=
         ;;
       *)
         die "Internal error: unknown tag $tag for check_repo_tag"
@@ -117,15 +142,17 @@ check_repo_tag () {
         return 0
     fi
 
-    if ! grep -q "<$tag>$expected</$tag>" $xml; then
-        if [ $ignore_failure -eq 1 ]; then
-            echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($xml is missing $tag tag '$expected')"
-            return 0
+    if [ -n "$xml" ]; then
+        if ! grep -q "<$tag>$expected</$tag>" $xml; then
+            if [ $ignore_failure -eq 1 ]; then
+                echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($xml is missing $tag tag '$expected')"
+                return 0
+            fi
+            die "$repo ($version) does not contain the right repository ($xml is missing $tag tag '$expected')"
         fi
-        die "$repo ($version) does not contain the right repository ($xml is missing $tag tag '$expected')"
     fi
 
-    check_repo_key $version $repo
+    check_repo_key $version $repo $ignore_failure
 }
 
 check_media_links () {
