@@ -281,7 +281,7 @@ fi
 
 echo_summary "Performing sanity checks"
 
-if test -z "$STY"; then
+if [ -n "$SSH_CONNECTION" -a -z "$STY" ]; then
     die "Not running in screen. Please use \"screen $0\" to avoid problems during network re-configuration. Aborting."
 fi
 
