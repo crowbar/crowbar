@@ -549,7 +549,7 @@ MEDIA=/srv/tftpboot/suse-11.3/install
 
 if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
     echo "Detected SUSE Cloud Deps media."
-    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool"
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates"
 else
     check_media_content \
         SLES11_SP3 \
