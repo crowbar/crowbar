@@ -406,7 +406,7 @@ fi
 /usr/bin/lscpu  || :
 /bin/df -h  || :
 /usr/bin/free -m || :
-/bin/ls -la /srv/tftpboot/suse-12.*/{repos/,repos/Cloud/,install/} || :
+/bin/ls -la /srv/tftpboot/suse-*/*/{install/,repos/,repos/Cloud/} || :
 
 if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb ]; then
     # The autoyast profile might not exist yet when CROWBAR_FROM_GIT is enabled
@@ -414,26 +414,27 @@ if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb 
 fi
 
 check_or_create_ptf_repository () {
-    version="$1"
-    repo="$2"
+  version="$1"
+  arch="$2"
+  repo="$3"
 
-    if skip_check_for_repo "$repo"; then
-        echo "Skipping check for $repo ($version) due to \$REPOS_SKIP_CHECKS"
-    else
-        if ! [ -e "/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml" ]; then
-            # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
-            # creates the repo metadata for PTF
-            if [ -n $CROWBAR_FROM_GIT ]; then
-                echo "Creating repo skeleton to make AutoYaST happy."
-                if ! [ -d /srv/tftpboot/suse-$version/repos/$repo ]; then
-                    mkdir /srv/tftpboot/suse-$version/repos/$repo
-                fi
-                /usr/bin/createrepo /srv/tftpboot/suse-$version/repos/$repo
-            else
-                die "$repo ($version) has not been set up correctly; did the crowbar rpm fail to install correctly?"
-            fi
-        fi
-    fi
+  if skip_check_for_repo "$repo"; then
+      echo "Skipping check for $repo ($version) due to \$REPOS_SKIP_CHECKS"
+  else
+      if ! [ -e "/srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml" ]; then
+          # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
+          # creates the repo metadata for PTF
+          if [ -n $CROWBAR_FROM_GIT ]; then
+              echo "Creating repo skeleton to make AutoYaST happy."
+              if ! [ -d /srv/tftpboot/suse-$version/$arch/repos/$repo ]; then
+                  mkdir /srv/tftpboot/suse-$version/$arch/repos/$repo
+              fi
+              /usr/bin/createrepo /srv/tftpboot/suse-$version/$arch/repos/$repo
+          else
+              die "$repo ($version / $arch) has not been set up correctly; did the crowbar rpm fail to install correctly?"
+          fi
+      fi
+  fi
 }
 
 create_gpg_key () {
@@ -462,20 +463,21 @@ EOF
 }
 
 sign_repositories () {
-    version="$1"
-    repo="$2"
+  version="$1"
+  arch="$2"
+  repo="$3"
 
-    create_gpg_key
-    if [ -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml ]; then
-        if [ ! -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.asc -o \
-            ! -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key ]; then
-            echo "Signing $repo ($version) repository"
-            gpg -a --detach-sign /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml
-            gpg -a --export > /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key
-        else
-            echo "$repo ($version) repository is already signed"
-        fi
+  create_gpg_key
+  if [ -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml ]; then
+    if [ ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.asc -o \
+         ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key ]; then
+      echo "Signing $repo ($version / $arch) repository"
+      gpg -a --detach-sign /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml
+      gpg -a --export > /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key
+    else
+      echo "$repo ($version / $arch) repository is already signed"
     fi
+  fi
 }
 
 for repos_check in \
@@ -491,81 +493,103 @@ if [ -z "$(type -t skip_check_for_repo)" ]; then
     die "Broken setup: no repos-check helper library"
 fi
 
+#supported_arches="x86_64 ppc64le"
+supported_arches="x86_64"
+supported_arches_ses="x86_64"
+
 # Automatically create symlinks for SMT-mirrored repos if they exist
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SLES12-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+for arch in $supported_arches; do
+  cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SLES12-Pool
+  smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12/$arch/product
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SLES12-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SLES12-Updates
+  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/$arch/update
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SLES12-SP1-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12-SP1/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLES12-SP1-Pool
+  smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12-SP1/$arch/product
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SLES12-SP1-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12-SP1/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLES12-SP1-Updates
+  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12-SP1/$arch/update
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SUSE-OpenStack-Cloud-6-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/OpenStack-Cloud/6/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SUSE-OpenStack-Cloud-6-Pool
+  smt_dir=/srv/www/htdocs/repo/SUSE/Products/OpenStack-Cloud/6/$arch/product
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SUSE-OpenStack-Cloud-6-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/OpenStack-Cloud/6/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SUSE-OpenStack-Cloud-6-Updates
+  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/OpenStack-Cloud/6/$arch/update
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SLE12-SP1-HA-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-HA/12-SP1/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  # SES is x86_64 only
+  if [ $arch == x86_64 ]; then
+    cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SUSE-Enterprise-Storage-2-Pool
+    smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/2/$arch/product
+    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.1/repos/SLE12-SP1-HA-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-HA/12-SP1/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+    cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SUSE-Enterprise-Storage-2-Updates
+     smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/2/$arch/update
+    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  fi
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-2-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/2/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  # HA is s390x/x86_64 only
+  if [ $arch == x86_64 -o $arch == s390x ]; then
+    cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLE12-SP1-HA-Pool
+    smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-HA/12-SP1/$arch/product
+    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-2-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/2/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+    cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLE12-SP1-HA-Updates
+    smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-HA/12-SP1/$arch/update
+    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  fi
+done
 
 if ! is_ses; then
-    # Checks for SLE12 SP1 medias
-    MEDIA=/srv/tftpboot/suse-12.1/install
+    for arch in $supported_arches; do
+        # Checks for SLE12 SP1 medias
+        MEDIA=/srv/tftpboot/suse-12.1/$arch/install
 
-    if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
-        echo "Detected SUSE OpenStack Cloud Deps media."
-        REPOS_SKIP_CHECKS+=" SLES12-SP1-Pool SLES12-SP1-Updates"
-    else
+        # Only x86_64 is truly mandatory; other architectures are only checked
+        # if they exist
+        if [ ! -f $MEDIA/content -a $arch != "x86_64" ]; then
+            continue
+        fi
+
+        if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
+            echo "Detected SUSE OpenStack Cloud Deps media."
+            REPOS_SKIP_CHECKS+=" SLES12-SP1-Pool SLES12-SP1-Updates"
+        else
+            check_media_content \
+                SLES12-SP1 \
+                $MEDIA \
+                #b52c0f2b41a6a10d49cc89edcdc1b13d
+        fi
+
+        check_media_links $MEDIA
+
+        if ! is_ses; then
+            check_media_content \
+                Cloud \
+                /srv/tftpboot/suse-12.1/$arch/repos/Cloud \
+                #1558be86e7354d31e71e7c8c2574031a
+        fi
+    done
+fi
+
+# Checks for SLE12 media (for SES, so x86_64-only)
+for arch in $supported_arches_ses; do
+    MEDIA=/srv/tftpboot/suse-12.0/$arch/install
+    if [ -e $MEDIA/boot/$arch/common ]; then
         check_media_content \
-            SLES12-SP1 \
+            SLES12 \
             $MEDIA \
-            #b52c0f2b41a6a10d49cc89edcdc1b13d
+            b52c0f2b41a6a10d49cc89edcdc1b13d
+
+        check_media_links $MEDIA
     fi
-
-    check_media_links $MEDIA
-
-    if ! is_ses; then
-        check_media_content \
-            Cloud \
-            /srv/tftpboot/suse-12.1/repos/Cloud \
-            #1558be86e7354d31e71e7c8c2574031a
-    fi
-fi
-
-# Checks for SLE12 media (for SES)
-MEDIA=/srv/tftpboot/suse-12.0/install
-if [ -e $MEDIA/boot/x86_64/common ]; then
-    check_media_content \
-        SLES12 \
-        $MEDIA \
-        b52c0f2b41a6a10d49cc89edcdc1b13d
-
-    check_media_links $MEDIA
-fi
+done
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     pattern=patterns-cloud-admin
@@ -579,11 +603,15 @@ if [ -z "$CROWBAR_FROM_GIT" ]; then
     fi
 fi
 
-check_or_create_ptf_repository 12.0 PTF
-check_or_create_ptf_repository 12.1 PTF
-# Currently we only sign the PTF repository
-sign_repositories 12.0 PTF
-sign_repositories 12.1 PTF
+
+for arch in $supported_arches; do
+    check_or_create_ptf_repository 12.0 $arch PTF
+    check_or_create_ptf_repository 12.1 $arch PTF
+
+    # Currently we only sign the PTF repository
+    sign_repositories 12.0 $arch PTF
+    sign_repositories 12.1 $arch PTF
+done
 
 # Setup helper for git
 # --------------------
@@ -620,16 +648,13 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     # also need these (crowbar dependencies):
     zypper -n in sleshammer tcpdump
 
-    # Need this for provisioner to work:
-    mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
-
     # log directory needs to exist
     mkdir -p /var/log/crowbar
     chmod 0750 /var/log/crowbar
 
     # You'll also need:
-    #   /srv/tftpboot/discovery/initrd0.img
-    #   /srv/tftpboot/discovery/vmlinuz0
+    #   /srv/tftpboot/discovery/$arch/initrd0.img
+    #   /srv/tftpboot/discovery/$arch/vmlinuz0
     # These can be obtained from a sleshammer image or from an existing
     # ubuntu admin node.
 fi
@@ -833,8 +858,10 @@ test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/h
 test -d /var/lib/crowbar/config && rm -f /var/lib/crowbar/config/*.json
 # Clean up files that are created for handling node discovery by provisioner barclamp
 test -d /etc/dhcp3/hosts.d && rm -f /etc/dhcp3/hosts.d/*
-test -d /srv/tftpboot/discovery && rm -f /srv/tftpboot/discovery/*.conf
-test -d /srv/tftpboot/discovery/pxelinux.cfg && rm -f /srv/tftpboot/discovery/pxelinux.cfg/*
+for arch in $supported_arches; do
+    test -d /srv/tftpboot/discovery/$arch/efi && rm -f /srv/tftpboot/discovery/$arch/efi/*.conf
+    test -d /srv/tftpboot/discovery/$arch/bios/pxelinux.cfg && rm -f /srv/tftpboot/discovery/$arch/bios/pxelinux.cfg/*
+done
 
 # Keep copy of files that crowbar will overwrite; this is done only on the very
 # first run of this script, and allow running the installation script again
