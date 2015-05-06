@@ -17,7 +17,7 @@
 #
 
 # This script is called after being installed by the Crowbar RPM from the SUSE
-# Cloud ISO. In this context, it is expected that all other required
+# OpenStack Cloud ISO. In this context, it is expected that all other required
 # repositories (eg. SLES, Updates) are already set up, with the required files
 # in place.
 #
@@ -81,7 +81,7 @@ mkdir -p "`dirname "$LOGFILE"`"
 run_succeeded=
 
 
-DIALOG_TITLE=" SUSE Cloud 5 "
+DIALOG_TITLE=" SUSE OpenStack Cloud 6 "
 
 # Infrastructure for nice output/logging
 # --------------------------------------
@@ -231,7 +231,7 @@ exit_handler () {
 
 Crowbar installation terminated prematurely.  Please examine the above
 output or $LOGFILE for clues as to what went wrong.
-You should also check the SUSE Cloud Installation Manual, in
+You should also check the SUSE OpenStack Cloud Installation Manual, in
 particular the Troubleshooting section.  Note that this script can
 safely be re-run multiple times if required.
 EOF
@@ -323,7 +323,7 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates SLES12-Pool SLES12-Updates SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
+    REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-OpenStack-Cloud-SLE11-6-Pool SUSE-OpenStack-Cloud-SLE11-6-Updates SLES12-Pool SLES12-Updates SUSE-OpenStack-Cloud-6-Pool SUSE-OpenStack-Cloud-6-Updates"
 
     zypper -n in rubygems rubygem-json createrepo
 fi
@@ -346,18 +346,18 @@ fi
 if [ -n "$PROVISIONER_JSON" ]; then
   for repo in SLE-Cloud \
               SLE-Cloud-PTF \
-              SUSE-Cloud-5-Pool \
-              SUSE-Cloud-5-Updates \
+              SUSE-OpenStack-Cloud-SLE11-6-Pool \
+              SUSE-OpenStack-Cloud-SLE11-6-Updates \
               SLES11-SP3-Pool \
               SLES11-SP3-Updates \
               SLE11-HAE-SP3-Pool \
               SLE11-HAE-SP3-Updates \
               SLES12-Pool \
               SLES12-Updates \
-              SLE12-Cloud-Compute \
-              SLE12-Cloud-Compute-PTF \
-              SLE-12-Cloud-Compute5-Pool \
-              SLE-12-Cloud-Compute5-Updates \
+              SLE-Cloud \
+              SLE-Cloud-PTF \
+              SUSE-OpenStack-Cloud-6-Pool \
+              SUSE-OpenStack-Cloud-6-Updates \
               SUSE-Enterprise-Storage-1.0-Pool \
               SUSE-Enterprise-Storage-1.0-Updates
   do
@@ -417,7 +417,7 @@ fi
 /usr/bin/lscpu  || :
 /bin/df -h  || :
 /usr/bin/free -m || :
-/bin/ls -la /srv/tftpboot/suse-{11.3,12.0}/{repos/,repos/Cloud/,repos/SLE12-Cloud-Compute/,install/} || :
+/bin/ls -la /srv/tftpboot/suse-{11.3,12.0}/{repos/,repos/Cloud/,install/} || :
 
 if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb ]; then
     # The autoyast profile might not exist yet when CROWBAR_FROM_GIT is enabled
@@ -505,8 +505,8 @@ fi
 # Automatically create symlinks for SMT-mirrored repos if they exist
 for repo in SLES11-SP3-Pool \
             SLES11-SP3-Updates \
-            SUSE-Cloud-5-Pool \
-            SUSE-Cloud-5-Updates \
+            SUSE-OpenStack-Cloud-SLE11-6-Pool \
+            SUSE-OpenStack-Cloud-SLE11-6-Updates \
             SLE11-HAE-SP3-Pool \
             SLE11-HAE-SP3-Updates; do
   cloud_dir=/srv/tftpboot/suse-11.3/repos/$repo
@@ -522,12 +522,12 @@ cloud_dir=/srv/tftpboot/suse-12.0/repos/SLES12-Updates
 smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SLE-12-Cloud-Compute5-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/12-Cloud-Compute/5/x86_64/product
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-OpenStack-Cloud-6-Pool
+smt_dir=/srv/www/htdocs/repo/SUSE/Products/OpenStack-Cloud/5/x86_64/product
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SLE-12-Cloud-Compute5-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/12-Cloud-Compute/5/x86_64/update
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-OpenStack-Cloud-6-Updates
+smt_dir=/srv/www/htdocs/repo/SUSE/Updates/OpenStack-Cloud/5/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
 cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-1.0-Pool
@@ -539,8 +539,8 @@ smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/1.0/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
 # FIXME: repos that we cannot check yet:
-#   Cloud 5 Pool / Updates: non-existing repos
-REPOS_SKIP_CHECKS+=" SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
+#   Cloud 6 Pool / Updates: non-existing repos
+REPOS_SKIP_CHECKS+=" SUSE-OpenStack-Cloud-SLE11-6-Pool SUSE-OpenStack-Cloud-SLE11-6-Updates SUSE-OpenStack-Cloud-6-Pool SUSE-OpenStack-Cloud-6-Updates"
 #   Storage 1.0 Pool / Updates: non-existing repos
 REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
 
@@ -548,7 +548,7 @@ REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.
 MEDIA=/srv/tftpboot/suse-11.3/install
 
 if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
-    echo "Detected SUSE Cloud Deps media."
+    echo "Detected SUSE OpenStack Cloud Deps media."
     REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates"
 else
     check_media_content \
@@ -566,9 +566,9 @@ check_media_content \
 
 check_repo_tag repo    11.3 SLES11-SP3-Pool        'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/pool/x86_64'
 check_repo_tag repo    11.3 SLES11-SP3-Updates     'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/update/x86_64'
-check_repo_tag summary 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
-#check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
-check_repo_tag key     11.3 SUSE-Cloud-5-Updates
+check_repo_tag summary 11.3 SUSE-OpenStack-Cloud-SLE11-6-Pool      'SUSE OpenStack Cloud 6 for SLE11 SP3'
+#check_repo_tag repo    11.3 SUSE-OpenStack-Cloud-SLE11-6-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/6/update/x86_64'
+check_repo_tag key     11.3 SUSE-OpenStack-Cloud-SLE11-6-Updates
 check_repo_tag summary 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
 check_repo_tag repo    11.3 SLE11-HAE-SP3-Updates  'updates://zypp-patches.suse.de/autobuild/SLE_HAE/11-SP3/update/x86_64' 'false'
 
@@ -583,14 +583,14 @@ if [ -e $MEDIA/install/boot/x86_64/common ]; then
   check_media_links $MEDIA
 
   check_media_content \
-      SLE12-Cloud-Compute \
-      /srv/tftpboot/suse-12.0/repos/SLE12-Cloud-Compute \
+      Cloud \
+      /srv/tftpboot/suse-12.0/repos/Cloud \
       #1f2cdc1f7593a4091623d7792fb61237
 
   check_repo_tag repo    12.0 SLES12-Pool                         'obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/x86_64'
   check_repo_tag repo    12.0 SLES12-Updates                      'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:x86_64/update'
-  check_repo_tag repo    12.0 SLE-12-Cloud-Compute5-Pool          'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/suse-sle12-cloud-compute/5/POOL/x86_64'
-  check_repo_tag summary 12.0 SLE-12-Cloud-Compute5-Updates       'SUSE Cloud 5 for SLES 12'
+  check_repo_tag repo    12.0 SUSE-OpenStack-Cloud-6-Pool         'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud6/suse-openstack-cloud/6/POOL/x86_64'
+  check_repo_tag summary 12.0 SUSE-OpenStack-Cloud-6-Updates      'SUSE OpenStack Cloud 6'
   check_repo_tag repo    12.0 SUSE-Enterprise-Storage-1.0-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/ses/1/POOL/x86_64' 'false'
   check_repo_tag summary 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
 fi
@@ -602,10 +602,10 @@ if [ -z "$CROWBAR_FROM_GIT" ]; then
 fi
 
 check_or_create_ptf_repository 11.3 Cloud-PTF
-check_or_create_ptf_repository 12.0 SLE12-Cloud-Compute-PTF
+check_or_create_ptf_repository 12.0 Cloud-PTF
 # Currently we only sign the Cloud-PTF repository
 sign_repositories 11.3 Cloud-PTF
-sign_repositories 12.0 SLE12-Cloud-Compute-PTF
+sign_repositories 12.0 Cloud-PTF
 
 # Setup helper for git
 # --------------------
