@@ -665,7 +665,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
             rubygem-sprockets-sass rubygem-sqlite3
 
     # Need this for provisioner to work:
-    mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
+    mkdir -p /srv/tftpboot/discovery/bios/pxelinux.cfg
     # create Compatibility link /tftpboot -> /srv/tftpboot (this is part of
     # the crowbar package when not in $CROWBAR_FROM_GIT)
     if ! [ -e /tftpboot ]; then
@@ -679,8 +679,8 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     chmod 0750 /var/log/crowbar
 
     # You'll also need:
-    #   /srv/tftpboot/discovery/initrd0.img
-    #   /srv/tftpboot/discovery/vmlinuz0
+    #   /srv/tftpboot/discovery/$arch/initrd0.img
+    #   /srv/tftpboot/discovery/$arch/vmlinuz0
     # These can be obtained from a sleshammer image or from an existing
     # ubuntu admin node.
 fi
@@ -880,8 +880,8 @@ test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/h
 test -d /var/lib/crowbar/config && rm -f /var/lib/crowbar/config/*.json
 # Clean up files that are created for handling node discovery by provisioner barclamp
 test -d /etc/dhcp3/hosts.d && rm -f /etc/dhcp3/hosts.d/*
-test -d /srv/tftpboot/discovery && rm -f /srv/tftpboot/discovery/*.conf
-test -d /srv/tftpboot/discovery/pxelinux.cfg && rm -f /srv/tftpboot/discovery/pxelinux.cfg/*
+test -d /srv/tftpboot/discovery/efi && rm -f /srv/tftpboot/discovery/efi/*.conf
+test -d /srv/tftpboot/discovery/bios/pxelinux.cfg && rm -f /srv/tftpboot/discovery/bios/pxelinux.cfg/*
 
 # Keep copy of files that crowbar will overwrite; this is done only on the very
 # first run of this script, and allow running the installation script again
