@@ -417,7 +417,7 @@ fi
 /usr/bin/lscpu  || :
 /bin/df -h  || :
 /usr/bin/free -m || :
-/bin/ls -la /srv/tftpboot/suse-{11.3,12.0}/{repos/,repos/Cloud/,repos/SLE12-Cloud-Compute/,install/} || :
+/bin/ls -la /srv/tftpboot/suse-{11.3,12.0}/{repos/,repos/{x86_64,ppc64le}/Cloud/,repos/{x86_64,ppc64le}/SLE12-Cloud-Compute/,{x86_64,ppc64le}/install/} || :
 
 if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb ]; then
     # The autoyast profile might not exist yet when CROWBAR_FROM_GIT is enabled
@@ -426,20 +426,21 @@ fi
 
 check_or_create_ptf_repository () {
   version="$1"
-  repo="$2"
+  arch="$2"
+  repo="$3"
 
   if skip_check_for_repo "$repo"; then
       echo "Skipping check for $repo ($version) due to \$REPOS_SKIP_CHECKS"
   else
-      if ! [ -e "/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml" ]; then
+      if ! [ -e "/srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml" ]; then
           # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
           # creates the repo metadata for Cloud-PTF
           if [ -n $CROWBAR_FROM_GIT ]; then
               echo "Creating repo skeleton to make AutoYaST happy."
-              if ! [ -d /srv/tftpboot/suse-$version/repos/$repo ]; then
-                  mkdir /srv/tftpboot/suse-$version/repos/$repo
+              if ! [ -d /srv/tftpboot/suse-$version/$arch/repos/$repo ]; then
+                  mkdir /srv/tftpboot/suse-$version/$arch/repos/$repo
               fi
-              /usr/bin/createrepo /srv/tftpboot/suse-$version/repos/$repo
+              /usr/bin/createrepo /srv/tftpboot/suse-$version/$arch/repos/$repo
           else
               die "$repo ($version) has not been set up correctly; did the crowbar rpm fail to install correctly?"
           fi
@@ -474,15 +475,16 @@ EOF
 
 sign_repositories () {
   version="$1"
-  repo="$2"
+  arch="$2"
+  repo="$3"
 
   create_gpg_key
-  if [ -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml ]; then
-    if [ ! -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.asc -o \
-         ! -f /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key ]; then
+  if [ -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml ]; then
+    if [ ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.asc -o \
+         ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key ]; then
       echo "Signing $repo ($version) repository"
-      gpg -a --detach-sign /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml
-      gpg -a --export > /srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key
+      gpg -a --detach-sign /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml
+      gpg -a --export > /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key
     else
       echo "$repo ($version) repository is already signed"
     fi
@@ -509,34 +511,39 @@ for repo in SLES11-SP3-Pool \
             SUSE-Cloud-5-Updates \
             SLE11-HAE-SP3-Pool \
             SLE11-HAE-SP3-Updates; do
-  cloud_dir=/srv/tftpboot/suse-11.3/repos/$repo
+  cloud_dir=/srv/tftpboot/suse-11.3/x86_64/repos/$repo
   smt_dir=/srv/www/htdocs/repo/\$RCE/$repo/sle-11-x86_64
   test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 done
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SLES12-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+for arch in x86_64 ppc64le; do
+  cloud_dir=/srv/tftpboot/suse-12.0/$arch/repos/SLES12-Pool
+  smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12/$arch/product
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SLES12-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.0/$arch/repos/SLES12-Updates
+  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/$arch/update
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SLE-12-Cloud-Compute5-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/12-Cloud-Compute/5/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.0/$arch/repos/SLE-12-Cloud-Compute5-Pool
+  smt_dir=/srv/www/htdocs/repo/SUSE/Products/12-Cloud-Compute/5/$arch/product
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SLE-12-Cloud-Compute5-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/12-Cloud-Compute/5/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  cloud_dir=/srv/tftpboot/suse-12.0/$arch/repos/SLE-12-Cloud-Compute5-Updates
+  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/12-Cloud-Compute/5/$arch/update
+  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-1.0-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/1.0/x86_64/product
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  # SES is x86_64 only
+  if [ $arch == x86_64 ]; then
+    cloud_dir=/srv/tftpboot/suse-12.0/$arch/repos/SUSE-Enterprise-Storage-1.0-Pool
+    smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/1.0/$arch/product
+    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-1.0-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/1.0/x86_64/update
-test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+    cloud_dir=/srv/tftpboot/suse-12.0/$arch/repos/SUSE-Enterprise-Storage-1.0-Updates
+    smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/1.0/$arch/update
+    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+  fi
+done
 
 # FIXME: repos that we cannot check yet:
 #   Cloud 5 Pool / Updates: non-existing repos
@@ -545,7 +552,7 @@ REPOS_SKIP_CHECKS+=" SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
 REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
 
 # Checks for SLE11 medias
-MEDIA=/srv/tftpboot/suse-11.3/install
+MEDIA=/srv/tftpboot/suse-11.3/x86_64/install
 
 if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
     echo "Detected SUSE Cloud Deps media."
@@ -561,39 +568,50 @@ check_media_links $MEDIA
 
 check_media_content \
     Cloud \
-    /srv/tftpboot/suse-11.3/repos/Cloud \
+    /srv/tftpboot/suse-11.3/x86_64/repos/Cloud \
     #1558be86e7354d31e71e7c8c2574031a
 
-check_repo_tag repo    11.3 SLES11-SP3-Pool        'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/pool/x86_64'
-check_repo_tag repo    11.3 SLES11-SP3-Updates     'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/update/x86_64'
-check_repo_tag summary 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
-#check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
-check_repo_tag key     11.3 SUSE-Cloud-5-Updates
-check_repo_tag summary 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_tag repo    11.3 SLE11-HAE-SP3-Updates  'updates://zypp-patches.suse.de/autobuild/SLE_HAE/11-SP3/update/x86_64' 'false'
+check_repo_tag repo    11.3 x86_64 SLES11-SP3-Pool        'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/pool/x86_64'
+check_repo_tag repo    11.3 x86_64 SLES11-SP3-Updates     'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/update/x86_64'
+check_repo_tag summary 11.3 x86_64 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
+#check_repo_tag repo    11.3 x86_64 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
+check_repo_tag key     11.3 x86_64 SUSE-Cloud-5-Updates
+check_repo_tag summary 11.3 x86_64 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
+check_repo_tag repo    11.3 x86_64 SLE11-HAE-SP3-Updates  'updates://zypp-patches.suse.de/autobuild/SLE_HAE/11-SP3/update/x86_64' 'false'
 
 # Checks for SLE12 media (currently optional)
-MEDIA=/srv/tftpboot/suse-12.0/install
-if [ -e $MEDIA/install/boot/x86_64/common ]; then
-  check_media_content \
-      SLES12 \
-      $MEDIA \
-      b52c0f2b41a6a10d49cc89edcdc1b13d
+for arch in x86_64 ppc64le; do
+  MEDIA=/srv/tftpboot/suse-12.0/$arch/install
+  if [ -e $MEDIA/boot/$arch/common ]; then
+    case $arch in
+      x86_64) SLES_MD5=b52c0f2b41a6a10d49cc89edcdc1b13d ;;
+      ppc64le) SLES_MD5=4c8b9ccead20dc00c5aa5f187e4c9bb6 ;;
+      *)
+    esac
 
-  check_media_links $MEDIA
+    check_media_content \
+        SLES12 \
+        $MEDIA \
+        $SLES_MD5
 
-  check_media_content \
-      SLE12-Cloud-Compute \
-      /srv/tftpboot/suse-12.0/repos/SLE12-Cloud-Compute \
-      #1f2cdc1f7593a4091623d7792fb61237
+    check_media_links $MEDIA
 
-  check_repo_tag repo    12.0 SLES12-Pool                         'obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/x86_64'
-  check_repo_tag repo    12.0 SLES12-Updates                      'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:x86_64/update'
-  check_repo_tag repo    12.0 SLE-12-Cloud-Compute5-Pool          'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/suse-sle12-cloud-compute/5/POOL/x86_64'
-  check_repo_tag summary 12.0 SLE-12-Cloud-Compute5-Updates       'SUSE Cloud 5 for SLES 12'
-  check_repo_tag repo    12.0 SUSE-Enterprise-Storage-1.0-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/ses/1/POOL/x86_64' 'false'
-  check_repo_tag summary 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
-fi
+    check_media_content \
+        SLE12-Cloud-Compute \
+        /srv/tftpboot/suse-12.0/$arch/repos/SLE12-Cloud-Compute \
+        #1f2cdc1f7593a4091623d7792fb61237
+
+    check_repo_tag repo    12.0 $arch SLES12-Pool                         "obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/$arch"
+    check_repo_tag repo    12.0 $arch SLES12-Updates                      "obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:$arch/update"
+    check_repo_tag repo    12.0 $arch SLE-12-Cloud-Compute5-Pool          "obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/suse-sle12-cloud-compute/5/POOL/$arch"
+    check_repo_tag summary 12.0 $arch SLE-12-Cloud-Compute5-Updates       'SUSE Cloud 5 for SLES 12'
+    # SES is x86_64 only
+    if [ $arch == x86_64 ]; then
+      check_repo_tag repo    12.0 $arch SUSE-Enterprise-Storage-1.0-Pool    "obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/ses/1/POOL/$arch" 'false'
+      check_repo_tag summary 12.0 $arch SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
+    fi
+  fi
+done
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     if ! rpm -q patterns-cloud-admin &> /dev/null; then
@@ -601,11 +619,13 @@ if [ -z "$CROWBAR_FROM_GIT" ]; then
     fi
 fi
 
-check_or_create_ptf_repository 11.3 Cloud-PTF
-check_or_create_ptf_repository 12.0 SLE12-Cloud-Compute-PTF
+check_or_create_ptf_repository 11.3 x86_64 Cloud-PTF
+check_or_create_ptf_repository 12.0 x86_64 SLE12-Cloud-Compute-PTF
+check_or_create_ptf_repository 12.0 ppc64le SLE12-Cloud-Compute-PTF
 # Currently we only sign the Cloud-PTF repository
-sign_repositories 11.3 Cloud-PTF
-sign_repositories 12.0 SLE12-Cloud-Compute-PTF
+sign_repositories 11.3 x86_64 Cloud-PTF
+sign_repositories 12.0 ppc64le SLE12-Cloud-Compute-PTF
+sign_repositories 12.0 ppc64le SLE12-Cloud-Compute-PTF
 
 # Setup helper for git
 # --------------------
@@ -645,7 +665,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
             rubygem-sprockets-sass rubygem-sqlite3
 
     # Need this for provisioner to work:
-    mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
+    mkdir -p /srv/tftpboot/discovery/bios/pxelinux.cfg
     # create Compatibility link /tftpboot -> /srv/tftpboot (this is part of
     # the crowbar package when not in $CROWBAR_FROM_GIT)
     if ! [ -e /tftpboot ]; then
@@ -659,8 +679,8 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     chmod 0750 /var/log/crowbar
 
     # You'll also need:
-    #   /srv/tftpboot/discovery/initrd0.img
-    #   /srv/tftpboot/discovery/vmlinuz0
+    #   /srv/tftpboot/discovery/$arch/initrd0.img
+    #   /srv/tftpboot/discovery/$arch/vmlinuz0
     # These can be obtained from a sleshammer image or from an existing
     # ubuntu admin node.
 fi
@@ -860,8 +880,8 @@ test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/h
 test -d /var/lib/crowbar/config && rm -f /var/lib/crowbar/config/*.json
 # Clean up files that are created for handling node discovery by provisioner barclamp
 test -d /etc/dhcp3/hosts.d && rm -f /etc/dhcp3/hosts.d/*
-test -d /srv/tftpboot/discovery && rm -f /srv/tftpboot/discovery/*.conf
-test -d /srv/tftpboot/discovery/pxelinux.cfg && rm -f /srv/tftpboot/discovery/pxelinux.cfg/*
+test -d /srv/tftpboot/discovery/efi && rm -f /srv/tftpboot/discovery/efi/*.conf
+test -d /srv/tftpboot/discovery/bios/pxelinux.cfg && rm -f /srv/tftpboot/discovery/bios/pxelinux.cfg/*
 
 # Keep copy of files that crowbar will overwrite; this is done only on the very
 # first run of this script, and allow running the installation script again

@@ -91,27 +91,27 @@ check_media_content () {
 }
 
 check_repo_key () {
-    version="$1" repo="$2" ignore_failure="$3"
-    repomd_key=/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml.key
+    version="$1" arch="$2" repo="$3" ignore_failure="$4"
+    repomd_key=/srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key
     if [ ! -f $repomd_key ]; then
       if [ $ignore_failure -eq 1 ]; then
-          echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS (repo does not seem to be signed)"
+          echo "Ignoring failed repo check for $repo ($version - $arch) due to \$REPOS_SKIP_CHECKS (repo does not seem to be signed)"
           return 0
       fi
-      die "$repo ($version) does not seem to be signed"
+      die "$repo ($version - $arch) does not seem to be signed"
     elif ! check_key_file $repomd_key; then
       if [ $ignore_failure -eq 1 ]; then
-          echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS (repo does not seem to be signed with the right key)"
+          echo "Ignoring failed repo check for $repo ($version - $arch) due to \$REPOS_SKIP_CHECKS (repo does not seem to be signed with the right key)"
           return 0
       fi
-      die "$repo ($version) does not seem to be signed with the right key"
+      die "$repo ($version - $arch) does not seem to be signed with the right key"
     fi
 }
 
 check_repo_tag () {
-    tag="$1" version="$2" repo="$3" expected="$4" create_if_missing="$5"
+    tag="$1" version="$2" arch="$3" repo="$4" expected="$5" create_if_missing="$6"
 
-    repo_dir=/srv/tftpboot/suse-$version/repos/$repo
+    repo_dir=/srv/tftpboot/suse-$version/$arch/repos/$repo
 
     case "$tag" in
       summary)
@@ -133,11 +133,11 @@ check_repo_tag () {
 
     if [ ! -d $repo_dir -a \( $ignore_failure -eq 1 -o "$create_if_missing" == "false" \) ]; then
         if [ "$create_if_missing" != "false" ]; then
-            echo "Creating repo skeleton for $repo ($version) to make AutoYaST happy."
+            echo "Creating repo skeleton for $repo ($version - $arch) to make AutoYaST happy."
             mkdir $repo_dir
             /usr/bin/createrepo $repo_dir
         else
-            echo "Optional repo $repo ($version) is missing."
+            echo "Optional repo $repo ($version - $arch) is missing."
         fi
         return 0
     fi
@@ -145,14 +145,14 @@ check_repo_tag () {
     if [ -n "$xml" ]; then
         if ! grep -q "<$tag>$expected</$tag>" $xml; then
             if [ $ignore_failure -eq 1 ]; then
-                echo "Ignoring failed repo check for $repo ($version) due to \$REPOS_SKIP_CHECKS ($xml is missing $tag tag '$expected')"
+                echo "Ignoring failed repo check for $repo ($version - $arch) due to \$REPOS_SKIP_CHECKS ($xml is missing $tag tag '$expected')"
                 return 0
             fi
-            die "$repo ($version) does not contain the right repository ($xml is missing $tag tag '$expected')"
+            die "$repo ($version - $arch) does not contain the right repository ($xml is missing $tag tag '$expected')"
         fi
     fi
 
-    check_repo_key $version $repo $ignore_failure
+    check_repo_key $version $arch $repo $ignore_failure
 }
 
 check_media_links () {
