@@ -541,8 +541,6 @@ test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 # FIXME: repos that we cannot check yet:
 #   Cloud 6 Pool / Updates: non-existing repos
 REPOS_SKIP_CHECKS+=" SUSE-OpenStack-Cloud-SLE11-6-Pool SUSE-OpenStack-Cloud-SLE11-6-Updates SUSE-OpenStack-Cloud-6-Pool SUSE-OpenStack-Cloud-6-Updates"
-#   Storage 1.0 Pool / Updates: non-existing repos
-REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
 
 # Checks for SLE11 medias
 MEDIA=/srv/tftpboot/suse-11.3/install
