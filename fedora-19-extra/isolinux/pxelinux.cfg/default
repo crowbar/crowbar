@@ -1,7 +1,0 @@
-default Hadoop
-timeout 10
-prompt 0
-label Hadoop
-  kernel ../ubuntu_dvd/images/pxeboot/vmlinuz
-  append initrd=../ubuntu_dvd/images/pxeboot/initrd.img ks=file:/pxe.ks ksdevice=bootif
-  IPAPPEND 3
