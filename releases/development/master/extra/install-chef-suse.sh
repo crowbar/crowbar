@@ -80,8 +80,16 @@ mkdir -p "`dirname "$LOGFILE"`"
 
 run_succeeded=
 
+is_ses () {
+  [ -d /opt/dell/barclamps/suse-enterprise-storage ]
+}
+
 
 DIALOG_TITLE=" SUSE OpenStack Cloud 6 "
+
+if is_ses; then
+  DIALOG_TITLE=" SUSE Enterprise Storage "
+fi
 
 # Infrastructure for nice output/logging
 # --------------------------------------
@@ -231,7 +239,7 @@ exit_handler () {
 
 Crowbar installation terminated prematurely.  Please examine the above
 output or $LOGFILE for clues as to what went wrong.
-You should also check the SUSE OpenStack Cloud Installation Manual, in
+You should also check the Installation Manual, in
 particular the Troubleshooting section.  Note that this script can
 safely be re-run multiple times if required.
 EOF
@@ -541,8 +549,6 @@ test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 # FIXME: repos that we cannot check yet:
 #   Cloud 6 Pool / Updates: non-existing repos
 REPOS_SKIP_CHECKS+=" SUSE-OpenStack-Cloud-SLE11-6-Pool SUSE-OpenStack-Cloud-SLE11-6-Updates SUSE-OpenStack-Cloud-6-Pool SUSE-OpenStack-Cloud-6-Updates"
-#   Storage 1.0 Pool / Updates: non-existing repos
-REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-1.0-Pool SUSE-Enterprise-Storage-1.0-Updates"
 
 # Checks for SLE11 medias
 MEDIA=/srv/tftpboot/suse-11.3/install
@@ -559,16 +565,27 @@ fi
 
 check_media_links $MEDIA
 
-check_media_content \
-    Cloud \
-    /srv/tftpboot/suse-11.3/repos/Cloud \
-    #1558be86e7354d31e71e7c8c2574031a
+REQUIRE_STORAGE='false'
+REQUIRE_SLES11='true'
+REQUIRE_CLOUD='true'
+if is_ses; then
+  REQUIRE_STORAGE='true'
+  REQUIRE_SLES11='false'
+  REQUIRE_CLOUD='false'
+fi
+
+if ! is_ses; then
+  check_media_content \
+      Cloud \
+      /srv/tftpboot/suse-11.3/repos/Cloud \
+      #1558be86e7354d31e71e7c8c2574031a
+fi
 
 check_repo_tag repo    11.3 SLES11-SP3-Pool        'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/pool/x86_64'
 check_repo_tag repo    11.3 SLES11-SP3-Updates     'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/update/x86_64'
-check_repo_tag summary 11.3 SUSE-OpenStack-Cloud-SLE11-6-Pool      'SUSE OpenStack Cloud 6 for SLE11 SP3'
-#check_repo_tag repo    11.3 SUSE-OpenStack-Cloud-SLE11-6-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/6/update/x86_64'
-check_repo_tag key     11.3 SUSE-OpenStack-Cloud-SLE11-6-Updates
+check_repo_tag summary 11.3 SUSE-OpenStack-Cloud-SLE11-6-Pool      'SUSE OpenStack Cloud 6 for SLE11 SP3' $REQUIRE_CLOUD
+#check_repo_tag repo    11.3 SUSE-OpenStack-Cloud-SLE11-6-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/6/update/x86_64' $REQUIRE_CLOUD
+check_repo_tag key     11.3 SUSE-OpenStack-Cloud-SLE11-6-Updates $REQUIRE_CLOUD
 check_repo_tag summary 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
 check_repo_tag repo    11.3 SLE11-HAE-SP3-Updates  'updates://zypp-patches.suse.de/autobuild/SLE_HAE/11-SP3/update/x86_64' 'false'
 
@@ -589,15 +606,21 @@ if [ -e $MEDIA/install/boot/x86_64/common ]; then
 
   check_repo_tag repo    12.0 SLES12-Pool                         'obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/x86_64'
   check_repo_tag repo    12.0 SLES12-Updates                      'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:x86_64/update'
-  check_repo_tag repo    12.0 SUSE-OpenStack-Cloud-6-Pool         'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud6/suse-openstack-cloud/6/POOL/x86_64'
-  check_repo_tag summary 12.0 SUSE-OpenStack-Cloud-6-Updates      'SUSE OpenStack Cloud 6'
-  check_repo_tag repo    12.0 SUSE-Enterprise-Storage-1.0-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/ses/1/POOL/x86_64' 'false'
-  check_repo_tag summary 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' 'false'
+  check_repo_tag repo    12.0 SUSE-OpenStack-Cloud-6-Pool         'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud6/suse-openstack-cloud/6/POOL/x86_64' $REQUIRE_CLOUD
+  check_repo_tag summary 12.0 SUSE-OpenStack-Cloud-6-Updates      'SUSE OpenStack Cloud 6' $REQUIRE_CLOUD
+  check_repo_tag repo    12.0 SUSE-Enterprise-Storage-1.0-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/ses/1/POOL/x86_64' $REQUIRE_STORAGE
+  check_repo_tag summary 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' $REQUIRE_STORAGE
 fi
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
-    if ! rpm -q patterns-cloud-admin &> /dev/null; then
-        die "patterns-cloud-admin package is not installed; please install with \"zypper in -t pattern cloud_admin\" or \"zypper in patterns-cloud-admin\". Aborting."
+    pattern=patterns-cloud-admin
+    pattern_short=cloud_admin
+    if is_ses; then
+      pattern=patterns-ses-admin
+      pattern_short=ses_admin
+    fi
+    if ! rpm -q $pattern &> /dev/null; then
+        die "$pattern package is not installed; please install with \"zypper in -t pattern $pattern_short\" or \"zypper in $pattern\". Aborting."
     fi
 fi
 
@@ -796,9 +819,16 @@ fi
 # Take care that the barclamps are installed in the right order (as expressed
 # in cookbook dependencies)
 #
-for i in crowbar deployer dns ipmi logging network ntp provisioner pacemaker \
-         database rabbitmq openstack keystone swift ceph glance cinder neutron \
-         nova nova_dashboard ; do
+required_barclamps="crowbar deployer dns ipmi logging network ntp provisioner"
+
+if is_ses ; then
+    required_barclamps+=" suse-enterprise-storage ceph"
+else
+    required_barclamps+=" pacemaker database rabbitmq openstack keystone
+        swift ceph glance cinder neutron nova nova_dashboard"
+fi
+
+for i in $required_barclamps ; do
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
 done
 
@@ -968,6 +998,12 @@ for bc in crowbar dns network provisioner ntp; do
             --raw -v "[ \"$json_to_merge\" ]"
     fi
 done
+
+if is_ses; then
+  $json_edit "$CROWBAR_JSON" \
+    -a attributes.crowbar.realm \
+    -v 'SUSE Enterprise Storage Crowbar Admin Server'
+fi
 
 mkdir -p /opt/dell/crowbar_framework
 CROWBAR_REALM=$(json_read "$CROWBAR_JSON" attributes.crowbar.realm)
