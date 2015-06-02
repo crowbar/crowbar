@@ -31,7 +31,7 @@ opts = GetoptLong.new(
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--rpm] [--debug] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--rpm] [--debug] [--force] /path/to/new/barclamp"
   exit
 end
 
