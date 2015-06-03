@@ -366,6 +366,8 @@ if [ -n "$PROVISIONER_JSON" ]; then
               SLE-Cloud-PTF \
               SUSE-OpenStack-Cloud-6-Pool \
               SUSE-OpenStack-Cloud-6-Updates \
+              SLE12-HA-Pool \
+              SLE12-HA-Updates \
               SUSE-Enterprise-Storage-1.0-Pool \
               SUSE-Enterprise-Storage-1.0-Updates
   do
@@ -538,6 +540,14 @@ cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-OpenStack-Cloud-6-Updates
 smt_dir=/srv/www/htdocs/repo/SUSE/Updates/OpenStack-Cloud/5/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SLE12-HA-Pool
+smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-HA/12/x86_64/product
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SLE12-HA-Updates
+smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-HA/12/x86_64/update
+test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
 cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-1.0-Pool
 smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/1.0/x86_64/product
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
@@ -608,6 +618,8 @@ if [ -e $MEDIA/install/boot/x86_64/common ]; then
   check_repo_tag repo    12.0 SLES12-Updates                      'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:x86_64/update'
   check_repo_tag repo    12.0 SUSE-OpenStack-Cloud-6-Pool         'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud6/suse-openstack-cloud/6/POOL/x86_64' $REQUIRE_CLOUD
   check_repo_tag summary 12.0 SUSE-OpenStack-Cloud-6-Updates      'SUSE OpenStack Cloud 6' $REQUIRE_CLOUD
+  check_repo_tag repo    12.0 SLE12-HA-Pool                       'obsproduct://build.suse.de/SUSE:SLE-12:GA/sle-ha/12/POOL/x86_64' 'false'
+  check_repo_tag repo    12.0 SLE12-HA-Updates                    'obsrepository://build.suse.de/SUSE:Updates:SLE-HA:12:x86_64/update' 'false'
   check_repo_tag repo    12.0 SUSE-Enterprise-Storage-1.0-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/ses/1/POOL/x86_64' $REQUIRE_STORAGE
   check_repo_tag summary 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' $REQUIRE_STORAGE
 fi
