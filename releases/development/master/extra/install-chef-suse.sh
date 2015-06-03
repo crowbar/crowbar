@@ -362,8 +362,6 @@ if [ -n "$PROVISIONER_JSON" ]; then
               SLE11-HAE-SP3-Updates \
               SLES12-Pool \
               SLES12-Updates \
-              SLE-Cloud \
-              SLE-Cloud-PTF \
               SUSE-OpenStack-Cloud-6-Pool \
               SUSE-OpenStack-Cloud-6-Updates \
               SLE12-HA-Pool \
