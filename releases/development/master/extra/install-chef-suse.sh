@@ -352,8 +352,8 @@ elif [ -n "$CROWBAR_FROM_GIT" -a -f /root/crowbar/provisioner.json ]; then
     PROVISIONER_JSON=/root/crowbar/provisioner.json
 fi
 if [ -n "$PROVISIONER_JSON" ]; then
-  for repo in SLE-Cloud \
-              SLE-Cloud-PTF \
+  for repo in Cloud \
+              Cloud-PTF \
               SUSE-OpenStack-Cloud-SLE11-6-Pool \
               SUSE-OpenStack-Cloud-SLE11-6-Updates \
               SLES11-SP3-Pool \
@@ -362,8 +362,6 @@ if [ -n "$PROVISIONER_JSON" ]; then
               SLE11-HAE-SP3-Updates \
               SLES12-Pool \
               SLES12-Updates \
-              SLE-Cloud \
-              SLE-Cloud-PTF \
               SUSE-OpenStack-Cloud-6-Pool \
               SUSE-OpenStack-Cloud-6-Updates \
               SLE12-HA-Pool \
@@ -376,7 +374,7 @@ if [ -n "$PROVISIONER_JSON" ]; then
       sles12_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.suse-12\\.0.${repo//./\\\\.}.url )"
 
       if [ -n "$common_check" -o -n "$sles12_check" -o -n "$sles11_check" ]; then
-          REPOS_SKIP_CHECKS+=" ${repo#SLE-}"
+          REPOS_SKIP_CHECKS+=" ${repo}"
       fi
   done
 fi
