@@ -325,7 +325,7 @@ fi
 if [ -n "$CROWBAR_FROM_GIT" ]; then
     REPOS_SKIP_CHECKS+=" SLES11-SP3-Pool SLES11-SP3-Updates SUSE-Cloud-5-Pool SUSE-Cloud-5-Updates SLES12-Pool SLES12-Updates SLE-12-Cloud-Compute5-Pool SLE-12-Cloud-Compute5-Updates"
 
-    zypper -n in rubygems rubygem-json createrepo
+    zypper -n in ruby2.1-rubygem-json-1_7 createrepo
 fi
 
 json_edit=/opt/dell/bin/json-edit
@@ -636,13 +636,13 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     fi
 
     # install chef and its dependencies
-    zypper -n --gpg-auto-import-keys in rubygem-chef-server rubygem-chef rabbitmq-server \
-            couchdb rubygem-activesupport
+    zypper -n --gpg-auto-import-keys in ruby2.1-rubygem-chef-server rubygem-chef rabbitmq-server \
+            couchdb ruby2.1-rubygem-activesupport-4_1
 
     # also need these (crowbar dependencies):
-    zypper -n in rubygem-app_config rubygem-cstruct rubygem-kwalify rubygem-ruby-shadow \
-            rubygem-sass rubygem-i18n sleshammer tcpdump rubygem-sprockets-helpers \
-            rubygem-sprockets-sass rubygem-sqlite3
+    zypper -n in ruby2.1-rubygem-cstruct ruby2.1-rubygem-kwalify ruby2.1-rubygem-ruby-shadow \
+            ruby2.1-rubygem-i18n sleshammer tcpdump ruby2.1-rubygem-sprockets-rails \
+            ruby2.1-rubygem-sass-rails ruby2.1-rubygem-sqlite3
 
     # Need this for provisioner to work:
     mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
