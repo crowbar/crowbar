@@ -1,5 +1,7 @@
 # Crowbar Documentation README
 
+[![Join the chat at https://gitter.im/crowbar/crowbar](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/crowbar/crowbar?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 _This is not the documentation you are looking for... it is a pointer to the real documentation._
 
 ## Looking for Crowbar Resources?
