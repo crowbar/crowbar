@@ -1,3 +1,10 @@
+/.guard-exclude-script
+/.guard-include-script
+/.guard-exclude-mirror
+/.guard-include-mirror
+/.guard-exclude-tree
+/.guard-exclude-barclamp
+
 *.lock
 *.lck
 /crowbar*.iso
