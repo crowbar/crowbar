@@ -6,7 +6,7 @@ _This is not the documentation you are looking for... it is a pointer to the rea
 
 [The Crowbar website](http://crowbar.github.io) has links to all information and is our recommended starting place.
 
-## Specific Crowbar Documentation 
+## Specific Crowbar Documentation
 
 We track Crowbar documentation with the code so that we can track versions of documentation with the code.
 
@@ -15,7 +15,6 @@ Here are commonly requested references:
 * [Getting Started Guide](https://github.com/crowbar/crowbar/blob/master/doc/gettingstarted.md)
 * [User Resources](https://github.com/crowbar/crowbar/blob/master/doc/userguide.md)
 * [Developer Resources](https://github.com/crowbar/crowbar/blob/master/doc/devguide.md)
-* [Crowbar Release Management](https://github.com/crowbar/crowbar/blob/master/doc/releasenotes.md)
 
 > You may need to look in subdirectories under the links above for additional details.
 
