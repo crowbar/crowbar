@@ -1,7 +1,7 @@
 source 'https://rubygems.org'
 
 group :development do
-  gem 'pry-debugger', '>= 0.2'
+  gem 'pry-byebug', '>= 3.1.0'
 
   gem 'rb-inotify', '>= 0.9'
   gem 'guard', '>= 1.8'
