@@ -66,6 +66,8 @@ directories [
   "releases/#{release}/master/extra"
 ]
 
+notification :off
+
 group :tree do
   target = value_for(
    "GUARD_TREE_TARGET",
