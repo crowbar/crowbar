@@ -1,4 +1,0 @@
-#!/bin/bash
-# Compile and run tests
-run_on 192.168.124.10 /bin/bash -c 'cd /opt/dell/crowbar_framework/BDD; ./linux.sh'
-exit 0

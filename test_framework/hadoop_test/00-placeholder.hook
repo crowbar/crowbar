@@ -1,4 +1,0 @@
-#!/bin/sh
-# This is a placeholder for the real Hadoop smoketest.
-# It does nothing and fails.
-exit 1
