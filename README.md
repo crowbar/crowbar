@@ -13,7 +13,6 @@ We track Crowbar documentation with the code so that we can track versions of do
 Here are commonly requested references:
 
 * [Getting Started Guide](https://github.com/crowbar/crowbar/blob/master/doc/gettingstarted.md)
-* [User Resources](https://github.com/crowbar/crowbar/blob/master/doc/userguide.md)
 * [Developer Resources](https://github.com/crowbar/crowbar/blob/master/doc/devguide.md)
 
 > You may need to look in subdirectories under the links above for additional details.
