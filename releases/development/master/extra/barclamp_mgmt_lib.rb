@@ -281,6 +281,11 @@ def generate_assets_manifest
     merged_json.deep_merge!(json) unless json.nil?
   end
 
+  assets_folder = File.join(CROWBAR_PATH, 'public', 'assets')
+  unless File.directory? assets_folder
+    FileUtils.mkdir_p assets_folder
+  end
+
   File.open(
     File.join(CROWBAR_PATH, 'public', 'assets', 'manifest.json'),
     'w'
