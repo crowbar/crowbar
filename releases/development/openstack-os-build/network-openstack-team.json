@@ -278,42 +278,6 @@
             }
           }
         },
-        "nova_fixed": {
-          "conduit": "intf1",
-          "vlan": 500,
-          "use_vlan": true,
-          "add_bridge": false,
-          "subnet": "192.168.123.0",
-          "netmask": "255.255.255.0",
-          "broadcast": "192.168.123.255",
-          "router": "192.168.123.1",
-          "router_pref": 20,
-          "ranges": {
-            "router": {
-              "start": "192.168.123.1",
-              "end": "192.168.123.49"
-            },
-            "dhcp": {
-              "start": "192.168.123.50",
-              "end": "192.168.123.254"
-            }
-          }
-        },
-        "nova_floating": {
-          "conduit": "intf1",
-          "vlan": 300,
-          "use_vlan": true,
-          "add_bridge": false,
-          "subnet": "192.168.122.128",
-          "netmask": "255.255.255.192",
-          "broadcast": "192.168.122.191",
-          "ranges": {
-            "host": {
-              "start": "192.168.122.129",
-              "end": "192.168.122.191"
-            }
-          }
-        },
         "bmc": {
           "conduit": "bmc",
           "vlan": 100,

@@ -92,6 +92,7 @@ Public network for nova Virtual Machines
 The nova-network node acts as a router. This must be completely owned by the nova system. 
 nova_floating
 Used for external access to nova virtual machines
+Warning !!! Networks definitions for nova_fixed and nova_floating will be moved to barclamp-neutron
 
 Table 2 Logical Network Definitions
 3.2.2 Changing the network configuration

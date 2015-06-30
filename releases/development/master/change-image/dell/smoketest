@@ -36,7 +36,7 @@ mkdir -p "$LOGDIR"
 
 if [[ ! -f /opt/dell/.all_nets ]]; then
     touch /opt/dell/.all_nets
-    for n in "public host" "storage host" "nova_fixed router"; do
+    for n in "public host" "storage host"; do
         crowbar network allocate_ip default $(hostname --fqdn) $n
     done
 
