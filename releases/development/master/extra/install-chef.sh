@@ -324,9 +324,6 @@ EOF
     chmod 755 /etc/init.d/bluepill
 fi
 
-# Bundle up our patches and put them in a sane place
-(cd "$DVD_PATH/extra"; tar czf "/tftpboot/patches.tar.gz" patches)
-
 if [[ $OS_TOKEN = ubuntu-12.04 ]]; then
     # HACKHACKHACKHACK
     # Let me begin with that this is really crappy.  Ubuntu gem management is confusing
