@@ -7,23 +7,9 @@
 
 *.lock
 *.lck
-/crowbar*.iso
-/crowbar*.tar.gz
-build-info
-sha1sums
-.idea
-.rvmrc
-/testing/
 *~
 .#*
-/extra
-/change-image
-/.ci-tracking
-/.releases
-/barclamps/*/
 *.swp
 *.swo
 .swp
 .swo
-.chef/webui.pem
-.chef/knife.rb
