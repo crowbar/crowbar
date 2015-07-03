@@ -1,5 +1,0 @@
-Drop test hooks you want to run against the admin node before 
-the rest of the cluster nodes are brought up here.
-They will get the IP of the admin node in the ADMIN_NODE_IP environment
-variable, should have a numeric prefix and a suffix of .hook.
-The hooks will be run in lexicographic sort order.

@@ -1,4 +1,0 @@
-Drop test hooks you want to run after all the cluster nodes are deployed.
-They will get the IP of the admin node in the ADMIN_NODE_IP environment
-variable, should have a numeric prefix and a suffix of .hook.
-The hooks will be run in lexicographic sort order.
