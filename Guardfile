@@ -1,3 +1,4 @@
+# vi:syntax=ruby
 #
 # Copyright 2011-2013, Dell
 # Copyright 2013-2015, SUSE Linux GmbH
@@ -46,11 +47,6 @@ def value_for(variable, default)
   target
 end
 
-release = value_for(
-  "GUARD_RELEASE_NAME",
-  "development"
-)
-
 user = value_for(
   "GUARD_SYNC_USER",
   "root"
@@ -60,11 +56,6 @@ host = value_for(
   "GUARD_SYNC_HOST",
   "192.168.124.10"
 )
-
-directories [
-  "barclamps",
-  "releases/#{release}/master/extra"
-]
 
 notification :off
 
@@ -178,7 +169,7 @@ group :script do
   end
 
   script_options = {
-    :source => "releases/#{release}/master/extra/",
+    :source => "scripts/",
     :destination => target,
     :user => user,
     :remote_address => host,
