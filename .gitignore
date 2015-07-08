@@ -5,6 +5,8 @@
 /.guard-exclude-tree
 /.guard-exclude-barclamp
 
+/config/barclamps.local.yml
+
 *.lock
 *.lck
 *~
