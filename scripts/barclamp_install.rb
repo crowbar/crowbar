@@ -75,15 +75,15 @@ ARGV.each do |src|
     system "tar xzf \"#{src}\" -C \"#{tmpdir}\""
     # get the barclamp name, allow the tar ball to be named <barclampname>-barclamp.t*
     target="#{tmpdir}/#{src.split("/")[-1].split(".")[0].chomp("-barclamp")}"
-    if File.exists?(File.join(target,"crowbar.yml"))
-      candidates << target
-    else
+    if get_crowbar_yml_path(target).nil?
       puts "#{src} is not a barclamp tarball, ignoring."
+    else
+      candidates << target
     end
-  when File.exists?(File.join(src,"crowbar.yml"))
+  when !get_crowbar_yml_path(src).nil?
     # We were handed something that looks like a path to a barclamp
     candidates << File.expand_path(src)
-  when File.exists?(File.join(BARCLAMP_PATH, src,"crowbar.yml"))
+  when !get_crowbar_yml_path(File.join(BARCLAMP_PATH, src))
     candidates << File.join(BARCLAMP_PATH, src)
   else
     puts "#{src} is not a barclamp, ignoring."
@@ -94,12 +94,12 @@ debug "checking candidates: #{candidates.to_s}"
 
 barclamps = Hash.new
 candidates.each do |bc|
-  # We have already verified that each of the candidates has crowbar.yml
+  # We have already verified that each of the candidates has crowbar YAML file
   begin
-    debug "trying to parse crowbar.yml"
-    barclamp = YAML.load_file File.join(bc,"crowbar.yml")
+    debug "trying to parse crowbar YAML file in #{bc}"
+    barclamp = YAML.load_file get_crowbar_yml_path(bc)
   rescue
-    puts "Exception occured while parsing crowbar.yml in #{bc}, skiping"
+    puts "Exception occured while parsing crowbar YAML file in #{bc}, skiping"
     next
   end
   
@@ -134,8 +134,15 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
       target=File.join(BARCLAMP_PATH, bc[:src].split("/")[-1])
       if File.directory? target
         debug "target directory #{target} exists"
-        if File.exists? "#{target}/crowbar.yml"
-          debug "#{target}/crowbar.yml file exists"
+        if get_crowbar_yml_path(target).nil?
+          debug "crowbar YAML file does not exists in #{target}"
+          puts "#{target} exists, but it is not a barclamp."
+          puts "Cowardly refusing to overwrite it."
+          debug "temporary directory #{tmpdir} will be removed if it exists"
+          system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
+          exit -1
+        else
+          debug "crowbar YAML file exists in #{target}"
           if File.exists? "#{target}/sha1sums"
             debug "#{target}/sha1sums file exists"
             unless force_install or system "cd \"#{target}\"; sha1sum --status -c sha1sums"
@@ -163,13 +170,6 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
             system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
             exit -1
           end
-        else
-          debug "#{target}/crowbar.yml does not exist"
-          puts "#{target} exists, but it is not a barclamp."
-          puts "Cowardly refusing to overwrite it."
-          debug "temporary directory #{tmpdir} will be removed if it exists"
-          system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
-          exit -1
         end
       else
         debug "target directory \"#{target}\" does not exist"

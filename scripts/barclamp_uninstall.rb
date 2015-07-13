@@ -53,10 +53,10 @@ usage if ARGV.length < 1
   if __FILE__ == $0
     path = ARGV[0]
     debug "Using #{path}"
-    bc_file = File.join path, 'crowbar.yml'
-    unless File.exist? bc_file
+    bc_file = get_crowbar_yml_path(path)
+    if bc_file.nil?
       path = File.join BARCLAMP_PATH, path
-      bc_file = File.join path, 'crowbar.yml'
+      bc_file = get_crowbar_yml_path(path)
     end
     barclamp = YAML.load_file bc_file
     bc = barclamp["barclamp"]["name"].chomp.strip

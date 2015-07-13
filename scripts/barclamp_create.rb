@@ -39,7 +39,7 @@ require "#{require_dir}/barclamp_mgmt_lib.rb"
     path = ARGV[2] || "#{barclamp_dir}"
     target = File.join path, bc
     
-    if File.exist? File.join target, "crowbar.yml"
+    if !get_crowbar_yml_path(target).nil?
       puts "Aborting! A barclamp already exists in '#{target}'."
       exit -3
     elsif ! ( bc =~ /^[a-zA-Z0-9_]*$/ )
