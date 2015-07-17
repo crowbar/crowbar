@@ -565,12 +565,12 @@ check_media_content \
     #1558be86e7354d31e71e7c8c2574031a
 
 check_repo_tag repo    11.3 SLES11-SP3-Pool        'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/pool/x86_64'
-check_repo_tag repo    11.3 SLES11-SP3-Updates     'updates://zypp-patches.suse.de/autobuild/SLE_SERVER/11-SP3/update/x86_64'
+check_repo_tag repo    11.3 SLES11-SP3-Updates     'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:11-SP3:x86_64/update'
 check_repo_tag summary 11.3 SUSE-Cloud-5-Pool      'SUSE Cloud 5'
 #check_repo_tag repo    11.3 SUSE-Cloud-5-Updates   'updates://zypp-patches.suse.de/autobuild/SUSE_CLOUD/5/update/x86_64'
 check_repo_tag key     11.3 SUSE-Cloud-5-Updates
 check_repo_tag summary 11.3 SLE11-HAE-SP3-Pool     'SUSE Linux Enterprise High Availability Extension 11 SP3' 'false'
-check_repo_tag repo    11.3 SLE11-HAE-SP3-Updates  'updates://zypp-patches.suse.de/autobuild/SLE_HAE/11-SP3/update/x86_64' 'false'
+check_repo_tag repo    11.3 SLE11-HAE-SP3-Updates  'obsrepository://build.suse.de/SUSE:Updates:SLE-HAE:11-SP3:x86_64/update' 'false'
 
 # Checks for SLE12 media (currently optional)
 MEDIA=/srv/tftpboot/suse-12.0/install
