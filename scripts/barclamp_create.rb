@@ -39,26 +39,28 @@ require "#{require_dir}/barclamp_mgmt_lib.rb"
     path = ARGV[2] || "#{barclamp_dir}"
     target = File.join path, bc
     
-    if File.exist? File.join target, "crowbar.yml"
+    unless get_crowbar_yml_path(target).nil?
       puts "Aborting! A barclamp already exists in '#{target}'."
       exit -3
-    elsif ! ( bc =~ /^[a-zA-Z0-9_]*$/ )
-      puts "You must supply a name to create a barclamp"
-      exit -3
-    else
-      puts "Creating barclamp '#{bc}' into '#{path}' as entity '#{org}'."
-      files = []
-      FileUtils.mkdir target
-      clone = Dir.entries(MODEL_SOURCE).find_all { |e| !e.start_with? '.'}
-      clone.each do |item|
-        files += bc_cloner(item, bc, org, MODEL_SOURCE, target, true)
-      end
-      filelist = "#{bc}-filelist.txt"
-      File.open( filelist, 'w' ) do |out|
-        files.each { |line| out.puts line } 
-      end
-      puts "Barclamp #{bc} created in #{target}.  Review #{filelist} for files created."
     end
+
+    if ! ( bc =~ /^[a-zA-Z0-9_]*$/ )
+      puts "You must supply a valid name to create a barclamp"
+      exit -3
+    end
+
+    puts "Creating barclamp '#{bc}' into '#{path}' as entity '#{org}'."
+    files = []
+    FileUtils.mkdir target
+    clone = Dir.entries(MODEL_SOURCE).find_all { |e| !e.start_with? '.'}
+    clone.each do |item|
+      files += bc_cloner(item, bc, org, MODEL_SOURCE, target, true)
+    end
+    filelist = "#{bc}-filelist.txt"
+    File.open( filelist, 'w' ) do |out|
+      files.each { |line| out.puts line }
+    end
+    puts "Barclamp #{bc} created in #{target}.  Review #{filelist} for files created."
     
     exit 0
     

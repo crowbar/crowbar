@@ -67,6 +67,20 @@ def fatal(msg, log = nil, exit_code = 1)
   exit exit_code
 end
 
+def get_crowbar_yml_path(directory, suggested_bc_name = nil)
+  if suggested_bc_name.nil?
+    suggested_bc_name = directory.split(File::SEPARATOR)[-1]
+  end
+
+  # Look for both old name (crowbar.yml) and new name ($barclamp.yml)
+  ["#{suggested_by_name}.yml", "crowbar.yml"].each do |basename|
+    path = File.join(directory, basename)
+    return path if File.exists?(path)
+  end
+
+  nil
+end
+
 # entry point for scripts
 def bc_install(from_rpm, bc, bc_path, yaml)
   case yaml["crowbar"]["layout"].to_i
@@ -453,9 +467,9 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
     debug "\tcopied updates files"
   end
 
-  # copy over the crowbar.yml file, needed to update catalog
+  # copy over the crowbar YAML file, needed to update catalog
+  yml_barclamp = get_crowbar_yml_path(bc_path)
   yml_path = File.join CROWBAR_PATH, 'barclamps'
-  yml_barclamp = File.join bc_path, "crowbar.yml"
   yml_created = File.join(yml_path, "#{bc}.yml")
   FileUtils.mkdir yml_path unless File.directory? yml_path
   FileUtils.cp yml_barclamp, yml_created
