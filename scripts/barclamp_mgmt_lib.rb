@@ -73,7 +73,7 @@ def get_crowbar_yml_path(directory, suggested_bc_name = nil)
   end
 
   # Look for both old name (crowbar.yml) and new name ($barclamp.yml)
-  ["#{suggested_by_name}.yml", "crowbar.yml"].each do |basename|
+  ["#{suggested_bc_name}.yml", "crowbar.yml"].each do |basename|
     path = File.join(directory, basename)
     return path if File.exists?(path)
   end
