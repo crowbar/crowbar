@@ -181,10 +181,10 @@ group :script do
   }
 
   guard("remote-sync", script_options) do
-    watch(/\Areleases.+\/barclamp_.+\z/)
-    watch(/\Areleases.+\/json\-.+\z/)
-    watch(/\Areleases.+\/install\-.+\z/)
-    watch(/\Areleases.+\/network\-.+\z/)
+    watch(/\Ascripts.+\/barclamp_.+\z/)
+    watch(/\Ascripts.+\/json\-.+\z/)
+    watch(/\Ascripts.+\/install\-.+\z/)
+    watch(/\Ascripts.+\/network\-.+\z/)
   end
 end
 
