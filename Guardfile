@@ -86,6 +86,7 @@ group :tree do
       file.write "- ==BC-MODEL==*\n"
       file.write "- *==BC-MODEL==\n"
       file.write "- *==BC-MODEL==*\n"
+      file.write "- *.swp\n"
       file.write "- /*\n"
     end
 
@@ -119,6 +120,7 @@ group :tree do
       file.write "+ /smoketest/\n"
       file.write "+ /spec/\n"
       file.write "+ /updates/\n"
+      file.write "- *.swp\n"
       file.write "- /*\n"
     end
 
@@ -153,19 +155,12 @@ group :script do
   )
 
   File.open(exclude_script, "w") do |file|
-    file.write "*\n"
-  end
-
-  include_script = File.expand_path(
-    "../.guard-include-script",
-    __FILE__
-  )
-
-  File.open(include_script, "w") do |file|
-    file.write "barclamp_*\n"
-    file.write "json-*\n"
-    file.write "install-*\n"
-    file.write "network-*\n"
+    file.write "+ barclamp_*\n"
+    file.write "+ json-*\n"
+    file.write "+ install-*\n"
+    file.write "+ network-*\n"
+    file.write "- *.swp\n"
+    file.write "- /*\n"
   end
 
   script_options = {
@@ -174,7 +169,6 @@ group :script do
     :user => user,
     :remote_address => host,
     :exclude_from => exclude_script,
-    :include_from => include_script,
     :sync_on_start => true,
     :ssh => true,
     :cvs_exclude => true
@@ -200,16 +194,9 @@ group :mirror do
   )
 
   File.open(exclude_mirror, "w") do |file|
-    file.write ".KEEP_ME\n"
-  end
-
-  include_mirror = File.expand_path(
-    "../.guard-include-mirror",
-    __FILE__
-  )
-
-  File.open(include_mirror, "w") do |file|
-    file.write "\n"
+    file.write "+ /*\n"
+    file.write "- .KEEP_ME\n"
+    file.write "- *.swp\n"
   end
 
   mirror_options = {
@@ -218,7 +205,6 @@ group :mirror do
     :user => user,
     :remote_address => host,
     :exclude_from => exclude_mirror,
-    :include_from => include_mirror,
     :sync_on_start => true,
     :ssh => true,
     :cvs_exclude => true
