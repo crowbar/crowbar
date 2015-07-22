@@ -1182,7 +1182,7 @@ Admin node deployed.
 
 You can now visit the Crowbar web UI at:
 
-    http://$IP:3000/
+    http://$IP/
 
 You should also now be able to PXE-boot a client.  Please refer
 to the documentation for the next steps.
