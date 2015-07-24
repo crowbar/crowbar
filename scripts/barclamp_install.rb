@@ -83,7 +83,7 @@ ARGV.each do |src|
   when !get_crowbar_yml_path(src).nil?
     # We were handed something that looks like a path to a barclamp
     candidates << File.expand_path(src)
-  when !get_crowbar_yml_path(File.join(BARCLAMP_PATH, src))
+  when !get_crowbar_yml_path(File.join(BARCLAMP_PATH, src)).nil?
     candidates << File.join(BARCLAMP_PATH, src)
   else
     puts "#{src} is not a barclamp, ignoring."
