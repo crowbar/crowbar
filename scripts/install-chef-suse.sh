@@ -629,7 +629,7 @@ if [ -z "$CROWBAR_FROM_GIT" ]; then
       pattern=patterns-ses-admin
       pattern_short=ses_admin
     fi
-    if ! rpm -q $pattern &> /dev/null; then
+    if ! rpm -q --whatprovides $pattern &> /dev/null; then
         die "$pattern package is not installed; please install with \"zypper in -t pattern $pattern_short\" or \"zypper in $pattern\". Aborting."
     fi
 fi
