@@ -1,0 +1,33 @@
+crowbar:
+  - cisco-ucs
+  - crowbar
+  - deployer
+  - dns
+  - ipmi
+  - logging
+  - network
+  - nfs_client
+  - ntp
+  - provisioner
+  - suse-manager-client
+  - updater
+
+openstack:
+  - ceilometer
+  - ceph
+  - cinder
+  - database
+  - glance
+  - heat
+  - hyperv-compute
+  - keystone
+  - manila
+  - neutron
+  - nova
+  - nova_dashboard
+  - openstack
+  - pacemaker
+  - rabbitmq
+  - swift
+  - tempest
+  - trove

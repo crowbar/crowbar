@@ -20,12 +20,12 @@
 # First ensure you have the necessary gems by cd'ing to this directory and
 # running 'bundle install'. Then use as follows:
 #
-#   $ export GUARD_RELEASE_NAME=development # Default is `development`
-#   $ export GUARD_SYNC_USER=root # Default is `root`
-#   $ export GUARD_SYNC_HOST=192.168.124.10 # Default is `192.168.124.10`
-#   $ export GUARD_TREE_TARGET=/opt/dell # Default is `/opt/dell`
-#   $ export GUARD_MIRROR_TARGET=/root/barclamps # Default is `/root/barclamps`
-#   $ export GUARD_SCRIPT_TARGET=/opt/dell/bin # Default is `/opt/dell/bin`
+#   $ export GUARD_RELEASE_NAME=development # Default `development`
+#   $ export GUARD_SYNC_USER=root # Default `root`
+#   $ export GUARD_SYNC_HOST=192.168.124.10 # Default `192.168.124.10`
+#   $ export GUARD_TREE_TARGET=/opt/crowbar # Default `/opt/crowbar`
+#   $ export GUARD_MIRROR_TARGET=/root/barclamps # Default `/root/barclamps`
+#   $ export GUARD_SCRIPT_TARGET=/opt/crowbar/bin # Default `/opt/crowbar/bin`
 #   $ bundle exec guard
 #
 # Now all required files and directories are getting synchronized with the
@@ -62,7 +62,7 @@ notification :off
 group :tree do
   target = value_for(
    "GUARD_TREE_TARGET",
-   "/opt/dell"
+   "/opt/crowbar"
   )
 
   Pathname.new("barclamps").children.each do |barclamp|
@@ -146,7 +146,7 @@ end
 group :script do
   target = value_for(
     "GUARD_SCRIPT_TARGET",
-    "/opt/dell/bin"
+    "/opt/crowbar/bin"
   )
 
   exclude_script = File.expand_path(
