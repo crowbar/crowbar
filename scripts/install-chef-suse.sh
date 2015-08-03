@@ -729,10 +729,10 @@ if [ ! -f /etc/rabbitmq/rabbitmq.config ] ; then
 EOF
 fi
 
-chkconfig rabbitmq-server on
+systemctl enable rabbitmq-server
 ensure_service_running rabbitmq-server
 
-chkconfig couchdb on
+systemctl enable couchdb
 ensure_service_running couchdb
 
 # chef-server is way too verbose in :info, with nothing useful in the log
@@ -742,7 +742,7 @@ perl -i -pe 's{<maxFieldLength>.*</maxFieldLength>}{<maxFieldLength>200000</maxF
 
 services='solr expander server'
 for service in $services; do
-    chkconfig chef-${service} on
+    systemctl enable chef-${service}
 done
 
 for service in $services; do
@@ -1134,7 +1134,7 @@ rm /var/run/crowbar/deploying
 echo_summary "Starting chef-client"
 
 # Need chef-client daemon now
-chkconfig chef-client on
+systemctl enable chef-client
 ensure_service_running chef-client
 
 
