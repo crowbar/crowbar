@@ -730,7 +730,7 @@ EOF
 fi
 
 chkconfig rabbitmq-server on
-ensure_service_running rabbitmq-server '^Node .+ with Pid [0-9]+: running'
+ensure_service_running rabbitmq-server
 
 chkconfig couchdb on
 ensure_service_running couchdb
