@@ -735,8 +735,6 @@ ensure_service_running rabbitmq-server
 chkconfig couchdb on
 ensure_service_running couchdb
 
-chmod o-rwx /etc/chef /etc/chef/{server,solr}.rb
-
 # chef-server is way too verbose in :info, with nothing useful in the log
 sed -i 's/log_level  *:.*/log_level :warn/' /etc/chef/server.rb
 # increase chef-solr index field size
