@@ -796,7 +796,7 @@ chef-client
 echo_summary "Installing barclamps"
 
 # Clean up previous crowbar install run, in case there was one
-test -x /etc/init.d/crowbar && service crowbar stop
+service crowbar status > /dev/null && service crowbar stop
 for i in $BARCLAMP_SRC/*; do
     if test -d $i -a -f $i-filelist.txt; then
         /opt/dell/bin/barclamp_uninstall.rb $BARCLAMP_INSTALL_OPTS $i
