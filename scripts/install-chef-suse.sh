@@ -1114,15 +1114,24 @@ for state in "discovering" "discovered" "hardware-installing" \
     "hardware-installed" "installing" "installed" "readying" "ready"
 do
     while [[ -f "/var/run/crowbar/chef-client.lock" ]]; do sleep 1; done
+
     printf "$state: "
     $CROWBAR crowbar transition "$FQDN" "$state" || \
         die "Transition to $state failed!"
+
     if type -f "transition_check_$state"&>/dev/null; then
         "transition_check_$state" || \
             die "Sanity check for transitioning to $state failed!"
     fi
-    # chef_or_die "Chef run for $state transition failed!"
-    chef-client
+
+    if [ "$state" == "hardware-installing" ]; then
+        # Use crowbar_register mode for claiming the disks, as the OS is
+        # already installed
+        echo '{ "crowbar_wall": { "registering": true } }' > $CROWBAR_TMPDIR/chef-registering.json
+        chef-client --json-attributes $CROWBAR_TMPDIR/chef-registering.json
+    else
+        chef-client
+    fi
     # check_machine_role
 done
 
