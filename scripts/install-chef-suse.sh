@@ -599,7 +599,7 @@ check_repo_tag repo    11.3 SLE11-HAE-SP3-Updates  'obsrepository://build.suse.d
 
 # Checks for SLE12 media (currently optional)
 MEDIA=/srv/tftpboot/suse-12.0/install
-if [ -e $MEDIA/install/boot/x86_64/common ]; then
+if [ -e $MEDIA/boot/x86_64/common ]; then
   check_media_content \
       SLES12 \
       $MEDIA \
