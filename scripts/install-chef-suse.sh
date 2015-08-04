@@ -1169,7 +1169,7 @@ if [ -n "$CROWBAR_RUN_TESTS" ]; then
 fi
 
 for s in xinetd dhcpd apache2 ; do
-    if ! /etc/init.d/$s status >/dev/null ; then
+    if ! service $s status > /dev/null ; then
         die "service $s missing"
     fi
 done
