@@ -1125,8 +1125,8 @@ do
     if [ "$state" == "hardware-installing" ]; then
         # Use crowbar_register mode for claiming the disks, as the OS is
         # already installed
-        echo '{ "crowbar_wall": { "registering": true } }' > $CROWBAR_TMPDIR/chef-registering.json
-        chef-client --json-attributes $CROWBAR_TMPDIR/chef-registering.json
+        echo '{ "crowbar_wall": { "registering": true } }' | \
+            chef-client --json-attributes /dev/stdin
     else
         chef-client
     fi
