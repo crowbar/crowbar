@@ -730,12 +730,10 @@ EOF
 fi
 
 chkconfig rabbitmq-server on
-ensure_service_running rabbitmq-server '^Node .+ with Pid [0-9]+: running'
+ensure_service_running rabbitmq-server
 
 chkconfig couchdb on
 ensure_service_running couchdb
-
-chmod o-rwx /etc/chef /etc/chef/{server,solr}.rb
 
 # chef-server is way too verbose in :info, with nothing useful in the log
 sed -i 's/log_level  *:.*/log_level :warn/' /etc/chef/server.rb
@@ -796,7 +794,7 @@ chef-client
 echo_summary "Installing barclamps"
 
 # Clean up previous crowbar install run, in case there was one
-test -x /etc/init.d/crowbar && service crowbar stop
+service crowbar status > /dev/null && service crowbar stop
 for i in $BARCLAMP_SRC/*; do
     if test -d $i -a -f $i-filelist.txt; then
         /opt/dell/bin/barclamp_uninstall.rb $BARCLAMP_INSTALL_OPTS $i
@@ -1114,15 +1112,24 @@ for state in "discovering" "discovered" "hardware-installing" \
     "hardware-installed" "installing" "installed" "readying" "ready"
 do
     while [[ -f "/var/run/crowbar/chef-client.lock" ]]; do sleep 1; done
+
     printf "$state: "
     $CROWBAR crowbar transition "$FQDN" "$state" || \
         die "Transition to $state failed!"
+
     if type -f "transition_check_$state"&>/dev/null; then
         "transition_check_$state" || \
             die "Sanity check for transitioning to $state failed!"
     fi
-    # chef_or_die "Chef run for $state transition failed!"
-    chef-client
+
+    if [ "$state" == "hardware-installing" ]; then
+        # Use crowbar_register mode for claiming the disks, as the OS is
+        # already installed
+        echo '{ "crowbar_wall": { "registering": true } }' | \
+            chef-client --json-attributes /dev/stdin
+    else
+        chef-client
+    fi
     # check_machine_role
 done
 
@@ -1160,7 +1167,7 @@ if [ -n "$CROWBAR_RUN_TESTS" ]; then
 fi
 
 for s in xinetd dhcpd apache2 ; do
-    if ! /etc/init.d/$s status >/dev/null ; then
+    if ! service $s status > /dev/null ; then
         die "service $s missing"
     fi
 done
