@@ -619,7 +619,7 @@ if [ -e $MEDIA/boot/x86_64/common ]; then
   check_repo_tag repo    12.0 SLE12-HA-Pool                       'obsproduct://build.suse.de/SUSE:SLE-12:GA/sle-ha/12/POOL/x86_64' 'false'
   check_repo_tag repo    12.0 SLE12-HA-Updates                    'obsrepository://build.suse.de/SUSE:Updates:SLE-HA:12:x86_64/update' 'false'
   check_repo_tag repo    12.0 SUSE-Enterprise-Storage-1.0-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/ses/1/POOL/x86_64' $REQUIRE_STORAGE
-  check_repo_tag summary 12.0 SUSE-Enterprise-Storage-1.0-Updates 'SUSE Enterprise Storage 1.0' $REQUIRE_STORAGE
+  check_repo_tag repo    12.0 SUSE-Enterprise-Storage-1.0-Updates 'obsrepository://build.suse.de/SUSE:Updates:Storage:1.0:x86_64/update' $REQUIRE_STORAGE
 fi
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
