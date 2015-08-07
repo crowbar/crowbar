@@ -81,14 +81,14 @@ mkdir -p "`dirname "$LOGFILE"`"
 run_succeeded=
 
 is_ses () {
-  [ -d /opt/dell/barclamps/suse-enterprise-storage ]
+    [ -d /opt/dell/barclamps/suse-enterprise-storage ]
 }
 
 
 DIALOG_TITLE=" SUSE OpenStack Cloud 6 "
 
 if is_ses; then
-  DIALOG_TITLE=" SUSE Enterprise Storage "
+    DIALOG_TITLE=" SUSE Enterprise Storage "
 fi
 
 # Infrastructure for nice output/logging
@@ -260,8 +260,7 @@ CROWBAR_TMPDIR=$(mktemp -d --tmpdir crowbar-install-XXXXXX)
 
 ensure_service_running () {
     service="$1"
-    regexp="${2:-running}"
-    if service $service status | egrep -q "$regexp"; then
+    if service $service status >/dev/null; then
         echo "$service is already running - no need to start."
     else
         service $service start
@@ -353,15 +352,15 @@ elif [ -n "$CROWBAR_FROM_GIT" -a -f /root/crowbar/provisioner.json ]; then
 fi
 if [ -n "$PROVISIONER_JSON" ]; then
     for repo in Cloud \
-              PTF \
-              SLES12-Pool \
-              SLES12-Updates \
-              SUSE-OpenStack-Cloud-6-Pool \
-              SUSE-OpenStack-Cloud-6-Updates \
-              SLE12-HA-Pool \
-              SLE12-HA-Updates \
-              SUSE-Enterprise-Storage-1.0-Pool \
-              SUSE-Enterprise-Storage-1.0-Updates
+        PTF \
+        SLES12-Pool \
+        SLES12-Updates \
+        SUSE-OpenStack-Cloud-6-Pool \
+        SUSE-OpenStack-Cloud-6-Updates \
+        SLE12-HA-Pool \
+        SLE12-HA-Updates \
+        SUSE-Enterprise-Storage-1.0-Pool \
+        SUSE-Enterprise-Storage-1.0-Updates
     do
         common_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.common.${repo//./\\\\.}.url )"
         sles12_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.suse-12\\.0.${repo//./\\\\.}.url )"
@@ -426,26 +425,26 @@ if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb 
 fi
 
 check_or_create_ptf_repository () {
-  version="$1"
-  repo="$2"
+    version="$1"
+    repo="$2"
 
-  if skip_check_for_repo "$repo"; then
-      echo "Skipping check for $repo ($version) due to \$REPOS_SKIP_CHECKS"
-  else
-      if ! [ -e "/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml" ]; then
-          # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
-          # creates the repo metadata for PTF
-          if [ -n $CROWBAR_FROM_GIT ]; then
-              echo "Creating repo skeleton to make AutoYaST happy."
-              if ! [ -d /srv/tftpboot/suse-$version/repos/$repo ]; then
-                  mkdir /srv/tftpboot/suse-$version/repos/$repo
-              fi
-              /usr/bin/createrepo /srv/tftpboot/suse-$version/repos/$repo
-          else
-              die "$repo ($version) has not been set up correctly; did the crowbar rpm fail to install correctly?"
-          fi
-      fi
-  fi
+    if skip_check_for_repo "$repo"; then
+        echo "Skipping check for $repo ($version) due to \$REPOS_SKIP_CHECKS"
+    else
+        if ! [ -e "/srv/tftpboot/suse-$version/repos/$repo/repodata/repomd.xml" ]; then
+            # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
+            # creates the repo metadata for PTF
+            if [ -n $CROWBAR_FROM_GIT ]; then
+                echo "Creating repo skeleton to make AutoYaST happy."
+                if ! [ -d /srv/tftpboot/suse-$version/repos/$repo ]; then
+                    mkdir /srv/tftpboot/suse-$version/repos/$repo
+                fi
+                /usr/bin/createrepo /srv/tftpboot/suse-$version/repos/$repo
+            else
+                die "$repo ($version) has not been set up correctly; did the crowbar rpm fail to install correctly?"
+            fi
+        fi
+    fi
 }
 
 create_gpg_key () {
@@ -548,9 +547,9 @@ if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content;
     REPOS_SKIP_CHECKS+=" SLES12-Pool SLES12-Updates"
 else
     check_media_content \
-      SLES12 \
-      $MEDIA \
-      b52c0f2b41a6a10d49cc89edcdc1b13d
+        SLES12 \
+        $MEDIA \
+        b52c0f2b41a6a10d49cc89edcdc1b13d
 fi
 
 check_media_links $MEDIA
@@ -558,15 +557,15 @@ check_media_links $MEDIA
 REQUIRE_STORAGE='false'
 REQUIRE_CLOUD='true'
 if is_ses; then
-  REQUIRE_STORAGE='true'
-  REQUIRE_CLOUD='false'
+    REQUIRE_STORAGE='true'
+    REQUIRE_CLOUD='false'
 fi
 
 if ! is_ses; then
-  check_media_content \
-      Cloud \
-      /srv/tftpboot/suse-12.0/repos/Cloud \
-      #1558be86e7354d31e71e7c8c2574031a
+    check_media_content \
+        Cloud \
+        /srv/tftpboot/suse-12.0/repos/Cloud \
+        #1558be86e7354d31e71e7c8c2574031a
 fi
 
 check_repo_tag repo    12.0 SLES12-Pool                         'obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/x86_64'
@@ -582,8 +581,8 @@ if [ -z "$CROWBAR_FROM_GIT" ]; then
     pattern=patterns-cloud-admin
     pattern_short=cloud_admin
     if is_ses; then
-      pattern=patterns-ses-admin
-      pattern_short=ses_admin
+        pattern=patterns-ses-admin
+        pattern_short=ses_admin
     fi
     if ! rpm -q --whatprovides $pattern &> /dev/null; then
         die "$pattern package is not installed; please install with \"zypper in -t pattern $pattern_short\" or \"zypper in $pattern\". Aborting."
@@ -662,14 +661,14 @@ if [ $(rpm -q --qf "%{version}" rubygem-chef | cut -d . -f 1) -ne 10 ]; then
 fi
 
 if test -f /etc/rabbitmq/rabbitmq-env.conf && \
-   grep -q ^SERVER_START_ARGS= /etc/rabbitmq/rabbitmq-env.conf && \
-   ! grep -q '^SERVER_START_ARGS=.*-rabbit frame_max 0' /etc/rabbitmq/rabbitmq-env.conf; then
-  die "SERVER_START_ARGS already defined in /etc/rabbitmq/rabbitmq-env.conf, without \"-rabbit frame_max 0\""
+    grep -q ^SERVER_START_ARGS= /etc/rabbitmq/rabbitmq-env.conf && \
+    ! grep -q '^SERVER_START_ARGS=.*-rabbit frame_max 0' /etc/rabbitmq/rabbitmq-env.conf; then
+    die "SERVER_START_ARGS already defined in /etc/rabbitmq/rabbitmq-env.conf, without \"-rabbit frame_max 0\""
 elif ! ( test -f /etc/rabbitmq/rabbitmq-env.conf && \
-   grep -q ^SERVER_START_ARGS= /etc/rabbitmq/rabbitmq-env.conf ); then
-  echo '# Workaround for bunny version required by chef not supporting frames' >> /etc/rabbitmq/rabbitmq-env.conf
-  echo '# http://bugzilla.suse.com/show_bug.cgi?id=910815' >> /etc/rabbitmq/rabbitmq-env.conf
-  echo 'SERVER_START_ARGS="-rabbit frame_max 0"' >> /etc/rabbitmq/rabbitmq-env.conf
+    grep -q ^SERVER_START_ARGS= /etc/rabbitmq/rabbitmq-env.conf ); then
+    echo '# Workaround for bunny version required by chef not supporting frames' >> /etc/rabbitmq/rabbitmq-env.conf
+    echo '# http://bugzilla.suse.com/show_bug.cgi?id=910815' >> /etc/rabbitmq/rabbitmq-env.conf
+    echo 'SERVER_START_ARGS="-rabbit frame_max 0"' >> /etc/rabbitmq/rabbitmq-env.conf
 fi
 
 # Write default RabbitMQ configuration (if the package doesn't provide one).
@@ -960,9 +959,9 @@ for bc in crowbar dns network provisioner ntp; do
 done
 
 if is_ses; then
-  $json_edit "$CROWBAR_JSON" \
-    -a attributes.crowbar.realm \
-    -v 'SUSE Enterprise Storage Crowbar Admin Server'
+    $json_edit "$CROWBAR_JSON" \
+        -a attributes.crowbar.realm \
+        -v 'SUSE Enterprise Storage Crowbar Admin Server'
 fi
 
 mkdir -p /opt/dell/crowbar_framework

@@ -1,0 +1,6 @@
+language: bash
+sudo: true
+install:
+    - make install
+script:
+    - make test
