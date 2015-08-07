@@ -260,8 +260,7 @@ CROWBAR_TMPDIR=$(mktemp -d --tmpdir crowbar-install-XXXXXX)
 
 ensure_service_running () {
     service="$1"
-    regexp="${2:-running}"
-    if service $service status | egrep -q "$regexp"; then
+    if service $service status >/dev/null; then
         echo "$service is already running - no need to start."
     else
         service $service start
