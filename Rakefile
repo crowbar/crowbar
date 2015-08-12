@@ -159,7 +159,7 @@ namespace :crowbar do
       end
 
       Dir.chdir barclamp_dir do
-        ["upstream" "suse-cloud"].each do |remote|
+        ["upstream", "suse-cloud"].each do |remote|
           if @git.remotes.include? remote
             puts "Updating #{remote} of #{barclamp}..."
             msg = @git.fetch(remote, prune: true)
