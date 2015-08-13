@@ -97,11 +97,11 @@ Before we can start you need to match some prerequirements on your host machine.
      rubygems source from ```https``` to ```http``` as there is some known issue
      in SLE 11 for bundle install..
 
-  5. Now run Guard to sync you local git clones with the server, please execute
+  6. Now run Guard to sync you local git clones with the server, please execute
      ```GUARD_SYNC_HOST=192.168.106.10 bundle exec guard``` in a seperate
      terminal window as this process will stay in the foreground.
 
-  6. Now ssh to the admin node and follow the steps below:
+  7. Now ssh to the admin node and follow the steps below:
 
     1. Change to ```/opt/crowbar/crowbar_framework```.
 
@@ -116,6 +116,11 @@ Before we can start you need to match some prerequirements on your host machine.
        done
        ```
 
-    4. Run the Rails server ```bin/rails s -b 0.0.0.0 -p 5000```
+    4. shutdown the production server `systemctl stop crowbar && systemctl disable crowbar`
+       as it currently causes confusion with the crowbar database. It gets out of sync when
+       you e.g. change proposals.
 
-  7. Now you can access you crowbar development setup via ```http://192.168.106.10:5000```
+    5. Run the Rails server ```bin/rails s -b 0.0.0.0 -p 5000```
+
+
+  8. Now you can access you crowbar development setup via ```http://192.168.106.10:5000```
