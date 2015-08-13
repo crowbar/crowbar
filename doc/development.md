@@ -53,7 +53,7 @@ Before we can start you need to match some prerequirements on your host machine.
        mkdir -p /opt/crowbar/crowbar_framework/db;
        mkdir -p /opt/crowbar/barclamps;
 
-       ln -sf /opt/dell/crowbar_framework/db/production.sqlite3 /opt/crowbar/crowbar_framework/db/development.sqlite3;
+       cp /opt/dell/crowbar_framework/db/production.sqlite3 /opt/crowbar/crowbar_framework/db/development.sqlite3;
        ln -sf /usr/bin/ruby.ruby2.1 /usr/bin/ruby
      EOS
      )
