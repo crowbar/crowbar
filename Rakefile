@@ -45,9 +45,9 @@ namespace :crowbar do
       {}
     end
 
-    @barclamps = general_config.deep_merge(
+    @barclamps = general_config.zip(
       local_config
-    ).values.flatten
+    ).flatten.uniq
   end
 
   desc "Init all barclamps"
@@ -66,11 +66,11 @@ namespace :crowbar do
 
     @barclamps.each do |barclamp|
       begin
-        if client.repository? "#{client.login}/barclamp-#{barclamp}"
+        if client.repository? "#{client.login}/#{barclamp}"
           puts "Barclamp #{barclamp} already forked. Skipping..."
         else
           puts "Forking barclamp #{barclamp}..."
-          client.fork("crowbar/barclamp-#{barclamp}")
+          client.fork("crowbar/#{barclamp}")
         end
       rescue Octokit::NotFound
         puts "Barclamp #{barclamp} does not exist"
@@ -87,9 +87,9 @@ namespace :crowbar do
         if Dir.exist? barclamp
           puts "Barclamp #{barclamp} already exists. Skipping..."
         else
-          if client.repository? "#{client.login}/barclamp-#{barclamp}"
+          if client.repository? "#{client.login}/#{barclamp}"
             puts "Cloning barclamp #{barclamp}..."
-            Git.clone("git@github.com:#{client.login}/barclamp-#{barclamp}.git", barclamp)
+            Git.clone("git@github.com:#{client.login}/#{barclamp}.git", barclamp.gsub(/\Acrowbar-/, ""))
           else
             puts "Barclamp #{barclamp} does not exist"
           end
@@ -103,7 +103,7 @@ namespace :crowbar do
     client = Octokit::Client.new(netrc: true)
 
     @barclamps.each do |barclamp|
-      barclamp_dir = File.join("barclamps", barclamp)
+      barclamp_dir = File.join("barclamps", barclamp.gsub(/\Acrowbar-/, ""))
 
       unless Dir.exist? barclamp_dir
         puts "Barclamp #{barclamp} directory does not exist"
@@ -113,9 +113,9 @@ namespace :crowbar do
       Dir.chdir barclamp_dir do
         next if @git.remotes.include? "upstream"
 
-        if client.repository? "crowbar/barclamp-#{barclamp}"
+        if client.repository? "crowbar/#{barclamp}"
           puts "Adding remote upstream for #{barclamp}..."
-          @git.remote_add("upstream", "git@github.com:crowbar/barclamp-#{barclamp}.git", fetch: true)
+          @git.remote_add("upstream", "git@github.com:crowbar/#{barclamp}.git", fetch: true)
         else
           puts "Barclamp #{barclamp} doesn't exist within Crowbar org"
         end
@@ -128,7 +128,7 @@ namespace :crowbar do
     client = Octokit::Client.new(netrc: true)
 
     @barclamps.each do |barclamp|
-      barclamp_dir = File.join("barclamps", barclamp)
+      barclamp_dir = File.join("barclamps", barclamp.gsub(/\Acrowbar-/, ""))
 
       unless Dir.exist? barclamp_dir
         puts "Barclamp #{barclamp} directory does not exist"
@@ -138,9 +138,9 @@ namespace :crowbar do
       Dir.chdir barclamp_dir do
         next if @git.remotes.include? "suse-cloud"
 
-        if client.repository? "SUSE-Cloud/barclamp-#{barclamp}"
+        if client.repository? "SUSE-Cloud/#{barclamp}"
           puts "Adding remote suse-cloud for #{barclamp}..."
-          @git.remote_add("suse-cloud", "git@github.com:SUSE-Cloud/barclamp-#{barclamp}.git", fetch: true)
+          @git.remote_add("suse-cloud", "git@github.com:SUSE-Cloud/#{barclamp}.git", fetch: true)
         else
           puts "Barclamp #{barclamp} doesn't exist within SUSE-Cloud org"
         end
@@ -151,7 +151,7 @@ namespace :crowbar do
   desc "Update remotes repositories"
   task update_remotes: [:configure] do
     @barclamps.each do |barclamp|
-      barclamp_dir = File.join("barclamps", barclamp)
+      barclamp_dir = File.join("barclamps", barclamp.gsub(/\Acrowbar-/, ""))
 
       unless Dir.exist? barclamp_dir
         puts "Barclamp #{barclamp} directory does not exist"
@@ -175,7 +175,7 @@ namespace :crowbar do
   desc "Pull from upstream/master"
   task pull_upstream: [:configure] do
     @barclamps.each do |barclamp|
-      barclamp_dir = File.join("barclamps", barclamp)
+      barclamp_dir = File.join("barclamps", barclamp.gsub(/\Acrowbar-/, ""))
 
       unless Dir.exist? barclamp_dir
         puts "Barclamp #{barclamp} directory does not exist"
