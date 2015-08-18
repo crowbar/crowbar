@@ -47,7 +47,7 @@ namespace :crowbar do
 
     @barclamps = general_config.zip(
       local_config
-    ).flatten.uniq
+    ).flatten.compact.uniq
   end
 
   desc "Init all barclamps"
@@ -84,12 +84,13 @@ namespace :crowbar do
 
     Dir.chdir "barclamps" do
       @barclamps.each do |barclamp|
-        if Dir.exist? barclamp
+        short_name = barclamp.gsub(/\Acrowbar-/, "")
+        if Dir.exist?(barclamp) || Dir.exist?(short_name)
           puts "Barclamp #{barclamp} already exists. Skipping..."
         else
           if client.repository? "#{client.login}/#{barclamp}"
             puts "Cloning barclamp #{barclamp}..."
-            Git.clone("git@github.com:#{client.login}/#{barclamp}.git", barclamp.gsub(/\Acrowbar-/, ""))
+            Git.clone("git@github.com:#{client.login}/#{barclamp}.git", short_name)
           else
             puts "Barclamp #{barclamp} does not exist"
           end
