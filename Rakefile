@@ -62,6 +62,27 @@ namespace :crowbar do
     end
   end
 
+  desc "Help"
+  task :help do
+    config = {
+      local_only: "(true|false) only use config/barclamps.local.yml"
+    }
+    hints = [
+      "Create config/config.yml for general configuration",
+      "Override config/barclamps.yml with config/barclamps.local.yml"
+    ]
+
+    puts "Hints:"
+    hints.each do |hint|
+      puts "  #{hint}"
+    end
+
+    puts "Configuration Options: (config/config.yml)"
+    config.each do |option, helptext|
+      puts "  #{option} = #{helptext}"
+    end
+  end
+
   desc "Init all barclamps"
   task init: [:fork, :clone, :add_upstream, :add_susecloud] do
     # nothing to do here
