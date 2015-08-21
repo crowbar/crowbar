@@ -25,29 +25,41 @@ namespace :crowbar do
   task :configure do
     @git = Git::Lib.new
 
-    general_path = File.expand_path("../config/barclamps.yml", __FILE__)
+    config_path = File.expand_path("../config/config.yml", __FILE__)
 
-    general_config = if File.exist? general_path
+    config = if File.exist? config_path
       YAML.load_file(
-        general_path
+        config_path
       )
     else
       {}
     end
 
-    local_path = File.expand_path("../config/barclamps.local.yml", __FILE__)
+    barclamps_general_path = File.expand_path("../config/barclamps.yml", __FILE__)
 
-    local_config = if File.exist? local_path
+    barclamps_general = if File.exist? barclamps_general_path
       YAML.load_file(
-        local_path
+        barclamps_general_path
       )
     else
       {}
     end
 
-    @barclamps = general_config.zip(
-      local_config
-    ).flatten.compact.uniq
+    barclamps_local_path = File.expand_path("../config/barclamps.local.yml", __FILE__)
+
+    barclamps_local = if File.exist? barclamps_local_path
+      YAML.load_file(
+        barclamps_local_path
+      )
+    else
+      {}
+    end
+
+    @barclamps = if config["local_only"]
+      barclamps_local
+    else
+      barclamps_general + barclamps_local
+    end
   end
 
   desc "Init all barclamps"
