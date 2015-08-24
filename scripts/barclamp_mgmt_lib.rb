@@ -552,7 +552,7 @@ def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
   do_migrate = check_schema_migration(bc)
 
   if from_rpm
-    rpm = 'crowbar-barclamp-' + File.basename(bc_path)
+    rpm = 'crowbar-' + File.basename(bc_path)
     debug "obtaining chef components from #{rpm} rpm"
     rpm_files = get_rpm_file_list(rpm)
     upload_cookbooks_from_rpm rpm, rpm_files, bc_path, log
