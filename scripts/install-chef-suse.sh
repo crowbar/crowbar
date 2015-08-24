@@ -778,13 +778,12 @@ fi
 # Take care that the barclamps are installed in the right order (as expressed
 # in cookbook dependencies)
 #
-required_barclamps="crowbar deployer dns ipmi logging network ntp provisioner"
+required_barclamps="core"
 
 if is_ses ; then
     required_barclamps+=" suse-enterprise-storage ceph"
 else
-    required_barclamps+=" pacemaker database rabbitmq openstack keystone
-        swift ceph glance cinder neutron nova nova_dashboard"
+    required_barclamps+=" ha ceph openstack"
 fi
 
 for i in $required_barclamps ; do
@@ -792,8 +791,8 @@ for i in $required_barclamps ; do
 done
 
 # Install optional barclamps if they're present
-for i in updater suse-manager-client nfs_client \
-    cisco-ucs hyperv heat ceilometer manila trove tempest ; do
+for i in \
+    hyperv ; do
     if test -d $BARCLAMP_SRC/$i; then
         /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
     fi
