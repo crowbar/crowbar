@@ -1,5 +1,5 @@
 language: bash
-sudo: true
+sudo: false
 install:
     - make install
 script:
