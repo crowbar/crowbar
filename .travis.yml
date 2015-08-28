@@ -1,6 +1,6 @@
-language: bash
-sudo: true
+language: python
+sudo: false
 install:
-    - make install
+  - "pip install bashate"
 script:
-    - make test
+  - make test
