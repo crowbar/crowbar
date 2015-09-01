@@ -538,17 +538,6 @@ def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
 
-  yaml_with_id = yaml.clone
-  yaml_with_id["id"] = bc
-  begin
-    temp = Tempfile.new(["#{bc}-", '.json'])
-    temp.write(JSON.pretty_generate(yaml_with_id))
-    temp.flush
-    upload_data_bag_from_file 'barclamps', temp.path, bc_path, log
-  ensure
-    temp.close!
-  end
-
   do_migrate = check_schema_migration(bc)
 
   if from_rpm
