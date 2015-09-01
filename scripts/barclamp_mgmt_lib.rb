@@ -89,8 +89,6 @@ def bc_install(from_rpm, bc, bc_path, yaml)
     bc_install_layout_1_app from_rpm, bc, bc_path, yaml
     debug "Installing chef components"
     bc_install_layout_1_chef from_rpm, bc, bc_path, yaml
-    debug "Installing cache components"
-    bc_install_layout_1_cache from_rpm, bc, bc_path, yaml
   else
     raise "ERROR: could not install barclamp #{bc} because #{yaml["barclamp"]["crowbar_layout"]} is unknown layout."
   end
@@ -744,50 +742,4 @@ def upload_role_from_dir(role_path, bc_path, log)
     fatal "#{knife_role} failed.", log
   end
   debug "\texecuted: #{bc_path} #{knife_role}"
-end
-
-def bc_install_layout_1_cache(from_rpm, bc, bc_path, yaml)
-  return unless File.directory?(File.join(bc_path,"cache"))
-  Dir.entries(File.join(bc_path,"cache")).each do |ent|
-    debug ent.inspect
-    case
-    when ent == "files"
-      debug "Copying files"
-      system "cp -r \"#{bc_path}/cache/#{ent}\" /tftpboot"
-    when ent == "gems"
-      # Symlink the gems into One Flat Directory.
-      debug "Installing gems"
-      Dir.entries("#{bc_path}/cache/gems").each do |gem|
-        next unless /\.gem$/ =~ gem
-        unless File.directory? "/tftpboot/gemsite/gems"
-          system "mkdir -p /tftpboot/gemsite/gems"
-        end
-        unless File.symlink? "/tftpboot/gemsite/gems/#{gem}"
-          debug "Symlinking #{bc_path}/cache/gems/#{gem} into /tftpboot/gemsite/gems"
-          File.symlink "#{bc_path}/cache/gems/#{gem}", "/tftpboot/gemsite/gems/#{gem}"
-        end
-      end
-      debug "Done"
-    when File.directory?("#{bc_path}/cache/#{ent}/pkgs")
-      debug "Installing packages"
-      # We have actual packages here.  They map into the target like so:
-      # bc_path/ent/pkgs -> /tftboot/ent/crowbar-extras/bc
-      unless File.directory? "/tftpboot/#{ent}/crowbar-extra/"
-        system "mkdir -p \"/tftpboot/#{ent}/crowbar-extra/\""
-      end
-      # sigh, ubuntu-install and redhat-install.
-      unless File.symlink? "/tftpboot/#{ent}/crowbar-extra/#{bc_path.split('/')[-1]}"
-        debug "Symlinking #{bc_path}/cache/#{ent}/pkgs into /tftpboot/#{ent}/crowbar-extra"
-        File.symlink "#{bc_path}/cache/#{ent}/pkgs", "/tftpboot/#{ent}/crowbar-extra/#{bc_path.split('/')[-1]}"
-      end
-    else
-      # Symlink the repos into One Flat Directory for serving.
-      FileUtils.mkdir_p "/tftpboot/#{ent}"
-      unless File.symlink? "/tftpboot/#{ent}/#{bc}"
-        File.symlink("#{bc_path}/cache/#{ent}","/tftpboot/#{ent}/#{bc}")
-      end
-    end
-    debug "Done"
-    true
-  end
 end
