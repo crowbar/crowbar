@@ -223,3 +223,40 @@ namespace :crowbar do
     end
   end
 end
+
+namespace :test do
+  task dependencies: [] do
+    if ENV["TRAVIS"]
+      system("pip install bashate")
+    else
+      system("sudo pip install bashate")
+    end
+    exit $?.exitstatus
+  end
+
+  desc "Run bashate tests"
+  task bashate: [:dependencies] do
+    script = "scripts/install-chef-suse.sh"
+    puts "checking #{script}"
+
+    system("bash -n  #{script}")
+    if $?.exitcode != 0
+      exit 3
+    end
+
+    system("bashate --ignore E010,E011,E020 #{script}")
+    if $?.exitcode != 0
+      exit 4
+    end
+
+    # checking for tabs in the file
+    if File.open(script).grep(/\t/).any?
+      exit 5
+    end
+
+  end
+end
+
+task default: [
+  "test:bashate"
+]
