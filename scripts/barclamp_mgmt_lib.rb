@@ -88,7 +88,7 @@ def bc_install(from_rpm, bc, bc_path, yaml)
     debug "Installing app components"
     bc_install_layout_1_app from_rpm, bc, bc_path, yaml
     debug "Installing chef components"
-    bc_install_layout_1_chef from_rpm, bc, bc_path, yaml
+    bc_install_layout_1_chef from_rpm, bc, bc_path
   else
     raise "ERROR: could not install barclamp #{bc} because #{yaml["barclamp"]["crowbar_layout"]} is unknown layout."
   end
@@ -525,7 +525,7 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
 end
 
 # upload the chef parts for a barclamp
-def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
+def bc_install_layout_1_chef(from_rpm, bc, bc_path)
   log_path = File.join '/var', 'log', 'crowbar', 'barclamp_install'
   FileUtils.mkdir log_path unless File.directory? log_path
   log = File.join log_path, "#{bc}.log"
@@ -536,16 +536,6 @@ def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
 
-  yaml_with_id = yaml.clone
-  yaml_with_id["id"] = bc
-  begin
-    temp = Tempfile.new(["#{bc}-", '.json'])
-    temp.write(JSON.pretty_generate(yaml_with_id))
-    temp.flush
-    upload_data_bag_from_file 'barclamps', temp.path, bc_path, log
-  ensure
-    temp.close!
-  end
 
   do_migrate = check_schema_migration(bc)
 
