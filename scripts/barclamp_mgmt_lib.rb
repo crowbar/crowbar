@@ -78,21 +78,6 @@ def get_yml_paths(directory, suggested_bc_name = nil)
   yml_files
 end
 
-# entry point for scripts
-def bc_install(from_rpm, bc, bc_path, yaml)
-  if yaml["crowbar"]["layout"].to_i == 1
-    debug "Installing app components"
-    bc_install_layout_1_app from_rpm, bc, bc_path, yaml
-    debug "Installing chef components"
-    bc_install_layout_1_chef from_rpm, bc_path
-  else
-    raise "ERROR: could not install barclamp #{bc} because #{yaml["barclamp"]["crowbar_layout"]} is unknown layout."
-  end
-  generate_navigation
-  generate_assets_manifest
-  catalog bc_path
-end
-
 # regenerate the barclamp catalog (does a complete regen each install)
 def catalog
   debug "Creating catalog"
