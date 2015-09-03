@@ -774,31 +774,19 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     touch /opt/dell/crowbar_framework/app/views/barclamp/git/_pfsdeps.html.haml
 fi
 
-#
-# Take care that the barclamps are installed in the right order (as expressed
-# in cookbook dependencies)
-#
-required_barclamps="crowbar deployer dns ipmi logging network ntp provisioner"
-
+required_components="core"
 if is_ses ; then
-    required_barclamps+=" suse-enterprise-storage ceph"
+    required_components+=" suse-enterprise-storage ceph"
 else
-    required_barclamps+=" pacemaker database rabbitmq openstack keystone
-        swift ceph glance cinder neutron nova nova_dashboard"
+    required_components+=" openstack ha ceph"
 fi
 
-for i in $required_barclamps ; do
-    /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
-done
+/opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $required_components
 
-# Install optional barclamps if they're present
-for i in updater suse-manager-client nfs_client \
-    cisco-ucs hyperv heat ceilometer manila trove tempest ; do
-    if test -d $BARCLAMP_SRC/$i; then
-        /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $BARCLAMP_SRC/$i
-    fi
-done
-
+# Install optional components if they're present
+if test -d $BARCLAMP_SRC/hyperv; then
+    /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS hyperv
+fi
 
 # First step of crowbar bootstrap
 # -------------------------------
