@@ -25,8 +25,8 @@ development setup and how it is configured.
 We have the following two flavors of the Crowbar Web UI running so we can easily
 compare the differences:
 
-  1. __Regular SUSE Cloud install__. Runs on [port 3000]
-     (http://HOSTNAME:3000) and from the `/opt/dell` directory.
+  1. __Regular SUSE Cloud install__. Runs on standard http port
+     (http://HOSTNAME) and from the `/opt/dell` directory.
   2. __From Git upstream branding__. Runs on [port 5000]
      (http://HOSTNAME:5100) and from the `/opt/crowbar` directory.
 
