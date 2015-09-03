@@ -521,10 +521,6 @@ def bc_install_layout_1_chef(from_rpm, component_paths)
   log = File.join log_path, "chef_upload.log"
   File.open(log, "a") { |f| f.puts("======== Installing chef components -- #{Time.now.strftime('%c')} ========") }
   debug "Capturing chef install logs to #{log}"
-  chef = File.join component_paths, 'chef'
-  cookbooks = File.join chef, 'cookbooks'
-  databags = File.join chef, 'data_bags'
-  roles = File.join chef, 'roles'
 
   if from_rpm
     rpm_files = Array.new
@@ -538,6 +534,10 @@ def bc_install_layout_1_chef(from_rpm, component_paths)
     upload_data_bags_from_rpm rpm_files, log
     upload_roles_from_rpm rpm_files, log
   else
+    chef = File.join component_paths, 'chef'
+    cookbooks = File.join chef, 'cookbooks'
+    databags = File.join chef, 'data_bags'
+    roles = File.join chef, 'roles'
 
     debug "obtaining chef components from #{component_paths} directory"
     upload_cookbooks_from_dir cookbooks, ['ALL'], log
