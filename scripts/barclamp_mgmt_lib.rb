@@ -525,7 +525,7 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
 end
 
 # upload the chef parts for a barclamp
-def bc_install_layout_1_chef(from_rpm, bc, bc_path)
+def bc_install_layout_1_chef(from_rpm, component_paths)
   log_path = File.join '/var', 'log', 'crowbar', 'barclamp_install'
   FileUtils.mkdir log_path unless File.directory? log_path
   log = File.join log_path, "#{bc}.log"
@@ -614,51 +614,51 @@ def get_rpm_file_list(rpm)
   return file_list
 end
 
-def upload_cookbooks_from_rpm(rpm, rpm_files, bc_path, log)
+def upload_cookbooks_from_rpm(rpm_files, log)
   cookbooks_dir = "#{BASE_PATH}/chef/cookbooks"
   cookbooks = rpm_files.inject([]) do |acc, file|
     if File.directory?(file) and file =~ %r!^#{cookbooks_dir}/([^/]+)$!
       cookbook = File.basename(file)
-      debug "will upload #{cookbook} from #{file} from #{rpm} rpm"
+      debug "will upload #{cookbook} from #{file}"
       acc.push cookbook
     end
     acc
   end
   if cookbooks.empty?
-    puts "WARNING: didn't find any cookbooks from #{rpm} rpm in #{cookbooks_dir}"
+    puts "WARNING: didn't find any cookbooks from in #{cookbooks_dir}"
   else
-    upload_cookbooks_from_dir(cookbooks_dir, cookbooks, bc_path, log)
+    upload_cookbooks_from_dir(cookbooks_dir, cookbooks, log)
   end
 end
 
-def upload_data_bags_from_rpm(rpm, rpm_files, bc_path, log)
+def upload_data_bags_from_rpm(rpm_files, log)
   data_bags_dir = "#{BASE_PATH}/chef/data_bags"
   data_bag_files = rpm_files.grep(%r!^#{data_bags_dir}/([^/]+)/[^/]+\.json$!) do |path|
     [ $1, path ]
   end
   if data_bag_files.empty?
-    puts "WARNING: didn't find any data bags from #{rpm} rpm in #{data_bags_dir}"
+    puts "WARNING: didn't find any data bags in #{data_bags_dir}"
   else
     data_bag_files.each do |bag, bag_item_path|
-      debug "uploading #{bag} from #{rpm} rpm"
-      upload_data_bag_from_file(bag, bag_item_path, bc_path, log)
+      debug "uploading #{bag}"
+      upload_data_bag_from_file(bag, bag_item_path, log)
     end
   end
 end
 
-def upload_roles_from_rpm(rpm, rpm_files, bc_path, log)
+def upload_roles_from_rpm(rpm_files, log)
   roles_dir = "#{BASE_PATH}/chef/roles"
   roles = rpm_files.grep(%r!^#{roles_dir}/([^/]+)$!)
   if roles.empty?
-    puts "WARNING: didn't find any roles from #{rpm} rpm in #{roles_dir}"
+    puts "WARNING: didn't find any roles in #{roles_dir}"
   else
     roles.each do |role|
-      upload_role_from_dir(role, bc_path, log)
+      upload_role_from_dir(role, log)
     end
   end
 end
 
-def upload_cookbooks_from_dir(cookbooks_dir, cookbooks, bc_path, log)
+def upload_cookbooks_from_dir(cookbooks_dir, cookbooks, log)
   upload_all = cookbooks.length == 1 && cookbooks[0] == 'ALL'
   if File.directory? cookbooks_dir
     FileUtils.cd cookbooks_dir
@@ -666,22 +666,22 @@ def upload_cookbooks_from_dir(cookbooks_dir, cookbooks, bc_path, log)
     knife_cookbook = "knife cookbook upload -o . #{opts} -V -k /etc/chef/webui.pem -u chef-webui"
     debug "running #{knife_cookbook} from #{cookbooks_dir}"
     unless system knife_cookbook + " >> #{log} 2>&1"
-      fatal "#{bc_path} #{knife_cookbook} upload failed.", log
+      fatal "#{knife_cookbook} upload failed.", log
     end
-    debug "\texecuted: #{bc_path} #{knife_cookbook}"
+    debug "\texecuted: #{knife_cookbook}"
   else
     debug "\tNOTE: could not find cookbooks dir #{cookbooks_dir}"
   end
 end
 
-def upload_data_bags_from_dir(databags_dir, bc_path, log)
+def upload_data_bags_from_dir(databags_dir, log)
   if File.exists? databags_dir
     Dir.entries(databags_dir).each do |bag|
       next if bag == "." or bag == ".."
       bag_path = File.join databags_dir, bag
       FileUtils.chmod 0755, bag_path
       chmod_dir 0644, bag_path
-      upload_data_bag_from_dir bag, bag_path, bc_path, log
+      upload_data_bag_from_dir bag, bag_path, log
     end
   else
     debug "\tNOTE: could not find data bags dir #{databags_dir}"
@@ -689,47 +689,47 @@ def upload_data_bags_from_dir(databags_dir, bc_path, log)
 end
 
 # Upload data bag items from any JSON files in the provided directory
-def upload_data_bag_from_dir(bag, bag_path, bc_path, log)
+def upload_data_bag_from_dir(bag, bag_path, log)
   json = Dir.glob(bag_path + '/*.json')
   json.each do |bag_item_path|
-    upload_data_bag_from_file(bag, bag_item_path, bc_path, log)
+    upload_data_bag_from_file(bag, bag_item_path, log)
   end
 end
 
-def create_data_bag(bag, log, bc_path)
+def create_data_bag(bag, log)
   knife_bag  = "knife data bag create #{bag} -V -k /etc/chef/webui.pem -u chef-webui"
   unless system knife_bag + " >> #{log} 2>&1"
     fatal "#{knife_bag} failed.", log
   end
-  debug "\texecuted: #{bc_path} #{knife_bag}"
+  debug "\texecuted: #{knife_bag}"
 end
 
-def upload_data_bag_from_file(bag, bag_item_path, bc_path, log)
-  create_data_bag(bag, log, bc_path)
+def upload_data_bag_from_file(bag, bag_item_path, log)
+  create_data_bag(bag, log)
 
   knife_databag  = "knife data bag from file #{bag} #{bag_item_path} -V -k /etc/chef/webui.pem -u chef-webui"
   unless system knife_databag + " >> #{log} 2>&1"
     fatal "#{knife_databag} failed.", log
   end
-  debug "\texecuted: #{bc_path} #{knife_databag}"
+  debug "\texecuted: #{knife_databag}"
 end
 
-def upload_roles_from_dir(roles, bc_path, log)
+def upload_roles_from_dir(roles, log)
   if File.directory? roles
     FileUtils.cd roles
     Dir[roles + "/*.rb"].each do |role_path|
-      upload_role_from_dir(role_path, bc_path, log)
+      upload_role_from_dir(role_path, log)
     end
   else
     debug "\tNOTE: could not find roles dir #{roles}"
   end
 end
 
-def upload_role_from_dir(role_path, bc_path, log)
+def upload_role_from_dir(role_path, log)
   debug "will upload #{role_path}"
   knife_role = "knife role from file #{role_path} -V -k /etc/chef/webui.pem -u chef-webui"
   unless system knife_role + " >> #{log} 2>&1"
     fatal "#{knife_role} failed.", log
   end
-  debug "\texecuted: #{bc_path} #{knife_role}"
+  debug "\texecuted: #{knife_role}"
 end
