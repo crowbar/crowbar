@@ -59,7 +59,7 @@ if [ -z "$HOME" ]; then
     exit 1
 fi
 
-BARCLAMP_INSTALL_OPTS="--rpm"
+BARCLAMP_INSTALL_OPTS=""
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
     BARCLAMP_INSTALL_OPTS="--force"

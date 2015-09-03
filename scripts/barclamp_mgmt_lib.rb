@@ -533,7 +533,7 @@ def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
   log = File.join log_path, "#{bc}.log"
   File.open(log, "a") { |f| f.puts("======== Installing #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
   debug "Capturing chef install logs to #{log}"
-  chef = File.join bc_path, 'chef'
+  chef = File.join BASE_PATH, 'chef'
   cookbooks = File.join chef, 'cookbooks'
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
