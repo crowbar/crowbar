@@ -98,8 +98,8 @@ def bc_install(from_rpm, bc, bc_path, yaml)
 end
 
 # regenerate the barclamp catalog (does a complete regen each install)
-def catalog(bc_path)
-  debug "Creating catalog in #{bc_path}"
+def catalog
+  debug "Creating catalog"
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
   cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
@@ -111,19 +111,8 @@ def catalog(bc_path)
     name =  bc['barclamp']['name']
     cat['barclamps'][name] = {} if cat['barclamps'][name].nil?
     description = bc['barclamp']['description']
+    puts "Warning: Barclamp #{name} has no description!" if description.nil?
     display = bc['barclamp']['display']
-    if description.nil?
-      debug "Trying to find description"
-      [ File.join(bc_path, '..', name, 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
-        File.join(bc_path, '..', "barclamp-#{name}", 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
-        File.join(bc_path, '..', '..', 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json") ].each do |f|
-        next unless File.exist? f
-        s = JSON::load File.open(f, 'r')
-        description = s['description'] unless s.nil?
-        break if description
-      end
-    end
-    # template = File.join bc_path, name,
     debug "Adding catalog info for #{bc['barclamp']['name']}"
     cat['barclamps'][name]['description'] = description || "No description for #{bc['barclamp']['name']}"
     cat['barclamps'][name]['display'] = display || ""
