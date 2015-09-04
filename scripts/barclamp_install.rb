@@ -58,6 +58,10 @@ tmpdir = "/tmp/component_install-#{Process.pid}-#{Kernel.rand(65535)}"
 debug "tarball tmpdir: #{tmpdir}"
 Dir.mkdir(tmpdir)
 
+log_path = File.join '/var', 'log', 'crowbar'
+FileUtils.mkdir log_path unless File.directory? log_path
+log = File.join log_path, "component_install.log"
+
 def rm_tmpdir(tmpdir)
   if File.directory?(tmpdir)
     debug "temporary directory #{tmpdir} will be removed"
@@ -121,7 +125,7 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   bc[:migrate] = check_schema_migration(bc[:name])
 end
 
-bc_install_layout_1_chef(from_rpm, component_paths)
+bc_install_layout_1_chef(from_rpm, component_paths, log)
 
 debug "installing barclamps:"
 barclamps.values.sort_by{|v| v[:order]}.each do |bc|
@@ -188,7 +192,7 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
       if bc[:yaml]["crowbar"]["layout"].to_i == 1
         debug "Installing app components"
         bc_install_layout_1_app from_rpm, bc[:name], bc[:src], bc[:yaml]
-        bc_install_layout_1_chef_migrate bc[:name] if bc[:migrate]
+        bc_install_layout_1_chef_migrate bc[:name], log if bc[:migrate]
       else
         debug "Could not install barclamp #{bc[:name]} because #{bc[:yaml][:barclamp][:crowbar_layout]} is unknown layout."
       end

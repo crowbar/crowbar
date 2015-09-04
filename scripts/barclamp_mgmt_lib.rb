@@ -495,15 +495,12 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
 end
 
 # upload the chef parts for a barclamp
-def bc_install_layout_1_chef(from_rpm, component_paths)
+def bc_install_layout_1_chef(from_rpm, component_paths, log)
   components = Array.new
   component_paths.each do |component_path|
     components.push(File.basename(component_path))
   end
 
-  log_path = File.join '/var', 'log', 'crowbar', 'barclamp_install'
-  FileUtils.mkdir log_path unless File.directory? log_path
-  log = File.join log_path, "chef_upload.log"
   File.open(log, "a") { |f| f.puts("======== Installing chef components -- #{Time.now.strftime('%c')} ========") }
   debug "Capturing chef install logs to #{log}"
 
@@ -533,11 +530,7 @@ def bc_install_layout_1_chef(from_rpm, component_paths)
   puts "Chef components for (#{components.join(", ")}) (format v1) uploaded."
 end
 
-def bc_install_layout_1_chef_migrate(bc)
-  log_path = File.join '/var', 'log', 'crowbar', 'barclamp_install'
-  FileUtils.mkdir log_path unless File.directory? log_path
-  log = File.join log_path, "#{bc}.log"
-
+def bc_install_layout_1_chef_migrate(bc, log)
   debug "Migrating schema to new revision..."
   File.open(log, "a") { |f| f.puts("======== Migrating #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
   migrate_cmd = "cd #{CROWBAR_PATH} && ./bin/rake --silent crowbar:schema_migrate_prod[#{bc}] 2>&1"
