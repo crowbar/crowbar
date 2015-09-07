@@ -23,6 +23,7 @@
 #   $ export GUARD_RELEASE_NAME=development # Default `development`
 #   $ export GUARD_SYNC_USER=root # Default `root`
 #   $ export GUARD_SYNC_HOST=192.168.124.10 # Default `192.168.124.10`
+#   $ export GUARD_SYNC_PORT=22 # Default `22`
 #   $ export GUARD_TREE_TARGET=/opt/crowbar # Default `/opt/crowbar`
 #   $ export GUARD_MIRROR_TARGET=/root/barclamps # Default `/root/barclamps`
 #   $ export GUARD_SCRIPT_TARGET=/opt/crowbar/bin # Default `/opt/crowbar/bin`
@@ -55,6 +56,11 @@ user = value_for(
 host = value_for(
   "GUARD_SYNC_HOST",
   "192.168.124.10"
+)
+
+port = value_for(
+  "GUARD_SYNC_PORT",
+  "22"
 )
 
 notification :off
@@ -95,6 +101,7 @@ group :tree do
       :destination => target,
       :user => user,
       :remote_address => host,
+      :remote_port => port,
       :exclude_from => exclude_tree,
       :sync_on_start => true,
       :ssh => true,
@@ -129,6 +136,7 @@ group :tree do
       :destination => File.join(target, barclamp.to_s),
       :user => user,
       :remote_address => host,
+      :remote_port => port,
       :exclude_from => exclude_barclamp,
       :exclude_from => nil,
       :include_from => nil,
@@ -168,6 +176,7 @@ group :script do
     :destination => target,
     :user => user,
     :remote_address => host,
+    :remote_port => port,
     :exclude_from => exclude_script,
     :sync_on_start => true,
     :ssh => true,
@@ -204,6 +213,7 @@ group :mirror do
     :destination => target,
     :user => user,
     :remote_address => host,
+    :remote_port => port,
     :exclude_from => exclude_mirror,
     :sync_on_start => true,
     :ssh => true,
