@@ -67,28 +67,24 @@ def fatal(msg, log = nil, exit_code = 1)
   exit exit_code
 end
 
-def get_crowbar_yml_path(directory, suggested_bc_name = nil)
-  if suggested_bc_name.nil?
-    suggested_bc_name = directory.split(File::SEPARATOR)[-1]
+def get_yml_paths(directory, suggested_bc_name = nil)
+  yml_files = Array.new
+  Dir.entries(directory).each do |file_name|
+    path = File.join(directory, file_name)
+    if file_name.end_with?("#{suggested_bc_name}.yml") and File.exists?(path)
+      yml_files.push path
+    end
   end
-
-  # Look for both old name (crowbar.yml) and new name ($barclamp.yml)
-  ["#{suggested_bc_name}.yml", "crowbar.yml"].each do |basename|
-    path = File.join(directory, basename)
-    return path if File.exists?(path)
-  end
-
-  nil
+  yml_files
 end
 
 # entry point for scripts
 def bc_install(from_rpm, bc, bc_path, yaml)
-  case yaml["crowbar"]["layout"].to_i
-  when 1
+  if yaml["crowbar"]["layout"].to_i == 1
     debug "Installing app components"
     bc_install_layout_1_app from_rpm, bc, bc_path, yaml
     debug "Installing chef components"
-    bc_install_layout_1_chef from_rpm, bc, bc_path
+    bc_install_layout_1_chef from_rpm, bc_path
   else
     raise "ERROR: could not install barclamp #{bc} because #{yaml["barclamp"]["crowbar_layout"]} is unknown layout."
   end
@@ -396,9 +392,9 @@ def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
 
     generate_navigation
     generate_assets_manifest
-    catalog bc_path
+    catalog
 
-    debug "Barclamp #{bc} UNinstalled"
+    debug "Barclamp #{bc} Uninstalled"
   end
 end
 
@@ -455,7 +451,7 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
   end
 
   # copy over the crowbar YAML file, needed to update catalog
-  yml_barclamp = get_crowbar_yml_path(bc_path)
+  yml_barclamp = get_yml_paths(bc_path, bc).first
   yml_path = File.join CROWBAR_PATH, 'barclamps'
   yml_created = File.join(yml_path, "#{bc}.yml")
   FileUtils.mkdir yml_path unless File.directory? yml_path
@@ -515,49 +511,58 @@ end
 
 # upload the chef parts for a barclamp
 def bc_install_layout_1_chef(from_rpm, component_paths)
+  components = Array.new
+  component_paths.each do |component_path|
+    components.push(File.basename(component_path))
+  end
+
   log_path = File.join '/var', 'log', 'crowbar', 'barclamp_install'
   FileUtils.mkdir log_path unless File.directory? log_path
-  log = File.join log_path, "#{bc}.log"
-  File.open(log, "a") { |f| f.puts("======== Installing #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
+  log = File.join log_path, "chef_upload.log"
+  File.open(log, "a") { |f| f.puts("======== Installing chef components -- #{Time.now.strftime('%c')} ========") }
   debug "Capturing chef install logs to #{log}"
-  chef = File.join bc_path, 'chef'
+  chef = File.join component_paths, 'chef'
   cookbooks = File.join chef, 'cookbooks'
   databags = File.join chef, 'data_bags'
   roles = File.join chef, 'roles'
 
-
-  do_migrate = check_schema_migration(bc)
-
   if from_rpm
-    rpm = 'crowbar-barclamp-' + File.basename(bc_path)
-    debug "obtaining chef components from #{rpm} rpm"
-    rpm_files = get_rpm_file_list(rpm)
-    upload_cookbooks_from_rpm rpm, rpm_files, bc_path, log
-    upload_data_bags_from_rpm rpm, rpm_files, bc_path, log
-    upload_roles_from_rpm     rpm, rpm_files, bc_path, log
-  else
-    debug "obtaining chef components from #{bc_path} directory"
-    upload_cookbooks_from_dir cookbooks, ['ALL'], bc_path, log
-    upload_data_bags_from_dir databags, bc_path, log
-    upload_roles_from_dir     roles,    bc_path, log
-  end
-
-  puts "Barclamp #{bc} (format v1) Chef Components Uploaded."
-
-  if do_migrate
-    debug "Migrating schema to new revision..."
-    File.open(log, "a") { |f| f.puts("======== Migrating #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
-    migrate_cmd = "cd #{CROWBAR_PATH} && ./bin/rake --silent crowbar:schema_migrate_prod[#{bc}] 2>&1"
-    migrate_cmd_su = "su -s /bin/sh - crowbar sh -c \"#{migrate_cmd}\" >> #{log}"
-    debug "running #{migrate_cmd_su}"
-    unless system migrate_cmd_su
-      fatal "Failed to migrate barclamp #{bc} to new schema revision.", log
+    rpm_files = Array.new
+    components.each do |component|
+      rpm = "crowbar-#{component}"
+      debug "obtaining chef components from #{rpm} rpm"
+      rpm_files += get_rpm_file_list(rpm)
     end
-    debug "\t executed: #{migrate_cmd_su}"
-    puts "Barclamp #{bc} (format v1) Chef Components Migrated."
+
+    upload_cookbooks_from_rpm rpm_files, log
+    upload_data_bags_from_rpm rpm_files, log
+    upload_roles_from_rpm rpm_files, log
   else
-    debug "No need to migrate schema to new revision"
+
+    debug "obtaining chef components from #{component_paths} directory"
+    upload_cookbooks_from_dir cookbooks, ['ALL'], log
+    upload_data_bags_from_dir databags, log
+    upload_roles_from_dir roles, log
   end
+
+  puts "Chef components for (#{components.join(", ")}) (format v1) uploaded."
+end
+
+def bc_install_layout_1_chef_migrate(bc)
+  log_path = File.join '/var', 'log', 'crowbar', 'barclamp_install'
+  FileUtils.mkdir log_path unless File.directory? log_path
+  log = File.join log_path, "#{bc}.log"
+
+  debug "Migrating schema to new revision..."
+  File.open(log, "a") { |f| f.puts("======== Migrating #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
+  migrate_cmd = "cd #{CROWBAR_PATH} && ./bin/rake --silent crowbar:schema_migrate_prod[#{bc}] 2>&1"
+  migrate_cmd_su = "su -s /bin/sh - crowbar sh -c \"#{migrate_cmd}\" >> #{log}"
+  debug "running #{migrate_cmd_su}"
+  unless system migrate_cmd_su
+    fatal "Failed to migrate barclamp #{bc} to new schema revision.", log
+  end
+  debug "\t executed: #{migrate_cmd_su}"
+  puts "Barclamp #{bc} (format v1) Chef Components Migrated."
 end
 
 def check_schema_migration(bc)
