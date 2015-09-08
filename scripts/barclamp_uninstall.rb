@@ -64,6 +64,12 @@ usage if ARGV.length < 1
 
     barclamp_yml_files.each do |yml_file|
       barclamp = YAML.load_file yml_file
+
+      unless barclamp["barclamp"] and barclamp["barclamp"]["name"]
+        puts "Barclamp at #{yml_file} has no name, skipping"
+        next
+      end
+
       bc = barclamp["barclamp"]["name"].chomp.strip
       case barclamp["crowbar"]["layout"].to_i
       when 1
