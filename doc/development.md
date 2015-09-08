@@ -46,15 +46,14 @@ Before we can start you need to match some prerequirements on your host machine.
      #!/usr/bin/env bash
 
      export pre_onadmin_installcrowbar=$(base64 --wrap=0 <<'EOS'
-       zypper ar -f http://download.suse.de/ibs/Devel:/Cloud:/Shared:/Rubygem/SLE_11_SP3/Devel:Cloud:Shared:Rubygem.repo;
-       zypper mr -r -e sp3sdk;
+       zypper ar -f http://dist.suse.de/install/SLP/SLE-12-SDK-GM/x86_64/DVD1/ sle12-sdk
        zypper ref;
-       zypper -n in -l ruby2.1-devel sqlite3-devel;
+       zypper -n in -l gcc ruby2.1-devel sqlite3-devel libxml2-devel;
 
        mkdir -p /opt/crowbar/crowbar_framework/db;
        mkdir -p /opt/crowbar/barclamps;
 
-       ln -sf /opt/dell/crowbar_framework/db/production.sqlite3 /opt/crowbar/crowbar_framework/db/development.sqlite3;
+       cp /opt/dell/crowbar_framework/db/production.sqlite3 /opt/crowbar/crowbar_framework/db/development.sqlite3;
        ln -sf /usr/bin/ruby.ruby2.1 /usr/bin/ruby
      EOS
      )
@@ -98,11 +97,11 @@ Before we can start you need to match some prerequirements on your host machine.
      rubygems source from ```https``` to ```http``` as there is some known issue
      in SLE 11 for bundle install..
 
-  5. Now run Guard to sync you local git clones with the server, please execute
+  6. Now run Guard to sync you local git clones with the server, please execute
      ```GUARD_SYNC_HOST=192.168.106.10 bundle exec guard``` in a seperate
      terminal window as this process will stay in the foreground.
 
-  6. Now ssh to the admin node and follow the steps below:
+  7. Now ssh to the admin node and follow the steps below:
 
     1. Change to ```/opt/crowbar/crowbar_framework```.
 
@@ -117,6 +116,11 @@ Before we can start you need to match some prerequirements on your host machine.
        done
        ```
 
-    4. Run the Rails server ```bin/rails s -b 0.0.0.0 -p 5000```
+    4. shutdown the production server `systemctl stop crowbar && systemctl disable crowbar`
+       as it currently causes confusion with the crowbar database. It gets out of sync when
+       you e.g. change proposals.
 
-  7. Now you can access you crowbar development setup via ```http://192.168.106.10:5000```
+    5. Run the Rails server ```bin/rails s -b 0.0.0.0 -p 5000```
+
+
+  8. Now you can access you crowbar development setup via ```http://192.168.106.10:5000```
