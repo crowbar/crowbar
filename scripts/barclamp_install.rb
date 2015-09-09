@@ -54,20 +54,9 @@ end
 
 usage if ARGV.length < 1
 
-tmpdir = "/tmp/component_install-#{Process.pid}-#{Kernel.rand(65535)}"
-debug "tarball tmpdir: #{tmpdir}"
-Dir.mkdir(tmpdir)
-
 log_path = File.join '/var', 'log', 'crowbar'
 FileUtils.mkdir log_path unless File.directory? log_path
 log = File.join log_path, "component_install.log"
-
-def rm_tmpdir(tmpdir)
-  if File.directory?(tmpdir)
-    debug "temporary directory #{tmpdir} will be removed"
-    system "rm -rf #{tmpdir}"
-  end
-end
 
 barclamp_yml_files = Array.new
 component_paths = Array.new
@@ -139,8 +128,6 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
           debug "crowbar YAML file does not exists in #{target}"
           puts "#{target} exists, but it is not a barclamp."
           puts "Cowardly refusing to overwrite it."
-          debug "temporary directory #{tmpdir} will be removed if it exists"
-          system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
           exit -1
         else
           debug "crowbar YAML file exists in #{target}"
@@ -155,8 +142,6 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
               puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
               puts"       xargs -0 sha1sum -b >sha1sums"
               puts "(or use the --force switch)"
-              debug "temporary directory #{tmpdir} will be removed if it exists"
-              system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
               exit -1
             end
           elsif not force_install
@@ -167,8 +152,6 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
             puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
             puts"       xargs -0 sha1sum -b >sha1sums"
             puts "(or use the --force switch)"
-            debug "temporary directory #{tmpdir} will be removed if it exists"
-            system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
             exit -1
           end
         end
@@ -201,11 +184,6 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
       raise e
     end
   rescue StandardError => e
-    if ENV['DEBUG'] === 'true'
-      debug "temporary directory #{tmpdir} will be left for debugging if it exists"
-    else
-      rm_tmpdir(tmpdir)
-    end
     puts e
     puts e.backtrace
     puts "Install of #{bc[:name]} failed."
@@ -216,7 +194,5 @@ end
 generate_navigation
 generate_assets_manifest
 catalog
-
-rm_tmpdir(tmpdir)
 
 exit 0
