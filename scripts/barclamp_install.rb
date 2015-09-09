@@ -54,59 +54,46 @@ end
 
 usage if ARGV.length < 1
 
-tmpdir = "/tmp/bc_install-#{Process.pid}-#{Kernel.rand(65535)}"
-debug "tarball tmpdir: #{tmpdir}"
-Dir.mkdir(tmpdir)
-candidates = Array.new
+log_path = File.join '/var', 'log', 'crowbar'
+FileUtils.mkdir log_path unless File.directory? log_path
+log = File.join log_path, "component_install.log"
 
-def rm_tmpdir(tmpdir)
-  if File.directory?(tmpdir)
-    debug "temporary directory #{tmpdir} will be removed"
-    system "rm -rf #{tmpdir}"
-  end
-end
-
+barclamp_yml_files = Array.new
+component_paths = Array.new
 ARGV.each do |src|
   debug "src: #{src}"
-  case
-  when /tar\.gz|tgz$/ =~ src
-    # This might be a barclamp tarball.  Expand it into a temporary location.
-    src=File.expand_path(src)
-    system "tar xzf \"#{src}\" -C \"#{tmpdir}\""
-    # get the barclamp name, allow the tar ball to be named <barclampname>-barclamp.t*
-    target="#{tmpdir}/#{src.split("/")[-1].split(".")[0].chomp("-barclamp")}"
-    if get_crowbar_yml_path(target).nil?
-      puts "#{src} is not a barclamp tarball, ignoring."
-    else
-      candidates << target
-    end
-  when !get_crowbar_yml_path(src).nil?
-    # We were handed something that looks like a path to a barclamp
-    candidates << File.expand_path(src)
-  when !get_crowbar_yml_path(File.join(BARCLAMP_PATH, src)).nil?
-    candidates << File.join(BARCLAMP_PATH, src)
+  if Dir.exist?(src)
+    barclamp_yml_files += get_yml_paths(src)
+    component_paths.push src
+  elsif Dir.exist?(File.join(BARCLAMP_PATH, src))
+    barclamp_yml_files += get_yml_paths(File.join(BARCLAMP_PATH, src))
+    component_paths.push File.join(BARCLAMP_PATH, src)
   else
-    puts "#{src} is not a barclamp, ignoring."
+    puts "#{src} is not a valid component name, skiping."
   end
 end
 
-debug "checking candidates: #{candidates.to_s}"
+if barclamp_yml_files.blank?
+  puts "No valid crowbar components found."
+  return
+end
+
+debug "checking components"
 
 barclamps = Hash.new
-candidates.each do |bc|
-  # We have already verified that each of the candidates has crowbar YAML file
+barclamp_yml_files.each do |yml_file|
   begin
-    debug "trying to parse crowbar YAML file in #{bc}"
-    barclamp = YAML.load_file get_crowbar_yml_path(bc)
+    debug "trying to parse crowbar YAML file in #{yml_file}"
+    barclamp = YAML.load_file yml_file
   rescue
-    puts "Exception occured while parsing crowbar YAML file in #{bc}, skiping"
+    puts "Exception occured while parsing crowbar YAML file in #{yml_file}, skiping"
     next
   end
-  
+
   if barclamp["barclamp"] and barclamp["barclamp"]["name"]
     name = barclamp["barclamp"]["name"]
   else
-    puts "Barclamp at #{bc} has no name, skipping"
+    puts "Barclamp at #{yml_file} has no name, skipping"
     next
   end
 
@@ -114,23 +101,26 @@ candidates.each do |bc|
   version = (barclamp["barclamp"]["version"] || 0).to_i
   order   = (barclamp["crowbar"]["order"] || 9999).to_i
 
-  barclamps[name] = { :src => bc, :name => name, :order => order, :yaml => barclamp, :version => version }
+  barclamps[name] = { :src => File.dirname(yml_file), :name => name, :order => order, :yaml => barclamp, :version => version }
   debug "barclamp[#{name}] = #{barclamps[name].pretty_inspect}"
 end
 
-debug "checking barclamp versions:"
 barclamps.values.sort_by{|v| v[:order]}.each do |bc|
+  debug "Check barclamp versions of #{bc[:name]}"
   if bc[:yaml]["nav"] && bc[:version] < 1
     fatal("Refusing to install #{bc[:name]} barclamp version < 1 due to incompatible navigation.", nil, -1)
   end
+  debug "Check migration of #{bc[:name]}"
+  bc[:migrate] = check_schema_migration(bc[:name])
 end
-debug "done"
+
+bc_install_layout_1_chef(from_rpm, component_paths, log)
 
 debug "installing barclamps:"
 barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   debug "bc = #{bc.pretty_inspect}"
   begin
-    unless /^#{BARCLAMP_PATH}/ =~ bc[:src]
+    unless bc[:src].start_with?(BARCLAMP_PATH)
       target=File.join(BARCLAMP_PATH, bc[:src].split("/")[-1])
       if File.directory? target
         debug "target directory #{target} exists"
@@ -138,8 +128,6 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
           debug "crowbar YAML file does not exists in #{target}"
           puts "#{target} exists, but it is not a barclamp."
           puts "Cowardly refusing to overwrite it."
-          debug "temporary directory #{tmpdir} will be removed if it exists"
-          system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
           exit -1
         else
           debug "crowbar YAML file exists in #{target}"
@@ -154,8 +142,6 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
               puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
               puts"       xargs -0 sha1sum -b >sha1sums"
               puts "(or use the --force switch)"
-              debug "temporary directory #{tmpdir} will be removed if it exists"
-              system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
               exit -1
             end
           elsif not force_install
@@ -166,8 +152,6 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
             puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
             puts"       xargs -0 sha1sum -b >sha1sums"
             puts "(or use the --force switch)"
-            debug "temporary directory #{tmpdir} will be removed if it exists"
-            system "rm -rf #{tmpdir}" if File.directory?(tmpdir)
             exit -1
           end
         end
@@ -188,17 +172,18 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
     end
     debug "installing barclamp"
     begin
-      bc_install from_rpm, bc[:name], bc[:src], bc[:yaml]
+      if bc[:yaml]["crowbar"]["layout"].to_i == 1
+        debug "Installing app components"
+        bc_install_layout_1_app from_rpm, bc[:name], bc[:src], bc[:yaml]
+        bc_install_layout_1_chef_migrate bc[:name], log if bc[:migrate]
+      else
+        debug "Could not install barclamp #{bc[:name]} because #{bc[:yaml][:barclamp][:crowbar_layout]} is unknown layout."
+      end
     rescue StandardError => e
       debug "exception occurred while installing barclamp"
       raise e
     end
   rescue StandardError => e
-    if ENV['DEBUG'] === 'true'
-      debug "temporary directory #{tmpdir} will be left for debugging if it exists"
-    else
-      rm_tmpdir(tmpdir)
-    end
     puts e
     puts e.backtrace
     puts "Install of #{bc[:name]} failed."
@@ -206,6 +191,8 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   end
 end
 
-rm_tmpdir(tmpdir)
+generate_navigation
+generate_assets_manifest
+catalog
 
 exit 0

@@ -67,41 +67,20 @@ def fatal(msg, log = nil, exit_code = 1)
   exit exit_code
 end
 
-def get_crowbar_yml_path(directory, suggested_bc_name = nil)
-  if suggested_bc_name.nil?
-    suggested_bc_name = directory.split(File::SEPARATOR)[-1]
+def get_yml_paths(directory, suggested_bc_name = nil)
+  yml_files = Array.new
+  Dir.entries(directory).each do |file_name|
+    path = File.join(directory, file_name)
+    if file_name.end_with?("#{suggested_bc_name}.yml") and File.exists?(path)
+      yml_files.push path
+    end
   end
-
-  # Look for both old name (crowbar.yml) and new name ($barclamp.yml)
-  ["#{suggested_bc_name}.yml", "crowbar.yml"].each do |basename|
-    path = File.join(directory, basename)
-    return path if File.exists?(path)
-  end
-
-  nil
-end
-
-# entry point for scripts
-def bc_install(from_rpm, bc, bc_path, yaml)
-  case yaml["crowbar"]["layout"].to_i
-  when 1
-    debug "Installing app components"
-    bc_install_layout_1_app from_rpm, bc, bc_path, yaml
-    debug "Installing chef components"
-    bc_install_layout_1_chef from_rpm, bc, bc_path, yaml
-    debug "Installing cache components"
-    bc_install_layout_1_cache from_rpm, bc, bc_path, yaml
-  else
-    raise "ERROR: could not install barclamp #{bc} because #{yaml["barclamp"]["crowbar_layout"]} is unknown layout."
-  end
-  generate_navigation
-  generate_assets_manifest
-  catalog bc_path
+  yml_files
 end
 
 # regenerate the barclamp catalog (does a complete regen each install)
-def catalog(bc_path)
-  debug "Creating catalog in #{bc_path}"
+def catalog
+  debug "Creating catalog"
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
   cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
@@ -113,19 +92,8 @@ def catalog(bc_path)
     name =  bc['barclamp']['name']
     cat['barclamps'][name] = {} if cat['barclamps'][name].nil?
     description = bc['barclamp']['description']
+    puts "Warning: Barclamp #{name} has no description!" if description.nil?
     display = bc['barclamp']['display']
-    if description.nil?
-      debug "Trying to find description"
-      [ File.join(bc_path, '..', name, 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
-        File.join(bc_path, '..', "barclamp-#{name}", 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json"), \
-        File.join(bc_path, '..', '..', 'chef', 'data_bags', 'crowbar', "bc-template-#{name}.json") ].each do |f|
-        next unless File.exist? f
-        s = JSON::load File.open(f, 'r')
-        description = s['description'] unless s.nil?
-        break if description
-      end
-    end
-    # template = File.join bc_path, name,
     debug "Adding catalog info for #{bc['barclamp']['name']}"
     cat['barclamps'][name]['description'] = description || "No description for #{bc['barclamp']['name']}"
     cat['barclamps'][name]['display'] = display || ""
@@ -409,9 +377,9 @@ def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
 
     generate_navigation
     generate_assets_manifest
-    catalog bc_path
+    catalog
 
-    debug "Barclamp #{bc} UNinstalled"
+    debug "Barclamp #{bc} Uninstalled"
   end
 end
 
@@ -468,7 +436,7 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
   end
 
   # copy over the crowbar YAML file, needed to update catalog
-  yml_barclamp = get_crowbar_yml_path(bc_path)
+  yml_barclamp = get_yml_paths(bc_path, bc).first
   yml_path = File.join CROWBAR_PATH, 'barclamps'
   yml_created = File.join(yml_path, "#{bc}.yml")
   FileUtils.mkdir yml_path unless File.directory? yml_path
@@ -527,60 +495,52 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
 end
 
 # upload the chef parts for a barclamp
-def bc_install_layout_1_chef(from_rpm, bc, bc_path, yaml)
-  log_path = File.join '/var', 'log', 'crowbar', 'barclamp_install'
-  FileUtils.mkdir log_path unless File.directory? log_path
-  log = File.join log_path, "#{bc}.log"
-  File.open(log, "a") { |f| f.puts("======== Installing #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
-  debug "Capturing chef install logs to #{log}"
-  chef = File.join bc_path, 'chef'
-  cookbooks = File.join chef, 'cookbooks'
-  databags = File.join chef, 'data_bags'
-  roles = File.join chef, 'roles'
-
-  yaml_with_id = yaml.clone
-  yaml_with_id["id"] = bc
-  begin
-    temp = Tempfile.new(["#{bc}-", '.json'])
-    temp.write(JSON.pretty_generate(yaml_with_id))
-    temp.flush
-    upload_data_bag_from_file 'barclamps', temp.path, bc_path, log
-  ensure
-    temp.close!
+def bc_install_layout_1_chef(from_rpm, component_paths, log)
+  components = Array.new
+  component_paths.each do |component_path|
+    components.push(File.basename(component_path))
   end
 
-  do_migrate = check_schema_migration(bc)
+  File.open(log, "a") { |f| f.puts("======== Installing chef components -- #{Time.now.strftime('%c')} ========") }
+  debug "Capturing chef install logs to #{log}"
 
   if from_rpm
-    rpm = 'crowbar-barclamp-' + File.basename(bc_path)
-    debug "obtaining chef components from #{rpm} rpm"
-    rpm_files = get_rpm_file_list(rpm)
-    upload_cookbooks_from_rpm rpm, rpm_files, bc_path, log
-    upload_data_bags_from_rpm rpm, rpm_files, bc_path, log
-    upload_roles_from_rpm     rpm, rpm_files, bc_path, log
-  else
-    debug "obtaining chef components from #{bc_path} directory"
-    upload_cookbooks_from_dir cookbooks, ['ALL'], bc_path, log
-    upload_data_bags_from_dir databags, bc_path, log
-    upload_roles_from_dir     roles,    bc_path, log
-  end
-
-  puts "Barclamp #{bc} (format v1) Chef Components Uploaded."
-
-  if do_migrate
-    debug "Migrating schema to new revision..."
-    File.open(log, "a") { |f| f.puts("======== Migrating #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
-    migrate_cmd = "cd #{CROWBAR_PATH} && ./bin/rake --silent crowbar:schema_migrate_prod[#{bc}] 2>&1"
-    migrate_cmd_su = "su -s /bin/sh - crowbar sh -c \"#{migrate_cmd}\" >> #{log}"
-    debug "running #{migrate_cmd_su}"
-    unless system migrate_cmd_su
-      fatal "Failed to migrate barclamp #{bc} to new schema revision.", log
+    rpm_files = Array.new
+    components.each do |component|
+      rpm = "crowbar-#{component}"
+      debug "obtaining chef components from #{rpm} rpm"
+      rpm_files += get_rpm_file_list(rpm)
     end
-    debug "\t executed: #{migrate_cmd_su}"
-    puts "Barclamp #{bc} (format v1) Chef Components Migrated."
+
+    upload_cookbooks_from_rpm rpm_files, log
+    upload_data_bags_from_rpm rpm_files, log
+    upload_roles_from_rpm rpm_files, log
   else
-    debug "No need to migrate schema to new revision"
+    chef = File.join component_paths, 'chef'
+    cookbooks = File.join chef, 'cookbooks'
+    databags = File.join chef, 'data_bags'
+    roles = File.join chef, 'roles'
+
+    debug "obtaining chef components from #{component_paths} directory"
+    upload_cookbooks_from_dir cookbooks, ['ALL'], log
+    upload_data_bags_from_dir databags, log
+    upload_roles_from_dir roles, log
   end
+
+  puts "Chef components for (#{components.join(", ")}) (format v1) uploaded."
+end
+
+def bc_install_layout_1_chef_migrate(bc, log)
+  debug "Migrating schema to new revision..."
+  File.open(log, "a") { |f| f.puts("======== Migrating #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
+  migrate_cmd = "cd #{CROWBAR_PATH} && ./bin/rake --silent crowbar:schema_migrate_prod[#{bc}] 2>&1"
+  migrate_cmd_su = "su -s /bin/sh - crowbar sh -c \"#{migrate_cmd}\" >> #{log}"
+  debug "running #{migrate_cmd_su}"
+  unless system migrate_cmd_su
+    fatal "Failed to migrate barclamp #{bc} to new schema revision.", log
+  end
+  debug "\t executed: #{migrate_cmd_su}"
+  puts "Barclamp #{bc} (format v1) Chef Components Migrated."
 end
 
 def check_schema_migration(bc)
@@ -626,51 +586,51 @@ def get_rpm_file_list(rpm)
   return file_list
 end
 
-def upload_cookbooks_from_rpm(rpm, rpm_files, bc_path, log)
+def upload_cookbooks_from_rpm(rpm_files, log)
   cookbooks_dir = "#{BASE_PATH}/chef/cookbooks"
   cookbooks = rpm_files.inject([]) do |acc, file|
     if File.directory?(file) and file =~ %r!^#{cookbooks_dir}/([^/]+)$!
       cookbook = File.basename(file)
-      debug "will upload #{cookbook} from #{file} from #{rpm} rpm"
+      debug "will upload #{cookbook} from #{file}"
       acc.push cookbook
     end
     acc
   end
   if cookbooks.empty?
-    puts "WARNING: didn't find any cookbooks from #{rpm} rpm in #{cookbooks_dir}"
+    puts "WARNING: didn't find any cookbooks from in #{cookbooks_dir}"
   else
-    upload_cookbooks_from_dir(cookbooks_dir, cookbooks, bc_path, log)
+    upload_cookbooks_from_dir(cookbooks_dir, cookbooks, log)
   end
 end
 
-def upload_data_bags_from_rpm(rpm, rpm_files, bc_path, log)
+def upload_data_bags_from_rpm(rpm_files, log)
   data_bags_dir = "#{BASE_PATH}/chef/data_bags"
   data_bag_files = rpm_files.grep(%r!^#{data_bags_dir}/([^/]+)/[^/]+\.json$!) do |path|
     [ $1, path ]
   end
   if data_bag_files.empty?
-    puts "WARNING: didn't find any data bags from #{rpm} rpm in #{data_bags_dir}"
+    puts "WARNING: didn't find any data bags in #{data_bags_dir}"
   else
     data_bag_files.each do |bag, bag_item_path|
-      debug "uploading #{bag} from #{rpm} rpm"
-      upload_data_bag_from_file(bag, bag_item_path, bc_path, log)
+      debug "uploading #{bag}"
+      upload_data_bag_from_file(bag, bag_item_path, log)
     end
   end
 end
 
-def upload_roles_from_rpm(rpm, rpm_files, bc_path, log)
+def upload_roles_from_rpm(rpm_files, log)
   roles_dir = "#{BASE_PATH}/chef/roles"
   roles = rpm_files.grep(%r!^#{roles_dir}/([^/]+)$!)
   if roles.empty?
-    puts "WARNING: didn't find any roles from #{rpm} rpm in #{roles_dir}"
+    puts "WARNING: didn't find any roles in #{roles_dir}"
   else
     roles.each do |role|
-      upload_role_from_dir(role, bc_path, log)
+      upload_role_from_dir(role, log)
     end
   end
 end
 
-def upload_cookbooks_from_dir(cookbooks_dir, cookbooks, bc_path, log)
+def upload_cookbooks_from_dir(cookbooks_dir, cookbooks, log)
   upload_all = cookbooks.length == 1 && cookbooks[0] == 'ALL'
   if File.directory? cookbooks_dir
     FileUtils.cd cookbooks_dir
@@ -678,22 +638,22 @@ def upload_cookbooks_from_dir(cookbooks_dir, cookbooks, bc_path, log)
     knife_cookbook = "knife cookbook upload -o . #{opts} -V -k /etc/chef/webui.pem -u chef-webui"
     debug "running #{knife_cookbook} from #{cookbooks_dir}"
     unless system knife_cookbook + " >> #{log} 2>&1"
-      fatal "#{bc_path} #{knife_cookbook} upload failed.", log
+      fatal "#{knife_cookbook} upload failed.", log
     end
-    debug "\texecuted: #{bc_path} #{knife_cookbook}"
+    debug "\texecuted: #{knife_cookbook}"
   else
     debug "\tNOTE: could not find cookbooks dir #{cookbooks_dir}"
   end
 end
 
-def upload_data_bags_from_dir(databags_dir, bc_path, log)
+def upload_data_bags_from_dir(databags_dir, log)
   if File.exists? databags_dir
     Dir.entries(databags_dir).each do |bag|
       next if bag == "." or bag == ".."
       bag_path = File.join databags_dir, bag
       FileUtils.chmod 0755, bag_path
       chmod_dir 0644, bag_path
-      upload_data_bag_from_dir bag, bag_path, bc_path, log
+      upload_data_bag_from_dir bag, bag_path, log
     end
   else
     debug "\tNOTE: could not find data bags dir #{databags_dir}"
@@ -701,93 +661,47 @@ def upload_data_bags_from_dir(databags_dir, bc_path, log)
 end
 
 # Upload data bag items from any JSON files in the provided directory
-def upload_data_bag_from_dir(bag, bag_path, bc_path, log)
+def upload_data_bag_from_dir(bag, bag_path, log)
   json = Dir.glob(bag_path + '/*.json')
   json.each do |bag_item_path|
-    upload_data_bag_from_file(bag, bag_item_path, bc_path, log)
+    upload_data_bag_from_file(bag, bag_item_path, log)
   end
 end
 
-def create_data_bag(bag, log, bc_path)
+def create_data_bag(bag, log)
   knife_bag  = "knife data bag create #{bag} -V -k /etc/chef/webui.pem -u chef-webui"
   unless system knife_bag + " >> #{log} 2>&1"
     fatal "#{knife_bag} failed.", log
   end
-  debug "\texecuted: #{bc_path} #{knife_bag}"
+  debug "\texecuted: #{knife_bag}"
 end
 
-def upload_data_bag_from_file(bag, bag_item_path, bc_path, log)
-  create_data_bag(bag, log, bc_path)
+def upload_data_bag_from_file(bag, bag_item_path, log)
+  create_data_bag(bag, log)
 
   knife_databag  = "knife data bag from file #{bag} #{bag_item_path} -V -k /etc/chef/webui.pem -u chef-webui"
   unless system knife_databag + " >> #{log} 2>&1"
     fatal "#{knife_databag} failed.", log
   end
-  debug "\texecuted: #{bc_path} #{knife_databag}"
+  debug "\texecuted: #{knife_databag}"
 end
 
-def upload_roles_from_dir(roles, bc_path, log)
+def upload_roles_from_dir(roles, log)
   if File.directory? roles
     FileUtils.cd roles
     Dir[roles + "/*.rb"].each do |role_path|
-      upload_role_from_dir(role_path, bc_path, log)
+      upload_role_from_dir(role_path, log)
     end
   else
     debug "\tNOTE: could not find roles dir #{roles}"
   end
 end
 
-def upload_role_from_dir(role_path, bc_path, log)
+def upload_role_from_dir(role_path, log)
   debug "will upload #{role_path}"
   knife_role = "knife role from file #{role_path} -V -k /etc/chef/webui.pem -u chef-webui"
   unless system knife_role + " >> #{log} 2>&1"
     fatal "#{knife_role} failed.", log
   end
-  debug "\texecuted: #{bc_path} #{knife_role}"
-end
-
-def bc_install_layout_1_cache(from_rpm, bc, bc_path, yaml)
-  return unless File.directory?(File.join(bc_path,"cache"))
-  Dir.entries(File.join(bc_path,"cache")).each do |ent|
-    debug ent.inspect
-    case
-    when ent == "files"
-      debug "Copying files"
-      system "cp -r \"#{bc_path}/cache/#{ent}\" /tftpboot"
-    when ent == "gems"
-      # Symlink the gems into One Flat Directory.
-      debug "Installing gems"
-      Dir.entries("#{bc_path}/cache/gems").each do |gem|
-        next unless /\.gem$/ =~ gem
-        unless File.directory? "/tftpboot/gemsite/gems"
-          system "mkdir -p /tftpboot/gemsite/gems"
-        end
-        unless File.symlink? "/tftpboot/gemsite/gems/#{gem}"
-          debug "Symlinking #{bc_path}/cache/gems/#{gem} into /tftpboot/gemsite/gems"
-          File.symlink "#{bc_path}/cache/gems/#{gem}", "/tftpboot/gemsite/gems/#{gem}"
-        end
-      end
-      debug "Done"
-    when File.directory?("#{bc_path}/cache/#{ent}/pkgs")
-      debug "Installing packages"
-      # We have actual packages here.  They map into the target like so:
-      # bc_path/ent/pkgs -> /tftboot/ent/crowbar-extras/bc
-      unless File.directory? "/tftpboot/#{ent}/crowbar-extra/"
-        system "mkdir -p \"/tftpboot/#{ent}/crowbar-extra/\""
-      end
-      # sigh, ubuntu-install and redhat-install.
-      unless File.symlink? "/tftpboot/#{ent}/crowbar-extra/#{bc_path.split('/')[-1]}"
-        debug "Symlinking #{bc_path}/cache/#{ent}/pkgs into /tftpboot/#{ent}/crowbar-extra"
-        File.symlink "#{bc_path}/cache/#{ent}/pkgs", "/tftpboot/#{ent}/crowbar-extra/#{bc_path.split('/')[-1]}"
-      end
-    else
-      # Symlink the repos into One Flat Directory for serving.
-      FileUtils.mkdir_p "/tftpboot/#{ent}"
-      unless File.symlink? "/tftpboot/#{ent}/#{bc}"
-        File.symlink("#{bc_path}/cache/#{ent}","/tftpboot/#{ent}/#{bc}")
-      end
-    end
-    debug "Done"
-    true
-  end
+  debug "\texecuted: #{knife_role}"
 end

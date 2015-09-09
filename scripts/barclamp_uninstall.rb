@@ -49,26 +49,37 @@ end
 
 usage if ARGV.length < 1
 
-  # this is used by the install-chef installer script 
+  # this is used by the install-chef installer script
   if __FILE__ == $0
     path = ARGV[0]
     debug "Using #{path}"
-    bc_file = get_crowbar_yml_path(path)
-    if bc_file.nil?
+
+    barclamp_yml_files = Array.new
+
+    barclamp_yml_files += get_yml_paths(path)
+    if barclamp_yml_files.empty?
       path = File.join BARCLAMP_PATH, path
-      bc_file = get_crowbar_yml_path(path)
+      barclamp_yml_files += get_yml_paths(path)
     end
-    barclamp = YAML.load_file bc_file
-    bc = barclamp["barclamp"]["name"].chomp.strip
-    case barclamp["crowbar"]["layout"].to_i
-    when 1
-      bc_remove_layout_1 from_rpm, bc, path, barclamp
-      #TODO: bc_remove_layout_1_chef bc, path, barclamp
-    else
-      puts "ERROR: could not UNinstall barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
-      exit -3
+
+    barclamp_yml_files.each do |yml_file|
+      barclamp = YAML.load_file yml_file
+
+      unless barclamp["barclamp"] and barclamp["barclamp"]["name"]
+        puts "Barclamp at #{yml_file} has no name, skipping"
+        next
+      end
+
+      bc = barclamp["barclamp"]["name"].chomp.strip
+      case barclamp["crowbar"]["layout"].to_i
+      when 1
+        bc_remove_layout_1 from_rpm, bc, path, barclamp
+        #TODO: bc_remove_layout_1_chef bc, path, barclamp
+      else
+        puts "ERROR: could not Uninstall barclamp #{bc} because #{barclamp["barclamp"]["crowbar_layout"]} is unknown layout."
+        exit -3
+      end
     end
     #exit -3 if err
     exit 0
   end
- 
