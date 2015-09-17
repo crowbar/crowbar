@@ -110,10 +110,8 @@ Before we can start you need to match some prerequirements on your host machine.
     3. Install all barclamps with this snippet
 
        ```bash
-       for d in $(find /root/barclamps -mindepth 1 -maxdepth 1 -type d)
-       do
-         CROWBAR_DIR=/opt/crowbar /opt/crowbar/bin/barclamp_install.rb --force ${d}
-       done
+       components=$(find /opt/crowbar/barclamps -mindepth 1 -maxdepth 1 -type d)
+       CROWBAR_DIR=/opt/crowbar /opt/crowbar/bin/barclamp_install.rb $components
        ```
 
     4. shutdown the production server `systemctl stop crowbar && systemctl disable crowbar`
