@@ -359,8 +359,8 @@ if [ -n "$PROVISIONER_JSON" ]; then
         SUSE-OpenStack-Cloud-6-Updates \
         SLE12-HA-Pool \
         SLE12-HA-Updates \
-        SUSE-Enterprise-Storage-1.0-Pool \
-        SUSE-Enterprise-Storage-1.0-Updates
+        SUSE-Enterprise-Storage-2-Pool \
+        SUSE-Enterprise-Storage-2-Updates
     do
         common_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.common.${repo//./\\\\.}.url )"
         sles12_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.suse-12\\.0.${repo//./\\\\.}.url )"
@@ -527,12 +527,12 @@ cloud_dir=/srv/tftpboot/suse-12.0/repos/SLE12-HA-Updates
 smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-HA/12/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-1.0-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/1.0/x86_64/product
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-2-Pool
+smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/2/x86_64/product
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-1.0-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/1.0/x86_64/update
+cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-2-Updates
+smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/2/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
 # FIXME: repos that we cannot check yet:
@@ -574,8 +574,8 @@ check_repo_tag repo    12.0 SUSE-OpenStack-Cloud-6-Pool         'obsproduct://bu
 check_repo_tag summary 12.0 SUSE-OpenStack-Cloud-6-Updates      'SUSE OpenStack Cloud 6' $REQUIRE_CLOUD
 check_repo_tag repo    12.0 SLE12-HA-Pool                       'obsproduct://build.suse.de/SUSE:SLE-12:GA/sle-ha/12/POOL/x86_64' 'false'
 check_repo_tag repo    12.0 SLE12-HA-Updates                    'obsrepository://build.suse.de/SUSE:Updates:SLE-HA:12:x86_64/update' 'false'
-check_repo_tag repo    12.0 SUSE-Enterprise-Storage-1.0-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/ses/1/POOL/x86_64' $REQUIRE_STORAGE
-check_repo_tag repo    12.0 SUSE-Enterprise-Storage-1.0-Updates 'obsrepository://build.suse.de/SUSE:Updates:Storage:1.0:x86_64/update' $REQUIRE_STORAGE
+check_repo_tag repo    12.0 SUSE-Enterprise-Storage-2-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:Cloud5/ses/2/POOL/x86_64' $REQUIRE_STORAGE
+check_repo_tag repo    12.0 SUSE-Enterprise-Storage-2-Updates 'obsrepository://build.suse.de/SUSE:Updates:Storage:2:x86_64/update' $REQUIRE_STORAGE
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     pattern=patterns-cloud-admin
