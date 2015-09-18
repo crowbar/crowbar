@@ -538,6 +538,8 @@ test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 # FIXME: repos that we cannot check yet:
 #   Cloud 6 Pool / Updates: non-existing repos
 REPOS_SKIP_CHECKS+=" SUSE-OpenStack-Cloud-6-Pool SUSE-OpenStack-Cloud-6-Updates"
+# FIXME: Update repo doesn't exist yet, can't be checked
+REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-2-Updates"
 
 # Checks for SLE12 medias
 MEDIA=/srv/tftpboot/suse-12.0/install
