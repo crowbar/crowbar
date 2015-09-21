@@ -585,7 +585,7 @@ if ! is_ses; then
     check_repo_tag repo    12.1 SLES12-SP1-Pool                     'obsproduct://build.suse.de/SUSE:SLE-12-SP1:GA/SLES/12.1/POOL/x86_64'
     check_repo_tag repo    12.1 SLES12-SP1-Updates                  'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12-SP1:x86_64/update'
     check_repo_tag repo    12.1 SUSE-OpenStack-Cloud-6-Pool         'obsproduct://build.suse.de/SUSE:SLE-12:SP1:Products:Cloud6/suse-openstack-cloud/6/POOL/x86_64' $REQUIRE_CLOUD
-    check_repo_tag summary 12.1 SUSE-OpenStack-Cloud-6-Updates      'SUSE OpenStack Cloud 6' $REQUIRE_CLOUD
+    check_repo_tag repo    12.1 SUSE-OpenStack-Cloud-6-Updates      'obsrepository://build.suse.de/SUSE:Updates:OpenStack-Cloud:6:x86_64/update' $REQUIRE_CLOUD
     check_repo_tag repo    12.1 SLE12-SP1-HA-Pool                   'obsproduct://build.suse.de/SUSE:SLE-12-SP1:GA/sle-ha/12.1/POOL/x86_64' 'false'
     check_repo_tag repo    12.1 SLE12-SP1-HA-Updates                'obsrepository://build.suse.de/SUSE:Updates:SLE-HA:12-SP1:x86_64/update' 'false'
 fi
