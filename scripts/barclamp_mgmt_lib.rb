@@ -440,7 +440,7 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
   yml_path = File.join CROWBAR_PATH, 'barclamps'
   yml_created = File.join(yml_path, "#{bc}.yml")
   FileUtils.mkdir yml_path unless File.directory? yml_path
-  FileUtils.cp yml_barclamp, yml_created
+  FileUtils.cp yml_barclamp, yml_created unless yml_barclamp == yml_created
   files << yml_created
 
   # copy over the manifest.json file, needed to update assets manifest

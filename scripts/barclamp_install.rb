@@ -124,7 +124,7 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
       target=File.join(BARCLAMP_PATH, bc[:src].split("/")[-1])
       if File.directory? target
         debug "target directory #{target} exists"
-        if get_crowbar_yml_path(target).nil?
+        if get_yml_paths(target, bc[:name]).empty?
           debug "crowbar YAML file does not exists in #{target}"
           puts "#{target} exists, but it is not a barclamp."
           puts "Cowardly refusing to overwrite it."
