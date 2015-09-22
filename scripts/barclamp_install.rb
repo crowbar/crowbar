@@ -75,7 +75,7 @@ end
 
 if barclamp_yml_files.blank?
   puts "No valid crowbar components found."
-  return
+  exit -1
 end
 
 debug "checking components"
