@@ -383,9 +383,9 @@ if [ -n "$IPv4_addr" ]; then
     if [ -f /etc/crowbar/network.json ]; then
         NETWORK_JSON=/etc/crowbar/network.json
     elif [ -n "$CROWBAR_FROM_GIT" ]; then
-        NETWORK_JSON=$BARCLAMP_SRC/network/chef/data_bags/crowbar/bc-template-network.json
+        NETWORK_JSON=$BARCLAMP_SRC/network/chef/data_bags/crowbar/template-network.json
     else
-        NETWORK_JSON=/opt/dell/chef/data_bags/crowbar/bc-template-network.json
+        NETWORK_JSON=/opt/dell/chef/data_bags/crowbar/template-network.json
     fi
 
     if ! /opt/dell/bin/network-json-validator --admin-ip "$IPv4_addr" $NETWORK_JSON; then

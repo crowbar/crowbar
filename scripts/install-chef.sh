@@ -347,10 +347,10 @@ sed -i -e 's/^\(GSSAPI\)/#\1/' \
 restart_ssh || :
 
 sed -i "s/pod.your.cloud.org/$DOMAINNAME/g" \
-    /opt/dell/barclamps/dns/chef/data_bags/crowbar/bc-template-dns.json
+    /opt/dell/barclamps/dns/chef/data_bags/crowbar/template-dns.json
 
 # generate the machine install username and password
-CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/bc-template-crowbar.json"
+CROWBAR_FILE="/opt/dell/barclamps/crowbar/chef/data_bags/crowbar/template-crowbar.json"
 if [[ -e $DVD_PATH/extra/config/crowbar.json ]]; then
   CROWBAR_FILE="$DVD_PATH/extra/config/crowbar.json"
 fi
