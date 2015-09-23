@@ -512,11 +512,11 @@ smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
 cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-OpenStack-Cloud-6-Pool
-smt_dir=/srv/www/htdocs/repo/SUSE/Products/OpenStack-Cloud/5/x86_64/product
+smt_dir=/srv/www/htdocs/repo/SUSE/Products/OpenStack-Cloud/6/x86_64/product
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
 cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-OpenStack-Cloud-6-Updates
-smt_dir=/srv/www/htdocs/repo/SUSE/Updates/OpenStack-Cloud/5/x86_64/update
+smt_dir=/srv/www/htdocs/repo/SUSE/Updates/OpenStack-Cloud/6/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
 cloud_dir=/srv/tftpboot/suse-12.0/repos/SLE12-HA-Pool
