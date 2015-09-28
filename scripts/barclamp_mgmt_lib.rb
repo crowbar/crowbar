@@ -467,7 +467,7 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
 
   if bc_schema_version < latest_version
     name = yaml['barclamp']['name']
-    schema_file = File.join BASE_PATH, 'chef','data_bags','crowbar', "bc-template-#{name}.schema"
+    schema_file = File.join BASE_PATH, 'chef','data_bags','crowbar', "template-#{name}.schema"
     if File.exists? schema_file
       a = []
       File.open(schema_file, 'r') { |f|
@@ -544,7 +544,7 @@ def bc_install_layout_1_chef_migrate(bc, log)
 end
 
 def check_schema_migration(bc)
-  template_file = File.join BASE_PATH, 'chef', 'data_bags', 'crowbar', "bc-template-#{bc}.json"
+  template_file = File.join BASE_PATH, 'chef', 'data_bags', 'crowbar', "template-#{bc}.json"
   debug "Looking for new schema-revision in #{template_file}..."
   new_schema_revision = nil
   begin
@@ -561,13 +561,13 @@ def check_schema_migration(bc)
   debug "Looking for previous schema-revision..."
   old_schema_revision = nil
   begin
-    old_json = `knife data bag show -F json crowbar bc-template-#{bc} -k /etc/chef/webui.pem -u chef-webui 2> /dev/null`
+    old_json = `knife data bag show -F json crowbar template-#{bc} -k /etc/chef/webui.pem -u chef-webui 2> /dev/null`
     if $?.success?
       template = JSON::load old_json
       old_schema_revision = template["deployment"][bc]["schema-revision"]
       debug "Previous schema-revision for #{bc} is #{old_schema_revision}"
     else
-      debug "Failed to retrieve bc-template-#{bc}, no migration necessary"
+      debug "Failed to retrieve template-#{bc}, no migration necessary"
       return false
     end
   rescue StandardError

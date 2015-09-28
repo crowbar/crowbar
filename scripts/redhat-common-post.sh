@@ -103,7 +103,7 @@ for s in $(cat /proc/cmdline); do
         crowbar.hostname) CHOSTNAME=$VAL;;
         crowbar.url) CURL=$VAL;;
         crowbar.use_serial_console)
-            sed -i "s/\"use_serial_console\": .*,/\"use_serial_console\": $VAL,/" /opt/dell/chef/data_bags/crowbar/bc-template-provisioner.json;;
+            sed -i "s/\"use_serial_console\": .*,/\"use_serial_console\": $VAL,/" /opt/dell/chef/data_bags/crowbar/template-provisioner.json;;
         crowbar.debug.logdest)
             echo "*.*    $VAL" >> /etc/rsyslog.d/00-crowbar-debug.conf
             mkdir -p "$BASEDIR/rsyslog.d"
