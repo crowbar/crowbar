@@ -1,0 +1,15 @@
+engines:
+  rubocop:
+    enabled: true
+  eslint:
+    enabled: true
+  csslint:
+    enabled: true
+  golint:
+    enabled: false
+  gofmt:
+    enabled: false
+
+exclude_paths:
+  - spec/**/*
+  - vendor/**/*
