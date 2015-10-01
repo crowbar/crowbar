@@ -710,6 +710,9 @@ done
 
 echo_summary "Performing initial chef-client run"
 
+# Stop chef-client daemon to avoid interferences
+service chef-client status &> /dev/null && service chef-client stop
+
 if ! [ -e ~/.chef/knife.rb ]; then
     yes '' | knife configure -i
 fi
@@ -749,7 +752,10 @@ chef-client
 echo_summary "Installing barclamps"
 
 # Clean up previous crowbar install run, in case there was one
-service crowbar status > /dev/null && service crowbar stop
+# Crowbar is proxied by apache, so we should stop apache too
+for service in apache2 crowbar; do
+    service $service status &> /dev/null && service $service stop
+done
 for i in $BARCLAMP_SRC/*; do
     if test -d $i -a -f $i-filelist.txt; then
         /opt/dell/bin/barclamp_uninstall.rb $BARCLAMP_INSTALL_OPTS $i
@@ -834,6 +840,11 @@ ensure_service_running crowbar
 echo_summary "Applying Crowbar configuration for Administration Server"
 
 # Clean up previous crowbar install run, in case there was one
+# Note that we don't stop ntpd since it's possibly used later on, nor
+# named/dnsmasq since they might be required to resolve DNS
+for service in dhcpd nfsserver xinetd; do
+    service $service status &> /dev/null && service $service stop
+done
 test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
 test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/htdigest
 test -d /var/lib/crowbar/config && rm -f /var/lib/crowbar/config/*.json
