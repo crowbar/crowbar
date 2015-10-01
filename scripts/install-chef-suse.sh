@@ -710,6 +710,9 @@ done
 
 echo_summary "Performing initial chef-client run"
 
+# Stop chef-client daemon to avoid interferences
+service chef-client status &> /dev/null && service chef-client stop
+
 if ! [ -e ~/.chef/knife.rb ]; then
     yes '' | knife configure -i
 fi
