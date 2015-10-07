@@ -30,7 +30,7 @@ set -e
 usage () {
     # do not document --from-git option; it's for developers only
     cat <<EOF
-`basename $0` [-h|--help] [-v|--verbose]
+`basename $0` [-h|--help] [-v|--verbose] [-d|--debug]
 
 Install Crowbar on administration server.
 EOF
@@ -41,6 +41,7 @@ while test $# -gt 0; do
     case "$1" in
         -h|--help|--usage|-\?) usage ;;
         -v|--verbose) CROWBAR_VERBOSE=1 ;;
+        -d|--debug) CROWBAR_DEBUG=1 ;;
         --from-git) CROWBAR_FROM_GIT=1 ;;
         *) ;;
     esac
@@ -59,10 +60,16 @@ if [ -z "$HOME" ]; then
     exit 1
 fi
 
-BARCLAMP_INSTALL_OPTS="--rpm"
+if [ -n "$CROWBAR_DEBUG" ]; then
+    BARCLAMP_INSTALL_OPTS="--debug"
+    chef_client="chef-client -l debug"
+else
+    BARCLAMP_INSTALL_OPTS=""
+    chef_client="chef-client"
+fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    BARCLAMP_INSTALL_OPTS="--force"
+    BARCLAMP_INSTALL_OPTS="$BARCLAMP_INSTALL_OPTS --force"
     : ${CROWBAR_JSON:=/root/crowbar/crowbar.json}
     : ${BARCLAMP_SRC:=/root/crowbar/barclamps/}
     mkdir -p /opt/dell/bin
@@ -71,6 +78,8 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
             install -p -m 0755 $tool /opt/dell/bin/
         fi
     done
+else
+    BARCLAMP_INSTALL_OPTS="$BARCLAMP_INSTALL_OPTS --rpm"
 fi
 
 LOGFILE=/var/log/crowbar/install.log
@@ -772,7 +781,7 @@ chef_server_url 'http://$IPv4_addr:4000'
 enable_reporting false
 EOF
 
-chef-client
+$chef_client
 
 
 # Barclamp installation
@@ -848,7 +857,7 @@ knife node run_list add "$FQDN" role["$NODE_ROLE"]
 # at this point you can run chef-client from the command line to start
 # the crowbar bootstrapping
 
-chef-client
+$chef_client
 
 # Create session store database
 rm -f /opt/dell/crowbar_framework/db/*.sqlite3
@@ -1044,7 +1053,7 @@ if [ "$($CROWBAR crowbar proposal list)" != "default" ] ; then
     for ((x=1; x<6; x++)); do
         $CROWBAR crowbar "${proposal_opts[@]}" && { proposal_created=true; break; }
         echo "Proposal create failed, pass $x.  Will kick Chef and try again."
-        chef-client
+        $chef_client
         sleep 1
     done
     if [[ ! $proposal_created ]]; then
@@ -1062,7 +1071,7 @@ $CROWBAR crowbar proposal commit default || \
 $CROWBAR crowbar proposal show default >/var/log/crowbar/default.json
 
 crowbar_up=true
-chef-client
+$chef_client
 
 # Need to make sure that we have the indexer/expander finished
 COUNT=0
@@ -1109,9 +1118,9 @@ do
         # Use crowbar_register mode for claiming the disks, as the OS is
         # already installed
         echo '{ "crowbar_wall": { "registering": true } }' | \
-            chef-client --json-attributes /dev/stdin
+            $chef_client --json-attributes /dev/stdin
     else
-        chef-client
+        $chef_client
     fi
     # check_machine_role
 done
