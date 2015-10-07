@@ -390,6 +390,8 @@ if [ -n "$IPv4_addr" ]; then
     else
         NETWORK_JSON=/opt/dell/chef/data_bags/crowbar/template-network.json
     fi
+    # allow using old json files # TODO: drop in 2017
+    sed -i -e 's/bc-template-network/template-network/' $NETWORK_JSON
 
     if ! /opt/dell/bin/network-json-validator --admin-ip "$IPv4_addr" $NETWORK_JSON; then
         die "Failed to validate network.json configuration. Please check and fix with yast2 crowbar. Aborting."
