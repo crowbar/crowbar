@@ -81,7 +81,7 @@ mkdir -p "`dirname "$LOGFILE"`"
 run_succeeded=
 
 is_ses () {
-    [ -d /opt/dell/barclamps/suse-enterprise-storage ]
+    [ -d /opt/dell/barclamps/ses ]
 }
 
 
@@ -813,7 +813,7 @@ fi
 
 required_components="core"
 if is_ses ; then
-    required_components+=" suse-enterprise-storage ceph"
+    required_components+=" ses ceph"
 else
     required_components+=" openstack ha ceph"
 fi
