@@ -46,15 +46,13 @@ Before we can start you need to match some prerequirements on your host machine.
      #!/usr/bin/env bash
 
      export pre_onadmin_installcrowbar=$(base64 --wrap=0 <<'EOS'
-       zypper ar -f http://dist.suse.de/install/SLP/SLE-12-SDK-GM/x86_64/DVD1/ sle12-sdk
-       zypper ref;
+       zypper ar -f http://dist.suse.de/install/SLP/SLE-12-SP1-SDK-LATEST/x86_64/DVD1/ sle12-sp1-sdk
        zypper -n in -l gcc ruby2.1-devel sqlite3-devel libxml2-devel;
 
        mkdir -p /opt/crowbar/crowbar_framework/db;
        mkdir -p /opt/crowbar/barclamps;
 
        cp /opt/dell/crowbar_framework/db/production.sqlite3 /opt/crowbar/crowbar_framework/db/development.sqlite3;
-       ln -sf /usr/bin/ruby.ruby2.1 /usr/bin/ruby
      EOS
      )
 
