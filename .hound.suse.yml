@@ -1,0 +1,81 @@
+# This is the shared Rubocop configuration for SUSE projects. It is maintained
+# at https://github.com/SUSE/style-guides/blob/master/rubocop-suse.yml
+#
+# The configuration is tested and used with the Rubocop version used by Hound
+# (http://hound-ci.com).
+#
+# We use the default Hound config as a baseline:
+#
+#   https://raw.githubusercontent.com/thoughtbot/hound/master/config/style_guides/ruby.yml
+#
+# This file contains the rules with derive from this.
+
+Lint/EndAlignment:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#lintendalignment
+  AlignWith: variable
+
+Metrics/AbcSize:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#metricsabcsize
+  Max: 30
+
+Metrics/LineLength:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#metricslinelength
+  Max: 100
+  AllowURI: true
+  URISchemes:
+    - http
+    - https
+
+Style/AlignHash:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#stylealignhash
+  EnforcedHashRocketStyle: table
+  EnforcedColonStyle: table
+
+Style/AlignParameters:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#stylealignparameters
+  Enabled: false
+
+Style/CollectionMethods:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#stylecollectionmethods
+  Enabled: false
+
+Style/EmptyLinesAroundBlockBody:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#styleemptylinesaroundblockbody
+  Enabled: false
+
+Style/MultilineOperationIndentation:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#stylemultilineoperationindentation
+  EnforcedStyle: indented
+
+Style/StringLiterals:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#stylestringliterals
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#stylestringliteralsininterpolation
+  EnforcedStyle: double_quotes
+
+Style/WordArray:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#deviations-from-the-upstream-style-guide
+  Enabled: false
+
+Style/RegexpLiteral:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#deviations-from-the-upstream-style-guide
+  Enabled: false
+
+Style/SignalException:
+  # Stop complains about unsupported attribute
+  # StyleGuide: https://github.com/bbatsov/ruby-style-guide#fail-method
+  EnforcedStyle: only_raise
