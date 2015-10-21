@@ -369,7 +369,6 @@ end
 def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
   filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
   if File.exist? filelist
-    files = [ filelist ]
     File.open(filelist, 'r') do |f|
       f.each_line { |line| FileUtils.rm line.chomp rescue nil }
     end
@@ -533,7 +532,7 @@ end
 def bc_install_layout_1_chef_migrate(bc, log)
   debug "Migrating schema to new revision..."
   File.open(log, "a") { |f| f.puts("======== Migrating #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
-  migrate_cmd = "cd #{CROWBAR_PATH} && RAILS_ENV=production ./bin/rake --silent crowbar:schema_migrate_prod[#{bc}] 2>&1"
+  migrate_cmd = "cd #{CROWBAR_PATH} && RAILS_ENV=#{ENV["RAILS_ENV"] || "production"} bin/rake --silent crowbar:schema_migrate_prod[#{bc}] 2>&1"
   migrate_cmd_su = "su -s /bin/sh - crowbar sh -c \"#{migrate_cmd}\" >> #{log}"
   debug "running #{migrate_cmd_su}"
   unless system migrate_cmd_su

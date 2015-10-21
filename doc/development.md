@@ -28,7 +28,7 @@ compare the differences:
   1. __Regular SUSE OpenStack Cloud install__. Runs on standard http port
      (http://HOSTNAME) and from the `/opt/dell` directory.
   2. __From Git upstream branding__. Runs on [port 5000]
-     (http://HOSTNAME:5100) and from the `/opt/crowbar` directory.
+     (http://HOSTNAME:5000) and from the `/opt/crowbar` directory.
 
 All are using the same default username and password, both ```crowbar```. The
 following sections will describe in detail how each of these are setup and
@@ -49,16 +49,16 @@ Before we can start you need to match some prerequirements on your host machine.
        zypper ar -f http://dist.suse.de/install/SLP/SLE-12-SP1-SDK-LATEST/x86_64/DVD1/ sle12-sp1-sdk
        zypper -n in -l gcc ruby2.1-devel sqlite3-devel libxml2-devel;
 
-       mkdir -p /opt/crowbar/crowbar_framework/db;
-       mkdir -p /opt/crowbar/barclamps;
+       mkdir -p /opt/crowbar/crowbar_framework/db /opt/crowbar/barclamps;
 
-       cp /opt/dell/crowbar_framework/db/production.sqlite3 /opt/crowbar/crowbar_framework/db/development.sqlite3;
+       ln -sf /opt/dell/crowbar_framework/db/production.sqlite3 /opt/crowbar/crowbar_framework/db/development.sqlite3;
      EOS
      )
 
+     export SHAREDVG=1
      export TESTHEAD=1
      export cloudsource=develcloud6
-     export virtualcloud=wiggy
+     export virtualcloud=l6
      export cloud=cloud6
      export net_fixed=192.168.116
      export net_public=192.168.96
@@ -67,18 +67,21 @@ Before we can start you need to match some prerequirements on your host machine.
      export nodenumber=2
      export vcpus=4
      export cloudvg=system
+     export user_keyfile=~${SUDO_USER}/.ssh/id_rsa.pub
+     export adminvcpus=2
+     export want_sles12=1
 
      /usr/local/bin/mkcloud $@
      ```
 
-  1. At first you need a running mkcloud setup. For more information about this
+  2. At first you need a running mkcloud setup. For more information about this
      read the [mkcloud](http://git.io/vYO2E) documentation. Please use the
-     wrapper script created above to install Crowbar.
+     wrapper script created above to install Crowbar, e.g. `sudo mkcloud6 plain`.
 
-  2. You need some ruby environment on you workstation in order to execute some
+  3. You need some ruby environment on you workstation in order to execute some
      rake tasks, so please install ```ruby``` and ```bundler``` first.
 
-  3. You need to clone all repositories from GitHub. There are rake tasks for
+  4. You need to clone all repositories from GitHub. There are rake tasks for
      cloning, forking and updating all required repositories. Make sure to get
      all the dependencies with ```bundle install``` and use ```rake -T``` to get
      an overview about the rake tasks.
@@ -89,17 +92,11 @@ Before we can start you need to match some prerequirements on your host machine.
      2. ```rake crowbar:update``` will update the clones, this should be performed from time
         to time to get the latest changes into your cloned repositories.
 
-  4. After this copy your ssh-key to the machine using ```ssh-copy-id```.
-
-  5. Change within ```barclamps/crowbar/crowbar_framework/Gemfile``` the
-     rubygems source from ```https``` to ```http``` as there is some known issue
-     in SLE 11 for bundle install..
-
-  6. Now run Guard to sync you local git clones with the server, please execute
+  5. Now run Guard to sync your local git repos with the server, please execute
      ```GUARD_SYNC_HOST=192.168.106.10 bundle exec guard``` in a seperate
      terminal window as this process will stay in the foreground.
 
-  7. Now ssh to the admin node and follow the steps below:
+  6. Now ssh to the admin node and follow the steps below:
 
     1. Change to ```/opt/crowbar/crowbar_framework```.
 
@@ -108,15 +105,11 @@ Before we can start you need to match some prerequirements on your host machine.
     3. Install all barclamps with this snippet
 
        ```bash
-       components=$(find /opt/crowbar/barclamps -mindepth 1 -maxdepth 1 -type d)
-       CROWBAR_DIR=/opt/crowbar /opt/crowbar/bin/barclamp_install.rb $components
+       COMPONENTS=$(find /opt/crowbar/barclamps -mindepth 1 -maxdepth 1 -type d)
+       CROWBAR_DIR=/opt/crowbar RAILS_ENV=development /opt/crowbar/bin/barclamp_install.rb $COMPONENTS
        ```
 
-    4. shutdown the production server `systemctl stop crowbar && systemctl disable crowbar`
-       as it currently causes confusion with the crowbar database. It gets out of sync when
-       you e.g. change proposals.
-
-    5. Run the Rails server ```bin/rails s -b 0.0.0.0 -p 5000```
+    4. Run the Rails server ```bin/rails s -b 0.0.0.0 -p 5000```
 
 
-  8. Now you can access you crowbar development setup via ```http://192.168.106.10:5000```
+  7. Now you can access you crowbar development setup via ```http://192.168.106.10:5000```
