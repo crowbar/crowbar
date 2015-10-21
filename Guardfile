@@ -105,8 +105,7 @@ group :tree do
       :exclude_from => exclude_tree,
       :sync_on_start => true,
       :ssh => true,
-      :cvs_exclude => true,
-      :delete => false
+      :cvs_exclude => true
     }
 
     guard("remote-sync", guard_options) do
