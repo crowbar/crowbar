@@ -45,7 +45,7 @@ Before we can start you need to match some prerequirements on your host machine.
      ```bash
      #!/usr/bin/env bash
 
-     export pre_onadmin_installcrowbar=$(base64 --wrap=0 <<'EOS'
+     export pre_do_installcrowbar=$(base64 --wrap=0 <<'EOS'
        zypper ar -f http://dist.suse.de/install/SLP/SLE-12-SP1-SDK-LATEST/x86_64/DVD1/ sle12-sp1-sdk
        zypper -n in -l gcc ruby2.1-devel sqlite3-devel libxml2-devel;
 
