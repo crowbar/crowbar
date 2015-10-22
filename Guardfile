@@ -96,20 +96,16 @@ group :tree do
       file.write "- /*\n"
     end
 
-    guard_options = {
-      :source => "#{barclamp.to_s}/",
-      :destination => target,
-      :user => user,
-      :remote_address => host,
-      :remote_port => port,
-      :exclude_from => exclude_tree,
-      :sync_on_start => true,
-      :ssh => true,
-      :cvs_exclude => true,
-      :delete => false
-    }
+    guard_params = [
+      "-ar --stats --cvs-exclude",
+      "--chown 'crowbar:crowbar'",
+      "--exclude-from '#{exclude_tree}'",
+      "-e 'ssh -p #{port}'",
+      "#{barclamp.to_s}/",
+      "#{user}@#{host}:#{target}"
+    ]
 
-    guard("remote-sync", guard_options) do
+    guard "remote-sync", sync_on_start: true, source: "#{barclamp.to_s}/", cli_options: guard_params.join(" ") do
       watch(/\A#{barclamp.to_s}\/.+/)
     end
 
@@ -119,7 +115,7 @@ group :tree do
     )
 
     File.open(exclude_barclamp, "w") do |file|
-      file.write "+ /crowbar.yml\n"
+      file.write "+ /*.yml\n"
       file.write "+ /Gemfile\n"
       file.write "+ /Rakefile\n"
       file.write "+ /README.md\n"
@@ -131,21 +127,16 @@ group :tree do
       file.write "- /*\n"
     end
 
-    config_options = {
-      :source => "#{barclamp.to_s}/",
-      :destination => File.join(target, barclamp.to_s),
-      :user => user,
-      :remote_address => host,
-      :remote_port => port,
-      :exclude_from => exclude_barclamp,
-      :exclude_from => nil,
-      :include_from => nil,
-      :sync_on_start => true,
-      :ssh => true,
-      :cvs_exclude => true
-    }
+    config_params = [
+      "-ar --stats --cvs-exclude --delete",
+      "--chown 'crowbar:crowbar'",
+      "--exclude-from '#{exclude_barclamp}'",
+      "-e 'ssh -p #{port}'",
+      "#{barclamp.to_s}/",
+      "#{user}@#{host}:#{File.join(target, barclamp.to_s)}"
+    ]
 
-    guard("remote-sync", config_options) do
+    guard "remote-sync", sync_on_start: true, source: "#{barclamp.to_s}/", cli_options: config_params.join(" ") do
       watch(/\A#{barclamp.to_s}\/.+/)
     end
   end
@@ -171,19 +162,16 @@ group :script do
     file.write "- /*\n"
   end
 
-  script_options = {
-    :source => "scripts/",
-    :destination => target,
-    :user => user,
-    :remote_address => host,
-    :remote_port => port,
-    :exclude_from => exclude_script,
-    :sync_on_start => true,
-    :ssh => true,
-    :cvs_exclude => true
-  }
+  script_params = [
+    "-ar --stats --cvs-exclude --delete",
+    "--chown 'crowbar:crowbar'",
+    "--exclude-from '#{exclude_script}'",
+    "-e 'ssh -p #{port}'",
+    "scripts/",
+    "#{user}@#{host}:#{target}"
+  ]
 
-  guard("remote-sync", script_options) do
+  guard "remote-sync", sync_on_start: true, source: "scripts/", cli_options: script_params.join(" ") do
     watch(/\Ascripts\/barclamp_.+\z/)
     watch(/\Ascripts\/json\-.+\z/)
     watch(/\Ascripts\/install\-.+\z/)
@@ -208,19 +196,16 @@ group :mirror do
     file.write "- *.swp\n"
   end
 
-  mirror_options = {
-    :source => "barclamps/",
-    :destination => target,
-    :user => user,
-    :remote_address => host,
-    :remote_port => port,
-    :exclude_from => exclude_mirror,
-    :sync_on_start => true,
-    :ssh => true,
-    :cvs_exclude => true
-  }
+  mirror_params = [
+    "-ar --stats --cvs-exclude --delete",
+    "--chown 'crowbar:crowbar'",
+    "--exclude-from '#{exclude_mirror}'",
+    "-e 'ssh -p #{port}'",
+    "barclamps/",
+    "#{user}@#{host}:#{target}"
+  ]
 
-  guard("remote-sync", mirror_options) do
+  guard "remote-sync", sync_on_start: true, source: "barclamps/", cli_options: mirror_params.join(" ") do
     watch(/\Abarclamps\/.+/)
   end
 end
