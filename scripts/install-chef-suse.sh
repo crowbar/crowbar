@@ -672,13 +672,6 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
 
     # Need this for provisioner to work:
     mkdir -p /srv/tftpboot/discovery/pxelinux.cfg
-    # create Compatibility link /tftpboot -> /srv/tftpboot (this is part of
-    # the crowbar package when not in $CROWBAR_FROM_GIT)
-    if ! [ -e /tftpboot ]; then
-        ln -s /srv/tftpboot /tftpboot
-    elif [ "$( /usr/bin/readlink /tftpboot )" != "/srv/tftpboot" ]; then
-        die "/tftpboot exist but is not a symbolic link to /srv/tftpboot. Please fix!"
-    fi
 
     # log directory needs to exist
     mkdir -p /var/log/crowbar
