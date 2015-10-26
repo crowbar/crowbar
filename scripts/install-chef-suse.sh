@@ -339,8 +339,6 @@ if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
 fi
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
-    REPOS_SKIP_CHECKS+=" SLES12-Pool SLES12-Updates SLES12-SP1-Pool SLES12-SP1-Updates SUSE-OpenStack-Cloud-6-Pool SUSE-OpenStack-Cloud-6-Updates"
-
     zypper -n in ruby2.1-rubygem-json-1_7 createrepo
 fi
 
@@ -358,29 +356,6 @@ if [ -f /etc/crowbar/provisioner.json ]; then
     PROVISIONER_JSON=/etc/crowbar/provisioner.json
 elif [ -n "$CROWBAR_FROM_GIT" -a -f /root/crowbar/provisioner.json ]; then
     PROVISIONER_JSON=/root/crowbar/provisioner.json
-fi
-if [ -n "$PROVISIONER_JSON" ]; then
-    for repo in Cloud \
-        PTF \
-        SLES12-Pool \
-        SLES12-Updates \
-        SLES12-SP1-Pool \
-        SLES12-SP1-Updates \
-        SUSE-OpenStack-Cloud-6-Pool \
-        SUSE-OpenStack-Cloud-6-Updates \
-        SLE12-SP1-HA-Pool \
-        SLE12-SP1-HA-Updates \
-        SUSE-Enterprise-Storage-2-Pool \
-        SUSE-Enterprise-Storage-2-Updates
-    do
-        common_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.common.${repo//./\\\\.}.url )"
-        sles12_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.suse-12\\.0.${repo//./\\\\.}.url )"
-        sles12sp1_check="$( json_read $PROVISIONER_JSON attributes.provisioner.suse.autoyast.repos.suse-12\\.1.${repo//./\\\\.}.url )"
-
-        if [ -n "$common_check" -o -n "$sles12_check" -o -n "$sles12sp1_check" ]; then
-            REPOS_SKIP_CHECKS+=" ${repo}"
-        fi
-    done
 fi
 
 if [ -n "$IPv4_addr" ]; then
@@ -557,19 +532,6 @@ cloud_dir=/srv/tftpboot/suse-12.0/repos/SUSE-Enterprise-Storage-2-Updates
 smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/2/x86_64/update
 test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-# FIXME: repos that we cannot check yet:
-#   Cloud 6 Pool / Updates: non-existing repos
-REPOS_SKIP_CHECKS+=" SUSE-OpenStack-Cloud-6-Pool SUSE-OpenStack-Cloud-6-Updates"
-# FIXME: Update repo doesn't exist yet, can't be checked
-REPOS_SKIP_CHECKS+=" SUSE-Enterprise-Storage-2-Updates"
-
-REQUIRE_STORAGE='false'
-REQUIRE_CLOUD='true'
-if is_ses; then
-    REQUIRE_STORAGE='true'
-    REQUIRE_CLOUD='false'
-fi
-
 if ! is_ses; then
     # Checks for SLE12 SP1 medias
     MEDIA=/srv/tftpboot/suse-12.1/install
@@ -592,13 +554,6 @@ if ! is_ses; then
             /srv/tftpboot/suse-12.1/repos/Cloud \
             #1558be86e7354d31e71e7c8c2574031a
     fi
-
-    check_repo_tag repo    12.1 SLES12-SP1-Pool                     'obsproduct://build.suse.de/SUSE:SLE-12-SP1:GA/SLES/12.1/POOL/x86_64'
-    check_repo_tag repo    12.1 SLES12-SP1-Updates                  'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12-SP1:x86_64/update'
-    check_repo_tag repo    12.1 SUSE-OpenStack-Cloud-6-Pool         'obsproduct://build.suse.de/SUSE:SLE-12:SP1:Products:Cloud6/suse-openstack-cloud/6/POOL/x86_64' $REQUIRE_CLOUD
-    check_repo_tag repo    12.1 SUSE-OpenStack-Cloud-6-Updates      'obsrepository://build.suse.de/SUSE:Updates:OpenStack-Cloud:6:x86_64/update' $REQUIRE_CLOUD
-    check_repo_tag repo    12.1 SLE12-SP1-HA-Pool                   'obsproduct://build.suse.de/SUSE:SLE-12-SP1:GA/sle-ha/12.1/POOL/x86_64' 'false'
-    check_repo_tag repo    12.1 SLE12-SP1-HA-Updates                'obsrepository://build.suse.de/SUSE:Updates:SLE-HA:12-SP1:x86_64/update' 'false'
 fi
 
 # Checks for SLE12 media (for SES)
@@ -610,11 +565,6 @@ if [ -e $MEDIA/boot/x86_64/common ]; then
         b52c0f2b41a6a10d49cc89edcdc1b13d
 
     check_media_links $MEDIA
-
-    check_repo_tag repo    12.0 SLES12-Pool                       'obsproduct://build.suse.de/SUSE:SLE-12:GA/SLES/12/POOL/x86_64' $REQUIRE_STORAGE
-    check_repo_tag repo    12.0 SLES12-Updates                    'obsrepository://build.suse.de/SUSE:Updates:SLE-SERVER:12:x86_64/update' $REQUIRE_STORAGE
-    check_repo_tag repo    12.0 SUSE-Enterprise-Storage-2-Pool    'obsproduct://build.suse.de/SUSE:SLE-12:Update:Products:SES2/ses/2/POOL/x86_64' $REQUIRE_STORAGE
-    check_repo_tag repo    12.0 SUSE-Enterprise-Storage-2-Updates 'obsrepository://build.suse.de/SUSE:Updates:Storage:2:x86_64/update' $REQUIRE_STORAGE
 fi
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
