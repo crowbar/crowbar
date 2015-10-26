@@ -1166,6 +1166,8 @@ for s in xinetd dhcpd apache2 ; do
     fi
 done
 
+# activate provisioner repos
+curl -X POST http://localhost:3000/utils/repositories/activate_all
 
 # We're done!
 # -----------
