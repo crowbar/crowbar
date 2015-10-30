@@ -30,7 +30,7 @@ set -e
 usage () {
     # do not document --from-git option; it's for developers only
     cat <<EOF
-`basename $0` [-h|--help] [-v|--verbose] [-d|--debug]
+`basename $0` [-h|--help] [-v|--verbose] [-d|--debug] [-c|--crowbar]
 
 Install Crowbar on administration server.
 EOF
@@ -42,6 +42,7 @@ while test $# -gt 0; do
         -h|--help|--usage|-\?) usage ;;
         -v|--verbose) CROWBAR_VERBOSE=1 ;;
         -d|--debug) CROWBAR_DEBUG=1 ;;
+        -c|--crowbar) CROWBAR_WIZARD_MODE=1 && CROWBAR_VERBOSE=1 ;;
         --from-git) CROWBAR_FROM_GIT=1 ;;
         *) ;;
     esac
@@ -301,7 +302,7 @@ IPv4_addr=$( getent ahosts $FQDN 2>/dev/null | awk '{ if ($1 !~ /:/) { print $1;
 
 echo_summary "Performing sanity checks"
 
-if [ -n "$SSH_CONNECTION" -a -z "$STY" ]; then
+if [ -n "$SSH_CONNECTION" -a -z "$STY" ] && [ -z "$CROWBAR_WIZARD_MODE" ]; then
     die "Not running in screen. Please use \"screen $0\" to avoid problems during network re-configuration. Aborting."
 fi
 
