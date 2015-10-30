@@ -825,7 +825,7 @@ echo_summary "Applying Crowbar configuration for Administration Server"
 # Clean up previous crowbar install run, in case there was one
 # Note that we don't stop ntpd since it's possibly used later on, nor
 # named/dnsmasq since they might be required to resolve DNS
-for service in dhcpd nfsserver xinetd; do
+for service in dhcpd nfsserver; do
     service $service status &> /dev/null && service $service stop
 done
 test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
@@ -1103,7 +1103,7 @@ if [ -n "$CROWBAR_RUN_TESTS" ]; then
         die "Crowbar validation has errors! Please check the logs and correct."
 fi
 
-for s in xinetd dhcpd apache2 ; do
+for s in dhcpd apache2 ; do
     if ! service $s status > /dev/null ; then
         die "service $s missing"
     fi
