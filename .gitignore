@@ -7,6 +7,10 @@
 
 /config/barclamps.local.yml
 
+mkcloud.config
+mkcloud.steps.log
+.artifacts
+
 *.lock
 *.lck
 *~
