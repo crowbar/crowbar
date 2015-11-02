@@ -597,6 +597,8 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     # ubuntu admin node.
 fi
 
+touch /var/lib/crowbar/pre_sanity_checks
+
 
 # Starting services
 # -----------------
@@ -650,6 +652,8 @@ for service in $services; do
     ensure_service_running chef-${service}
 done
 
+touch /var/lib/crowbar/run_services
+
 
 # Initial chef-client run
 # -----------------------
@@ -690,6 +694,8 @@ enable_reporting false
 EOF
 
 $chef_client
+
+touch /var/lib/crowbar/initial_chef_client
 
 
 # Barclamp installation
@@ -744,6 +750,8 @@ if test -d $BARCLAMP_SRC/hyperv; then
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS hyperv
 fi
 
+touch /var/lib/crowbar/barclamp_install
+
 # First step of crowbar bootstrap
 # -------------------------------
 
@@ -776,6 +784,8 @@ su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && \
 
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
+
+touch /var/lib/crowbar/bootstrap_crowbar_setup
 
 
 # Second step of crowbar bootstrap
@@ -1019,6 +1029,8 @@ done
 
 # BMC support?
 
+touch /var/lib/crowbar/apply_crowbar_config
+
 
 # Third step of crowbar bootstrap
 # -------------------------------
@@ -1057,6 +1069,8 @@ done
 # OK, let looper_chef_client run normally now.
 rm /var/run/crowbar/deploying
 
+touch /var/lib/crowbar/transition_crowbar
+
 
 # Starting more services
 # ----------------------
@@ -1066,6 +1080,8 @@ echo_summary "Starting chef-client"
 # Need chef-client daemon now
 chkconfig chef-client on
 ensure_service_running chef-client
+
+touch /var/lib/crowbar/chef_client_daemon
 
 
 # Final sanity checks
@@ -1094,6 +1110,8 @@ for s in dhcpd apache2 ; do
     fi
 done
 
+touch /var/lib/crowbar/post_sanity_checks
+
 # activate provisioner repos
 curl -X POST http://localhost:3000/utils/repositories/activate_all
 
@@ -1103,6 +1121,7 @@ curl -X POST http://localhost:3000/utils/repositories/activate_all
 echo_summary "Installation complete!"
 
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
+rm -f /var/lib/crowbar/install/crowbar_installing
 
 kill_spinner
 
