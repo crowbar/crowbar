@@ -3,17 +3,45 @@
 set -x
 shopt -s extglob
 
-function is_suse {
-    [ -f /etc/SuSE-release ]
+# File /etc/SuSE-release is deprecated and will be removed
+# in a future service pack or release. Therefore we would
+# like to use /etc/os-release about details release,
+# but for SLES 11 SP3 /etc/os-release doesn't exist.
+function is_suse() {
+    # This check will work on SLE 11 SP3 and SLE 12
+    [ -f /etc/SuSE-release ] && return
+
+    # This will work only on SLE 12 and above, after
+    # /etc/SuSE-release will be deprecated
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        [ "$NAME" == "SLES" ] && return
+    fi
+
+    return 1
 }
 
-DHCPDIR=/var/lib/dhclient
-RSYSLOGSERVICE=rsyslog
+function suse_ver() {
+    local ver=$1
+    local suse_ver=0
 
-is_suse && {
- DHCPDIR=/var/lib/dhcp
- RSYSLOGSERVICE=syslog
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        [ "$NAME" == "SLES" ] && suse_ver=${VERSION%-SP[0-9]}
+    elif [ -f /etc/SuSE-release ]; then
+        suse_ver=`cat /etc/SuSE-release  | awk '/VERSION/ {print $3}'`
+    fi
+
+    [ "$suse_ver" -eq "$ver" ]
 }
+
+if suse_ver 11; then
+    DHCPDIR=/var/lib/dhcp
+    RSYSLOGSERVICE=syslog
+else
+    DHCPDIR=/var/lib/dhclient
+    RSYSLOGSERVICE=rsyslog
+fi
 
 # Figure out where we PXE booted from.
 MAC=
@@ -58,10 +86,12 @@ if [[ ! $BOOTDEV ]]; then
     MAC=$(cat /sys/class/net/eth0/address)
 fi
 
-killall dhclient && sleep 5
-# Make sure our PXE interface is up, then fire up DHCP on it.
-ip link set "$BOOTDEV" up
-dhclient "$BOOTDEV"
+if ! suse_ver 12; then
+    killall dhclient && sleep 5
+    # Make sure our PXE interface is up, then fire up DHCP on it.
+    ip link set "$BOOTDEV" up
+    dhclient "$BOOTDEV"
+fi
 
 if ! [[ $(ip -4 -o addr show dev $BOOTDEV) =~ $ip_re ]]; then
     echo "We did not get an address on $BOOTDEV"
@@ -69,10 +99,17 @@ if ! [[ $(ip -4 -o addr show dev $BOOTDEV) =~ $ip_re ]]; then
 fi
 MYIP="${BASH_REMATCH[1]}"
 
-ADMIN_IP=$(grep dhcp-server $DHCPDIR/dhclient*.leases | \
-    uniq | cut -d" " -f5 | cut -d";" -f1)
-DOMAIN=$(grep "domain-name " $DHCPDIR/dhclient*.leases | \
-    uniq | cut -d" " -f5 | cut -d";" -f1 | awk -F\" '{ print $2 }')
+if suse_ver 12; then
+    /usr/lib/wicked/bin/wickedd-dhcp4 --test --test-output /tmp/wicked-dhcp-$BOOTDEV --test-timeout 60 $BOOTDEV
+    source /tmp/wicked-dhcp-$BOOTDEV
+    ADMIN_IP=$SERVERID
+    DOMAIN=$DNSDOMAIN
+else
+    ADMIN_IP=$(grep dhcp-server $DHCPDIR/dhclient*.leases | \
+        uniq | cut -d" " -f5 | cut -d";" -f1)
+    DOMAIN=$(grep "domain-name " $DHCPDIR/dhclient*.leases | \
+        uniq | cut -d" " -f5 | cut -d";" -f1 | awk -F\" '{ print $2 }')
+fi
 HOSTNAME="d${MAC//:/-}.${DOMAIN}"
 sed -i -e "s/\(127\.0\.0\.1.*\)/127.0.0.1 $HOSTNAME ${HOSTNAME%%.*} localhost.localdomain localhost/" /etc/hosts
 if is_suse; then
