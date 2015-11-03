@@ -57,7 +57,6 @@ fi
 MAC=
 bootif_re='BOOTIF=([^ ]+)'
 ip_re='inet ([0-9.]+)/([0-9]+)'
-ik_re='crowbar\.install\.key=([^ ]+)'
 if [[ $(cat /proc/cmdline) =~ $bootif_re ]]; then
     MAC="${BASH_REMATCH[1]//-/:}"
     MAC="${MAC#*:}"
@@ -121,6 +120,7 @@ else
         uniq | cut -d" " -f5 | cut -d";" -f1 | awk -F\" '{ print $2 }')
 fi
 HOSTNAME="d${MAC//:/-}.${DOMAIN}"
+
 sed -i -e "s/\(127\.0\.0\.1.*\)/127.0.0.1 $HOSTNAME ${HOSTNAME%%.*} localhost.localdomain localhost/" /etc/hosts
 if is_suse; then
     echo "$HOSTNAME" > /etc/HOSTNAME
@@ -133,6 +133,7 @@ fi
 hostname "$HOSTNAME"
 HOSTNAME_MAC="$HOSTNAME"
 
+ik_re='crowbar\.install\.key=([^ ]+)'
 [[ $(cat /proc/cmdline) =~ $ik_re ]] && \
     export CROWBAR_KEY="${BASH_REMATCH[1]}"
 
