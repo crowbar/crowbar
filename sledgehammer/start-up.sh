@@ -43,6 +43,16 @@ else
     RSYSLOGSERVICE=rsyslog
 fi
 
+# Really only for debug mode
+passwd_re='DISCOVERY_ROOT_PASSWORD=([^ ]+)'
+state_re='crowbar\.state=([^ ]+)'
+if [[ $(cat /proc/cmdline) =~ $state_re ]] && [ ${BASH_REMATCH[1]} == discovery ]; then
+    if [[ $(cat /proc/cmdline) =~ $passwd_re ]]; then
+        ROOT_PASSWORD="${BASH_REMATCH[1]}"
+        echo "root:$ROOT_PASSWORD" | chpasswd
+    fi
+fi
+
 # Figure out where we PXE booted from.
 MAC=
 bootif_re='BOOTIF=([^ ]+)'
