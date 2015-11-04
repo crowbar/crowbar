@@ -244,6 +244,7 @@ exit_handler () {
     fi
 
     if [ -z "$run_succeeded" ]; then
+        post_fail_handler
         kill_spinner_with_failed
         cat <<EOF | pipe_show_and_log
 
@@ -259,7 +260,13 @@ EOF
 }
 
 trap exit_handler EXIT
+trap post_fail_handler INT
 
+post_fail_handler ()
+{
+    touch /var/lib/crowbar/install/crowbar-install-failed
+    rm -f /var/lib/crowbar/install/crowbar_installing
+}
 
 # Real work starts here
 # ---------------------
@@ -278,6 +285,19 @@ ensure_service_running () {
     fi
 }
 
+cleanup_steps () {
+    for i in pre_sanity_checks \
+         run_services \
+         initial_chef_client \
+         barclamp_install \
+         bootstrap_crowbar_setup \
+         apply_crowbar_config \
+         transition_crowbar \
+         chef_client_daemon \
+         post_sanity_checks; do
+         rm -f /var/lib/crowbar/${i}
+    done
+}
 
 if [ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]; then
     run_succeeded=already_before
@@ -291,6 +311,12 @@ then please remove the following file:
     /opt/dell/crowbar_framework/.crowbar-installed-ok
 EOF
     exit 1
+fi
+
+if [ -f /var/lib/crowbar/install/crowbar-install-failed ] || [ "$CROWBAR_WIZARD_MODE" ]; then
+    rm -f /var/lib/crowbar/install/crowbar-install-failed
+    cleanup_steps
+    sqlite3 /opt/dell/crowbar_framework/db/production.sqlite3 "delete from proposals; delete from proposal_queues; vacuum;"
 fi
 
 FQDN=$(hostname -f 2>/dev/null);
