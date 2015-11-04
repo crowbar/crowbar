@@ -833,11 +833,6 @@ $chef_client
 rm -f /opt/dell/crowbar_framework/db/*.sqlite3
 su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production ./bin/rake db:create db:migrate"
 
-# Create the secrets env
-cat<<EOF > /opt/dell/crowbar_framework/config/secrets.env
-export SECRET_KEY_BASE=$(cd /opt/dell/crowbar_framework && RAILS_ENV=production ./bin/rake secret)
-EOF
-
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
 
