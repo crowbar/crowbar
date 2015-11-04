@@ -803,11 +803,6 @@ knife node run_list add "$FQDN" role["$NODE_ROLE"]
 
 $chef_client
 
-# Create session store database
-rm -f /opt/dell/crowbar_framework/db/*.sqlite3
-su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && \
-    RAILS_ENV=production ./bin/rake db:create db:migrate"
-
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
 
