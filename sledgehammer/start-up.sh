@@ -109,7 +109,9 @@ fi
 MYIP="${BASH_REMATCH[1]}"
 
 if suse_ver 12; then
-    /usr/lib/wicked/bin/wickedd-dhcp4 --test --test-output /tmp/wicked-dhcp-$BOOTDEV --test-timeout 60 $BOOTDEV
+    [ -f /etc/sysconfig/network/config ] && source /etc/sysconfig/network/config
+    WAIT_FOR_INTERFACES=${WAIT_FOR_INTERFACES:-60}
+    /usr/lib/wicked/bin/wickedd-dhcp4 --test --test-output /tmp/wicked-dhcp-$BOOTDEV --test-timeout $WAIT_FOR_INTERFACES $BOOTDEV
     source /tmp/wicked-dhcp-$BOOTDEV
     ADMIN_IP=$SERVERID
     DOMAIN=$DNSDOMAIN
