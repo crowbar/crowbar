@@ -313,31 +313,6 @@ case "$rootpw" in
         ;;
 esac
 
-# It is exceedingly important that 'hostname -f' actually returns an FQDN!
-# if it doesn't, add an entry to /etc/hosts, e.g.:
-#    192.168.124.10 cb-admin.example.com cb-admin
-if ! FQDN=$(hostname -f 2>/dev/null); then
-    die "Unable to detect fully-qualified hostname. Aborting."
-fi
-
-if ! DOMAIN=$(hostname -d 2>/dev/null); then
-    die "Unable to detect DNS domain name. Aborting."
-fi
-
-if [ -z "$FQDN" -o -z "$DOMAIN" ]; then
-    die "Unable to detect fully-qualified hostname. Aborting."
-fi
-
-if ! resolved=$(getent ahosts $FQDN 2>/dev/null); then
-    die "Unable to resolve hostname $FQDN via host(1). Please check your configuration of DNS, hostname, and /etc/hosts. Aborting."
-fi
-
-IPv4_addr=$( echo "$resolved" | awk '{ if ($1 !~ /:/) { print $1; exit } }' )
-IPv6_addr=$( echo "$resolved" | awk '{ if ($1  ~ /:/) { print $1; exit } }' )
-if [ -z "$IPv4_addr" -a -z "$IPv6_addr" ]; then
-    die "Could not resolve $FQDN to an IPv4 or IPv6 address. Aborting."
-fi
-
 if [ -n "$CROWBAR_FROM_GIT" ]; then
     zypper -n in ruby2.1-rubygem-json-1_7 createrepo
 fi
@@ -358,15 +333,8 @@ elif [ -n "$CROWBAR_FROM_GIT" -a -f /root/crowbar/provisioner.json ]; then
     PROVISIONER_JSON=/root/crowbar/provisioner.json
 fi
 
+IPv4_addr=$( echo "$resolved" | awk '{ if ($1 !~ /:/) { print $1; exit } }' )
 if [ -n "$IPv4_addr" ]; then
-    echo "$FQDN resolved to IPv4 address: $IPv4_addr"
-    if ! ip addr | grep -q "inet $IPv4_addr"; then
-        die "No local interfaces configured with address $IPv4_addr. Aborting."
-    fi
-    if [[ "$IPv4_addr" =~ ^127 ]]; then
-        die "$FQDN resolves to a loopback address. Aborting."
-    fi
-
     if [ -f /etc/crowbar/network.json ]; then
         NETWORK_JSON=/etc/crowbar/network.json
     elif [ -n "$CROWBAR_FROM_GIT" ]; then
@@ -381,24 +349,6 @@ if [ -n "$IPv4_addr" ]; then
         die "Failed to validate network.json configuration. Please check and fix with yast2 crowbar. Aborting."
     fi
 fi
-if [ -n "$IPv6_addr" ]; then
-    echo "$FQDN resolved to IPv6 address: $IPv6_addr"
-    if ! ip addr | grep -q "inet6 $IPv6_addr"; then
-        die "No local interfaces configured with address $IPv6_addr. Aborting."
-    fi
-fi
-
-# Note that the grep will fail if iptables' output changes; unlikely to happen,
-# but...
-if LANG=C iptables -n -L | grep -qvE '^$|^Chain [^ ]|^target     prot'; then
-    die "Firewall is not completely disabled. Aborting."
-fi
-
-if ! ping -c 1 $FQDN >/dev/null 2>&1; then
-    die "Failed to ping $FQDN; please check your network configuration. Aborting."
-fi
-
-
 # output details, that will make remote debugging via bugzilla much easier
 # for us
 /usr/bin/zypper -n lr -d  || :
