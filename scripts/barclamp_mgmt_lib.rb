@@ -179,7 +179,7 @@ def prepare_navigation(hash, breadcrumb, indent, level)
       options_string.prepend(", ") unless options_string.empty?
 
       if values.keys.empty?
-        result.push "level#{level}.item :#{key}, t(\"nav.#{current_path.join(".")}\"), #{link}#{options_string}".indent(indent)
+        result.push "level#{level}.item :#{key}, t(\"nav.#{current_path.join(".")}.title\"), #{link}#{options_string}".indent(indent)
       else
         result.push "level#{level}.item :#{key}, t(\"nav.#{current_path.join(".")}.title\"), #{link}#{options_string} do |level#{level + 1}|".indent(indent)
         result.push prepare_navigation(values, current_path, indent + 2, level + 1)
