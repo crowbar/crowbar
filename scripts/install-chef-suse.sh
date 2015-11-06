@@ -292,6 +292,10 @@ EOF
     exit 1
 fi
 
+FQDN=$(hostname -f 2>/dev/null);
+DOMAIN=$(hostname -d 2>/dev/null);
+IPv4_addr=$( getent ahosts $FQDN 2>/dev/null | awk '{ if ($1 !~ /:/) { print $1; exit } }' )
+
 # Sanity checks
 # -------------
 
@@ -333,7 +337,6 @@ elif [ -n "$CROWBAR_FROM_GIT" -a -f /root/crowbar/provisioner.json ]; then
     PROVISIONER_JSON=/root/crowbar/provisioner.json
 fi
 
-IPv4_addr=$( echo "$resolved" | awk '{ if ($1 !~ /:/) { print $1; exit } }' )
 if [ -n "$IPv4_addr" ]; then
     if [ -f /etc/crowbar/network.json ]; then
         NETWORK_JSON=/etc/crowbar/network.json
