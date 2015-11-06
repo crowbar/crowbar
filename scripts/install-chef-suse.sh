@@ -333,6 +333,22 @@ elif [ -n "$CROWBAR_FROM_GIT" -a -f /root/crowbar/provisioner.json ]; then
     PROVISIONER_JSON=/root/crowbar/provisioner.json
 fi
 
+if ! FQDN=$(hostname -f 2>/dev/null); then
+    die "Unable to detect fully-qualified hostname. Aborting."
+fi
+
+if ! DOMAIN=$(hostname -d 2>/dev/null); then
+    die "Unable to detect DNS domain name. Aborting."
+fi
+
+if [ -z "$FQDN" -o -z "$DOMAIN" ]; then
+    die "Unable to detect fully-qualified hostname. Aborting."
+fi
+
+if ! resolved=$(getent ahosts $FQDN 2>/dev/null); then
+  die "Unable to resolve hostname $FQDN via host(1). Please check your configuration of DNS, hostname, and /etc/hosts. Aborting."
+fi
+
 IPv4_addr=$( echo "$resolved" | awk '{ if ($1 !~ /:/) { print $1; exit } }' )
 if [ -n "$IPv4_addr" ]; then
     if [ -f /etc/crowbar/network.json ]; then
