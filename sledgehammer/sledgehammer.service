@@ -1,0 +1,13 @@
+[Unit]
+Description=Startup script for the sledgehammer discovery image
+Requires=network-online.target
+After=network.target network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/hostname localhost.localdomain
+ExecStart=/usr/local/bin/start-up.sh
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target
