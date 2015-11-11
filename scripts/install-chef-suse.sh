@@ -623,7 +623,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     # ubuntu admin node.
 fi
 
-touch /var/lib/crowbar/pre_sanity_checks
+touch /var/lib/crowbar/install/pre_sanity_checks
 
 
 # Starting services
@@ -678,7 +678,7 @@ for service in $services; do
     ensure_service_running chef-${service}
 done
 
-touch /var/lib/crowbar/run_services
+touch /var/lib/crowbar/install/run_services
 
 
 # Initial chef-client run
@@ -721,7 +721,7 @@ EOF
 
 $chef_client
 
-touch /var/lib/crowbar/initial_chef_client
+touch /var/lib/crowbar/install/initial_chef_client
 
 
 # Barclamp installation
@@ -776,7 +776,7 @@ if test -d $BARCLAMP_SRC/hyperv; then
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS hyperv
 fi
 
-touch /var/lib/crowbar/barclamp_install
+touch /var/lib/crowbar/install/barclamp_install
 
 # First step of crowbar bootstrap
 # -------------------------------
@@ -806,7 +806,7 @@ $chef_client
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
 
-touch /var/lib/crowbar/bootstrap_crowbar_setup
+touch /var/lib/crowbar/install/bootstrap_crowbar_setup
 
 
 # Second step of crowbar bootstrap
@@ -1050,7 +1050,7 @@ done
 
 # BMC support?
 
-touch /var/lib/crowbar/apply_crowbar_config
+touch /var/lib/crowbar/install/apply_crowbar_config
 
 
 # Third step of crowbar bootstrap
@@ -1090,7 +1090,7 @@ done
 # OK, let looper_chef_client run normally now.
 rm /var/run/crowbar/deploying
 
-touch /var/lib/crowbar/transition_crowbar
+touch /var/lib/crowbar/install/transition_crowbar
 
 
 # Starting more services
@@ -1102,7 +1102,7 @@ echo_summary "Starting chef-client"
 chkconfig chef-client on
 ensure_service_running chef-client
 
-touch /var/lib/crowbar/chef_client_daemon
+touch /var/lib/crowbar/install/chef_client_daemon
 
 
 # Final sanity checks
@@ -1131,7 +1131,7 @@ for s in dhcpd apache2 ; do
     fi
 done
 
-touch /var/lib/crowbar/post_sanity_checks
+touch /var/lib/crowbar/install/post_sanity_checks
 
 # activate provisioner repos
 curl -X POST http://localhost:3000/utils/repositories/activate_all
