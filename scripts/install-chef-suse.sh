@@ -131,7 +131,7 @@ pipe_show_and_log () {
         rm -f $t
         dialog --clear >&3
     fi
-    tee -a /dev/fd/3 /dev/fd/4 > /dev/null
+    tee -a /dev/fd/4 >&3
 }
 
 # Draw a spinner so the user knows something is happening
