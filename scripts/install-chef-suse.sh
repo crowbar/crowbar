@@ -1133,9 +1133,6 @@ done
 
 touch /var/lib/crowbar/install/post_sanity_checks
 
-# activate provisioner repos
-curl -X POST http://localhost:3000/utils/repositories/activate_all
-
 # We're done!
 # -----------
 
@@ -1143,6 +1140,9 @@ echo_summary "Installation complete!"
 
 touch /opt/dell/crowbar_framework/.crowbar-installed-ok
 rm -f /var/lib/crowbar/install/crowbar_installing
+
+# activate provisioner repos
+curl -X POST http://localhost:3000/utils/repositories/activate_all
 
 kill_spinner
 
