@@ -27,6 +27,8 @@
 
 set -e
 
+crowbar_install_dir=/var/lib/crowbar/install
+
 usage () {
     # do not document --from-git option; it's for developers only
     cat <<EOF
@@ -264,8 +266,8 @@ trap post_fail_handler INT
 
 post_fail_handler ()
 {
-    touch /var/lib/crowbar/install/crowbar-install-failed
-    rm -f /var/lib/crowbar/install/crowbar_installing
+    touch $crowbar_install_dir/crowbar-install-failed
+    rm -f $crowbar_install_dir/crowbar_installing
 }
 
 # Real work starts here
@@ -295,11 +297,11 @@ cleanup_steps () {
          transition_crowbar \
          chef_client_daemon \
          post_sanity_checks; do
-         rm -f /var/lib/crowbar/${i}
+         rm -f $crowbar_install_dir/${i}
     done
 }
 
-if [ -f /var/lib/crowbar/install/crowbar-installed-ok ]; then
+if [ -f $crowbar_install_dir/crowbar-installed-ok ]; then
     run_succeeded=already_before
 
 cat <<EOF | pipe_show_and_log
@@ -308,13 +310,13 @@ Aborting: Administration Server is already deployed.
 If you want to run the installation script again,
 then please remove the following file:
 
-    /var/lib/crowbar/install/crowbar-installed-ok
+    $crowbar_install_dir/crowbar-installed-ok
 EOF
     exit 1
 fi
 
-if [ -f /var/lib/crowbar/install/crowbar-install-failed ] || [ "$CROWBAR_WIZARD_MODE" ]; then
-    rm -f /var/lib/crowbar/install/crowbar-install-failed
+if [ -f $crowbar_install_dir/crowbar-install-failed ] || [ "$CROWBAR_WIZARD_MODE" ]; then
+    rm -f $crowbar_install_dir/crowbar-install-failed
     cleanup_steps
     sqlite3 /opt/dell/crowbar_framework/db/production.sqlite3 "delete from proposals; delete from proposal_queues; vacuum;"
 fi
@@ -623,7 +625,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     # ubuntu admin node.
 fi
 
-touch /var/lib/crowbar/install/pre_sanity_checks
+touch $crowbar_install_dir/pre_sanity_checks
 
 
 # Starting services
@@ -678,7 +680,7 @@ for service in $services; do
     ensure_service_running chef-${service}
 done
 
-touch /var/lib/crowbar/install/run_services
+touch $crowbar_install_dir/run_services
 
 
 # Initial chef-client run
@@ -721,7 +723,7 @@ EOF
 
 $chef_client
 
-touch /var/lib/crowbar/install/initial_chef_client
+touch $crowbar_install_dir/initial_chef_client
 
 
 # Barclamp installation
@@ -776,7 +778,7 @@ if test -d $BARCLAMP_SRC/hyperv; then
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS hyperv
 fi
 
-touch /var/lib/crowbar/install/barclamp_install
+touch $crowbar_install_dir/barclamp_install
 
 # First step of crowbar bootstrap
 # -------------------------------
@@ -806,7 +808,7 @@ $chef_client
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
 
-touch /var/lib/crowbar/install/bootstrap_crowbar_setup
+touch $crowbar_install_dir/bootstrap_crowbar_setup
 
 
 # Second step of crowbar bootstrap
@@ -1050,7 +1052,7 @@ done
 
 # BMC support?
 
-touch /var/lib/crowbar/install/apply_crowbar_config
+touch $crowbar_install_dir/apply_crowbar_config
 
 
 # Third step of crowbar bootstrap
@@ -1090,7 +1092,7 @@ done
 # OK, let looper_chef_client run normally now.
 rm /var/run/crowbar/deploying
 
-touch /var/lib/crowbar/install/transition_crowbar
+touch $crowbar_install_dir/transition_crowbar
 
 
 # Starting more services
@@ -1102,7 +1104,7 @@ echo_summary "Starting chef-client"
 chkconfig chef-client on
 ensure_service_running chef-client
 
-touch /var/lib/crowbar/install/chef_client_daemon
+touch $crowbar_install_dir/chef_client_daemon
 
 
 # Final sanity checks
@@ -1131,15 +1133,15 @@ for s in dhcpd apache2 ; do
     fi
 done
 
-touch /var/lib/crowbar/install/post_sanity_checks
+touch $crowbar_install_dir/post_sanity_checks
 
 # We're done!
 # -----------
 
 echo_summary "Installation complete!"
 
-touch /var/lib/crowbar/install/crowbar-installed-ok
-rm -f /var/lib/crowbar/install/crowbar_installing
+touch $crowbar_install_dir/crowbar-installed-ok
+rm -f $crowbar_install_dir/crowbar_installing
 
 # activate provisioner repos
 curl -X POST http://localhost:3000/utils/repositories/activate_all
