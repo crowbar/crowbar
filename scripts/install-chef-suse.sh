@@ -299,7 +299,7 @@ cleanup_steps () {
     done
 }
 
-if [ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]; then
+if [ -f /var/lib/crowbar/install/crowbar-installed-ok ]; then
     run_succeeded=already_before
 
 cat <<EOF | pipe_show_and_log
@@ -308,7 +308,7 @@ Aborting: Administration Server is already deployed.
 If you want to run the installation script again,
 then please remove the following file:
 
-    /opt/dell/crowbar_framework/.crowbar-installed-ok
+    /var/lib/crowbar/install/crowbar-installed-ok
 EOF
     exit 1
 fi
@@ -1138,7 +1138,7 @@ touch /var/lib/crowbar/install/post_sanity_checks
 
 echo_summary "Installation complete!"
 
-touch /opt/dell/crowbar_framework/.crowbar-installed-ok
+touch /var/lib/crowbar/install/crowbar-installed-ok
 rm -f /var/lib/crowbar/install/crowbar_installing
 
 # activate provisioner repos
