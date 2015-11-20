@@ -28,6 +28,12 @@
 set -e
 
 crowbar_install_dir=/var/lib/crowbar/install
+installation_steps=$crowbar_install_dir/installation_steps
+
+function set_step () {
+    local step=$1
+    echo "$step $(date -Iseconds)" >> $installation_steps
+}
 
 touch $crowbar_install_dir/crowbar_installing
 
@@ -289,20 +295,6 @@ ensure_service_running () {
     fi
 }
 
-cleanup_steps () {
-    for i in pre_sanity_checks \
-         run_services \
-         initial_chef_client \
-         barclamp_install \
-         bootstrap_crowbar_setup \
-         apply_crowbar_config \
-         transition_crowbar \
-         chef_client_daemon \
-         post_sanity_checks; do
-         rm -f $crowbar_install_dir/${i}
-    done
-}
-
 if [ -f $crowbar_install_dir/crowbar-installed-ok ]; then
     run_succeeded=already_before
 
@@ -319,7 +311,7 @@ fi
 
 if [ -f $crowbar_install_dir/crowbar-install-failed ] || [ "$CROWBAR_WIZARD_MODE" ]; then
     rm -f $crowbar_install_dir/crowbar-install-failed
-    cleanup_steps
+    rm -f $installation_steps
     sqlite3 /opt/dell/crowbar_framework/db/production.sqlite3 "delete from proposals; delete from proposal_queues; vacuum;"
 fi
 
@@ -627,7 +619,7 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     # ubuntu admin node.
 fi
 
-touch $crowbar_install_dir/pre_sanity_checks
+set_step "pre_sanity_checks"
 
 
 # Starting services
@@ -682,7 +674,7 @@ for service in $services; do
     ensure_service_running chef-${service}
 done
 
-touch $crowbar_install_dir/run_services
+set_step "run_services"
 
 
 # Initial chef-client run
@@ -725,7 +717,7 @@ EOF
 
 $chef_client
 
-touch $crowbar_install_dir/initial_chef_client
+set_step "initial_chef_client"
 
 
 # Barclamp installation
@@ -780,7 +772,7 @@ if test -d $BARCLAMP_SRC/hyperv; then
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS hyperv
 fi
 
-touch $crowbar_install_dir/barclamp_install
+set_step "barclamp_install"
 
 # First step of crowbar bootstrap
 # -------------------------------
@@ -810,7 +802,7 @@ $chef_client
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
 
-touch $crowbar_install_dir/bootstrap_crowbar_setup
+set_step "bootstrap_crowbar_setup"
 
 
 # Second step of crowbar bootstrap
@@ -1054,7 +1046,7 @@ done
 
 # BMC support?
 
-touch $crowbar_install_dir/apply_crowbar_config
+set_step "apply_crowbar_config"
 
 
 # Third step of crowbar bootstrap
@@ -1094,7 +1086,7 @@ done
 # OK, let looper_chef_client run normally now.
 rm /var/run/crowbar/deploying
 
-touch $crowbar_install_dir/transition_crowbar
+set_step "transition_crowbar"
 
 
 # Starting more services
@@ -1106,7 +1098,7 @@ echo_summary "Starting chef-client"
 chkconfig chef-client on
 ensure_service_running chef-client
 
-touch $crowbar_install_dir/chef_client_daemon
+set_step "chef_client_daemon"
 
 
 # Final sanity checks
@@ -1135,7 +1127,7 @@ for s in dhcpd apache2 ; do
     fi
 done
 
-touch $crowbar_install_dir/post_sanity_checks
+set_step "post_sanity_checks"
 
 # We're done!
 # -----------
