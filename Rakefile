@@ -239,13 +239,13 @@ namespace :test do
     script = "scripts/install-chef-suse.sh"
     puts "checking #{script}"
 
-    system("bash -n  #{script}")
-    if $?.exitcode != 0
+    system("bash -n #{script}")
+    if $?.exitstatus != 0
       exit 3
     end
 
     system("bashate --ignore E010,E011,E020 #{script}")
-    if $?.exitcode != 0
+    if $?.exitstatus != 0
       exit 4
     end
 
