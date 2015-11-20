@@ -235,24 +235,23 @@ namespace :test do
 
   desc "Run bashate tests"
   task bashate: [:dependencies] do
-    script = "scripts/install-chef-suse.sh"
-    puts "checking #{script}"
+    ["scripts/install-chef-suse.sh",
+     "sledgehammer/start-up.sh"].each do |script|
+      system("bash -n #{script}")
+      if $?.exitstatus != 0
+        exit 3
+      end
 
-    system("bash -n #{script}")
-    if $?.exitstatus != 0
-      exit 3
+      system("bashate --ignore E010,E011,E020 #{script}")
+      if $?.exitstatus != 0
+        exit 4
+      end
+
+      # checking for tabs in the file
+      if File.open(script).grep(/\t/).any?
+        exit 5
+      end
     end
-
-    system("bashate --ignore E010,E011,E020 #{script}")
-    if $?.exitstatus != 0
-      exit 4
-    end
-
-    # checking for tabs in the file
-    if File.open(script).grep(/\t/).any?
-      exit 5
-    end
-
   end
 end
 
