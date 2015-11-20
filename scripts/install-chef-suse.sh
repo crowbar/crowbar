@@ -452,14 +452,6 @@ supported_arches_ses="x86_64"
 
 # Automatically create symlinks for SMT-mirrored repos if they exist
 for arch in $supported_arches; do
-  cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SLES12-Pool
-  smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12/$arch/product
-  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
-
-  cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SLES12-Updates
-  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/$arch/update
-  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
-
   cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLES12-SP1-Pool
   smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12-SP1/$arch/product
   test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
