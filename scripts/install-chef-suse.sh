@@ -29,6 +29,8 @@ set -e
 
 crowbar_install_dir=/var/lib/crowbar/install
 
+touch $crowbar_install_dir/crowbar_installing
+
 usage () {
     # do not document --from-git option; it's for developers only
     cat <<EOF
