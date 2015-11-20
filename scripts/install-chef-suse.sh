@@ -452,95 +452,78 @@ supported_arches_ses="x86_64"
 
 # Automatically create symlinks for SMT-mirrored repos if they exist
 for arch in $supported_arches; do
-  cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SLES12-Pool
-  smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12/$arch/product
-  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
-
-  cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SLES12-Updates
-  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12/$arch/update
-  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
-
-  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLES12-SP1-Pool
+  cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLES12-SP1-Pool
   smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12-SP1/$arch/product
   test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLES12-SP1-Updates
+  cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLES12-SP1-Updates
   smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12-SP1/$arch/update
   test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SUSE-OpenStack-Cloud-6-Pool
+  cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-OpenStack-Cloud-6-Pool
   smt_dir=/srv/www/htdocs/repo/SUSE/Products/OpenStack-Cloud/6/$arch/product
   test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-  cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SUSE-OpenStack-Cloud-6-Updates
+  cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-OpenStack-Cloud-6-Updates
   smt_dir=/srv/www/htdocs/repo/SUSE/Updates/OpenStack-Cloud/6/$arch/update
   test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
   # SES is x86_64 only
   if [ $arch == x86_64 ]; then
-    cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SUSE-Enterprise-Storage-2-Pool
-    smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/2/$arch/product
+    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-Enterprise-Storage-2.1-Pool
+    smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/2.1/$arch/product
     test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-    cloud_dir=/srv/tftpboot/suse-12.0/repos/$arch/SUSE-Enterprise-Storage-2-Updates
-     smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/2/$arch/update
+    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-Enterprise-Storage-2-Updates
+     smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/2.1/$arch/update
     test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
   fi
 
   # HA is s390x/x86_64 only
   if [ $arch == x86_64 -o $arch == s390x ]; then
-    cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLE12-SP1-HA-Pool
+    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLE12-SP1-HA-Pool
     smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-HA/12-SP1/$arch/product
     test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-    cloud_dir=/srv/tftpboot/suse-12.1/repos/$arch/SLE12-SP1-HA-Updates
+    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLE12-SP1-HA-Updates
     smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-HA/12-SP1/$arch/update
     test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
   fi
 done
 
-if ! is_ses; then
-    for arch in $supported_arches; do
-        # Checks for SLE12 SP1 medias
-        MEDIA=/srv/tftpboot/suse-12.1/$arch/install
-
-        # Only x86_64 is truly mandatory; other architectures are only checked
-        # if they exist
-        if [ ! -f $MEDIA/content -a $arch != "x86_64" ]; then
-            continue
-        fi
-
-        if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
-            echo "Detected SUSE OpenStack Cloud Deps media."
-            REPOS_SKIP_CHECKS+=" SLES12-SP1-Pool SLES12-SP1-Updates"
-        else
-            check_media_content \
-                SLES12-SP1 \
-                $MEDIA \
-                #b52c0f2b41a6a10d49cc89edcdc1b13d
-        fi
-
-        check_media_links $MEDIA
-
-        if ! is_ses; then
-            check_media_content \
-                Cloud \
-                /srv/tftpboot/suse-12.1/$arch/repos/Cloud \
-                #1558be86e7354d31e71e7c8c2574031a
-        fi
-    done
+if is_ses; then
+  product_arches="$supported_arches_ses"
+else
+  product_arches="$supported_arches"
 fi
 
-# Checks for SLE12 media (for SES, so x86_64-only)
-for arch in $supported_arches_ses; do
-    MEDIA=/srv/tftpboot/suse-12.0/$arch/install
-    if [ -e $MEDIA/boot/$arch/common ]; then
-        check_media_content \
-            SLES12 \
-            $MEDIA \
-            b52c0f2b41a6a10d49cc89edcdc1b13d
+for arch in $product_arches; do
+    # Checks for SLE12 SP1 medias
+    MEDIA=/srv/tftpboot/suse-12.1/$arch/install
 
-        check_media_links $MEDIA
+    # Only x86_64 is truly mandatory; other architectures are only checked
+    # if they exist
+    if [ ! -f $MEDIA/content -a $arch != "x86_64" ]; then
+        continue
+    fi
+
+    if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
+        echo "Detected SUSE OpenStack Cloud Deps media."
+        REPOS_SKIP_CHECKS+=" SLES12-SP1-Pool SLES12-SP1-Updates"
+    else
+    check_media_content \
+        SLES12-SP1 \
+        $MEDIA \
+        #b52c0f2b41a6a10d49cc89edcdc1b13d
+    fi
+
+    check_media_links $MEDIA
+
+    if ! is_ses; then
+        check_media_content \
+            Cloud \
+            /srv/tftpboot/suse-12.1/$arch/repos/Cloud \
+            #1558be86e7354d31e71e7c8c2574031a
     fi
 done
 
@@ -558,11 +541,9 @@ fi
 
 
 for arch in $supported_arches; do
-    check_or_create_ptf_repository 12.0 $arch PTF
     check_or_create_ptf_repository 12.1 $arch PTF
 
     # Currently we only sign the PTF repository
-    sign_repositories 12.0 $arch PTF
     sign_repositories 12.1 $arch PTF
 done
 
