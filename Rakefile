@@ -242,7 +242,7 @@ namespace :test do
         exit 3
       end
 
-      system("bashate --ignore E010,E011,E020 #{script}")
+      system("bashate --ignore E006,E010,E011,E020 #{script}")
       if $?.exitstatus != 0
         exit 4
       end
