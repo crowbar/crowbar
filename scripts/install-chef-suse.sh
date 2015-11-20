@@ -491,48 +491,39 @@ for arch in $supported_arches; do
   fi
 done
 
-if ! is_ses; then
-    for arch in $supported_arches; do
-        # Checks for SLE12 SP1 medias
-        MEDIA=/srv/tftpboot/suse-12.1/$arch/install
-
-        # Only x86_64 is truly mandatory; other architectures are only checked
-        # if they exist
-        if [ ! -f $MEDIA/content -a $arch != "x86_64" ]; then
-            continue
-        fi
-
-        if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
-            echo "Detected SUSE OpenStack Cloud Deps media."
-            REPOS_SKIP_CHECKS+=" SLES12-SP1-Pool SLES12-SP1-Updates"
-        else
-            check_media_content \
-                SLES12-SP1 \
-                $MEDIA \
-                #b52c0f2b41a6a10d49cc89edcdc1b13d
-        fi
-
-        check_media_links $MEDIA
-
-        if ! is_ses; then
-            check_media_content \
-                Cloud \
-                /srv/tftpboot/suse-12.1/$arch/repos/Cloud \
-                #1558be86e7354d31e71e7c8c2574031a
-        fi
-    done
+if is_ses; then
+  product_arches="$supported_arches_ses"
+else
+  product_arches="$supported_arches"
 fi
 
-# Checks for SLE12 media (for SES, so x86_64-only)
-for arch in $supported_arches_ses; do
-    MEDIA=/srv/tftpboot/suse-12.0/$arch/install
-    if [ -e $MEDIA/boot/$arch/common ]; then
-        check_media_content \
-            SLES12 \
-            $MEDIA \
-            b52c0f2b41a6a10d49cc89edcdc1b13d
+for arch in $product_arches; do
+    # Checks for SLE12 SP1 medias
+    MEDIA=/srv/tftpboot/suse-12.1/$arch/install
 
-        check_media_links $MEDIA
+    # Only x86_64 is truly mandatory; other architectures are only checked
+    # if they exist
+    if [ ! -f $MEDIA/content -a $arch != "x86_64" ]; then
+        continue
+    fi
+
+    if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
+        echo "Detected SUSE OpenStack Cloud Deps media."
+        REPOS_SKIP_CHECKS+=" SLES12-SP1-Pool SLES12-SP1-Updates"
+    else
+    check_media_content \
+        SLES12-SP1 \
+        $MEDIA \
+        #b52c0f2b41a6a10d49cc89edcdc1b13d
+    fi
+
+    check_media_links $MEDIA
+
+    if ! is_ses; then
+        check_media_content \
+            Cloud \
+            /srv/tftpboot/suse-12.1/$arch/repos/Cloud \
+            #1558be86e7354d31e71e7c8c2574031a
     fi
 done
 
