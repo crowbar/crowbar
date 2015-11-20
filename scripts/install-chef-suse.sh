@@ -367,27 +367,27 @@ if [ -f /opt/dell/chef/cookbooks/provisioner/templates/default/autoyast.xml.erb 
 fi
 
 check_or_create_ptf_repository () {
-  version="$1"
-  arch="$2"
-  repo="$3"
+    version="$1"
+    arch="$2"
+    repo="$3"
 
-  if skip_check_for_repo "$repo"; then
-      echo "Skipping check for $repo ($version) due to \$REPOS_SKIP_CHECKS"
-  else
-      if ! [ -e "/srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml" ]; then
-          # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
-          # creates the repo metadata for PTF
-          if [ -n $CROWBAR_FROM_GIT ]; then
-              echo "Creating repo skeleton to make AutoYaST happy."
-              if ! [ -d /srv/tftpboot/suse-$version/$arch/repos/$repo ]; then
-                  mkdir /srv/tftpboot/suse-$version/$arch/repos/$repo
-              fi
-              /usr/bin/createrepo /srv/tftpboot/suse-$version/$arch/repos/$repo
-          else
-              die "$repo ($version / $arch) has not been set up correctly; did the crowbar rpm fail to install correctly?"
-          fi
-      fi
-  fi
+    if skip_check_for_repo "$repo"; then
+        echo "Skipping check for $repo ($version) due to \$REPOS_SKIP_CHECKS"
+    else
+        if ! [ -e "/srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml" ]; then
+            # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
+            # creates the repo metadata for PTF
+            if [ -n $CROWBAR_FROM_GIT ]; then
+                echo "Creating repo skeleton to make AutoYaST happy."
+                if ! [ -d /srv/tftpboot/suse-$version/$arch/repos/$repo ]; then
+                    mkdir /srv/tftpboot/suse-$version/$arch/repos/$repo
+                fi
+                /usr/bin/createrepo /srv/tftpboot/suse-$version/$arch/repos/$repo
+            else
+                die "$repo ($version / $arch) has not been set up correctly; did the crowbar rpm fail to install correctly?"
+            fi
+        fi
+    fi
 }
 
 create_gpg_key () {
@@ -416,21 +416,21 @@ EOF
 }
 
 sign_repositories () {
-  version="$1"
-  arch="$2"
-  repo="$3"
+    version="$1"
+    arch="$2"
+    repo="$3"
 
-  create_gpg_key
-  if [ -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml ]; then
-    if [ ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.asc -o \
-         ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key ]; then
-      echo "Signing $repo ($version / $arch) repository"
-      gpg -a --detach-sign /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml
-      gpg -a --export > /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key
-    else
-      echo "$repo ($version / $arch) repository is already signed"
+    create_gpg_key
+    if [ -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml ]; then
+        if [ ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.asc -o \
+            ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key ]; then
+        echo "Signing $repo ($version / $arch) repository"
+        gpg -a --detach-sign /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml
+        gpg -a --export > /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key
+        else
+        echo "$repo ($version / $arch) repository is already signed"
+        fi
     fi
-  fi
 }
 
 for repos_check in \
@@ -452,49 +452,49 @@ supported_arches_ses="x86_64"
 
 # Automatically create symlinks for SMT-mirrored repos if they exist
 for arch in $supported_arches; do
-  cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLES12-SP1-Pool
-  smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12-SP1/$arch/product
-  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
-
-  cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLES12-SP1-Updates
-  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12-SP1/$arch/update
-  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
-
-  cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-OpenStack-Cloud-6-Pool
-  smt_dir=/srv/www/htdocs/repo/SUSE/Products/OpenStack-Cloud/6/$arch/product
-  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
-
-  cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-OpenStack-Cloud-6-Updates
-  smt_dir=/srv/www/htdocs/repo/SUSE/Updates/OpenStack-Cloud/6/$arch/update
-  test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
-
-  # SES is x86_64 only
-  if [ $arch == x86_64 ]; then
-    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-Enterprise-Storage-2.1-Pool
-    smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/2.1/$arch/product
+    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLES12-SP1-Pool
+    smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-SERVER/12-SP1/$arch/product
     test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-Enterprise-Storage-2-Updates
-     smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/2.1/$arch/update
-    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
-  fi
-
-  # HA is s390x/x86_64 only
-  if [ $arch == x86_64 -o $arch == s390x ]; then
-    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLE12-SP1-HA-Pool
-    smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-HA/12-SP1/$arch/product
+    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLES12-SP1-Updates
+    smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-SERVER/12-SP1/$arch/update
     test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
 
-    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLE12-SP1-HA-Updates
-    smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-HA/12-SP1/$arch/update
+    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-OpenStack-Cloud-6-Pool
+    smt_dir=/srv/www/htdocs/repo/SUSE/Products/OpenStack-Cloud/6/$arch/product
     test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
-  fi
+
+    cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-OpenStack-Cloud-6-Updates
+    smt_dir=/srv/www/htdocs/repo/SUSE/Updates/OpenStack-Cloud/6/$arch/update
+    test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+    # SES is x86_64 only
+    if [ $arch == x86_64 ]; then
+        cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-Enterprise-Storage-2.1-Pool
+        smt_dir=/srv/www/htdocs/repo/SUSE/Products/Storage/2.1/$arch/product
+        test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+        cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SUSE-Enterprise-Storage-2-Updates
+        smt_dir=/srv/www/htdocs/repo/SUSE/Updates/Storage/2.1/$arch/update
+        test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+    fi
+
+    # HA is s390x/x86_64 only
+    if [ $arch == x86_64 -o $arch == s390x ]; then
+        cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLE12-SP1-HA-Pool
+        smt_dir=/srv/www/htdocs/repo/SUSE/Products/SLE-HA/12-SP1/$arch/product
+        test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+
+        cloud_dir=/srv/tftpboot/suse-12.1/$arch/repos/SLE12-SP1-HA-Updates
+        smt_dir=/srv/www/htdocs/repo/SUSE/Updates/SLE-HA/12-SP1/$arch/update
+        test ! -e $cloud_dir -a -d $smt_dir && ln -s $smt_dir $cloud_dir
+    fi
 done
 
 if is_ses; then
-  product_arches="$supported_arches_ses"
+    product_arches="$supported_arches_ses"
 else
-  product_arches="$supported_arches"
+    product_arches="$supported_arches"
 fi
 
 for arch in $product_arches; do
