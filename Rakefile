@@ -231,7 +231,6 @@ namespace :test do
     else
       system("sudo pip install bashate")
     end
-    exit $?.exitstatus
   end
 
   desc "Run bashate tests"
