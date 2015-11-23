@@ -27,10 +27,20 @@
 
 set -e
 
+crowbar_install_dir=/var/lib/crowbar/install
+installation_steps=$crowbar_install_dir/installation_steps
+
+function set_step () {
+    local step=$1
+    echo "$step $(date -Iseconds)" >> $installation_steps
+}
+
+touch $crowbar_install_dir/crowbar_installing
+
 usage () {
     # do not document --from-git option; it's for developers only
     cat <<EOF
-`basename $0` [-h|--help] [-v|--verbose] [-d|--debug]
+`basename $0` [-h|--help] [-v|--verbose] [-d|--debug] [-c|--crowbar]
 
 Install Crowbar on administration server.
 EOF
@@ -42,6 +52,7 @@ while test $# -gt 0; do
         -h|--help|--usage|-\?) usage ;;
         -v|--verbose) CROWBAR_VERBOSE=1 ;;
         -d|--debug) CROWBAR_DEBUG=1 ;;
+        -c|--crowbar) CROWBAR_WIZARD_MODE=1 && CROWBAR_VERBOSE=1 ;;
         --from-git) CROWBAR_FROM_GIT=1 ;;
         *) ;;
     esac
@@ -130,7 +141,7 @@ pipe_show_and_log () {
         rm -f $t
         dialog --clear >&3
     fi
-    tee -a /dev/fd/3 /dev/fd/4 > /dev/null
+    tee -a /dev/fd/4 >&3
 }
 
 # Draw a spinner so the user knows something is happening
@@ -243,6 +254,7 @@ exit_handler () {
     fi
 
     if [ -z "$run_succeeded" ]; then
+        post_fail_handler
         kill_spinner_with_failed
         cat <<EOF | pipe_show_and_log
 
@@ -258,7 +270,13 @@ EOF
 }
 
 trap exit_handler EXIT
+trap post_fail_handler INT
 
+post_fail_handler ()
+{
+    touch $crowbar_install_dir/crowbar-install-failed
+    rm -f $crowbar_install_dir/crowbar_installing
+}
 
 # Real work starts here
 # ---------------------
@@ -277,8 +295,7 @@ ensure_service_running () {
     fi
 }
 
-
-if [ -f /opt/dell/crowbar_framework/.crowbar-installed-ok ]; then
+if [ -f $crowbar_install_dir/crowbar-installed-ok ]; then
     run_succeeded=already_before
 
 cat <<EOF | pipe_show_and_log
@@ -287,9 +304,15 @@ Aborting: Administration Server is already deployed.
 If you want to run the installation script again,
 then please remove the following file:
 
-    /opt/dell/crowbar_framework/.crowbar-installed-ok
+    $crowbar_install_dir/crowbar-installed-ok
 EOF
     exit 1
+fi
+
+if [ -f $crowbar_install_dir/crowbar-install-failed ] || [ "$CROWBAR_WIZARD_MODE" ]; then
+    rm -f $crowbar_install_dir/crowbar-install-failed
+    rm -f $installation_steps
+    sqlite3 /opt/dell/crowbar_framework/db/production.sqlite3 "delete from proposals; delete from proposal_queues; vacuum;"
 fi
 
 FQDN=$(hostname -f 2>/dev/null);
@@ -301,7 +324,7 @@ IPv4_addr=$( getent ahosts $FQDN 2>/dev/null | awk '{ if ($1 !~ /:/) { print $1;
 
 echo_summary "Performing sanity checks"
 
-if [ -n "$SSH_CONNECTION" -a -z "$STY" ]; then
+if [ -n "$SSH_CONNECTION" -a -z "$STY" ] && [ -z "$CROWBAR_WIZARD_MODE" ]; then
     die "Not running in screen. Please use \"screen $0\" to avoid problems during network re-configuration. Aborting."
 fi
 
@@ -596,6 +619,8 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     # ubuntu admin node.
 fi
 
+set_step "pre_sanity_checks"
+
 
 # Starting services
 # -----------------
@@ -649,6 +674,8 @@ for service in $services; do
     ensure_service_running chef-${service}
 done
 
+set_step "run_services"
+
 
 # Initial chef-client run
 # -----------------------
@@ -689,6 +716,8 @@ enable_reporting false
 EOF
 
 $chef_client
+
+set_step "initial_chef_client"
 
 
 # Barclamp installation
@@ -743,6 +772,8 @@ if test -d $BARCLAMP_SRC/hyperv; then
     /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS hyperv
 fi
 
+set_step "barclamp_install"
+
 # First step of crowbar bootstrap
 # -------------------------------
 
@@ -768,13 +799,10 @@ knife node run_list add "$FQDN" role["$NODE_ROLE"]
 
 $chef_client
 
-# Create session store database
-rm -f /opt/dell/crowbar_framework/db/*.sqlite3
-su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && \
-    RAILS_ENV=production ./bin/rake db:create db:migrate"
-
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
+
+set_step "bootstrap_crowbar_setup"
 
 
 # Second step of crowbar bootstrap
@@ -1018,6 +1046,8 @@ done
 
 # BMC support?
 
+set_step "apply_crowbar_config"
+
 
 # Third step of crowbar bootstrap
 # -------------------------------
@@ -1056,6 +1086,8 @@ done
 # OK, let looper_chef_client run normally now.
 rm /var/run/crowbar/deploying
 
+set_step "transition_crowbar"
+
 
 # Starting more services
 # ----------------------
@@ -1065,6 +1097,8 @@ echo_summary "Starting chef-client"
 # Need chef-client daemon now
 chkconfig chef-client on
 ensure_service_running chef-client
+
+set_step "chef_client_daemon"
 
 
 # Final sanity checks
@@ -1093,15 +1127,18 @@ for s in dhcpd apache2 ; do
     fi
 done
 
-# activate provisioner repos
-curl -X POST http://localhost:3000/utils/repositories/activate_all
+set_step "post_sanity_checks"
 
 # We're done!
 # -----------
 
 echo_summary "Installation complete!"
 
-touch /opt/dell/crowbar_framework/.crowbar-installed-ok
+touch $crowbar_install_dir/crowbar-installed-ok
+rm -f $crowbar_install_dir/crowbar_installing
+
+# activate provisioner repos
+curl -X POST http://localhost:3000/utils/repositories/activate_all
 
 kill_spinner
 
