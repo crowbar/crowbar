@@ -384,7 +384,8 @@ check_or_create_ptf_repository () {
                 fi
                 /usr/bin/createrepo /srv/tftpboot/suse-$version/$arch/repos/$repo
             else
-                die "$repo ($version / $arch) has not been set up correctly; did the crowbar rpm fail to install correctly?"
+                die "$repo ($version / $arch) has not been set up correctly; \
+                    did the crowbar rpm fail to install correctly?"
             fi
         fi
     fi
@@ -421,12 +422,14 @@ sign_repositories () {
     repo="$3"
 
     create_gpg_key
-    if [ -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml ]; then
-        if [ ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.asc -o \
-            ! -f /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key ]; then
+
+    tftpdir=/srv/tftpboot/suse-$version/$arch/repos/$repo
+    if [ -f $tftpdir/repodata/repomd.xml ]; then
+        if [ ! -f $tftpdir/repodata/repomd.xml.asc -o \
+            ! -f $tftpdir/repodata/repomd.xml.key ]; then
         echo "Signing $repo ($version / $arch) repository"
-        gpg -a --detach-sign /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml
-        gpg -a --export > /srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml.key
+        gpg -a --detach-sign $tftpdir/repodata/repomd.xml
+        gpg -a --export > $tftpdir/repodata/repomd.xml.key
         else
         echo "$repo ($version / $arch) repository is already signed"
         fi
@@ -703,7 +706,7 @@ for i in $BARCLAMP_SRC/*; do
         /opt/dell/bin/barclamp_uninstall.rb $BARCLAMP_INSTALL_OPTS $i
     fi
 done
-test -e /opt/dell/crowbar_framework/barclamps && rm -r /opt/dell/crowbar_framework/barclamps
+rm -rf /opt/dell/crowbar_framework/barclamps
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
     # Create empty "git" and "nagios" cookbooks to satisfy the dependencies of
@@ -716,7 +719,9 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     touch "$d/nagios/recipes/common.rb"
     knife cookbook upload -o "$d" nagios
     rm -rf "$d"
-    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.instances.nagios --raw -v "[ ]"
+    $json_edit "$CROWBAR_JSON" \
+        -a attributes.crowbar.instances.nagios \
+        --raw -v "[ ]"
 
     # Some barclamps depend on the "pfsdeps" view. Fake it, to make the webui
     # work for those.
@@ -765,7 +770,8 @@ $chef_client
 
 # Create session store database
 rm -f /opt/dell/crowbar_framework/db/*.sqlite3
-su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production ./bin/rake db:create db:migrate"
+su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && \
+    RAILS_ENV=production ./bin/rake db:create db:migrate"
 
 # OOC, what, if anything, is responsible for starting rainbows/crowbar under bluepill?
 ensure_service_running crowbar
@@ -783,13 +789,16 @@ for service in dhcpd nfsserver; do
     service $service status &> /dev/null && service $service stop
 done
 test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
-test -f /opt/dell/crowbar_framework/htdigest && rm /opt/dell/crowbar_framework/htdigest
+test -f /opt/dell/crowbar_framework/htdigest && \
+    rm /opt/dell/crowbar_framework/htdigest
 test -d /var/lib/crowbar/config && rm -f /var/lib/crowbar/config/*.json
 # Clean up files that are created for handling node discovery by provisioner barclamp
 test -d /etc/dhcp3/hosts.d && rm -f /etc/dhcp3/hosts.d/*
 for arch in $supported_arches; do
-    test -d /srv/tftpboot/discovery/$arch/efi && rm -f /srv/tftpboot/discovery/$arch/efi/*.conf
-    test -d /srv/tftpboot/discovery/$arch/bios/pxelinux.cfg && rm -f /srv/tftpboot/discovery/$arch/bios/pxelinux.cfg/*
+    test -d /srv/tftpboot/discovery/$arch/efi && \
+        rm -f /srv/tftpboot/discovery/$arch/efi/*.conf
+    test -d /srv/tftpboot/discovery/$arch/bios/pxelinux.cfg && \
+        rm -f /srv/tftpboot/discovery/$arch/bios/pxelinux.cfg/*
 done
 
 # Keep copy of files that crowbar will overwrite; this is done only on the very
@@ -823,21 +832,30 @@ done
 
 # if crowbar user has been removed from crowbar.json, mark it as disabled (as it's still in main json)
 if test -z "`json_read "$CROWBAR_JSON" attributes.crowbar.users.crowbar`"; then
-    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.users.crowbar.disabled --raw -v "true"
+    $json_edit "$CROWBAR_JSON" \
+        -a attributes.crowbar.users.crowbar.disabled \
+        --raw -v "true"
 fi
 # we don't use ganglia at all, and we don't want nagios by default
-$json_edit "$CROWBAR_JSON"    -a attributes.crowbar.instances.ganglia --raw -v "[ ]"
-$json_edit "$CROWBAR_JSON" -n -a attributes.crowbar.instances.nagios --raw -v "[ ]"
+$json_edit "$CROWBAR_JSON" \
+    -a attributes.crowbar.instances.ganglia \
+    --raw -v "[ ]"
+$json_edit "$CROWBAR_JSON" -n \
+    -a attributes.crowbar.instances.nagios \
+    --raw -v "[ ]"
 
 # Use existing SSH authorized keys
 if [ -f /root/.ssh/authorized_keys ]; then
     # remove empty lines and change newline to \n
     access_keys=$(sed "/^ *$/d" /root/.ssh/authorized_keys | sed "N;s/\n/\\n/g")
-    if [ ! -f "$PROVISIONER_JSON" -o \
-        -z "`json_read "$PROVISIONER_JSON" attributes.provisioner.access_keys`" ]
+    provisioner_keys=$(json_read "$PROVISIONER_JSON" \
+        attributes.provisioner.access_keys)
+    if [ ! -f "$PROVISIONER_JSON" -o -z "$provisioner_keys" ]
     then
         echo "Will add pre-existing SSH keys from /root/.ssh/authorized_keys"
-        $json_edit "$PROVISIONER_JSON" -a attributes.provisioner.access_keys -v "$access_keys"
+        $json_edit "$PROVISIONER_JSON" \
+            -a attributes.provisioner.access_keys \
+            -v "$access_keys"
     fi
 fi
 
@@ -846,7 +864,9 @@ fi
     . /etc/sysconfig/clock
     if [ -n "$TIMEZONE" ]; then
         echo "Will use $TIMEZONE timezone for node installation"
-        $json_edit "$PROVISIONER_JSON" -a attributes.provisioner.timezone -v "$TIMEZONE"
+        $json_edit "$PROVISIONER_JSON" \
+            -a attributes.provisioner.timezone \
+            -v "$TIMEZONE"
     fi
 )
 
@@ -857,7 +877,9 @@ if [ -n "$custom_forwarders" ]; then
     echo "bind will use forwarders from $DNS_JSON: $custom_forwarders"
 else
     nameservers=$( awk '/^nameserver/ {printf "\""$2"\","}' /var/lib/crowbar/cache/etc/resolv.conf | sed "s/,$//" )
-    $json_edit "$DNS_JSON" -a attributes.dns.forwarders --raw -v "[ $nameservers ]"
+    $json_edit "$DNS_JSON" \
+        -a attributes.dns.forwarders --raw \
+        -v "[ $nameservers ]"
     echo "bind will use the following DNS forwarders: $nameservers"
 fi
 
@@ -871,16 +893,18 @@ if [ -z "$custom_ntp_servers" ]; then
     # such should be considered more authoritative, and (b) querying
     # the running configuration will only give us canonical hostnames,
     # not round-robin DNS hostnames for NTP server pools.
-    echo "Attempting to auto-detect existing ntp servers from /etc/ntp.conf ..."
-    ntp_servers="$( cat /etc/ntp.conf | awk '/^server / && ! / 127\./ { print $2 }' )"
+    echo "Auto-detecting existing ntp servers from /etc/ntp.conf ..."
+    ntp_servers="$( awk '/^server / && ! / 127\./ { print $2 }' < /etc/ntp.conf )"
     if [ -z "$ntp_servers" ]; then
-        echo "Attempting to auto-detect existing ntp servers from ntpd ..."
+        echo "Auto-detecting existing ntp servers from ntpd ..."
         ntp_servers="$( ntpdc -l | awk '/client/ && ! /LOCAL/ { print $2 }' )"
     fi
     if [ -n "$ntp_servers" ]; then
         ntp_servers="${ntp_servers%$'\n'}" # trim trailing newline
         ntp_servers="\"${ntp_servers//$'\n'/\", \"}\"" # double-quote and comma-delimit
-        $json_edit "$NTP_JSON" -a attributes.ntp.external_servers --raw -v "[ $ntp_servers ]"
+        $json_edit "$NTP_JSON" \
+            -a attributes.ntp.external_servers --raw \
+            -v "[ $ntp_servers ]"
         echo "ntp will use the following servers: $ntp_servers"
     fi
 fi
@@ -909,13 +933,16 @@ CROWBAR_REALM=$(json_read "$CROWBAR_JSON" attributes.crowbar.realm)
 
 # Generate the machine install username and password.
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
-    dd if=/dev/urandom bs=65536 count=1 2>/dev/null |sha512sum - 2>/dev/null | \
+    dd if=/dev/urandom bs=65536 count=1 2>/dev/null | \
+        sha512sum - 2>/dev/null | \
         (read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
 fi
 
 if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
-    export CROWBAR_KEY=$(cat /etc/crowbar.install.key)
-    $json_edit "$CROWBAR_JSON" -a attributes.crowbar.users.machine-install.password -v "${CROWBAR_KEY##*:}"
+    export CROWBAR_KEY=$(</etc/crowbar.install.key)
+    $json_edit "$CROWBAR_JSON" \
+        -a attributes.crowbar.users.machine-install.password \
+        -v "${CROWBAR_KEY##*:}"
 fi
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
@@ -1046,7 +1073,8 @@ ensure_service_running chef-client
 echo_summary "Performing post-installation sanity checks"
 
 # Spit out a warning message if we managed to not get an IP address
-IP=$($CROWBAR network proposal show default | json_read - attributes.network.networks.admin.ranges.admin.start)
+IP=$($CROWBAR network proposal show default | \
+    json_read - attributes.network.networks.admin.ranges.admin.start)
 ip addr | grep -q "$IP" || {
     die "eth0 not configured, but should have been."
 }
