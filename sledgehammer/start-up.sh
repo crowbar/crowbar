@@ -83,8 +83,8 @@ elif [[ -d /sys/firmware/efi ]]; then
 fi
 for nic in /sys/class/net/*; do
     [[ -f $nic/address && -f $nic/type && \
-	$(cat "$nic/type") = 1 && \
-	$(cat "$nic/address") = $MAC ]] || continue
+        $(cat "$nic/type") = 1 && \
+        $(cat "$nic/address") = $MAC ]] || continue
     BOOTDEV="${nic##*/}"
     break
 done
@@ -128,7 +128,7 @@ if is_suse; then
     echo "$HOSTNAME" > /etc/HOSTNAME
 else
     if [ -f /etc/sysconfig/network ] ; then
-      sed -i -e "s/HOSTNAME=.*/HOSTNAME=${HOSTNAME}/" /etc/sysconfig/network
+        sed -i -e "s/HOSTNAME=.*/HOSTNAME=${HOSTNAME}/" /etc/sysconfig/network
     fi
     echo "${HOSTNAME#*.}" >/etc/domainname
 fi
