@@ -492,9 +492,9 @@ for arch in $supported_arches; do
 done
 
 if is_ses; then
-  product_arches="$supported_arches_ses"
+    product_arches="$supported_arches_ses"
 else
-  product_arches="$supported_arches"
+    product_arches="$supported_arches"
 fi
 
 for arch in $product_arches; do
