@@ -8,8 +8,6 @@ engines:
     enabled: true
   scss-lint:
     enabled: true
-  bundler-audit:
-    enabled: true
 
 ratings:
   paths:
@@ -21,5 +19,3 @@ ratings:
 exclude_paths:
   - spec/**/*
   - vendor/**/*
-
-  - .artifacts
