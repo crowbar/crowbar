@@ -295,6 +295,21 @@ ensure_service_running () {
     fi
 }
 
+wait_for_crowbar ()
+{
+    local crowbar_up=0
+    for ((x=1; x<10; x++)); do
+        nc -z localhost 3000 && {
+            crowbar_up=1
+            break
+        }
+        sleep 2
+    done
+    if [ $crowbar_up -ne 1 ]; then
+        die "Crowbar service is not running. Please check $LOGFILE."
+    fi
+}
+
 if [ -f $crowbar_install_dir/crowbar-installed-ok ]; then
     run_succeeded=already_before
 
@@ -948,6 +963,8 @@ touch /var/run/crowbar/deploying
 #   /opt/dell/bin/looper_chef_client.sh
 #
 # which exits immediately if /var/run/crowbar/deploying exists.
+
+wait_for_crowbar
 
 # From here, you should probably read along with the equivalent steps in
 # install-chef.sh for comparison
