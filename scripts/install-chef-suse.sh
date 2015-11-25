@@ -278,15 +278,6 @@ post_fail_handler ()
     rm -f $crowbar_install_dir/crowbar_installing
 }
 
-function reset_crowbar()
-{
-    rm -f $crowbar_install_dir/crowbar-install-failed
-    rm -f $installation_steps
-    pushd /opt/dell/crowbar_framework > /dev/null
-    bin/rake db:cleanup
-    popd > /dev/null
-}
-
 # Real work starts here
 # ---------------------
 
@@ -318,7 +309,11 @@ EOF
     exit 1
 fi
 
-reset_crowbar
+if [ -f $crowbar_install_dir/crowbar-install-failed ] || [ "$CROWBAR_WIZARD_MODE" ]; then
+    rm -f $crowbar_install_dir/crowbar-install-failed
+    rm -f $installation_steps
+    sqlite3 /opt/dell/crowbar_framework/db/production.sqlite3 "delete from proposals; delete from proposal_queues; vacuum;"
+fi
 
 FQDN=$(hostname -f 2>/dev/null);
 DOMAIN=$(hostname -d 2>/dev/null);
