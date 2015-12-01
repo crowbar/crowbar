@@ -355,7 +355,7 @@ def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
   end
 end
 
-def framework_permissions(bc, bc_path)
+def framework_permissions
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'db')
   chmod_dir 0644, File.join(CROWBAR_PATH, 'db')
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'tmp')
@@ -382,7 +382,7 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path)
     if dirs.include? 'crowbar_framework'
       debug "path entries include \"crowbar_framework\""
       files += bc_cloner('crowbar_framework', nil, bc_path, BASE_PATH)
-      framework_permissions bc, bc_path
+      framework_permissions
     end
 
     if dirs.include? 'bin'
