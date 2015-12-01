@@ -119,26 +119,14 @@ component_paths.each do |component_path|
 end
 bc_install_layout_1_chef(from_rpm, component_paths, log)
 
-debug "installing barclamps:"
-barclamps.values.sort_by{|v| v[:order]}.each do |bc|
-  debug "bc = #{bc.pretty_inspect}"
+debug "migrating barclamps:"
+barclamps.values.each do |bc|
   begin
-    debug "installing barclamp"
-    begin
-      if bc[:yaml]["crowbar"]["layout"].to_i == 1
-        debug "Installing app components"
-        bc_install_layout_1_chef_migrate bc[:name], log if bc[:migrate]
-      else
-        debug "Could not install barclamp #{bc[:name]} because #{bc[:yaml][:barclamp][:crowbar_layout]} is unknown layout."
-      end
-    rescue StandardError => e
-      debug "exception occurred while installing barclamp"
-      raise e
-    end
+    bc_install_layout_1_chef_migrate bc[:name], log if bc[:migrate]
   rescue StandardError => e
     puts e
     puts e.backtrace
-    puts "Install of #{bc[:name]} failed."
+    puts "Migration of #{bc[:name]} failed."
     exit -3
   end
 end
