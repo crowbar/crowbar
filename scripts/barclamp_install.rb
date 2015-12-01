@@ -69,7 +69,7 @@ ARGV.each do |src|
     barclamp_yml_files += get_yml_paths(File.join(BARCLAMP_PATH, src))
     component_paths.push File.join(BARCLAMP_PATH, src)
   else
-    puts "#{src} is not a valid component name, skiping."
+    puts "#{src} is not a valid component name, skipping."
   end
 end
 
@@ -86,7 +86,7 @@ barclamp_yml_files.each do |yml_file|
     debug "trying to parse crowbar YAML file in #{yml_file}"
     barclamp = YAML.load_file yml_file
   rescue
-    puts "Exception occured while parsing crowbar YAML file in #{yml_file}, skiping"
+    puts "Exception occured while parsing crowbar YAML file in #{yml_file}, skipping"
     next
   end
 
