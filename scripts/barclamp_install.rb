@@ -63,14 +63,18 @@ component_paths = Array.new
 ARGV.each do |src|
   debug "src: #{src}"
   if Dir.exist?(src)
-    barclamp_yml_files += get_yml_paths(src)
-    component_paths.push src
+    component_dir = src
   elsif Dir.exist?(File.join(BARCLAMP_PATH, src))
-    barclamp_yml_files += get_yml_paths(File.join(BARCLAMP_PATH, src))
-    component_paths.push File.join(BARCLAMP_PATH, src)
+    component_dir = File.join(BARCLAMP_PATH, src)
   else
     puts "#{src} is not a valid component name, skipping."
+    component_dir = nil
   end
+
+  next if component_dir.nil?
+
+  barclamp_yml_files += get_yml_paths(component_dir)
+  component_paths.push component_dir
 end
 
 if barclamp_yml_files.blank?
