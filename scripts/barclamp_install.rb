@@ -118,6 +118,9 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   bc[:migrate] = check_schema_migration(bc[:name])
 end
 
+component_paths.each do |component_path|
+  bc_install_layout_1_app(from_rpm, component_path)
+end
 bc_install_layout_1_chef(from_rpm, component_paths, log)
 
 debug "installing barclamps:"
@@ -178,7 +181,6 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
     begin
       if bc[:yaml]["crowbar"]["layout"].to_i == 1
         debug "Installing app components"
-        bc_install_layout_1_app from_rpm, bc[:name], bc[:src]
         bc_install_layout_1_chef_migrate bc[:name], log if bc[:migrate]
       else
         debug "Could not install barclamp #{bc[:name]} because #{bc[:yaml][:barclamp][:crowbar_layout]} is unknown layout."

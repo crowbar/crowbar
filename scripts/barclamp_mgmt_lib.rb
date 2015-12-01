@@ -363,14 +363,15 @@ def framework_permissions
   debug "\tcopied crowbar_framework files"
 end
 
-# install the framework files for a barclamp
+# install the framework files for a component
 # N.B. if you update this, you must also update Guardfile.tree-merge !!
-def bc_install_layout_1_app(from_rpm, bc, bc_path)
+def bc_install_layout_1_app(from_rpm, bc_path)
 
   #TODO - add a roll back so there are NOT partial results if a step fails
   files = []
+  component = File.basename(bc_path)
 
-  puts "Installing barclamp #{bc} from #{bc_path}"
+  puts "Installing component #{component} from #{bc_path}"
 
   #copy the rails parts (required for render BEFORE import into chef)
   dirs = Dir.entries(bc_path)
@@ -407,20 +408,21 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path)
     debug "\tcopied updates files"
   end
 
-  # copy over the crowbar YAML file, needed to update catalog
-  yml_barclamp = get_yml_paths(bc_path, bc).first
+  # copy over the crowbar YAML files, needed to update catalog
   yml_path = File.join CROWBAR_PATH, 'barclamps'
-  yml_created = File.join(yml_path, "#{bc}.yml")
-  FileUtils.mkdir yml_path unless File.directory? yml_path
-  FileUtils.cp yml_barclamp, yml_created unless yml_barclamp == yml_created
-  files << yml_created
+  get_yml_paths(bc_path).each do |yml_source|
+    yml_created = File.join(yml_path, File.basename(yml_source))
+    FileUtils.mkdir yml_path unless File.directory? yml_path
+    FileUtils.cp yml_source, yml_created unless yml_source == yml_created
+    files << yml_created
+  end
 
-  filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
+  filelist = File.join BARCLAMP_PATH, "#{component}-filelist.txt"
   File.open( filelist, 'w' ) do |out|
     files.each { |line| out.puts line }
   end
 
-  debug "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created."
+  debug "Component #{component} added to Crowbar Framework.  Review #{filelist} for files created."
 end
 
 # upload the chef parts for a barclamp
