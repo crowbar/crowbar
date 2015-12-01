@@ -67,6 +67,13 @@ def fatal(msg, log = nil, exit_code = 1)
   exit exit_code
 end
 
+def get_yml_paths_from_rpm(component)
+  rpm = "crowbar-#{component}"
+  get_rpm_file_list(rpm).select do |file|
+    file =~ %r!^#{CROWBAR_PATH}/barclamps/([^/]+).yml$!
+  end
+end
+
 def get_yml_paths(directory, suggested_bc_name = nil)
   yml_files = Array.new
   Dir.entries(directory).each do |file_name|
@@ -398,6 +405,15 @@ def bc_install_layout_1_app(from_rpm, bc_path)
       files += bc_cloner('chef', nil, bc_path, BASE_PATH)
       debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
     end
+
+    # copy over the crowbar YAML files, needed to update catalog
+    yml_path = File.join CROWBAR_PATH, 'barclamps'
+    get_yml_paths(bc_path).each do |yml_source|
+      yml_created = File.join(yml_path, File.basename(yml_source))
+      FileUtils.mkdir yml_path unless File.directory? yml_path
+      FileUtils.cp yml_source, yml_created unless yml_source == yml_created
+      files << yml_created
+    end
   end
 
   # we don't install these files in the right place from rpm
@@ -406,15 +422,6 @@ def bc_install_layout_1_app(from_rpm, bc_path)
     files += bc_cloner('updates', nil, bc_path, ROOT_PATH)
     FileUtils.chmod_R 0755, UPDATE_PATH
     debug "\tcopied updates files"
-  end
-
-  # copy over the crowbar YAML files, needed to update catalog
-  yml_path = File.join CROWBAR_PATH, 'barclamps'
-  get_yml_paths(bc_path).each do |yml_source|
-    yml_created = File.join(yml_path, File.basename(yml_source))
-    FileUtils.mkdir yml_path unless File.directory? yml_path
-    FileUtils.cp yml_source, yml_created unless yml_source == yml_created
-    files << yml_created
   end
 
   filelist = File.join BARCLAMP_PATH, "#{component}-filelist.txt"

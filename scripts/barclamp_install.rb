@@ -84,7 +84,11 @@ ARGV.each do |src|
 
   next if component_dir.nil?
 
-  barclamp_yml_files += get_yml_paths(component_dir)
+  if from_rpm
+    barclamp_yml_files += get_yml_paths_from_rpm(File.basename(component_dir))
+  else
+    barclamp_yml_files += get_yml_paths(component_dir)
+  end
   component_paths.push component_dir
 end
 
