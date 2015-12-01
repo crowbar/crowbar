@@ -35,6 +35,7 @@ def usage()
 end
 
 from_rpm = false
+exit_code = 0
 
 opts.each do |opt, arg|
   case opt
@@ -136,7 +137,7 @@ if do_chef
       puts e
       puts e.backtrace
       puts "Migration of #{bc[:name]} failed."
-      exit -3
+      exit_code = -3
     end
   end
 end
@@ -145,4 +146,4 @@ generate_navigation
 generate_assets_manifest
 catalog
 
-exit 0
+exit exit_code
