@@ -392,7 +392,7 @@ end
 
 # install the framework files for a barclamp
 # N.B. if you update this, you must also update Guardfile.tree-merge !!
-def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
+def bc_install_layout_1_app(from_rpm, bc, bc_path)
 
   #TODO - add a roll back so there are NOT partial results if a step fails
   files = []
@@ -445,36 +445,6 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
   filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
   File.open( filelist, 'w' ) do |out|
     files.each { |line| out.puts line }
-  end
-
-  # Migrate base crowbar schema if needed
-  bc_schema_version = yaml["crowbar"]["proposal_schema_version"].to_i rescue 1
-  latest_version    = 3
-
-  if bc_schema_version < latest_version
-    name = yaml['barclamp']['name']
-    schema_file = File.join BASE_PATH, 'chef','data_bags','crowbar', "template-#{name}.schema"
-    if File.exists? schema_file
-      a = []
-      File.open(schema_file, 'r') { |f|
-        a = f.readlines
-      }
-      need_status = bc_schema_version < 2 && a.grep(/^\s+\"crowbar-status\"/).empty?
-      need_failed = bc_schema_version < 2 && a.grep(/^\s+\"crowbar-failed\"/).empty?
-      need_applied = bc_schema_version < 3 && a.grep(/^\s+\"crowbar-applied\"/).empty?
-      if need_status or need_failed or need_applied
-        File.open(schema_file, 'w') { |f|
-          a.each do |line|
-            f.write(line)
-            if line =~ /crowbar-queued/
-              f.write("            \"crowbar-status\": { \"type\": \"str\" },\n") if need_status
-              f.write("            \"crowbar-failed\": { \"type\": \"str\" },\n") if need_failed
-              f.write("            \"crowbar-applied\": { \"type\": \"bool\" },\n") if need_applied
-            end
-          end
-        }
-      end
-    end
   end
 
   debug "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created."
