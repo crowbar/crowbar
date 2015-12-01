@@ -442,19 +442,6 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
   FileUtils.cp yml_barclamp, yml_created unless yml_barclamp == yml_created
   files << yml_created
 
-  # copy over the manifest.json file, needed to update assets manifest
-  manifest_path = File.join CROWBAR_PATH, 'barclamps', 'manifests'
-  manifest_barclamp = File.join bc_path, "manifest.json"
-  manifest_created = File.join(manifest_path, "#{bc}.json")
-  FileUtils.mkdir manifest_path unless File.directory? manifest_path
-  if File.exists? manifest_barclamp
-    FileUtils.cp manifest_barclamp, manifest_created
-    files << manifest_created
-  else
-    # make sure there's no old manifest
-    FileUtils.rm manifest_created rescue nil
-  end
-
   filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
   File.open( filelist, 'w' ) do |out|
     files.each { |line| out.puts line }
