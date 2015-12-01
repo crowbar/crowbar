@@ -277,14 +277,13 @@ def generate_assets_manifest
 end
 
 # copies paths from one place to another (recursive)
-def bc_cloner(item, bc, entity, source, target, replace)
+def bc_cloner(item, entity, source, target)
   debug "bc_cloner method called with debug option enabled"
-  debug "bc_cloner args: item=#{item}, bc=#{bc}, entity=#{entity}, source=#{source}, target=#{target}, replace=#{replace}"
+  debug "bc_cloner args: item=#{item}, entity=#{entity}, source=#{source}, target=#{target}"
 
   files = []
-  new_item = (replace ? bc_replacer(item.dup, bc, entity) : item)
-  debug "new_item=#{new_item}"
-  new_file = File.join target, new_item
+  debug "item=#{item}"
+  new_file = File.join target, item
   debug "new_file=#{new_file}"
   new_source = File.join(source, item)
   debug "new_source=#{new_source}"
@@ -293,24 +292,13 @@ def bc_cloner(item, bc, entity, source, target, replace)
     FileUtils.mkdir new_file unless File.directory? new_file
     clone = Dir.entries(new_source).find_all { |e| !e.start_with? '.'}
     clone.each do |recurse|
-      files += bc_cloner(recurse, bc, entity, new_source, new_file, replace)
+      files += bc_cloner(recurse, entity, new_source, new_file)
     end
   else
     #need to inject into the file
-    unless replace
-      debug "\t\tcopying file #{new_file}."
-      FileUtils.cp new_source, new_file
-      files << new_file
-    else
-      debug "\t\tcreating file #{new_file}."
-      t = File.open(new_file, 'w')
-      File.open(new_source, 'r') do |f|
-        s = f.read
-        t.write(bc_replacer(s, bc, entity))
-      end
-      t.close
-      files << new_file
-    end
+    debug "\t\tcopying file #{new_file}."
+    FileUtils.cp new_source, new_file
+    files << new_file
   end
   return files
 end
@@ -329,21 +317,6 @@ def chmod_dir(value, path)
       puts "chmod_dir: WARN: missing file #{file} for chmod #{value} operation."
     end
   end
-end
-
-# remove model placeholders
-def bc_replacer(item, bc, entity)
-  debug "bc_replacer method called with debug option enabled"
-  debug "bc_replacer args: item=#{item}, bc=#{bc}, entity=#{entity}"
-
-  new_item = item.clone
-  new_item.gsub!(MODEL_SUBSTRING_BASE, bc)
-  new_item.gsub!(MODEL_SUBSTRING_CAMEL, bc.camelize)
-  new_item.gsub!(MODEL_SUBSTRING_HUMAN, bc.humanize)
-  new_item.gsub!(MODEL_SUBSTRING_CAPSS, bc.capitalize)
-  new_item.gsub!('Copyright 2011, Dell', "Copyright #{Time.now.year}, #{entity}")
-  debug "bc_replacer returns new_item=#{new_item}"
-  return new_item
 end
 
 # helper for localization merge
@@ -408,20 +381,20 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path)
 
     if dirs.include? 'crowbar_framework'
       debug "path entries include \"crowbar_framework\""
-      files += bc_cloner('crowbar_framework', bc, nil, bc_path, BASE_PATH, false)
+      files += bc_cloner('crowbar_framework', nil, bc_path, BASE_PATH)
       framework_permissions bc, bc_path
     end
 
     if dirs.include? 'bin'
       debug "path entries include \"bin\""
-      files += bc_cloner('bin', bc, nil, bc_path, BASE_PATH, false)
+      files += bc_cloner('bin', nil, bc_path, BASE_PATH)
       FileUtils.chmod_R 0755, BIN_PATH
       debug "\tcopied command line files"
     end
 
     if dirs.include? 'chef'
       debug "path entries include \"chef\""
-      files += bc_cloner('chef', bc, nil, bc_path, BASE_PATH, false)
+      files += bc_cloner('chef', nil, bc_path, BASE_PATH)
       debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
     end
   end
@@ -429,7 +402,7 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path)
   # we don't install these files in the right place from rpm
   if dirs.include? 'updates'
     debug "path entries include \"updates\""
-    files += bc_cloner('updates', bc, nil, bc_path, ROOT_PATH, false)
+    files += bc_cloner('updates', nil, bc_path, ROOT_PATH)
     FileUtils.chmod_R 0755, UPDATE_PATH
     debug "\tcopied updates files"
   end
