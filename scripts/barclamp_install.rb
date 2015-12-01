@@ -25,17 +25,15 @@ require 'barclamp_mgmt_lib'
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
-  [ '--force', '-f', GetoptLong::NO_ARGUMENT ],
   [ '--rpm', GetoptLong::NO_ARGUMENT ]
 )
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--rpm] [--debug] [--force] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--rpm] [--debug] /path/to/new/barclamp"
   exit
 end
 
-force_install = false
 from_rpm = false
 
 opts.each do |opt, arg|
@@ -45,8 +43,6 @@ opts.each do |opt, arg|
     when "--debug"
     ENV['DEBUG'] = 'true'
     debug "debug mode is enabled"
-    when "--force"
-    force_install = true
     when "--rpm"
     from_rpm = true
   end
@@ -127,56 +123,6 @@ debug "installing barclamps:"
 barclamps.values.sort_by{|v| v[:order]}.each do |bc|
   debug "bc = #{bc.pretty_inspect}"
   begin
-    unless bc[:src].start_with?(BARCLAMP_PATH)
-      target=File.join(BARCLAMP_PATH, bc[:src].split("/")[-1])
-      if File.directory? target
-        debug "target directory #{target} exists"
-        if get_yml_paths(target, bc[:name]).empty?
-          debug "crowbar YAML file does not exists in #{target}"
-          puts "#{target} exists, but it is not a barclamp."
-          puts "Cowardly refusing to overwrite it."
-          exit -1
-        else
-          debug "crowbar YAML file exists in #{target}"
-          if File.exists? "#{target}/sha1sums"
-            debug "#{target}/sha1sums file exists"
-            unless force_install or system "cd \"#{target}\"; sha1sum --status -c sha1sums"
-              debug "force_install mode is disabled and not all file checksums do match"
-              puts "Refusing to install over non-pristine target #{target}"
-              puts "Please back up the following files:"
-              system "cd \"#{target}\"; sha1sum -c sha1sums |grep -v OK"
-              puts "and rerun the install after recreating the checksum file with:"
-              puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
-              puts"       xargs -0 sha1sum -b >sha1sums"
-              puts "(or use the --force switch)"
-              exit -1
-            end
-          elsif not force_install
-            debug "force_install mode is disabled and #{target}/sha1sums file does not exist"
-            puts "#{target} already exists, but it does not have checksums."
-            puts "Please back up any local changes you may have made, and then"
-            puts "create a checksums file with:"
-            puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
-            puts"       xargs -0 sha1sum -b >sha1sums"
-            puts "(or use the --force switch)"
-            exit -1
-          end
-        end
-      else
-        debug "target directory \"#{target}\" does not exist"
-        debug "creating directory \"#{target}\""
-        system "mkdir -p \"#{target}\""
-      end
-      # Only rsync over the changes if this is a different install
-      # from the POV of the sha1sums files
-      unless File.exists?("#{bc[:src]}/sha1sums") and \
-        File.exists?("#{target}/sha1sums") and \
-        system "/bin/bash -c 'diff -q <(sort \"#{bc[:src]}/sha1sums\") <(sort \"#{target}/sha1sums\")'"
-        debug "syncing \"#{bc[:src]}\" directory and \"#{target}\" directory"
-        system "rsync -a \"#{bc[:src]}/\" \"#{target}\""
-      end
-      bc[:src] = target
-    end
     debug "installing barclamp"
     begin
       if bc[:yaml]["crowbar"]["layout"].to_i == 1
