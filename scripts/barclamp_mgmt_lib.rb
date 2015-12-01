@@ -346,19 +346,15 @@ def merge_tree(key, value, target)
 end
 
 # cleanup (anti-install) assumes the install generates a file list
-def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
-  filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
+def bc_remove_layout_1(from_rpm, component)
+  filelist = File.join BARCLAMP_PATH, "#{component}-filelist.txt"
   if File.exist? filelist
     File.open(filelist, 'r') do |f|
       f.each_line { |line| FileUtils.rm line.chomp rescue nil }
     end
     FileUtils.rm filelist rescue nil
 
-    generate_navigation
-    generate_assets_manifest
-    catalog
-
-    debug "Barclamp #{bc} Uninstalled"
+    debug "Component #{component} Uninstalled"
   end
 end
 
