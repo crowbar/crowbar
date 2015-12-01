@@ -54,6 +54,20 @@ log_path = File.join '/var', 'log', 'crowbar'
 FileUtils.mkdir log_path unless File.directory? log_path
 log = File.join log_path, "component_install.log"
 
+install_lib_dir = "/var/lib/crowbar/install"
+installation_steps = File.join(install_lib_dir, "installation_steps")
+if File.exist? installation_steps
+  steps = File.readlines(installation_steps).map do |step|
+    step.split.first
+  end
+  crowbar_installed_barclamps = steps.include? "run_services"
+else
+  crowbar_installed_barclamps = false
+end
+crowbar_installed = File.exist?(File.join(install_lib_dir, "crowbar-installed-ok"))
+
+do_chef = crowbar_installed_barclamps || crowbar_installed
+
 barclamp_yml_files = Array.new
 component_paths = Array.new
 ARGV.each do |src|
@@ -103,24 +117,27 @@ barclamp_yml_files.sort.each do |yml_file|
     next
   end
 
-  barclamps[name] = { :name => name, :migrate => check_schema_migration(name) }
+  barclamps[name] = { :name => name, :migrate => do_chef && check_schema_migration(name) }
   debug "barclamp[#{name}] (from #{yml_file}) = #{barclamps[name].pretty_inspect}"
 end
 
 component_paths.each do |component_path|
   bc_install_layout_1_app(from_rpm, component_path)
 end
-bc_install_layout_1_chef(from_rpm, component_paths, log)
 
-debug "migrating barclamps:"
-barclamps.values.each do |bc|
-  begin
-    bc_install_layout_1_chef_migrate bc[:name], log if bc[:migrate]
-  rescue StandardError => e
-    puts e
-    puts e.backtrace
-    puts "Migration of #{bc[:name]} failed."
-    exit -3
+if do_chef
+  bc_install_layout_1_chef(from_rpm, component_paths, log)
+
+  debug "migrating barclamps:"
+  barclamps.values.each do |bc|
+    begin
+      bc_install_layout_1_chef_migrate bc[:name], log if bc[:migrate]
+    rescue StandardError => e
+      puts e
+      puts e.backtrace
+      puts "Migration of #{bc[:name]} failed."
+      exit -3
+    end
   end
 end
 
