@@ -81,9 +81,8 @@ end
 debug "checking components"
 
 barclamps = Hash.new
-barclamp_yml_files.each do |yml_file|
+barclamp_yml_files.sort.each do |yml_file|
   begin
-    debug "trying to parse crowbar YAML file in #{yml_file}"
     barclamp = YAML.load_file yml_file
   rescue
     puts "Exception occured while parsing crowbar YAML file in #{yml_file}, skipping"
@@ -97,21 +96,15 @@ barclamp_yml_files.each do |yml_file|
     next
   end
 
-  # We assume the barclamp and crowbar keys exist and their values are hashes.
+  # We assume the barclamp key exists and its value is a hash.
   version = (barclamp["barclamp"]["version"] || 0).to_i
-  order   = (barclamp["crowbar"]["order"] || 9999).to_i
-
-  barclamps[name] = { :src => File.dirname(yml_file), :name => name, :order => order, :yaml => barclamp, :version => version }
-  debug "barclamp[#{name}] = #{barclamps[name].pretty_inspect}"
-end
-
-barclamps.values.sort_by{|v| v[:order]}.each do |bc|
-  debug "Check barclamp versions of #{bc[:name]}"
-  if bc[:yaml]["nav"] && bc[:version] < 1
-    fatal("Refusing to install #{bc[:name]} barclamp version < 1 due to incompatible navigation.", nil, -1)
+  if barclamp["nav"] && version < 1
+    puts "Barclamp at #{yml_file} has incompatible navigation, skipping"
+    next
   end
-  debug "Check migration of #{bc[:name]}"
-  bc[:migrate] = check_schema_migration(bc[:name])
+
+  barclamps[name] = { :name => name, :migrate => check_schema_migration(name) }
+  debug "barclamp[#{name}] (from #{yml_file}) = #{barclamps[name].pretty_inspect}"
 end
 
 component_paths.each do |component_path|
