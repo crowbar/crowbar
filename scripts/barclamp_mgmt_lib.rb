@@ -91,7 +91,7 @@ def catalog
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
   cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
-  list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
+  list = Dir.entries(barclamps).find_all { |e| !e.start_with?(".") && e.end_with?(".yml") }
   # scan the installed barclamps
   list.each do |bc_file|
     debug "Loading #{bc_file}"
