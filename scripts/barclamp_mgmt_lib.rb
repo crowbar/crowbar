@@ -217,14 +217,14 @@ def generate_navigation
     current.deep_merge! config["nav"]
   end
 
-  config_dir = File.join(CROWBAR_PATH, 'config')
+  config_dir = File.join(CROWBAR_PATH, "config")
   unless File.directory? config_dir
     FileUtils.mkdir_p config_dir
   end
 
   File.open(
-    File.join(config_dir, 'navigation.rb'),
-    'w'
+    File.join(config_dir, "navigation.rb"),
+    "w"
   ) do |out|
     out.puts '#'
     out.puts '# Copyright 2011-2013, Dell'
@@ -388,27 +388,27 @@ def bc_install_layout_1_app(from_rpm, bc_path)
   unless from_rpm
     # copy all the files to the target
 
-    if dirs.include? 'crowbar_framework'
+    if dirs.include? "crowbar_framework"
       debug "path entries include \"crowbar_framework\""
-      files += bc_cloner('crowbar_framework', nil, bc_path, BASE_PATH)
+      files += bc_cloner("crowbar_framework", nil, bc_path, BASE_PATH)
       framework_permissions
     end
 
-    if dirs.include? 'bin'
+    if dirs.include? "bin"
       debug "path entries include \"bin\""
-      files += bc_cloner('bin', nil, bc_path, BASE_PATH)
+      files += bc_cloner("bin", nil, bc_path, BASE_PATH)
       FileUtils.chmod_R 0755, BIN_PATH
       debug "\tcopied command line files"
     end
 
-    if dirs.include? 'chef'
+    if dirs.include? "chef"
       debug "path entries include \"chef\""
-      files += bc_cloner('chef', nil, bc_path, BASE_PATH)
+      files += bc_cloner("chef", nil, bc_path, BASE_PATH)
       debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
     end
 
     # copy over the crowbar YAML files, needed to update catalog
-    yml_path = File.join CROWBAR_PATH, 'barclamps'
+    yml_path = File.join CROWBAR_PATH, "barclamps"
     get_yml_paths(bc_path).each do |yml_source|
       yml_created = File.join(yml_path, File.basename(yml_source))
       FileUtils.mkdir yml_path unless File.directory? yml_path
@@ -420,7 +420,7 @@ def bc_install_layout_1_app(from_rpm, bc_path)
   # we don't install these files in the right place from rpm
   if dirs.include? 'updates'
     debug "path entries include \"updates\""
-    files += bc_cloner('updates', nil, bc_path, ROOT_PATH)
+    files += bc_cloner("updates", nil, bc_path, ROOT_PATH)
     FileUtils.chmod_R 0755, UPDATE_PATH
     debug "\tcopied updates files"
   end

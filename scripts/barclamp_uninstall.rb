@@ -63,7 +63,7 @@ ARGV.each do |src|
   component = File.basename(component_dir)
 
   bc_remove_layout_1 from_rpm, component
-  #TODO: bc_remove_layout_1_chef from_rpm, component
+  # TODO: bc_remove_layout_1_chef from_rpm, component
 end
 
 generate_navigation

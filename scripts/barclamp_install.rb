@@ -122,7 +122,7 @@ barclamp_yml_files.sort.each do |yml_file|
     next
   end
 
-  barclamps[name] = { :name => name, :migrate => do_chef && check_schema_migration(name) }
+  barclamps[name] = { name: name, migrate: do_chef && check_schema_migration(name) }
   debug "barclamp[#{name}] (from #{yml_file}) = #{barclamps[name].pretty_inspect}"
 end
 
