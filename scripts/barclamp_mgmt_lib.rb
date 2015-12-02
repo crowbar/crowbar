@@ -298,7 +298,7 @@ def bc_cloner(item, entity, source, target)
     #need to inject into the file
     debug "\t\tcopying file #{new_file}."
     FileUtils.cp new_source, new_file
-    files << new_file
+    files.push(new_file)
   end
   return files
 end
@@ -401,7 +401,7 @@ def bc_install_layout_1_app(from_rpm, bc_path)
       yml_created = File.join(yml_path, File.basename(yml_source))
       FileUtils.mkdir yml_path unless File.directory? yml_path
       FileUtils.cp yml_source, yml_created unless yml_source == yml_created
-      files << yml_created
+      files.push(yml_created)
     end
   end
 
