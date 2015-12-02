@@ -217,8 +217,13 @@ def generate_navigation
     current.deep_merge! config["nav"]
   end
 
+  config_dir = File.join(CROWBAR_PATH, 'config')
+  unless File.directory? config_dir
+    FileUtils.mkdir_p config_dir
+  end
+
   File.open(
-    File.join(CROWBAR_PATH, 'config', 'navigation.rb'),
+    File.join(config_dir, 'navigation.rb'),
     'w'
   ) do |out|
     out.puts '#'
