@@ -217,15 +217,10 @@ def generate_navigation
     current.deep_merge! config["nav"]
   end
 
-  config_dir = File.join(CROWBAR_PATH, "config")
-  unless File.directory? config_dir
-    FileUtils.mkdir_p config_dir
-  end
+  config_path = Pathname.new(CROWBAR_PATH).join("config")
+  config_path.mkpath unless config_path.directory?
 
-  File.open(
-    File.join(config_dir, "navigation.rb"),
-    "w"
-  ) do |out|
+  config_path.join("navigation.rb").open("w") do |out|
     out.puts '#'
     out.puts '# Copyright 2011-2013, Dell'
     out.puts '# Copyright 2013-2014, SUSE LINUX Products GmbH'
@@ -263,9 +258,7 @@ end
 def generate_assets_manifest
   debug "Generating assets manifest"
 
-  manifests = Pathname.new(
-    File.join(CROWBAR_PATH, "barclamps", "manifests")
-  )
+  manifests = Pathname.new(CROWBAR_PATH).join("barclamps", "manifests")
 
   merged_json = {}
 
@@ -275,15 +268,10 @@ def generate_assets_manifest
     merged_json.deep_merge!(json) unless json.nil?
   end
 
-  assets_folder = File.join(CROWBAR_PATH, 'public', 'assets')
-  unless File.directory? assets_folder
-    FileUtils.mkdir_p assets_folder
-  end
+  assets_path = Pathname.new(CROWBAR_PATH).join("public", "assets")
+  assets_path.mkpath unless assets_path.directory?
 
-  File.open(
-    File.join(CROWBAR_PATH, 'public', 'assets', 'manifest.json'),
-    'w'
-  ) do |out|
+  assets_path.join("manifest.json").open("w") do |out|
     JSON.dump(merged_json, out)
   end
 end

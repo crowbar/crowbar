@@ -55,17 +55,17 @@ log_path = File.join '/var', 'log', 'crowbar'
 FileUtils.mkdir log_path unless File.directory? log_path
 log = File.join log_path, "component_install.log"
 
-install_lib_dir = "/var/lib/crowbar/install"
-installation_steps = File.join(install_lib_dir, "installation_steps")
-if File.exist? installation_steps
-  steps = File.readlines(installation_steps).map do |step|
+install_lib_path = Pathname.new("/var/lib/crowbar/install")
+installation_steps_path = install_lib_path.join("installation_steps")
+if installation_steps_path.exist?
+  steps = installation_steps_path.readlines.map do |step|
     step.split.first
   end
   crowbar_installed_barclamps = steps.include? "run_services"
 else
   crowbar_installed_barclamps = false
 end
-crowbar_installed = File.exist?(File.join(install_lib_dir, "crowbar-installed-ok"))
+crowbar_installed = install_lib_path.join("crowbar-installed-ok").exist?
 
 do_chef = crowbar_installed_barclamps || crowbar_installed
 
