@@ -88,7 +88,11 @@ def main()
       fields = attr.gsub('\.', MAGIC_DOT).split('.')
       fields.each { |x| data = data[x.gsub(MAGIC_DOT, '.')] unless data.nil? }
 
-      puts "#{attr}=#{data}"
+      if data.is_a? Hash
+        puts "#{attr}=#{data.to_json}"
+      else
+        puts "#{attr}=#{data}"
+      end
     end
   rescue => ex
     puts "json-read failed: #{ex.message}"
