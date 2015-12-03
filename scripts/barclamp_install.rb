@@ -135,23 +135,27 @@ barclamps.values.sort_by{|v| v[:order]}.each do |bc|
             debug "#{target}/sha1sums file exists"
             unless force_install or system "cd \"#{target}\"; sha1sum --status -c sha1sums"
               debug "force_install mode is disabled and not all file checksums do match"
-              puts "Refusing to install over non-pristine target #{target}"
-              puts "Please back up the following files:"
-              system "cd \"#{target}\"; sha1sum -c sha1sums |grep -v OK"
-              puts "and rerun the install after recreating the checksum file with:"
-              puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
-              puts"       xargs -0 sha1sum -b >sha1sums"
-              puts "(or use the --force switch)"
+              print <<-EOF.gsub(/^ *\| /, '')
+              | Refusing to install over non-pristine target #{target}
+              | Please back up the following files:
+              | #{`system "cd \"#{target}\""; sha1sum -c sha1sums |grep -v OK`}
+              | and rerun the install after recreating the checksum file with:
+              |   cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\
+              |        xargs -0 sha1sum -b >sha1sums
+              | (or use the --force switch)
+              EOF
               exit -1
             end
           elsif not force_install
             debug "force_install mode is disabled and #{target}/sha1sums file does not exist"
-            puts "#{target} already exists, but it does not have checksums."
-            puts "Please back up any local changes you may have made, and then"
-            puts "create a checksums file with:"
-            puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
-            puts"       xargs -0 sha1sum -b >sha1sums"
-            puts "(or use the --force switch)"
+            print <<-EOF.gsub(/^ *\| /, '')
+            | #{target} already exists, but it does not have checksums.
+            | Please back up any local changes you may have made, and then
+            | create a checksums file with:
+            |   cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\
+            |       xargs -0 sha1sum -b >sha1sums
+            | (or use the --force switch)
+            EOF
             exit -1
           end
         end
