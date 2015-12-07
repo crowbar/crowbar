@@ -699,11 +699,6 @@ set_step "initial_chef_client"
 
 echo_summary "Installing barclamps"
 
-# Clean up previous crowbar install run, in case there was one
-# Crowbar is proxied by apache, so we should stop apache too
-for service in apache2 crowbar; do
-    service $service status &> /dev/null && service $service stop
-done
 for i in $BARCLAMP_SRC/*; do
     if test -d $i -a -f $i-filelist.txt; then
         /opt/dell/bin/barclamp_uninstall.rb $BARCLAMP_INSTALL_OPTS $i
