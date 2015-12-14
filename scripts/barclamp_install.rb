@@ -25,18 +25,17 @@ require 'barclamp_mgmt_lib'
 opts = GetoptLong.new(
   [ '--help', '-h', GetoptLong::NO_ARGUMENT ],
   [ '--debug', '-d', GetoptLong::NO_ARGUMENT ],
-  [ '--force', '-f', GetoptLong::NO_ARGUMENT ],
   [ '--rpm', GetoptLong::NO_ARGUMENT ]
 )
 
 def usage()
   puts "Usage:"
-  puts "#{__FILE__} [--help] [--rpm] [--debug] [--force] /path/to/new/barclamp"
+  puts "#{__FILE__} [--help] [--rpm] [--debug] /path/to/new/barclamp"
   exit
 end
 
-force_install = false
 from_rpm = false
+exit_code = 0
 
 opts.each do |opt, arg|
   case opt
@@ -45,8 +44,6 @@ opts.each do |opt, arg|
     when "--debug"
     ENV['DEBUG'] = 'true'
     debug "debug mode is enabled"
-    when "--force"
-    force_install = true
     when "--rpm"
     from_rpm = true
   end
@@ -58,19 +55,41 @@ log_path = File.join '/var', 'log', 'crowbar'
 FileUtils.mkdir log_path unless File.directory? log_path
 log = File.join log_path, "component_install.log"
 
+install_lib_path = Pathname.new("/var/lib/crowbar/install")
+installation_steps_path = install_lib_path.join("installation_steps")
+if installation_steps_path.exist?
+  steps = installation_steps_path.readlines.map do |step|
+    step.split.first
+  end
+  crowbar_installed_barclamps = steps.include? "run_services"
+else
+  crowbar_installed_barclamps = false
+end
+crowbar_installed = install_lib_path.join("crowbar-installed-ok").exist?
+
+do_chef = crowbar_installed_barclamps || crowbar_installed
+
 barclamp_yml_files = Array.new
 component_paths = Array.new
 ARGV.each do |src|
   debug "src: #{src}"
   if Dir.exist?(src)
-    barclamp_yml_files += get_yml_paths(src)
-    component_paths.push src
+    component_dir = src
   elsif Dir.exist?(File.join(BARCLAMP_PATH, src))
-    barclamp_yml_files += get_yml_paths(File.join(BARCLAMP_PATH, src))
-    component_paths.push File.join(BARCLAMP_PATH, src)
+    component_dir = File.join(BARCLAMP_PATH, src)
   else
-    puts "#{src} is not a valid component name, skiping."
+    puts "#{src} is not a valid component name, skipping."
+    component_dir = nil
   end
+
+  next if component_dir.nil?
+
+  if from_rpm
+    barclamp_yml_files += get_yml_paths_from_rpm(File.basename(component_dir))
+  else
+    barclamp_yml_files += get_yml_paths(component_dir)
+  end
+  component_paths.push component_dir
 end
 
 if barclamp_yml_files.blank?
@@ -81,12 +100,11 @@ end
 debug "checking components"
 
 barclamps = Hash.new
-barclamp_yml_files.each do |yml_file|
+barclamp_yml_files.sort.each do |yml_file|
   begin
-    debug "trying to parse crowbar YAML file in #{yml_file}"
     barclamp = YAML.load_file yml_file
   rescue
-    puts "Exception occured while parsing crowbar YAML file in #{yml_file}, skiping"
+    puts "Exception occured while parsing crowbar YAML file in #{yml_file}, skipping"
     next
   end
 
@@ -97,97 +115,34 @@ barclamp_yml_files.each do |yml_file|
     next
   end
 
-  # We assume the barclamp and crowbar keys exist and their values are hashes.
+  # We assume the barclamp key exists and its value is a hash.
   version = (barclamp["barclamp"]["version"] || 0).to_i
-  order   = (barclamp["crowbar"]["order"] || 9999).to_i
-
-  barclamps[name] = { :src => File.dirname(yml_file), :name => name, :order => order, :yaml => barclamp, :version => version }
-  debug "barclamp[#{name}] = #{barclamps[name].pretty_inspect}"
-end
-
-barclamps.values.sort_by{|v| v[:order]}.each do |bc|
-  debug "Check barclamp versions of #{bc[:name]}"
-  if bc[:yaml]["nav"] && bc[:version] < 1
-    fatal("Refusing to install #{bc[:name]} barclamp version < 1 due to incompatible navigation.", nil, -1)
+  if barclamp["nav"] && version < 1
+    puts "Barclamp at #{yml_file} has incompatible navigation, skipping"
+    next
   end
-  debug "Check migration of #{bc[:name]}"
-  bc[:migrate] = check_schema_migration(bc[:name])
+
+  barclamps[name] = { name: name, migrate: do_chef && check_schema_migration(name) }
+  debug "barclamp[#{name}] (from #{yml_file}) = #{barclamps[name].pretty_inspect}"
 end
 
-bc_install_layout_1_chef(from_rpm, component_paths, log)
+component_paths.each do |component_path|
+  bc_install_layout_1_app(from_rpm, component_path)
+end
 
-debug "installing barclamps:"
-barclamps.values.sort_by{|v| v[:order]}.each do |bc|
-  debug "bc = #{bc.pretty_inspect}"
-  begin
-    unless bc[:src].start_with?(BARCLAMP_PATH)
-      target=File.join(BARCLAMP_PATH, bc[:src].split("/")[-1])
-      if File.directory? target
-        debug "target directory #{target} exists"
-        if get_yml_paths(target, bc[:name]).empty?
-          debug "crowbar YAML file does not exists in #{target}"
-          puts "#{target} exists, but it is not a barclamp."
-          puts "Cowardly refusing to overwrite it."
-          exit -1
-        else
-          debug "crowbar YAML file exists in #{target}"
-          if File.exists? "#{target}/sha1sums"
-            debug "#{target}/sha1sums file exists"
-            unless force_install or system "cd \"#{target}\"; sha1sum --status -c sha1sums"
-              debug "force_install mode is disabled and not all file checksums do match"
-              puts "Refusing to install over non-pristine target #{target}"
-              puts "Please back up the following files:"
-              system "cd \"#{target}\"; sha1sum -c sha1sums |grep -v OK"
-              puts "and rerun the install after recreating the checksum file with:"
-              puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
-              puts"       xargs -0 sha1sum -b >sha1sums"
-              puts "(or use the --force switch)"
-              exit -1
-            end
-          elsif not force_install
-            debug "force_install mode is disabled and #{target}/sha1sums file does not exist"
-            puts "#{target} already exists, but it does not have checksums."
-            puts "Please back up any local changes you may have made, and then"
-            puts "create a checksums file with:"
-            puts "  cd \"#{target}\"; find -type f -not -name sha1sums -print0 | \\"
-            puts"       xargs -0 sha1sum -b >sha1sums"
-            puts "(or use the --force switch)"
-            exit -1
-          end
-        end
-      else
-        debug "target directory \"#{target}\" does not exist"
-        debug "creating directory \"#{target}\""
-        system "mkdir -p \"#{target}\""
-      end
-      # Only rsync over the changes if this is a different install
-      # from the POV of the sha1sums files
-      unless File.exists?("#{bc[:src]}/sha1sums") and \
-        File.exists?("#{target}/sha1sums") and \
-        system "/bin/bash -c 'diff -q <(sort \"#{bc[:src]}/sha1sums\") <(sort \"#{target}/sha1sums\")'"
-        debug "syncing \"#{bc[:src]}\" directory and \"#{target}\" directory"
-        system "rsync -a \"#{bc[:src]}/\" \"#{target}\""
-      end
-      bc[:src] = target
-    end
-    debug "installing barclamp"
+if do_chef
+  bc_install_layout_1_chef(from_rpm, component_paths, log)
+
+  debug "migrating barclamps:"
+  barclamps.values.each do |bc|
     begin
-      if bc[:yaml]["crowbar"]["layout"].to_i == 1
-        debug "Installing app components"
-        bc_install_layout_1_app from_rpm, bc[:name], bc[:src], bc[:yaml]
-        bc_install_layout_1_chef_migrate bc[:name], log if bc[:migrate]
-      else
-        debug "Could not install barclamp #{bc[:name]} because #{bc[:yaml][:barclamp][:crowbar_layout]} is unknown layout."
-      end
+      bc_install_layout_1_chef_migrate bc[:name], log if bc[:migrate]
     rescue StandardError => e
-      debug "exception occurred while installing barclamp"
-      raise e
+      puts e
+      puts e.backtrace
+      puts "Migration of #{bc[:name]} failed."
+      exit_code = -3
     end
-  rescue StandardError => e
-    puts e
-    puts e.backtrace
-    puts "Install of #{bc[:name]} failed."
-    exit -3
   end
 end
 
@@ -195,4 +150,4 @@ generate_navigation
 generate_assets_manifest
 catalog
 
-exit 0
+exit exit_code

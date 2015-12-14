@@ -704,7 +704,6 @@ for i in $BARCLAMP_SRC/*; do
         /opt/dell/bin/barclamp_uninstall.rb $BARCLAMP_INSTALL_OPTS $i
     fi
 done
-rm -rf /opt/dell/crowbar_framework/barclamps
 
 if [ -n "$CROWBAR_FROM_GIT" ]; then
     # Create empty "git" and "nagios" cookbooks to satisfy the dependencies of

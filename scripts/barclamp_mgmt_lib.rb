@@ -67,6 +67,13 @@ def fatal(msg, log = nil, exit_code = 1)
   exit exit_code
 end
 
+def get_yml_paths_from_rpm(component)
+  rpm = "crowbar-#{component}"
+  get_rpm_file_list(rpm).select do |file|
+    file =~ %r!^#{CROWBAR_PATH}/barclamps/([^/]+).yml$!
+  end
+end
+
 def get_yml_paths(directory, suggested_bc_name = nil)
   yml_files = Array.new
   Dir.entries(directory).each do |file_name|
@@ -84,7 +91,7 @@ def catalog
   # create the groups for the catalog - for now, just groups.  other catalogs may be added later
   cat = { 'barclamps'=>{} }
   barclamps = File.join CROWBAR_PATH, 'barclamps'
-  list = Dir.entries(barclamps).find_all { |e| e.end_with? '.yml'}
+  list = Dir.entries(barclamps).find_all { |e| !e.start_with?(".") && e.end_with?(".yml") }
   # scan the installed barclamps
   list.each do |bc_file|
     debug "Loading #{bc_file}"
@@ -210,10 +217,10 @@ def generate_navigation
     current.deep_merge! config["nav"]
   end
 
-  File.open(
-    File.join(CROWBAR_PATH, 'config', 'navigation.rb'),
-    'w'
-  ) do |out|
+  config_path = Pathname.new(CROWBAR_PATH).join("config")
+  config_path.mkpath unless config_path.directory?
+
+  config_path.join("navigation.rb").open("w") do |out|
     out.puts '#'
     out.puts '# Copyright 2011-2013, Dell'
     out.puts '# Copyright 2013-2014, SUSE LINUX Products GmbH'
@@ -251,9 +258,7 @@ end
 def generate_assets_manifest
   debug "Generating assets manifest"
 
-  manifests = Pathname.new(
-    File.join(CROWBAR_PATH, "barclamps", "manifests")
-  )
+  manifests = Pathname.new(CROWBAR_PATH).join("barclamps", "manifests")
 
   merged_json = {}
 
@@ -263,28 +268,22 @@ def generate_assets_manifest
     merged_json.deep_merge!(json) unless json.nil?
   end
 
-  assets_folder = File.join(CROWBAR_PATH, 'public', 'assets')
-  unless File.directory? assets_folder
-    FileUtils.mkdir_p assets_folder
-  end
+  assets_path = Pathname.new(CROWBAR_PATH).join("public", "assets")
+  assets_path.mkpath unless assets_path.directory?
 
-  File.open(
-    File.join(CROWBAR_PATH, 'public', 'assets', 'manifest.json'),
-    'w'
-  ) do |out|
+  assets_path.join("manifest.json").open("w") do |out|
     JSON.dump(merged_json, out)
   end
 end
 
 # copies paths from one place to another (recursive)
-def bc_cloner(item, bc, entity, source, target, replace)
+def bc_cloner(item, entity, source, target)
   debug "bc_cloner method called with debug option enabled"
-  debug "bc_cloner args: item=#{item}, bc=#{bc}, entity=#{entity}, source=#{source}, target=#{target}, replace=#{replace}"
+  debug "bc_cloner args: item=#{item}, entity=#{entity}, source=#{source}, target=#{target}"
 
   files = []
-  new_item = (replace ? bc_replacer(item.dup, bc, entity) : item)
-  debug "new_item=#{new_item}"
-  new_file = File.join target, new_item
+  debug "item=#{item}"
+  new_file = File.join target, item
   debug "new_file=#{new_file}"
   new_source = File.join(source, item)
   debug "new_source=#{new_source}"
@@ -293,24 +292,13 @@ def bc_cloner(item, bc, entity, source, target, replace)
     FileUtils.mkdir new_file unless File.directory? new_file
     clone = Dir.entries(new_source).find_all { |e| !e.start_with? '.'}
     clone.each do |recurse|
-      files += bc_cloner(recurse, bc, entity, new_source, new_file, replace)
+      files += bc_cloner(recurse, entity, new_source, new_file)
     end
   else
     #need to inject into the file
-    unless replace
-      debug "\t\tcopying file #{new_file}."
-      FileUtils.cp new_source, new_file
-      files << new_file
-    else
-      debug "\t\tcreating file #{new_file}."
-      t = File.open(new_file, 'w')
-      File.open(new_source, 'r') do |f|
-        s = f.read
-        t.write(bc_replacer(s, bc, entity))
-      end
-      t.close
-      files << new_file
-    end
+    debug "\t\tcopying file #{new_file}."
+    FileUtils.cp new_source, new_file
+    files.push(new_file)
   end
   return files
 end
@@ -329,21 +317,6 @@ def chmod_dir(value, path)
       puts "chmod_dir: WARN: missing file #{file} for chmod #{value} operation."
     end
   end
-end
-
-# remove model placeholders
-def bc_replacer(item, bc, entity)
-  debug "bc_replacer method called with debug option enabled"
-  debug "bc_replacer args: item=#{item}, bc=#{bc}, entity=#{entity}"
-
-  new_item = item.clone
-  new_item.gsub!(MODEL_SUBSTRING_BASE, bc)
-  new_item.gsub!(MODEL_SUBSTRING_CAMEL, bc.camelize)
-  new_item.gsub!(MODEL_SUBSTRING_HUMAN, bc.humanize)
-  new_item.gsub!(MODEL_SUBSTRING_CAPSS, bc.capitalize)
-  new_item.gsub!('Copyright 2011, Dell', "Copyright #{Time.now.year}, #{entity}")
-  debug "bc_replacer returns new_item=#{new_item}"
-  return new_item
 end
 
 # helper for localization merge
@@ -366,23 +339,19 @@ def merge_tree(key, value, target)
 end
 
 # cleanup (anti-install) assumes the install generates a file list
-def bc_remove_layout_1(from_rpm, bc, bc_path, yaml)
-  filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
+def bc_remove_layout_1(from_rpm, component)
+  filelist = File.join BARCLAMP_PATH, "#{component}-filelist.txt"
   if File.exist? filelist
     File.open(filelist, 'r') do |f|
       f.each_line { |line| FileUtils.rm line.chomp rescue nil }
     end
     FileUtils.rm filelist rescue nil
 
-    generate_navigation
-    generate_assets_manifest
-    catalog
-
-    debug "Barclamp #{bc} Uninstalled"
+    debug "Component #{component} Uninstalled"
   end
 end
 
-def framework_permissions(bc, bc_path)
+def framework_permissions
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'db')
   chmod_dir 0644, File.join(CROWBAR_PATH, 'db')
   FileUtils.chmod 0755, File.join(CROWBAR_PATH, 'tmp')
@@ -390,14 +359,15 @@ def framework_permissions(bc, bc_path)
   debug "\tcopied crowbar_framework files"
 end
 
-# install the framework files for a barclamp
+# install the framework files for a component
 # N.B. if you update this, you must also update Guardfile.tree-merge !!
-def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
+def bc_install_layout_1_app(from_rpm, bc_path)
 
   #TODO - add a roll back so there are NOT partial results if a step fails
   files = []
+  component = File.basename(bc_path)
 
-  puts "Installing barclamp #{bc} from #{bc_path}"
+  puts "Installing component #{component} from #{bc_path}"
 
   #copy the rails parts (required for render BEFORE import into chef)
   dirs = Dir.entries(bc_path)
@@ -406,91 +376,49 @@ def bc_install_layout_1_app(from_rpm, bc, bc_path, yaml)
   unless from_rpm
     # copy all the files to the target
 
-    if dirs.include? 'crowbar_framework'
+    if dirs.include? "crowbar_framework"
       debug "path entries include \"crowbar_framework\""
-      files += bc_cloner('crowbar_framework', bc, nil, bc_path, BASE_PATH, false)
-      framework_permissions bc, bc_path
+      files += bc_cloner("crowbar_framework", nil, bc_path, BASE_PATH)
+      framework_permissions
     end
 
-    if dirs.include? 'bin'
+    if dirs.include? "bin"
       debug "path entries include \"bin\""
-      files += bc_cloner('bin', bc, nil, bc_path, BASE_PATH, false)
+      files += bc_cloner("bin", nil, bc_path, BASE_PATH)
       FileUtils.chmod_R 0755, BIN_PATH
       debug "\tcopied command line files"
     end
 
-    if dirs.include? 'chef'
+    if dirs.include? "chef"
       debug "path entries include \"chef\""
-      files += bc_cloner('chef', bc, nil, bc_path, BASE_PATH, false)
+      files += bc_cloner("chef", nil, bc_path, BASE_PATH)
       debug "\tcopied over chef parts from #{bc_path} to #{BASE_PATH}"
+    end
+
+    # copy over the crowbar YAML files, needed to update catalog
+    yml_path = File.join CROWBAR_PATH, "barclamps"
+    get_yml_paths(bc_path).each do |yml_source|
+      yml_created = File.join(yml_path, File.basename(yml_source))
+      FileUtils.mkdir yml_path unless File.directory? yml_path
+      FileUtils.cp yml_source, yml_created unless yml_source == yml_created
+      files.push(yml_created)
     end
   end
 
   # we don't install these files in the right place from rpm
   if dirs.include? 'updates'
     debug "path entries include \"updates\""
-    files += bc_cloner('updates', bc, nil, bc_path, ROOT_PATH, false)
+    files += bc_cloner("updates", nil, bc_path, ROOT_PATH)
     FileUtils.chmod_R 0755, UPDATE_PATH
     debug "\tcopied updates files"
   end
 
-  # copy over the crowbar YAML file, needed to update catalog
-  yml_barclamp = get_yml_paths(bc_path, bc).first
-  yml_path = File.join CROWBAR_PATH, 'barclamps'
-  yml_created = File.join(yml_path, "#{bc}.yml")
-  FileUtils.mkdir yml_path unless File.directory? yml_path
-  FileUtils.cp yml_barclamp, yml_created unless yml_barclamp == yml_created
-  files << yml_created
-
-  # copy over the manifest.json file, needed to update assets manifest
-  manifest_path = File.join CROWBAR_PATH, 'barclamps', 'manifests'
-  manifest_barclamp = File.join bc_path, "manifest.json"
-  manifest_created = File.join(manifest_path, "#{bc}.json")
-  FileUtils.mkdir manifest_path unless File.directory? manifest_path
-  if File.exists? manifest_barclamp
-    FileUtils.cp manifest_barclamp, manifest_created
-    files << manifest_created
-  else
-    # make sure there's no old manifest
-    FileUtils.rm manifest_created rescue nil
-  end
-
-  filelist = File.join BARCLAMP_PATH, "#{bc}-filelist.txt"
+  filelist = File.join BARCLAMP_PATH, "#{component}-filelist.txt"
   File.open( filelist, 'w' ) do |out|
     files.each { |line| out.puts line }
   end
 
-  # Migrate base crowbar schema if needed
-  bc_schema_version = yaml["crowbar"]["proposal_schema_version"].to_i rescue 1
-  latest_version    = 3
-
-  if bc_schema_version < latest_version
-    name = yaml['barclamp']['name']
-    schema_file = File.join BASE_PATH, 'chef','data_bags','crowbar', "template-#{name}.schema"
-    if File.exists? schema_file
-      a = []
-      File.open(schema_file, 'r') { |f|
-        a = f.readlines
-      }
-      need_status = bc_schema_version < 2 && a.grep(/^\s+\"crowbar-status\"/).empty?
-      need_failed = bc_schema_version < 2 && a.grep(/^\s+\"crowbar-failed\"/).empty?
-      need_applied = bc_schema_version < 3 && a.grep(/^\s+\"crowbar-applied\"/).empty?
-      if need_status or need_failed or need_applied
-        File.open(schema_file, 'w') { |f|
-          a.each do |line|
-            f.write(line)
-            if line =~ /crowbar-queued/
-              f.write("            \"crowbar-status\": { \"type\": \"str\" },\n") if need_status
-              f.write("            \"crowbar-failed\": { \"type\": \"str\" },\n") if need_failed
-              f.write("            \"crowbar-applied\": { \"type\": \"bool\" },\n") if need_applied
-            end
-          end
-        }
-      end
-    end
-  end
-
-  debug "Barclamp #{bc} (format v1) added to Crowbar Framework.  Review #{filelist} for files created."
+  debug "Component #{component} added to Crowbar Framework.  Review #{filelist} for files created."
 end
 
 # upload the chef parts for a barclamp
