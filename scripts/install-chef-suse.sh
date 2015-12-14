@@ -893,7 +893,7 @@ if [ -z "$custom_ntp_servers" ]; then
     ntp_servers="$( awk '/^server / && ! / 127\./ { print $2 }' < /etc/ntp.conf )"
     if [ -z "$ntp_servers" ]; then
         echo "Auto-detecting existing ntp servers from ntpd ..."
-        ntp_servers="$( ntpdc -l | awk '/client/ && ! /LOCAL/ { print $2 }' )"
+        ntp_servers="$( ntpq -wp | tail -n +3 | cut -c2- | grep '^[^ ]' | awk '! /LOCL/ { print $1 }' )"
     fi
     if [ -n "$ntp_servers" ]; then
         ntp_servers="${ntp_servers%$'\n'}" # trim trailing newline
