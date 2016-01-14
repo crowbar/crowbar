@@ -1,7 +1,4 @@
 engines:
-  rubocop:
-    enabled: true
-    config: .hound.ruby.yml
   eslint:
     enabled: true
   csslint:
