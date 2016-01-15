@@ -327,7 +327,13 @@ fi
 if [ -f $crowbar_install_dir/crowbar-install-failed ] || [ "$CROWBAR_WIZARD_MODE" ]; then
     rm -f $crowbar_install_dir/crowbar-install-failed
     rm -f $installation_steps
-    sqlite3 /opt/dell/crowbar_framework/db/production.sqlite3 "delete from proposals; delete from proposal_queues; vacuum;"
+    for table in proposals proposal_queues; do
+        sqlite3 /opt/dell/crowbar_framework/db/production.sqlite3 \
+            "select 1 from $table;" >/dev/null 2>&1 && \
+        sqlite3 /opt/dell/crowbar_framework/db/production.sqlite3 \
+            "delete from $table;"
+    done
+    sqlite3 /opt/dell/crowbar_framework/db/production.sqlite3 "vacuum;"
 fi
 
 FQDN=$(hostname -f 2>/dev/null);
