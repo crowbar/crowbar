@@ -4,7 +4,7 @@ _This is not the documentation you are looking for... it is a pointer to the rea
 
 ## Looking for Crowbar Resources?
 
-[The Crowbar website](http://crowbar.github.io) has links to all information and is our recommended starting place.
+[The Crowbar website](https://crowbar.github.io) has links to all information and is our recommended starting place.
 
 ## Specific Crowbar Documentation
 

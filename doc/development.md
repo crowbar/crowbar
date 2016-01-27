@@ -75,7 +75,7 @@ Before we can start you need to match some prerequirements on your host machine.
      ```
 
   2. At first you need a running mkcloud setup. For more information about this
-     read the [mkcloud](http://git.io/vYO2E) documentation. Please use the
+     read the [mkcloud](https://git.io/vYO2E) documentation. Please use the
      wrapper script created above to install Crowbar, e.g. `sudo mkcloud6 plain`.
 
   3. You need some ruby environment on you workstation in order to execute some

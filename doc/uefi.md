@@ -25,7 +25,7 @@ What Does Not Work:
    and initrd.  Upstream grub2 has been patched to resolve this issue,
    but the updates have not been pulled into Ubuntu 12.04 yet.
 
-   Patch is at http://savannah.gnu.org/bugs/?36532.
+   Patch is at https://savannah.gnu.org/bugs/?36532 .
 
    Possible workarounds include:
    * Look at using grub-legacy or elilo instead of grub2 when

@@ -618,7 +618,7 @@ if test -f /etc/rabbitmq/rabbitmq-env.conf && \
 elif ! ( test -f /etc/rabbitmq/rabbitmq-env.conf && \
     grep -q ^SERVER_START_ARGS= /etc/rabbitmq/rabbitmq-env.conf ); then
     echo '# Workaround for bunny version required by chef not supporting frames' >> /etc/rabbitmq/rabbitmq-env.conf
-    echo '# http://bugzilla.suse.com/show_bug.cgi?id=910815' >> /etc/rabbitmq/rabbitmq-env.conf
+    echo '# https://bugzilla.suse.com/show_bug.cgi?id=910815' >> /etc/rabbitmq/rabbitmq-env.conf
     echo 'SERVER_START_ARGS="-rabbit frame_max 0"' >> /etc/rabbitmq/rabbitmq-env.conf
 fi
 

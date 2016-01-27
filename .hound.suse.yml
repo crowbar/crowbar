@@ -2,7 +2,7 @@
 # at https://github.com/SUSE/style-guides/blob/master/rubocop-suse.yml
 #
 # The configuration is tested and used with the Rubocop version used by Hound
-# (http://hound-ci.com).
+# (https://houndci.com).
 #
 # We use the default Hound config as a baseline:
 #
