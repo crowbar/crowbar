@@ -153,7 +153,7 @@ spinner () {
     # reset exit handler
     trap "exit" EXIT
 
-    printf "... " >&3
+    printf " " >&3
     while [ true ]; do
         local temp=${spinstr#?}
         if use_dialog; then
@@ -199,9 +199,9 @@ echo_summary () {
 
     if [ -z "$CROWBAR_VERBOSE" ]; then
         if [ -t 3 ]; then
-            echo -n -e $@ >&3
+            echo -n -e "$@..." >&3
             if use_dialog; then
-                echo -n -e $@ | dialog --title "$DIALOG_TITLE" --progressbox 8 60 >&3
+                echo -n -e "\n$@... " | dialog --title "$DIALOG_TITLE" --progressbox 5 70 >&3
             fi
             # Use disown to lose job control messages (especially the
             # "Completed" message when spinner will be killed)
