@@ -282,9 +282,7 @@ function reset_crowbar()
 {
     rm -f $crowbar_install_dir/crowbar-install-failed
     rm -f $installation_steps
-    pushd /opt/dell/crowbar_framework > /dev/null
-    RAILS_ENV=production bin/rake db:cleanup
-    popd > /dev/null
+    su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production bin/rake db:cleanup"
 }
 
 # Real work starts here
