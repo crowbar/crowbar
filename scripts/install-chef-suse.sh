@@ -518,12 +518,11 @@ for arch in $product_arches; do
 
     if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-cloud-deps/" $MEDIA/content; then
         echo "Detected SUSE OpenStack Cloud Deps media."
-        REPOS_SKIP_CHECKS+=" SLES12-SP1-Pool SLES12-SP1-Updates"
     else
-    check_media_content \
-        SLES12-SP1 \
-        $MEDIA \
-        #b52c0f2b41a6a10d49cc89edcdc1b13d
+        check_media_content \
+            SLES12-SP1 \
+            $MEDIA \
+            #b52c0f2b41a6a10d49cc89edcdc1b13d
     fi
 
     check_media_links $MEDIA
