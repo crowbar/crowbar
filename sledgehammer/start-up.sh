@@ -100,6 +100,11 @@ if ! suse_ver 12; then
     # Make sure our PXE interface is up, then fire up DHCP on it.
     ip link set "$BOOTDEV" up
     dhclient "$BOOTDEV"
+else
+    if [ "$BOOTDEV" != "eth0" ]; then
+        mv /etc/sysconfig/network/ifcfg-eth0 /etc/sysconfig/network/ifcfg-$BOOTDEV
+        ifup $BOOTDEV
+    fi
 fi
 
 if ! [[ $(ip -4 -o addr show dev $BOOTDEV) =~ $ip_re ]]; then
