@@ -147,7 +147,7 @@ if do_chef
 end
 
 generate_navigation
-generate_assets_manifest
+generate_assets_manifest if from_rpm
 catalog
 
 exit exit_code
