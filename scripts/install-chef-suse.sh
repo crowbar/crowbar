@@ -418,7 +418,9 @@ check_or_create_ptf_repository () {
         if ! [ -e "/srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml" ]; then
             echo "Creating repo skeleton to make AutoYaST happy."
             mkdir -p /srv/tftpboot/suse-$version/$arch/repos/$repo
-            /usr/bin/createrepo /srv/tftpboot/suse-$version/$arch/repos/$repo
+            if ! /usr/bin/createrepo /srv/tftpboot/suse-$version/$arch/repos/$repo ; then
+                die "Createrepo failed to create a repository in /srv/tftpboot/suse-$version/$arch/repos/$repo"
+            fi
         fi
     fi
 }
