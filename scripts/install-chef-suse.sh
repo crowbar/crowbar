@@ -71,6 +71,12 @@ if [ -z "$HOME" ]; then
     exit 1
 fi
 
+if [[ $USER != "root" ]]; then
+    echo "The environment variables are not correct. Please use don't use 'su' to get root privileges."
+    echo ""
+    exit 1
+fi
+
 if [ -n "$CROWBAR_DEBUG" ]; then
     BARCLAMP_INSTALL_OPTS="--debug"
     chef_client="chef-client -l debug"
