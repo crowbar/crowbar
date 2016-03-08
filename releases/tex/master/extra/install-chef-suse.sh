@@ -727,7 +727,9 @@ done
 echo_summary "Performing initial chef-client run"
 
 if ! [ -e ~/.chef/knife.rb ]; then
-    yes '' | knife configure -i
+    # no_proxy is currently not supported in ruby see bsc#958716
+    # unset it for this call
+    (unset http_proxy; yes '' | knife configure -i)
 fi
 
 # Reset chef to install from clean state
