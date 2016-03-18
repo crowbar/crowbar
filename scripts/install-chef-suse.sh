@@ -422,17 +422,10 @@ check_or_create_ptf_repository () {
         echo "Skipping check for $repo ($version) due to \$REPOS_SKIP_CHECKS"
     else
         if ! [ -e "/srv/tftpboot/suse-$version/$arch/repos/$repo/repodata/repomd.xml" ]; then
-            # Only do this for CROWBAR_FROM_GIT, as usually the crowbar package
-            # creates the repo metadata for PTF
-            if [ -n $CROWBAR_FROM_GIT ]; then
-                echo "Creating repo skeleton to make AutoYaST happy."
-                if ! [ -d /srv/tftpboot/suse-$version/$arch/repos/$repo ]; then
-                    mkdir /srv/tftpboot/suse-$version/$arch/repos/$repo
-                fi
-                /usr/bin/createrepo /srv/tftpboot/suse-$version/$arch/repos/$repo
-            else
-                die "$repo ($version / $arch) has not been set up correctly; \
-                    did the crowbar rpm fail to install correctly?"
+            echo "Creating repo skeleton to make AutoYaST happy."
+            mkdir -p /srv/tftpboot/suse-$version/$arch/repos/$repo
+            if ! /usr/bin/createrepo /srv/tftpboot/suse-$version/$arch/repos/$repo ; then
+                die "Createrepo failed to create a repository in /srv/tftpboot/suse-$version/$arch/repos/$repo"
             fi
         fi
     fi
