@@ -897,7 +897,7 @@ else
 fi
 
 custom_ntp_servers="$( json_read "$NTP_JSON" attributes.ntp.external_servers )"
-if [ -z "$custom_ntp_servers" ]; then
+if [ -z "$custom_ntp_servers" -a -f /etc/ntp.conf ]; then
     # Use existing ntp servers, if any.  We prefer servers in
     # /etc/ntp.conf over servers currently used by a running ntpd,
     # since (a) configuring ntp.conf is a more deliberate manual
