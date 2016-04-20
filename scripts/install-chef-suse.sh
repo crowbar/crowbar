@@ -352,6 +352,11 @@ if [ -n "$SSH_CONNECTION" -a -z "$STY" ] && [ -z "$CROWBAR_WIZARD_MODE" ]; then
     die "Not running in screen. Please use \"screen $0\" to avoid problems during network re-configuration. Aborting."
 fi
 
+# All sorts of odd things break if the system has only a shortname, not an FQDN
+if [ -z "$DOMAIN" ]; then
+    die "System not configured with fully qualified domain name.  Aborting."
+fi
+
 rootpw=$( getent shadow root | cut -d: -f2 )
 case "$rootpw" in
     \*|\!*)
