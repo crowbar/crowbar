@@ -131,7 +131,7 @@ component_paths.each do |component_path|
 end
 
 if do_chef
-  bc_install_layout_1_chef(from_rpm, component_paths, log)
+  bc_install_layout_1_chef
 
   debug "migrating barclamps:"
   barclamps.values.each do |bc|

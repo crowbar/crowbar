@@ -708,6 +708,17 @@ EOF
 
 $chef_client
 
+if ! [ -e /opt/dell/crowbar_framework/config/client.pem ]; then
+    EDITOR=/bin/true \
+        knife client create crowbar \
+            --admin \
+            --file /opt/dell/crowbar_framework/config/client.pem \
+            --user chef-webui \
+            --key /etc/chef/webui.pem
+fi
+
+mkdir -p /var/chef/cache/checksums
+
 set_step "initial_chef_client"
 
 
