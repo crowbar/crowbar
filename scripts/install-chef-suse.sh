@@ -671,7 +671,7 @@ if ! [ -e ~/.chef/knife.rb -a -e ~/.chef/root.pem ]; then
     # no_proxy is currently not supported in ruby see bsc#958716
     # unset it for this call
     (unset http_proxy
-    if [ knife client list | grep -q "^ *root$" ]; then
+    if knife client list | grep -q "^ *root$"; then
         knife client delete --yes root
     fi
     knife configure \
