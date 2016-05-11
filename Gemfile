@@ -20,6 +20,9 @@ source "https://rubygems.org"
 group :development do
   gem "rake", ">= 10.3"
   gem "rb-inotify", ">= 0.9"
+  # use older version of listen (dependency of guard)
+  # ~> 3.1.0 requires ruby 2.2
+  gem "listen", "~> 3.0.7"
   gem "guard", ">= 1.8"
   gem "guard-remote-sync", ">= 0.1"
   gem "octokit", ">= 4.0"
