@@ -110,6 +110,14 @@ is_ses () {
     [ -d /opt/dell/barclamps/ses ]
 }
 
+is_opensuse () {
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        [ "$NAME" == "openSUSE Leap" ] && return
+    fi
+
+    return 1
+}
 
 DIALOG_TITLE=" SUSE OpenStack Cloud 6 "
 
@@ -500,6 +508,7 @@ else
 fi
 
 for arch in $product_arches; do
+    is_opensuse && continue
     # Checks for SLE12 SP1 medias
     MEDIA=/srv/tftpboot/suse-12.1/$arch/install
 
@@ -528,7 +537,7 @@ for arch in $product_arches; do
     fi
 done
 
-if [ -z "$CROWBAR_FROM_GIT" ]; then
+if [ -z "$CROWBAR_FROM_GIT" ] && [ is_opensuse -ne 0 ]; then
     pattern=patterns-cloud-admin
     pattern_short=cloud_admin
     if is_ses; then
@@ -576,9 +585,12 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
         add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud:/6/SLE_12_SP1/ cloud
     fi
 
+    # Be sure that systemd-logger is deinstalled
+    zypper --non-interactive remove systemd-logger
+
     # install chef and its dependencies
     zypper -n --gpg-auto-import-keys in ruby2.1-rubygem-chef-server ruby2.1-rubygem-chef \
-        rabbitmq-server couchdb ruby2.1-rubygem-activesupport
+        rabbitmq-server couchdb sqlite3 ruby2.1-rubygem-activesupport
 
     # also need these (crowbar dependencies):
     zypper -n in sleshammer tcpdump
