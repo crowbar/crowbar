@@ -542,9 +542,12 @@ fi
 
 
 for arch in $supported_arches; do
+    # We will need support for SP1 (ceph) and SP2 nodes
+    check_or_create_ptf_repository 12.1 $arch PTF
     check_or_create_ptf_repository 12.2 $arch PTF
 
     # Currently we only sign the PTF repository
+    sign_repositories 12.1 $arch PTF
     sign_repositories 12.2 $arch PTF
 done
 
