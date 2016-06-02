@@ -499,34 +499,38 @@ else
     product_arches="$supported_arches"
 fi
 
-for arch in $product_arches; do
-    # Checks for SLE12 SP2 medias
-    MEDIA=/srv/tftpboot/suse-12.2/$arch/install
+# FIXME:
+# Before we switch to SP2 as default, temporary disable checking SLES and Cloud repos,
+# so we have option to deploy both SP1 and SP2 based clouds
 
-    # Only x86_64 is truly mandatory; other architectures are only checked
-    # if they exist
-    if [ ! -f $MEDIA/content -a $arch != "x86_64" ]; then
-        continue
-    fi
-
-    check_media_links $MEDIA
-
-    if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-openstack-cloud-deps/" $MEDIA/content; then
-        echo "Detected SUSE OpenStack Cloud Deps media."
-    else
-        check_media_content \
-            SLES12-SP2 \
-            $MEDIA \
-            #b52c0f2b41a6a10d49cc89edcdc1b13d
-
-        if ! is_ses; then
-            check_media_content \
-                Cloud \
-                /srv/tftpboot/suse-12.2/$arch/repos/Cloud \
-                #1558be86e7354d31e71e7c8c2574031a
-        fi
-    fi
-done
+#for arch in $product_arches; do
+#    # Checks for SLE12 SP2 medias
+#    MEDIA=/srv/tftpboot/suse-12.2/$arch/install
+#
+#    # Only x86_64 is truly mandatory; other architectures are only checked
+#    # if they exist
+#    if [ ! -f $MEDIA/content -a $arch != "x86_64" ]; then
+#        continue
+#    fi
+#
+#    check_media_links $MEDIA
+#
+#    if [ -f $MEDIA/content ] && egrep -q "REPOID.*/suse-openstack-cloud-deps/" $MEDIA/content; then
+#        echo "Detected SUSE OpenStack Cloud Deps media."
+#    else
+#        check_media_content \
+#            SLES12-SP2 \
+#            $MEDIA \
+#            #b52c0f2b41a6a10d49cc89edcdc1b13d
+#
+#        if ! is_ses; then
+#            check_media_content \
+#                Cloud \
+#                /srv/tftpboot/suse-12.2/$arch/repos/Cloud \
+#                #1558be86e7354d31e71e7c8c2574031a
+#        fi
+#    fi
+#done
 
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     pattern=patterns-cloud-admin
