@@ -500,8 +500,8 @@ else
 fi
 
 for arch in $product_arches; do
-    # Checks for SLE12 SP1 medias
-    MEDIA=/srv/tftpboot/suse-12.1/$arch/install
+    # Checks for SLE12 SP2 medias
+    MEDIA=/srv/tftpboot/suse-12.2/$arch/install
 
     # Only x86_64 is truly mandatory; other architectures are only checked
     # if they exist
@@ -515,14 +515,14 @@ for arch in $product_arches; do
         echo "Detected SUSE OpenStack Cloud Deps media."
     else
         check_media_content \
-            SLES12-SP1 \
+            SLES12-SP2 \
             $MEDIA \
             #b52c0f2b41a6a10d49cc89edcdc1b13d
 
         if ! is_ses; then
             check_media_content \
                 Cloud \
-                /srv/tftpboot/suse-12.1/$arch/repos/Cloud \
+                /srv/tftpboot/suse-12.2/$arch/repos/Cloud \
                 #1558be86e7354d31e71e7c8c2574031a
         fi
     fi
@@ -543,9 +543,11 @@ fi
 
 for arch in $supported_arches; do
     check_or_create_ptf_repository 12.1 $arch PTF
+    check_or_create_ptf_repository 12.2 $arch PTF
 
     # Currently we only sign the PTF repository
     sign_repositories 12.1 $arch PTF
+    sign_repositories 12.2 $arch PTF
 done
 
 # Setup helper for git
@@ -569,11 +571,11 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     #        Additional work (e.g. on the autoyast profile) is required to make
     #        those repos available to any client nodes.
     if [ $CROWBAR_FROM_GIT = "ibs" ]; then
-        add_ibs_repo http://dist.suse.de/install/SLP/SLE-12-SP1-Server-GM/x86_64/DVD1/ sle12sp1
-        add_ibs_repo http://euklid.suse.de/mirror/SuSE/build.suse.de/SUSE/Updates/SLE-SERVER/12-SP1/x86_64/update/ sle12sp1-update
-        add_ibs_repo http://dist.suse.de/install/SLP/SLE-12-SP1-SDK-GM/x86_64/DVD1/ sle12sp1-sdk
-        add_ibs_repo http://euklid.suse.de/mirror/SuSE/build.suse.de/SUSE/Updates/SLE-SDK/12-SP1/x86_64/update/ sle12sp1-sdk-update
-        add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud:/6/SLE_12_SP1/ cloud
+        add_ibs_repo http://dist.suse.de/install/SLP/SLE-12-SP2-Server-GM/x86_64/DVD1/ sle12sp2
+        add_ibs_repo http://euklid.suse.de/mirror/SuSE/build.suse.de/SUSE/Updates/SLE-SERVER/12-SP2/x86_64/update/ sle12sp2-update
+        add_ibs_repo http://dist.suse.de/install/SLP/SLE-12-SP2-SDK-GM/x86_64/DVD1/ sle12sp2-sdk
+        add_ibs_repo http://euklid.suse.de/mirror/SuSE/build.suse.de/SUSE/Updates/SLE-SDK/12-SP2/x86_64/update/ sle12sp2-sdk-update
+        add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud:/7/SLE_12_SP2/ cloud
     fi
 
     # install chef and its dependencies
