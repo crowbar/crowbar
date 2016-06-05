@@ -130,19 +130,18 @@ component_paths.each do |component_path|
   bc_install_layout_1_app(from_rpm, component_path)
 end
 
+barclamps.sort!
+
 if do_chef
   bc_install_layout_1_chef
 
-  debug "migrating barclamps:"
-  barclamps.each do |barclamp|
-    begin
-      bc_install_layout_1_chef_migrate barclamp, log
-    rescue StandardError => e
-      puts e
-      puts e.backtrace
-      puts "Migration of #{barclamp} failed."
-      exit_code = -3
-    end
+  begin
+    bc_install_schema_migrate barclamps, log
+  rescue StandardError => e
+    puts e
+    puts e.backtrace
+    puts "Migration of barclamps #{barclamps.join(", ")} failed."
+    exit_code = -3
   end
 end
 

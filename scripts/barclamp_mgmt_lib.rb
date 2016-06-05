@@ -428,17 +428,17 @@ def bc_install_layout_1_chef
   system "su -s /bin/sh - crowbar sh -c \"#{upload_cmd}\""
 end
 
-def bc_install_layout_1_chef_migrate(bc, log)
-  debug "Migrating schema to new revision..."
-  File.open(log, "a") { |f| f.puts("======== Migrating #{bc} barclamp -- #{Time.now.strftime('%c')} ========") }
-  migrate_cmd = "cd #{CROWBAR_PATH} && RAILS_ENV=#{ENV["RAILS_ENV"] || "production"} bin/rake --silent crowbar:schema_migrate_prod[#{bc}] 2>&1"
+def bc_install_schema_migrate(barclamps, log)
+  debug "Migrating barclamps #{barclamps.join(", ")} to new schema revision..."
+  File.open(log, "a") { |f| f.puts("======== Migrating #{barclamps.join(", ")} barclamps -- #{Time.now.strftime('%c')} ========") }
+  migrate_cmd = "cd #{CROWBAR_PATH} && RAILS_ENV=#{ENV["RAILS_ENV"] || "production"} bin/rake --silent crowbar:schema_migrate[#{barclamps.join(",")}] 2>&1"
   migrate_cmd_su = "su -s /bin/sh - crowbar sh -c \"#{migrate_cmd}\" >> #{log}"
   debug "running #{migrate_cmd_su}"
   unless system migrate_cmd_su
-    fatal "Failed to migrate barclamp #{bc} to new schema revision.", log
+    fatal "Failed to migrate barclamps #{barclamps.join(", ")} to new schema revision.", log
   end
   debug "\t executed: #{migrate_cmd_su}"
-  puts "Barclamp #{bc} (format v1) Chef Components Migrated."
+  puts "Barclamps #{barclamps.join(", ")} Migrated to New Schema Revision."
 end
 
 def get_rpm_file_list(rpm)
