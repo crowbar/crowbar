@@ -441,41 +441,6 @@ def bc_install_layout_1_chef_migrate(bc, log)
   puts "Barclamp #{bc} (format v1) Chef Components Migrated."
 end
 
-def check_schema_migration(bc)
-  template_file = File.join BASE_PATH, 'chef', 'data_bags', 'crowbar', "template-#{bc}.json"
-  debug "Looking for new schema-revision in #{template_file}..."
-  new_schema_revision = nil
-  begin
-    if File.exists? template_file
-      template = JSON::load File.open(template_file, 'r')
-      new_schema_revision = template["deployment"][bc]["schema-revision"]
-      debug "New schema-revision for #{bc} is #{new_schema_revision}"
-    end
-  rescue StandardError
-    # pass
-  end
-  debug "No new schema-revision found for #{bc}" if new_schema_revision.nil?
-
-  debug "Looking for previous schema-revision..."
-  old_schema_revision = nil
-  begin
-    old_json = `knife data bag show -F json crowbar template-#{bc} -k /etc/chef/webui.pem -u chef-webui 2> /dev/null`
-    if $?.success?
-      template = JSON::load old_json
-      old_schema_revision = template["deployment"][bc]["schema-revision"]
-      debug "Previous schema-revision for #{bc} is #{old_schema_revision}"
-    else
-      debug "Failed to retrieve template-#{bc}, no migration necessary"
-      return false
-    end
-  rescue StandardError
-    # pass
-  end
-  debug "No previous schema-revision found for #{bc}" if old_schema_revision.nil?
-
-  return old_schema_revision != new_schema_revision
-end
-
 def get_rpm_file_list(rpm)
   cmd = "rpm -ql #{rpm}"
   file_list = `#{cmd}`.lines.map { |line| line.rstrip }

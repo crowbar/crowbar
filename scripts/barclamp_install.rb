@@ -122,7 +122,7 @@ barclamp_yml_files.sort.each do |yml_file|
     next
   end
 
-  barclamps[name] = { name: name, migrate: do_chef && check_schema_migration(name) }
+  barclamps[name] = { name: name }
   debug "barclamp[#{name}] (from #{yml_file}) = #{barclamps[name].pretty_inspect}"
 end
 
@@ -136,7 +136,7 @@ if do_chef
   debug "migrating barclamps:"
   barclamps.values.each do |bc|
     begin
-      bc_install_layout_1_chef_migrate bc[:name], log if bc[:migrate]
+      bc_install_layout_1_chef_migrate bc[:name], log
     rescue StandardError => e
       puts e
       puts e.backtrace
