@@ -99,7 +99,7 @@ end
 
 debug "checking components"
 
-barclamps = Hash.new
+barclamps = []
 barclamp_yml_files.sort.each do |yml_file|
   begin
     barclamp = YAML.load_file yml_file
@@ -122,8 +122,8 @@ barclamp_yml_files.sort.each do |yml_file|
     next
   end
 
-  barclamps[name] = { name: name }
-  debug "barclamp[#{name}] (from #{yml_file}) = #{barclamps[name].pretty_inspect}"
+  barclamps.append(name)
+  debug "Handling barclamp #{name} (from #{yml_file})"
 end
 
 component_paths.each do |component_path|
@@ -134,13 +134,13 @@ if do_chef
   bc_install_layout_1_chef
 
   debug "migrating barclamps:"
-  barclamps.values.each do |bc|
+  barclamps.each do |barclamp|
     begin
-      bc_install_layout_1_chef_migrate bc[:name], log
+      bc_install_layout_1_chef_migrate barclamp, log
     rescue StandardError => e
       puts e
       puts e.backtrace
-      puts "Migration of #{bc[:name]} failed."
+      puts "Migration of #{barclamp} failed."
       exit_code = -3
     end
   end
