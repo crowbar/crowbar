@@ -861,7 +861,7 @@ fi
 
 # Use current time zone
 (
-    . /etc/sysconfig/clock
+    . /etc/sysconfig/clock || : Ignoring missing /etc/sysconfig/clock
     if [ -n "$TIMEZONE" ]; then
         echo "Will use $TIMEZONE timezone for node installation"
         $json_edit "$PROVISIONER_JSON" \
