@@ -113,3 +113,10 @@ Before we can start you need to match some prerequirements on your host machine.
 
 
   7. Now you can access you crowbar development setup via ```http://192.168.106.10:5000```
+
+### Troubleshooting
+Nokogiri library might fail to install due to some missing dependencies (http://www.nokogiri.org/tutorials/installing_nokogiri.html), the following command can be used to resolve it:
+```
+zypper ar -f http://dist.suse.de/install/SLP/SLE-12-SP1-SDK-LATEST/x86_64/DVD1/ sle12-sp1-sdk
+zypper -n in -l gcc ruby2.1-devel sqlite3-devel libxml2-devel
+```
