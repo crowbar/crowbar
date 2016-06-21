@@ -490,8 +490,8 @@ if [ -z "$(type -t skip_check_for_repo)" ]; then
 fi
 
 #supported_arches="x86_64 ppc64le"
-supported_arches="x86_64"
-supported_arches_ses="x86_64"
+supported_arches="aarch64 x86_64 s390x"
+supported_arches_ses="aarch64 x86_64"
 
 if is_ses; then
     product_arches="$supported_arches_ses"
