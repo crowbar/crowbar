@@ -1,13 +1,14 @@
 inherit_from: .hound.suse.yml
 
 AllCops:
-  RunRailsCops: true
+  Rails:
+    Enabled: true
   DisplayStyleGuide: true
   DisplayCopNames: true
 
 Style/RedundantReturn:
   Exclude:
-    - "chef/data_bags/crowbar/migrate/*"
+    - "chef/data_bags/crowbar/migrate/**/*"
 
 Style/FileName:
   Exclude:
