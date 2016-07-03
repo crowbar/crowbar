@@ -1066,7 +1066,9 @@ echo_summary "Transitioning Administration Server to \"ready\""
 for state in "discovering" "discovered" "hardware-installing" \
     "hardware-installed" "installing" "installed" "readying" "ready"
 do
-    while [[ -f "/var/run/crowbar/chef-client.lock" ]]; do sleep 1; done
+    # wait for chef-client run to be completed (by looking that no chef-client
+    # is owning the lock)
+    flock /var/chef/cache/chef-client-running.pid true
 
     printf "$state: "
     $CROWBAR crowbar transition "$FQDN" "$state" || \
