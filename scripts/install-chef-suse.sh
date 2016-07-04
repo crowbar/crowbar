@@ -767,13 +767,12 @@ if is_ses ; then
 else
     required_components+=" openstack ha ceph"
 fi
-
-/opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $required_components
-
 # Install optional components if they're present
 if test -d $BARCLAMP_SRC/hyperv; then
-    /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS hyperv
+    required_components+=" hyperv"
 fi
+
+/opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $required_components
 
 set_step "barclamp_install"
 
