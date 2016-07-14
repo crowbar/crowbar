@@ -48,7 +48,7 @@ check_key_file () {
     9a62177e1c6852d48453ed3909956d6b)
       # SLE12 key
       ;;
-    6e2920076653964b7de9d6d0421955bb)
+    d91f7a13ddadd614001c965f6abb1613)
       # Devel:Cloud key
       ;;
     *)
