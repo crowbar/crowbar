@@ -41,15 +41,15 @@ skip_check_for_repo () {
 check_key_file () {
   key_file=$1
 
-  case "`md5sum $key_file | awk '{print $1}'`" in
-    a0857768a900ae6bb1e6c8af62460ce3|b2740847428d13d201642ca9cf89bec7)
-      # SLE11 keys
+  local fingerprint
+  read -a fingerprint < <(gpg --with-fingerprint ${key_file} \
+      | grep fingerprint | awk -F= '{print $2}')
+  case "${fingerprint[@]}" in
+    "4E98 E675 19D9 8DC7 362A 5990 E3A5 C360 307E 3D54") # SLE11 keys
       ;;
-    9a62177e1c6852d48453ed3909956d6b)
-      # SLE12 key
+    "FEAB 5025 39D8 46DB 2C09 61CA 70AF 9E81 39DB 7C82") # SLES12 key
       ;;
-    6e2920076653964b7de9d6d0421955bb)
-      # Devel:Cloud key
+    "BBB0 A65B 9E2D 41F4 5575 4979 4726 6566 F990 41E1") # Devel:Cloud key
       ;;
     *)
       return 1
