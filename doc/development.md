@@ -100,16 +100,29 @@ Before we can start you need to match some prerequirements on your host machine.
 
     1. Change to ```/opt/crowbar/crowbar_framework```.
 
-    2. Run ```bundle install```
+    2. Set a dedicated GEM_HOME for the dev environment to avoid clobbering the
+       admin node's system gems:
 
-    3. Install all barclamps with this snippet
+       ```
+       export GEM_HOME=/tmp/crowbar-dev-gems
+       ```
+
+       You will need to ensure this environment variable is set each time
+       you run the Rails server (step 5). You can also omit this step entirely,
+       but without it the development environment is likely to break the admin
+       node's regular crowbar setup. Likewise, you need to make sure that
+       `GEM_HOME` is unset if you wish to use your system's regular gems again.
+
+    3. Run ```bundle install```
+
+    4. Install all barclamps with this snippet
 
        ```bash
        COMPONENTS=$(find /opt/crowbar/barclamps -mindepth 1 -maxdepth 1 -type d)
-       CROWBAR_DIR=/opt/crowbar RAILS_ENV=development /opt/crowbar/bin/barclamp_install.rb $COMPONENTS
+       CROWBAR_DIR=/opt/crowbar RAILS_ENV=development bundle exec /opt/crowbar/bin/barclamp_install.rb $COMPONENTS
        ```
 
-    4. Run the Rails server ```bin/rails s -b 0.0.0.0 -p 5000```
+    5. Run the Rails server ```bundle exec bin/rails s -b 0.0.0.0 -p 5000```
 
 
   7. Now you can access you crowbar development setup via ```http://192.168.106.10:5000```
