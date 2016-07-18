@@ -323,6 +323,19 @@ wait_for_crowbar ()
     fi
 }
 
+wait_for_chef ()
+{
+    local count=0
+    local value=10000
+    while (($count < 60 && $value != 0))
+    do
+        sleep 1
+        value=$(chef-expanderctl queue-depth | grep total | awk -F: '{ print $2 }')
+        echo "Expander Queue Total = $value"
+        count=$(($count + 1))
+    done
+}
+
 if [ -f $crowbar_install_dir/crowbar-installed-ok ]; then
     run_succeeded=already_before
 
@@ -994,6 +1007,9 @@ touch /var/run/crowbar/deploying
 
 wait_for_crowbar
 
+# Need to make sure that we have the indexer/expander finished
+wait_for_chef
+
 # From here, you should probably read along with the equivalent steps in
 # install-chef.sh for comparison
 
@@ -1034,15 +1050,7 @@ crowbar_up=true
 $chef_client
 
 # Need to make sure that we have the indexer/expander finished
-COUNT=0
-VALUE=10000
-while (($COUNT < 60 && $VALUE !=0))
-do
-    sleep 1
-    VALUE=$(chef-expanderctl queue-depth | grep total | awk -F: '{ print $2 }')
-    echo "Expander Queue Total = $VALUE"
-    COUNT=$(($COUNT + 1))
-done
+wait_for_chef
 
 # original script has several calls to check_machine_role -- see source for
 # this, in my limited testing it wasn't necessary on SUSE, but we should still
