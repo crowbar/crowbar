@@ -323,6 +323,21 @@ wait_for_crowbar ()
     fi
 }
 
+wait_for_crowbar_role ()
+{
+    local crowbar_role=0
+    for i in {0..100}; do
+        knife search node "role:crowbar" | grep -q -e Roles:.*crowbar, && {
+            crowbar_role=1
+            break
+        }
+        sleep 2
+    done
+    if [ $crowbar_role -ne 1 ]; then
+        die "Crowbar role is not deployed. Please check $LOGFILE."
+    fi
+}
+
 if [ -f $crowbar_install_dir/crowbar-installed-ok ]; then
     run_succeeded=already_before
 
@@ -993,6 +1008,7 @@ touch /var/run/crowbar/deploying
 # which exits immediately if /var/run/crowbar/deploying exists.
 
 wait_for_crowbar
+wait_for_crowbar_role
 
 # From here, you should probably read along with the equivalent steps in
 # install-chef.sh for comparison
