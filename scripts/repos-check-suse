@@ -42,7 +42,7 @@ check_key_file () {
   key_file=$1
 
   local fingerprint
-  read -a fingerprint < <(gpg --with-fingerprint ${key_file} \
+  read -a fingerprint < <(LC_ALL=C gpg --with-fingerprint ${key_file} \
       | grep fingerprint | awk -F= '{print $2}')
   case "${fingerprint[@]}" in
     "4E98 E675 19D9 8DC7 362A 5990 E3A5 C360 307E 3D54") # SLE11 keys
