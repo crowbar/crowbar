@@ -1,3 +1,5 @@
 linters:
   LineLength:
     max: 150
+  UnnecessaryInterpolation:
+    enabled: false
