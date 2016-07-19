@@ -4,8 +4,10 @@ ruby:
 haml:
   config_file: .hound.haml.yml
 
+javascript:
+  config_file: .hound.js.json
+
 scss:
   config_file: .hound.scss.yml
 
-javascript:
-  config_file: .hound.js.json
+fail_on_violations: true
