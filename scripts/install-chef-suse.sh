@@ -391,11 +391,14 @@ json_read () {
     fi | sed "s/^[^=]*=//g"
 }
 
-if [ -f /etc/crowbar/provisioner.json ]; then
-    PROVISIONER_JSON=/etc/crowbar/provisioner.json
-elif [ -n "$CROWBAR_FROM_GIT" -a -f /root/crowbar/provisioner.json ]; then
-    PROVISIONER_JSON=/root/crowbar/provisioner.json
-fi
+for bc in provisioner dns; do
+    if [ -f /etc/crowbar/$bc.json ]; then
+        # ${bc^^} simply uppercases $bc
+        eval "${bc^^}_JSON=/etc/crowbar/$bc.json"
+    elif [ -n "$CROWBAR_FROM_GIT" -a -f /root/crowbar/$bc.json ]; then
+        eval "${bc^^}_JSON=/root/crowbar/$bc.json"
+    fi
+done
 
 if [ -n "$IPv4_addr" ]; then
     if [ -f /etc/crowbar/network.json ]; then
