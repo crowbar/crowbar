@@ -27,6 +27,9 @@ upgrade_admin_server()
     bin/rake db:dump
     popd
 
+    ### Chef-client could lockj zypper and break upgrade
+    rcchef-client stop
+
     # Upgrade the distribution non-interactively
     zypper --no-color --releasever 12.2 ref -f
     zypper --no-color --non-interactive dist-upgrade -l --recommends --replacefiles
