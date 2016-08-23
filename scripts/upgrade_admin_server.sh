@@ -20,6 +20,16 @@ set -x
 
 upgrade_admin_server()
 {
+    local installdir=/var/lib/crowbar/install
+
+    if [[ -f $installdir/admin_server_upgrading ]] ; then
+        echo "Exit: Upgrade already running..."
+        exit 1
+    fi
+
+    # Signalize that the upgrade is running
+    touch $installdir/admin_server_upgrading
+
     # we will need the dump for later migrating it into postgresql
     pushd /opt/dell/crowbar_framework
     export RAILS_ENV=production
@@ -38,16 +48,21 @@ upgrade_admin_server()
         # In the failed case, crowbar should tell user to check zypper logs,
         # fix the errors and continue admin server manually
         echo "zypper dist-upgrade has failed with $ret, check zypper logs"
-        echo "$ret" > /var/lib/crowbar/install/admin-server-upgrade-failed
+        echo "$ret" > $installdir/admin-server-upgrade-failed
         return
     fi
 
     # Signalize that the upgrade correctly ended
-    touch /var/lib/crowbar/install/admin-server-upgraded-ok
+    touch $installdir/admin-server-upgraded-ok
 
     # On Cloud7, crowbar-init bootstraps crowbar
     systemctl disable crowbar
     systemctl enable crowbar-init
+
+    # cleanup upgrading indication
+    # technically the upgrade is not done yet but it has to be
+    # done before the reboot
+    rm -rf $installdir/admin_server_upgrading
 
     # Reboot after upgrading the system
     reboot
