@@ -32,9 +32,8 @@ upgrade_admin_server()
 
     # we will need the dump for later migrating it into postgresql
     pushd /opt/dell/crowbar_framework
-    export RAILS_ENV=production
-    bin/rake db:migrate
-    bin/rake db:dump
+    sudo -u crowbar RAILS_ENV=production bin/rake db:migrate
+    sudo -u crowbar RAILS_ENV=production bin/rake db:dump
     popd
 
     ### Chef-client could lockj zypper and break upgrade
@@ -52,10 +51,10 @@ upgrade_admin_server()
         return
     fi
 
-    # Signalize that the upgrade correctly ended
+    # Signalize that the upgrade correctly ended
     touch $installdir/admin-server-upgraded-ok
 
-    # On Cloud7, crowbar-init bootstraps crowbar
+    # On Cloud7, crowbar-init bootstraps crowbar
     systemctl disable crowbar
     systemctl enable crowbar-init
 
