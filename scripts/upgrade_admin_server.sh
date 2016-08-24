@@ -52,10 +52,10 @@ upgrade_admin_server()
         return
     fi
 
-    # Signalize that the upgrade correctly ended
+    # Signalize that the upgrade correctly ended
     touch $installdir/admin-server-upgraded-ok
 
-    # On Cloud7, crowbar-init bootstraps crowbar
+    # On Cloud7, crowbar-init bootstraps crowbar
     systemctl disable crowbar
     systemctl enable crowbar-init
 
