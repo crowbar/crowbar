@@ -38,21 +38,15 @@ MODEL_SUBSTRING_CAPSS = '==%BC-MODEL=='
 
 if ENV["CROWBAR_DIR"]
   BASE_PATH = ENV["CROWBAR_DIR"]
-  BARCLAMP_PATH = File.join BASE_PATH, 'barclamps'
-  CROWBAR_PATH = File.join BASE_PATH, 'crowbar_framework'
-  MODEL_SOURCE = File.join CROWBAR_PATH, 'barclamp_model'
-  BIN_PATH = File.join BASE_PATH, 'bin'
-  UPDATE_PATH = '/updates'
-  ROOT_PATH = '/'
 else
-  BASE_PATH = File.join '/opt', 'dell'
-  BARCLAMP_PATH = File.join BASE_PATH, 'barclamps'
-  CROWBAR_PATH = File.join BASE_PATH, 'crowbar_framework'
-  MODEL_SOURCE = File.join CROWBAR_PATH, 'barclamp_model'
-  BIN_PATH = File.join BASE_PATH, 'bin'
-  UPDATE_PATH = '/updates'
-  ROOT_PATH = '/'
+  BASE_PATH = File.join("/opt", "dell").freeze
 end
+BARCLAMP_PATH = File.join(BASE_PATH, "barclamps").freeze
+CROWBAR_PATH = File.join(BASE_PATH, "crowbar_framework").freeze
+MODEL_SOURCE = File.join(CROWBAR_PATH, "barclamp_model").freeze
+BIN_PATH = File.join(BASE_PATH, "bin").freeze
+UPDATE_PATH = "/updates".freeze
+ROOT_PATH = "/".freeze
 
 def debug(msg)
   puts "DEBUG: " + msg if ENV['DEBUG'] === "true"
