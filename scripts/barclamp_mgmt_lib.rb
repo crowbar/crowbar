@@ -16,16 +16,16 @@
 # limitations under the License.
 #
 
-require 'rubygems'
-require 'fileutils'
-require 'yaml'
-require 'json'
-require 'time'
-require 'tempfile'
-require 'active_support/all'
-require 'pp'
-require 'i18n'
-require 'pathname'
+require "rubygems"
+require "fileutils"
+require "yaml"
+require "json"
+require "time"
+require "tempfile"
+require "active_support/all"
+require "pp"
+require "i18n"
+require "pathname"
 
 if I18n.respond_to? :enforce_available_locales
   I18n.enforce_available_locales = false
