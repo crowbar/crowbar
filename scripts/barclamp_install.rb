@@ -133,16 +133,8 @@ end
 barclamps.sort!
 
 if do_chef
-  bc_install_layout_1_chef
-
-  begin
-    bc_install_schema_migrate barclamps, log
-  rescue StandardError => e
-    puts e
-    puts e.backtrace
-    puts "Migration of barclamps #{barclamps.join(", ")} failed."
-    exit_code = -3
-  end
+  bc_install_layout_1_chef log
+  bc_install_schema_migrate barclamps, log
 end
 
 generate_navigation
