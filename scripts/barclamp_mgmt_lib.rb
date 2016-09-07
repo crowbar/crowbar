@@ -16,16 +16,17 @@
 # limitations under the License.
 #
 
-require 'rubygems'
-require 'fileutils'
-require 'yaml'
-require 'json'
-require 'time'
-require 'tempfile'
-require 'active_support/all'
-require 'pp'
-require 'i18n'
-require 'pathname'
+require "rubygems"
+require "fileutils"
+require "yaml"
+require "json"
+require "time"
+require "tempfile"
+require "active_support/all"
+require "pp"
+require "i18n"
+require "pathname"
+require "etc"
 
 if I18n.respond_to? :enforce_available_locales
   I18n.enforce_available_locales = false
@@ -415,24 +416,36 @@ def bc_install_layout_1_app(from_rpm, bc_path)
   debug "Component #{component} added to Crowbar Framework.  Review #{filelist} for files created."
 end
 
-# sync the chef parts
-def bc_install_layout_1_chef
+def run_rake_task(task_name, log)
+  crowbar_user = Etc.getpwnam("crowbar")
   rails_env = ENV["RAILS_ENV"] || "production"
-  upload_cmd = "cd #{CROWBAR_PATH} && RAILS_ENV=#{rails_env} bin/rake chef:upload:all"
-  system "su -s /bin/sh - crowbar sh -c \"#{upload_cmd}\""
+  debug("spawning bin/rake #{task_name}")
+  rake_process = spawn({ "RAILS_ENV" => rails_env },
+                       "bin/rake --silent #{task_name}",
+                       :uid => crowbar_user.uid,
+                       :gid => crowbar_user.gid,
+                       :chdir => CROWBAR_PATH,
+                       [:out, :err] => [log, "a"])
+  Process.wait rake_process
+  status = $?
+  debug("bin/rake exited with #{status.exitstatus}")
+  status.success?
+end
+
+# sync the chef parts
+def bc_install_layout_1_chef(log)
+  unless run_rake_task("chef:upload:all", log)
+    fatal "Failed to upload cookbooks to chef.", log
+  end
 end
 
 def bc_install_schema_migrate(barclamps, log)
   debug "Migrating barclamps #{barclamps.join(", ")} to new schema revision..."
   File.open(log, "a") { |f| f.puts("======== Migrating #{barclamps.join(", ")} barclamps -- #{Time.now.strftime('%c')} ========") }
-  migrate_cmd = "cd #{CROWBAR_PATH} && RAILS_ENV=#{ENV["RAILS_ENV"] || "production"} bin/rake --silent crowbar:schema_migrate[#{barclamps.join(",")}] 2>&1"
-  migrate_cmd_su = "su -s /bin/sh - crowbar sh -c \"#{migrate_cmd}\" >> #{log}"
-  debug "running #{migrate_cmd_su}"
-  unless system migrate_cmd_su
+  unless run_rake_task("crowbar:schema_migrate[#{barclamps.join(",")}]", log)
     fatal "Failed to migrate barclamps #{barclamps.join(", ")} to new schema revision.", log
   end
-  debug "\t executed: #{migrate_cmd_su}"
-  puts "Barclamps #{barclamps.join(", ")} Migrated to New Schema Revision."
+  puts "Barclamps #{barclamps.join(", ")} migrated to New Schema Revision."
 end
 
 def get_rpm_file_list(rpm)
