@@ -8,13 +8,7 @@
 
 LOGFILE=/var/log/crowbar/admin-server-upgrade.log
 mkdir -p "`dirname "$LOGFILE"`"
-
-# Copy stdout to fd 3
-exec 3>&1
-# Create fd 4 for logfile
-exec 4>> "$LOGFILE"
-# Set fd 1 and 2 to logfile
-exec 1>&4 2>&1
+exec >>"$LOGFILE" 2>&1
 
 set -x
 
