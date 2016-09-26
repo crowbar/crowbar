@@ -8,27 +8,42 @@
 
 LOGFILE=/var/log/crowbar/admin-server-upgrade.log
 mkdir -p "`dirname "$LOGFILE"`"
-
-# Copy stdout to fd 3
-exec 3>&1
-# Create fd 4 for logfile
-exec 4>> "$LOGFILE"
-# Set fd 1 and 2 to logfile
-exec 1>&4 2>&1
+exec >>"$LOGFILE" 2>&1
 
 set -x
 
+INSTALLDIR=/var/lib/crowbar/install
+RUNDIR=/var/run/crowbar
+RUNFILE=$RUNDIR/admin-server-upgrading
+
+cleanup()
+{
+    echo "cleaning up after interrupt or exit"
+
+    # cleanup upgrading indication so that the action can be restarted
+    rm -f $RUNFILE
+}
+
 upgrade_admin_server()
 {
-    local installdir=/var/lib/crowbar/install
+    mkdir -p $INSTALLDIR
+    mkdir -p $RUNDIR
 
-    if [[ -f $installdir/admin_server_upgrading ]] ; then
+    if [[ -f $RUNFILE ]] ; then
         echo "Exit: Upgrade already running..."
         exit 1
     fi
 
+    if [[ -f $INSTALLDIR/admin-server-upgraded-ok ]] && grep -q "12.2" $INSTALLDIR/admin-server-upgraded-ok ; then
+        echo "Exit: Admin server already upgraded"
+        exit 0
+    fi
+
+
     # Signalize that the upgrade is running
-    touch $installdir/admin_server_upgrading
+    touch $RUNFILE
+
+    trap cleanup INT EXIT
 
     # we will need the dump for later migrating it into postgresql
     pushd /opt/dell/crowbar_framework
@@ -47,12 +62,12 @@ upgrade_admin_server()
         # In the failed case, crowbar should tell user to check zypper logs,
         # fix the errors and continue admin server manually
         echo "zypper dist-upgrade has failed with $ret, check zypper logs"
-        echo "$ret" > $installdir/admin-server-upgrade-failed
-        return
+        echo "$ret" > $INSTALLDIR/admin-server-upgrade-failed
+        exit $ret
     fi
 
     # Signalize that the upgrade correctly ended
-    touch $installdir/admin-server-upgraded-ok
+    echo "12.2" >> $INSTALLDIR/admin-server-upgraded-ok
 
     # On Cloud7, crowbar-init bootstraps crowbar
     systemctl disable crowbar
@@ -61,7 +76,7 @@ upgrade_admin_server()
     # cleanup upgrading indication
     # technically the upgrade is not done yet but it has to be
     # done before the reboot
-    rm -rf $installdir/admin_server_upgrading
+    rm -f $RUNFILE
 
     # Reboot after upgrading the system
     reboot
