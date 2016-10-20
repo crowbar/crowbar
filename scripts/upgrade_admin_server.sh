@@ -18,7 +18,7 @@ exec 1>&4 2>&1
 
 set -x
 
-INSTALLDIR=/var/lib/crowbar/install
+UPGRADEDIR=/var/lib/crowbar/upgrade
 RUNDIR=/var/run/crowbar
 RUNFILE=$RUNDIR/admin-server-upgrading
 
@@ -32,7 +32,7 @@ cleanup()
 
 upgrade_admin_server()
 {
-    mkdir -p $INSTALLDIR
+    mkdir -p $UPGRADEDIR
     mkdir -p $RUNDIR
 
     if [[ -f $RUNFILE ]] ; then
@@ -40,13 +40,13 @@ upgrade_admin_server()
         exit 1
     fi
 
-    if [[ -f $INSTALLDIR/admin-server-upgraded-ok ]] && grep -q "12.2" $INSTALLDIR/admin-server-upgraded-ok ; then
+    if [[ -f $UPGRADEDIR/admin-server-upgraded-ok ]] && grep -q "12.2" $UPGRADEDIR/admin-server-upgraded-ok ; then
         echo "Exit: Admin server already upgraded"
         exit 0
     fi
 
     # Remove possible failed file before starting (again)
-    rm -f $INSTALLDIR/admin-server-upgrade-failed
+    rm -f $UPGRADEDIR/admin-server-upgrade-failed
 
     # Signalize that the upgrade is running
     touch $RUNFILE
@@ -70,12 +70,12 @@ upgrade_admin_server()
         # In the failed case, crowbar should tell user to check zypper logs,
         # fix the errors and continue admin server manually
         echo "zypper dist-upgrade has failed with $ret, check zypper logs"
-        echo "$ret" > $INSTALLDIR/admin-server-upgrade-failed
+        echo "$ret" > $UPGRADEDIR/admin-server-upgrade-failed
         exit $ret
     fi
 
     # Signalize that the upgrade correctly ended
-    echo "12.2" >> $INSTALLDIR/admin-server-upgraded-ok
+    echo "12.2" >> $UPGRADEDIR/admin-server-upgraded-ok
 
     # On Cloud7, crowbar-init bootstraps crowbar
     systemctl disable crowbar
