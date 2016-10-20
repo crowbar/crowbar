@@ -39,6 +39,8 @@ upgrade_admin_server()
         exit 0
     fi
 
+    # Remove possible failed file before starting (again)
+    rm -f $INSTALLDIR/admin-server-upgrade-failed
 
     # Signalize that the upgrade is running
     touch $RUNFILE
