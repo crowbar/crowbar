@@ -77,6 +77,15 @@ upgrade_admin_server()
     # Signalize that the upgrade correctly ended
     echo "12.2" >> $UPGRADEDIR/admin-server-upgraded-ok
 
+    # delete current OS values
+    knife exec -E "n = nodes.find(:roles => 'provisioner-server').first
+n.target_platform = nil
+n.provisioner.default_os = nil
+n.save"
+
+    # let the provisioner fill the new OS values
+    chef-client
+
     # On Cloud7, crowbar-init bootstraps crowbar
     systemctl disable crowbar
     systemctl enable crowbar-init
