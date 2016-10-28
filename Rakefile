@@ -226,11 +226,7 @@ end
 
 namespace :test do
   task dependencies: [] do
-    if ENV["TRAVIS"]
-      system("pip install bashate")
-    else
-      system("sudo pip install bashate")
-    end
+    system("sudo pip install bashate") unless ENV["TRAVIS"]
   end
 
   desc "Run bashate tests"
