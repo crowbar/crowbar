@@ -40,43 +40,22 @@ Before we can start you need to match some prerequirements on your host machine.
 
   1. Please create this script somewhere in your path, it's just a wrapper
      around our mkcloud script that will be mentioned later on again. We place
-     it in general at /usr/local/bin/mkcloud6
+     it in general at /usr/local/bin/mkcloud7
 
      ```bash
      #!/usr/bin/env bash
 
-     export pre_do_installcrowbar=$(base64 --wrap=0 <<'EOS'
-       zypper ar -f http://dist.suse.de/install/SLP/SLE-12-SP1-SDK-LATEST/x86_64/DVD1/ sle12-sp1-sdk
-       zypper -n in -l gcc ruby2.1-devel sqlite3-devel libxml2-devel;
-
-       mkdir -p /opt/crowbar/crowbar_framework/db /opt/crowbar/barclamps;
-
-       ln -sf /opt/dell/crowbar_framework/db/production.sqlite3 /opt/crowbar/crowbar_framework/db/development.sqlite3;
-     EOS
-     )
-
-     export SHAREDVG=1
-     export TESTHEAD=1
-     export cloudsource=develcloud6
-     export virtualcloud=l6
-     export cloud=cloud6
-     export net_fixed=192.168.116
-     export net_public=192.168.96
-     export net_admin=192.168.106
-     export cephvolumenumber=0
+     export cloudsource=develcloud7
      export nodenumber=2
-     export vcpus=4
-     export cloudvg=system
      export user_keyfile=~${SUDO_USER}/.ssh/id_rsa.pub
-     export adminvcpus=2
-     export want_sles12=1
 
      /usr/local/bin/mkcloud $@
      ```
 
   2. At first you need a running mkcloud setup. For more information about this
      read the [mkcloud](https://git.io/vYO2E) documentation. Please use the
-     wrapper script created above to install Crowbar, e.g. `sudo mkcloud6 plain`.
+     wrapper script created above to install Crowbar, e.g. `sudo mkcloud7 plain devsetup`.
+     the ```devsetup``` step for ```mkcloud``` is necessary to install the dependencies
 
   3. You need some ruby environment on you workstation in order to execute some
      rake tasks, so please install ```ruby``` and ```bundler``` first.
@@ -85,6 +64,16 @@ Before we can start you need to match some prerequirements on your host machine.
      cloning, forking and updating all required repositories. Make sure to get
      all the dependencies with ```bundle install``` and use ```rake -T``` to get
      an overview about the rake tasks.
+     For the ```rake``` tasks talk to the GitHub API you need to have a ```~/.netrc``` file
+     which looks like:
+
+     ```
+     machine api.github.com
+       login <GITHUB USERNAME>
+       password <API TOKEN>
+     ```
+
+     The GitHub API Token can be obtained from your GitHub settings in the Browser.
 
      1. ```rake crowbar:init``` will fork, clone and add the required remotes to the
         required repositories defined within our [configuration](../config/barclamps.yml)
@@ -92,37 +81,54 @@ Before we can start you need to match some prerequirements on your host machine.
      2. ```rake crowbar:update``` will update the clones, this should be performed from time
         to time to get the latest changes into your cloned repositories.
 
-  5. Now run Guard to sync your local git repos with the server, please execute
-     ```GUARD_SYNC_HOST=192.168.106.10 bundle exec guard``` in a seperate
-     terminal window as this process will stay in the foreground.
+  5. Now run Guard to sync your local git repos with the server, please place this script in
+     `/usr/local/bin/crowbar_guard`
 
-  6. Now ssh to the admin node and follow the steps below:
+     ```bash
+     #!/bin/bash
 
-    1. Change to ```/opt/crowbar/crowbar_framework```.
+     cloud=$1
+     target_folder=$2
+     guard_sync_port=$3
 
-    2. Set a dedicated GEM_HOME for the dev environment to avoid clobbering the
-       admin node's system gems:
+     if [[ -z $1 ]] || [[ -z $2 ]] || [[ -z $3 ]]
+     then
+       echo "usage ./crowbar_guard cloudname targetfolder sshport"
+       echo "  example: ./crowbar_guard crowbarc1 /opt/crowbar 22"
+       exit 1
+     fi
 
-       ```
-       export GEM_HOME=/tmp/crowbar-dev-gems
-       ```
+     export GUARD_SYNC_PORT=$guard_sync_port
+     export GUARD_SYNC_HOST=$cloud
+     export GUARD_TREE_TARGET=$target_folder
+     export GUARD_SCRIPT_TARGET=$target_folder/bin
 
-       You will need to ensure this environment variable is set each time
-       you run the Rails server (step 5). You can also omit this step entirely,
-       but without it the development environment is likely to break the admin
-       node's regular crowbar setup. Likewise, you need to make sure that
-       `GEM_HOME` is unset if you wish to use your system's regular gems again.
+     bundle exec guard --no-notify
+     ```
 
-    3. Run ```bundle install```
+     and run it in a seperate terminal window as this process will stay in the foreground.
 
-    4. Install all barclamps with this snippet
+     **NOTE**: you have to run the script **from the `crowbar/crowbar` git clone** where the `Guardfile` is located
 
-       ```bash
-       COMPONENTS=$(find /opt/crowbar/barclamps -mindepth 1 -maxdepth 1 -type d)
-       CROWBAR_DIR=/opt/crowbar RAILS_ENV=development bundle exec /opt/crowbar/bin/barclamp_install.rb $COMPONENTS
-       ```
+  6. Now place the following script in `/usr/local/bin/crowbar_rails`
 
-    5. Run the Rails server ```bundle exec bin/rails s -b 0.0.0.0 -p 5000```
+    ```bash
+    #!/bin/bash
 
+    cloud=$1
+    port=$2
+    targetdir=$3
 
-  7. Now you can access you crowbar development setup via ```http://192.168.106.10:5000```
+    if [[ -z $1 ]] || [[ -z $2 ]] || [[ -z $3 ]]
+    then
+      echo "usage ./crowbar_rails cloudname targetdir"
+      echo "  example: ./crowbar_rails crowbarc1 5000 /opt/crowbar"
+      exit 1
+    fi
+
+    ssh -t root@${cloud} "$targetdir/crowbar_framework/bin/rails s -b 0.0.0.0 -p $port"
+    ```
+
+    and run it in a seperate terminal window as this process will stay in the foreground.
+
+  7. Now you can access you crowbar development setup via ```http://your.crowbar.instance:5000```
