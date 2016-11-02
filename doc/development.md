@@ -132,3 +132,35 @@ Before we can start you need to match some prerequirements on your host machine.
     and run it in a seperate terminal window as this process will stay in the foreground.
 
   7. Now you can access you crowbar development setup via ```http://your.crowbar.instance:5000```
+
+## Debugging
+
+If you want to debug some specific piece of code you can use `byebug` which is also mentioned in the `Gemfile`
+
+To set it up you have to make sure `byebug` is installed
+
+```bash
+which byebug
+```
+
+if it is not installed yet you can find the package in the `sdk` repository:
+
+```bash
+zypper ar -f http://dist.suse.de/install/SLP/SLE-12-SP2-SDK-LATEST/x86_64/DVD1/ sle12-sp2-sdk
+zypper -n install ruby2.1-rubygem-byebug
+```
+
+Then you just have to add a `byebug` at the line of code that you want the debugger to stop, and run the action that leads you to this codepath.
+
+`byebug` works similar as gdb, for a reference of available commands see https://github.com/deivid-rodriguez/byebug#byebugs-commands
+
+```
+   43:   def index
+   44:     byebug
+=> 45:     @sum = 0
+   46:     @groups = {}
+   47:     session[:node] = params[:name]
+   48:     if params.key?(:role)
+   49:       result = NodeObject.all
+(byebug)
+```
