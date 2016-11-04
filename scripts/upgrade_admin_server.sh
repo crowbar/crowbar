@@ -74,6 +74,12 @@ upgrade_admin_server()
         exit $ret
     fi
 
+    # Update the OS values for admin node
+    knife exec -E "n = nodes.find(:roles => 'provisioner-server').first
+n.target_platform = 'suse-12.2'
+n.provisioner.default_os = 'suse-12.2'
+n.save"
+
     # Signalize that the upgrade correctly ended
     echo "12.2" >> $UPGRADEDIR/admin-server-upgraded-ok
 
