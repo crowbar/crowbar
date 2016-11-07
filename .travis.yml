@@ -1,6 +1,11 @@
-language: python
+language: ruby
 sudo: false
+
+rvm:
+  - 2.1.0
+
 install:
+    - pip install bashate --user
     - bundle install
 script:
     - rake test:bashate
