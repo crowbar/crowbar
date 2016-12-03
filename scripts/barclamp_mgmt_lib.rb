@@ -421,7 +421,7 @@ def run_rake_task(task_name, log)
   rails_env = ENV["RAILS_ENV"] || "production"
   debug("spawning bin/rake #{task_name}")
   rake_process = spawn({ "RAILS_ENV" => rails_env },
-                       "bin/rake --silent #{task_name}",
+                       "bin/rake --silent '#{task_name}'",
                        :uid => crowbar_user.uid,
                        :gid => crowbar_user.gid,
                        :chdir => CROWBAR_PATH,
@@ -442,7 +442,7 @@ end
 def bc_install_schema_migrate(barclamps, log)
   debug "Migrating barclamps #{barclamps.join(", ")} to new schema revision..."
   File.open(log, "a") { |f| f.puts("======== Migrating #{barclamps.join(", ")} barclamps -- #{Time.now.strftime('%c')} ========") }
-  unless run_rake_task("crowbar:schema_migrate[#{barclamps.join(",")}]", log)
+  unless run_rake_task("crowbar:schema_migrate[#{barclamps.join(" ")}]", log)
     fatal "Failed to migrate barclamps #{barclamps.join(", ")} to new schema revision.", log
   end
   puts "Barclamps #{barclamps.join(", ")} migrated to New Schema Revision."
