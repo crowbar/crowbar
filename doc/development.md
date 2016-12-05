@@ -57,7 +57,7 @@ Before we can start you need to match some prerequirements on your host machine.
      wrapper script created above to install Crowbar, e.g. `sudo mkcloud7 plain devsetup`.
      the ```devsetup``` step for ```mkcloud``` is necessary to install the dependencies
 
-  3. You need some ruby environment on you workstation in order to execute some
+  3. You need some ruby environment on your workstation in order to execute some
      rake tasks, so please install ```ruby``` and ```bundler``` first.
 
   4. You need to clone all repositories from GitHub. There are rake tasks for
@@ -108,7 +108,8 @@ Before we can start you need to match some prerequirements on your host machine.
 
      and run it in a seperate terminal window as this process will stay in the foreground.
 
-     **NOTE**: you have to run the script **from the `crowbar/crowbar` git clone** where the `Guardfile` is located
+     **NOTE**: you have to run the script **from the `crowbar/crowbar` git
+     clone** where the `Guardfile` is located
 
   6. Now place the following script in `/usr/local/bin/crowbar_rails`
 
@@ -135,7 +136,8 @@ Before we can start you need to match some prerequirements on your host machine.
 
 ## Debugging
 
-If you want to debug some specific piece of code you can use `byebug` which is also mentioned in the `Gemfile`
+If you want to debug some specific piece of code you can use `byebug` which is
+also mentioned in the `Gemfile`
 
 To set it up you have to make sure `byebug` is installed
 
@@ -150,9 +152,11 @@ zypper ar -f http://dist.suse.de/install/SLP/SLE-12-SP2-SDK-LATEST/x86_64/DVD1/ 
 zypper -n install ruby2.1-rubygem-byebug
 ```
 
-Then you just have to add a `byebug` at the line of code that you want the debugger to stop, and run the action that leads you to this codepath.
+Then you just have to add a `byebug` at the line of code that you want the
+debugger to stop, and run the action that leads you to this codepath.
 
-`byebug` works similar as gdb, for a reference of available commands see https://github.com/deivid-rodriguez/byebug#byebugs-commands
+`byebug` works similar to gdb, for a reference of available commands see
+https://github.com/deivid-rodriguez/byebug#byebugs-commands
 
 ```
    43:   def index
