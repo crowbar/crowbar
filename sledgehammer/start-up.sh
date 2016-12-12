@@ -149,6 +149,9 @@ echo "# Sledgehammer added to log to the admin node" >> /etc/rsyslog.conf
 echo "*.* @@${ADMIN_IP}" >> /etc/rsyslog.conf
 service $RSYSLOGSERVICE restart
 
+# showmount needs a running rpcbind service
+service rpcbind start
+
 # Setup common dirs based on what the Crowbar admin server is sharing
 exports=$(showmount -e $ADMIN_IP --no-headers | cut -f1 -d " ")
 for d in $exports; do
