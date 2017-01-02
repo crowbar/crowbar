@@ -71,8 +71,20 @@ upgrade_admin_server()
     if [ $ret != 0 ]; then
         # In the failed case, crowbar should tell user to check zypper logs,
         # fix the errors and continue admin server manually
-        echo "zypper dist-upgrade has failed with $ret, check zypper logs"
+        local errmsg="zypper dist-upgrade has failed with $ret, check zypper logs"
+        echo $errmsg
         echo "$ret" > $UPGRADEDIR/admin-server-upgrade-failed
+        # The status of the upgrade needs to be set in case of an error
+        # so we can just use the upgrade_status library to set the status to "failed"
+        # otherwise the status of the admin_upgrade would stay at "running" which would prevent
+        # continuation of the upgrade even if the admin upgrade got fixed manually
+        ruby -e "
+            require 'logger'
+            require '/opt/dell/crowbar_framework/lib/crowbar/upgrade_status'
+            ::Crowbar::UpgradeStatus.new(Logger.new(STDOUT)).end_step(
+              false,
+              '$errmsg'
+            )"
         exit $ret
     fi
 
