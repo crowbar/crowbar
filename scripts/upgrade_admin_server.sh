@@ -83,7 +83,10 @@ upgrade_admin_server()
             require '/opt/dell/crowbar_framework/lib/crowbar/upgrade_status'
             ::Crowbar::UpgradeStatus.new(Logger.new(STDOUT)).end_step(
               false,
-              '$errmsg'
+              admin_upgrade: {
+                data: '$errmsg',
+                help: 'Failed to upgrade admin server. Refer to the error message in the response.'
+              }
             )"
         exit $ret
     fi
