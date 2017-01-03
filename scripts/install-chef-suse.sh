@@ -47,6 +47,9 @@ EOF
     exit
 }
 
+# Store the commandline before we process it (and destroy it)
+commandline="$*"
+
 while test $# -gt 0; do
     case "$1" in
         -h|--help|--usage|-\?) usage ;;
@@ -294,7 +297,7 @@ function reset_crowbar()
 # Real work starts here
 # ---------------------
 
-echo "`date` $0 started with args: $*"
+echo "`date` $0 started with args: $commandline"
 
 CROWBAR_TMPDIR=$(mktemp -d --tmpdir crowbar-install-XXXXXX)
 
