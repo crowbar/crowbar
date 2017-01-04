@@ -95,6 +95,11 @@ n.save"
     systemctl disable crowbar
     systemctl enable crowbar-init
 
+    # remove old (chef-created) crowbar systemd unit file, the file
+    # is part of the package now and installed in /usr/lib/systemd/
+    rm -f /etc/systemd/system/crowbar.service
+    systemctl daemon-reload
+
     # cleanup upgrading indication
     # technically the upgrade is not done yet but it has to be
     # done before the reboot
