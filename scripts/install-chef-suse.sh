@@ -795,6 +795,13 @@ set_step "barclamp_install"
 echo_summary "Bootstrapping Crowbar setup"
 
 echo "Create Admin node role"
+
+# temporary workaround to enable gating for crowbar-core#920
+if [ -e /opt/dell/crowbar_framework/app/models/chef_node.rb] ; then
+  su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && " \
+    "RAILS_ENV=production bin/rails runner \"Node.create(name: '$FQDN')\""
+fi
+
 NODE_ROLE="crowbar-${FQDN//./_}"
 cat > "$CROWBAR_TMPDIR/role.rb" <<EOF
 name "$NODE_ROLE"
