@@ -441,7 +441,12 @@ end
 
 def bc_install_schema_migrate(barclamps, log)
   debug "Migrating barclamps #{barclamps.join(", ")} to new schema revision..."
-  File.open(log, "a") { |f| f.puts("======== Migrating #{barclamps.join(", ")} barclamps -- #{Time.now.strftime('%c')} ========") }
+  File.open(log, "a") do |f|
+    f.puts(
+      "======== Migrating #{barclamps.join(", ")} barclamps -- " \
+      "#{Time.now.strftime("%c")} ========"
+    )
+  end
   unless run_rake_task("crowbar:schema_migrate[#{barclamps.join(" ")}]", log)
     fatal "Failed to migrate barclamps #{barclamps.join(", ")} to new schema revision.", log
   end
