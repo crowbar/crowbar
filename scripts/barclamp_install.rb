@@ -135,6 +135,7 @@ barclamps.sort!
 if do_chef
   bc_install_layout_1_chef log
   bc_install_schema_migrate barclamps, log
+  bc_install_update_config_db barclamps, log
 end
 
 generate_navigation
