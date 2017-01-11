@@ -1091,6 +1091,8 @@ do
         # already installed
         echo '{ "crowbar_wall": { "registering": true } }' | \
             $chef_client --json-attributes /dev/stdin
+        # admin server got allocated an IP address, regenerate the config db
+        su -s /bin/sh - crowbar sh -c "cd /opt/dell/crowbar_framework && RAILS_ENV=production bin/rake crowbar:update_config_db"
     else
         $chef_client
     fi
