@@ -149,6 +149,13 @@ echo "# Sledgehammer added to log to the admin node" >> /etc/rsyslog.conf
 echo "*.* @@${ADMIN_IP}" >> /etc/rsyslog.conf
 service $RSYSLOGSERVICE restart
 
+# Sometimes at this point network is not up yet, wait for it
+echo "Waiting for admin server ($ADMIN_IP) to be reachable; will wait up to 60 seconds..."
+ping -c 1 -w 60 $ADMIN_IP > /dev/null || {
+    echo "Admin server ($ADMIN_IP) not reachable."
+    echo "Things will end badly."
+}
+
 # showmount needs a running rpcbind service
 service rpcbind start
 
