@@ -549,7 +549,7 @@ for arch in $product_arches; do
             $MEDIA \
             $sp2mediasum
 
-        if ! is_ses; then
+        if [ ! is_ses -a $arch == "x86_64" ]; then
             check_media_content \
                 Cloud \
                 /srv/tftpboot/suse-12.2/$arch/repos/Cloud \
