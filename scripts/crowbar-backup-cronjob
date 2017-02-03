@@ -1,0 +1,6 @@
+#!/bin/sh
+# example backup script to be added in /etc/cron.daily/
+btarballname=crowbar-$(date +%F)
+p="--password=crowbar"
+crowbarctl backup create $btarballname $p && \
+echo "Created backup in /var/lib/crowbar/backup/$btarballname.tar.gz"
