@@ -24,6 +24,31 @@ cleanup()
     rm -f $RUNFILE
 }
 
+report_failure()
+{
+    local ret=$1
+    local errmsg=$2
+
+    echo "$ret" > $UPGRADEDIR/admin-server-upgrade-failed
+    echo $errmsg
+    # The status of the upgrade needs to be set in case of an error
+    # so we can just use the upgrade_status library to set the status to "failed"
+    # otherwise the status of the admin_upgrade would stay at "running" which would prevent
+    # continuation of the upgrade even if the admin upgrade got fixed manually
+    ruby -e "
+        require 'logger'
+        require '/opt/dell/crowbar_framework/lib/crowbar/upgrade_status'
+        ::Crowbar::UpgradeStatus.new(Logger.new(STDOUT)).end_step(
+            false,
+            admin_upgrade: {
+                data: '$errmsg',
+                help: 'Failed to upgrade admin server. Refer to the error message in the response.'
+            }
+    )"
+    exit $ret
+}
+
+
 upgrade_admin_server()
 {
     mkdir -p $UPGRADEDIR
@@ -58,6 +83,17 @@ upgrade_admin_server()
     ### Chef-client could lockj zypper and break upgrade
     rcchef-client stop
 
+    # Update the OS values for admin node
+    knife exec -E "n = nodes.find(:roles => 'provisioner-server').first
+n.target_platform = 'suse-12.2'
+n.provisioner.default_os = 'suse-12.2'
+n.save"
+
+    ret=$?
+    if [ $ret != 0 ]; then
+        report_failure($ret, "Setting the platform to suse-12.2 has failed.")
+    fi
+
     # Upgrade the distribution non-interactively
     zypper --no-color --releasever 12.2 ref -f
     zypper --no-color --non-interactive dist-upgrade -l --recommends --replacefiles
@@ -65,31 +101,8 @@ upgrade_admin_server()
     if [ $ret != 0 ]; then
         # In the failed case, crowbar should tell user to check zypper logs,
         # fix the errors and continue admin server manually
-        local errmsg="zypper dist-upgrade has failed with $ret, check zypper logs"
-        echo $errmsg
-        echo "$ret" > $UPGRADEDIR/admin-server-upgrade-failed
-        # The status of the upgrade needs to be set in case of an error
-        # so we can just use the upgrade_status library to set the status to "failed"
-        # otherwise the status of the admin_upgrade would stay at "running" which would prevent
-        # continuation of the upgrade even if the admin upgrade got fixed manually
-        ruby -e "
-            require 'logger'
-            require '/opt/dell/crowbar_framework/lib/crowbar/upgrade_status'
-            ::Crowbar::UpgradeStatus.new(Logger.new(STDOUT)).end_step(
-              false,
-              admin_upgrade: {
-                data: '$errmsg',
-                help: 'Failed to upgrade admin server. Refer to the error message in the response.'
-              }
-            )"
-        exit $ret
+        report_failure($ret, "zypper dist-upgrade has failed with $ret, check zypper logs")
     fi
-
-    # Update the OS values for admin node
-    knife exec -E "n = nodes.find(:roles => 'provisioner-server').first
-n.target_platform = 'suse-12.2'
-n.provisioner.default_os = 'suse-12.2'
-n.save"
 
     # Signalize that the upgrade correctly ended
     echo "12.2" >> $UPGRADEDIR/admin-server-upgraded-ok
