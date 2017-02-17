@@ -97,7 +97,7 @@ n.save"
 
     ret=$?
     if [ $ret != 0 ]; then
-        report_failure($ret, "Setting the platform to suse-12.2 has failed.")
+        report_failure $ret "Setting the platform to suse-12.2 has failed."
     fi
 
     # Upgrade the distribution non-interactively
@@ -107,7 +107,7 @@ n.save"
     if [ $ret != 0 ]; then
         # In the failed case, crowbar should tell user to check zypper logs,
         # fix the errors and continue admin server manually
-        report_failure($ret, "zypper dist-upgrade has failed with $ret, check zypper logs")
+        report_failure $ret "zypper dist-upgrade has failed with $ret, check zypper logs"
     fi
 
     # Signalize that the upgrade correctly ended
