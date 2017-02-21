@@ -1,0 +1,61 @@
+#!/bin/bash
+
+FILE="/root/crowbar-upgrade-`date +"%Y%m%d-%k%M%S"`.tar.gz"
+
+tmpdir=$(mktemp -d)
+pushd $tmpdir >/dev/null
+
+echo "Start knife backup..."
+mkdir "knife"
+knife backup export data_bags clients nodes roles -D knife 1>/dev/null
+echo "Knife backup done..."
+
+echo "Prepair crowbar backup..."
+cp -a /etc/resolv.conf{,.forwarders}
+sed -i -e "/^\s*nameserver/d" /etc/resolv.conf.forwarders
+for ns in `perl -ne 'BEGIN{$/=undef}; m/forwarders\s*{([0-9:;\[\]\.\s]+)}/; $f=$1||""; $f=~s/\s*//g; foreach $fw (split(";",$f)){print "$fw\n"}' /etc/bind/named.conf`; do
+    echo "nameserver $ns" >> /etc/resolv.conf.forwarders
+done
+
+pushd /opt/dell/crowbar_framework > /dev/null
+RAILS_ENV=production bin/rake db:data:dump
+mv db/data.yml db/production.yml
+popd > /dev/null
+
+mkdir -p "crowbar"
+source /opt/dell/crowbar_framework/config/crowbar.env
+echo $CROWBAR_VERSION > crowbar/version
+
+echo "Start crowbar backup..."
+ETCFILES="/etc/crowbar/crowbar.json /etc/crowbar/network.json /etc/crowbar.install.key /etc/resolv.conf.forwarders /etc/ntp.conf /etc/HOSTNAME /etc/hosts /etc/chef/*.pem"
+mkdir -p "crowbar/etc"
+for file in $ETCFILES; do
+  cp -r $file crowbar/etc/
+done
+
+ROOTFILES="/root/.ssh /root/.gnupg"
+mkdir -p "crowbar/root"
+for file in $ROOTFILES; do
+  cp -r $file crowbar/root
+done
+
+TFTPFILES="/srv/tftpboot/validation.pem"
+mkdir -p "crowbar/tftp"
+for file in $TFTPFILES; do
+  cp -r $file crowbar/tftp
+done
+
+CROWBARFILES="/var/lib/crowbar /opt/dell/crowbar_framework/config/client.pem /opt/dell/crowbar_framework/db/production.yml"
+mkdir -p "crowbar/crowbar"
+for file in $CROWBARFILES; do
+  cp -r $file crowbar/crowbar
+done
+echo "Crowbar backup done..."
+
+echo "Create backup archive..."
+tar -czf $FILE *
+
+echo "Start cleanup..."
+rm -rf $tmpdir
+
+echo "Backup saved to $FILE, done."
