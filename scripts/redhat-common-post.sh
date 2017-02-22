@@ -86,9 +86,6 @@ chmod +x /opt/dell/bin/*
 # Make sure we can actaully install Crowbar
 chmod +x "$BASEDIR/extra/"*
 
-# This directory is the model to help users create new barclamps
-cp -r /opt/dell/barclamps/crowbar/crowbar_framework/barclamp_model /opt/dell
-
 # "Blacklisting IPv6".
 echo "blacklist ipv6" >>/etc/modprobe.d/blacklist-ipv6.conf
 echo "options ipv6 disable=1" >>/etc/modprobe.d/blacklist-ipv6.conf
