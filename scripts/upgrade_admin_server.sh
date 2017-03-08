@@ -42,7 +42,7 @@ report_failure()
             false,
             admin_upgrade: {
                 data: '$errmsg',
-                help: 'Failed to upgrade admin server. Refer to the error message in the response.'
+                help: 'Failed to upgrade admin server. Check /var/log/crowbar/admin-server-upgrade.log for further hints.'
             }
     )"
     exit $ret
