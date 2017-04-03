@@ -332,7 +332,7 @@ A barclamp consists of two main components:
   roles to the nodes it orchestrates.
 
 The subsequent sections will describe these two components and the ingredients
-that go into them into detail. They start of with an overview of a barclamp's
+that go into them into detail. They start off with an overview of a barclamp's
 development phases as we know them from experience and take you through all
 aspects of barclamp implementation in the order you are likely to encounter
 them. They are meant to be read in parallel to developing your own barclamp.
@@ -350,7 +350,7 @@ alternative. If your patch nears readiness, you may also find
 useful. This tool will let you quickly build RPMs from your `crowbar-openstack`
 fork.
 
-The Development workflow essentially consists of 3 phases: 
+The Development workflow essentially consists of 3 phases:
 
 1. Basic Implementation: In this phase you will write a scaffold for the
    Barclamp's chef code, define roles and parameters and create UI code for
@@ -380,7 +380,7 @@ Below we will describe these phases in detail.
 _Note: unless otherwise indicated, all paths from here on out are relative to
 your_ `crowbar-openstack` _fork's root directory._
 
-### Basic implementation
+### Basic Implementation
 
 In this phase you will do a scaffold implementation of your barclamp. This
 means that you will mostly focus on the Crowbar UI side of things and how it
@@ -446,8 +446,8 @@ contents. If, for instance, you use the Keystone barclamp's
 barclamps), you'd add a `depends "keystone"` statement here.
 
 You may already have noticed the second piece of boilerplate: the README.md
-file referenced by the `long_description` statement. This goes one goes into
-`chef/cookbooks/` and describes your Chef cookbook as
+file referenced by the `long_description` statement. This one goes into
+`chef/cookbooks/mybarclamp/` and describes your Chef cookbook as
 verbosely or tersely as you like (please put at least one complete sentence in
 there).
 
@@ -492,7 +492,7 @@ Once you've got a set of chef recipes, you'll need to organize them into roles.
 A role aggregates one or more chef recipes and deploys all of its component
 chef recipes. Crowbar can assign roles to one or more nodes (subject to
 constraints defined in the Crowbar application). In the HA case it can assign
-roles to one or more clusters of roles. It pays to spend some time on getting
+roles to one or more clusters of nodes. It pays off to spend some time on getting
 the roles you need right from the start because you will need to modify a lot
 of code to add new roles or remove existing ones later. Roles vary in scope
 from deploying just a single service (such as a logging agent) to deploying
@@ -528,7 +528,7 @@ places:
 
 * [`node_wall_list()` in `crowbar_framework/app/helpers/nodes_helper.rb`](https://github.com/crowbar/crowbar-core/blob/8a6f1c2c44717e3ceb066695312fef494e410f94/crowbar_framework/app/helpers/nodes_helper.rb#L361)
 * [`role()` in `bin/crowbar_machines`](https://github.com/crowbar/crowbar-core/blob/8a6f1c2c44717e3ceb066695312fef494e410f94/bin/crowbar_machines#L358)
-* [The list entry mappings in `crowbar_framework/config/locales/crowbar/en.yml`](https://github.com/crowbar/crowbar-core/blob/8a6f1c2c44717e3ceb066695312fef494e410f94/bin/crowbar_machines#L358)
+* [The list entry mappings in `crowbar_framework/config/locales/crowbar/en.yml`](https://github.com/crowbar/crowbar-core/blob/8a6f1c2c44717e3ceb066695312fef494e410f94/crowbar_framework/config/locales/crowbar/en.yml)
 
 Roles are defined in two places in the chef cookbook. First, you create a _role
 recipe_ in the `chef/cookbooks/<your_barclamp_name>/recipes` directory. Our
