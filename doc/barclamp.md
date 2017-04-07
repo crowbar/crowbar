@@ -1293,6 +1293,35 @@ annotate all lines in your code that fail its style checks. Address all of
 these comments and update your pull-request. Hound will re-examine it and may
 find new problems. Re-iterate until Hound passes without any objections.
 
+##### Manual Ruby Style Check
+
+It is possible to run the Ruby code style checks manually, before submitting 
+the GitHub pull request, or any other time. The [rubocop-git](https://github.com/m4i/rubocop-git) 
+tool available on Rubygems may be used to run code style checks against one or 
+more git commits or even on staged files. The Ruby code style definition files 
+used by Hound are hosted in the root of the [crowbar](https://www.github.com/crowbar/crowbar-openstack) 
+Github repository and they are required as input by rubocop-git.
+
+Install:
+
+```
+  sudo gem install rubocop rubocop-git
+```
+
+Example invocation:
+
+```
+  rubocop-git.ruby2.1 -c /path/to/crowbar/.hound.ruby.yml e7919ec6584a1b71dacab9c0a437cb07693edb02
+```
+
+Usage notes/problems:
+
+* it must be run in the working copy's root directory, otherwise it won't find
+  the files to run its checks against.
+* a commit ID (the one before your own changes, usually) must always be
+  supplied. It does _not_ default to using the result of a `git show` if the
+  commit ID is omitted. Instead, it uses the updated files in the git working copy.
+
 #### Mkcloud Gating
 
 While it is mandatory for a pull request to get merged, this test currently
