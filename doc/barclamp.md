@@ -1305,7 +1305,7 @@ Github repository and they are required as input by rubocop-git.
 Install:
 
 ```
-  sudo gem install rubocop rubocop-git
+  bundle install
 ```
 
 Example invocation:
