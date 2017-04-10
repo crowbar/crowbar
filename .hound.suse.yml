@@ -12,7 +12,7 @@
 
 Lint/EndAlignment:
   StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#lintendalignment
-  AlignWith: variable
+  EnforcedStyleAlignWith: variable
 
 Metrics/AbcSize:
   StyleGuide: https://github.com/SUSE/style-guides/blob/master/Ruby.md#metricsabcsize
