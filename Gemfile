@@ -29,4 +29,6 @@ group :development do
   gem "git", ">= 1.2"
   gem "netrc", ">= 0.10"
   gem "deep_merge", ">= 1.0"
+  gem "rubocop", "~> 0.48"
+  gem "rubocop-git", "~> 0.1"
 end
