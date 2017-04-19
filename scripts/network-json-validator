@@ -312,8 +312,8 @@ end
 
 def validate_basic_attributes databag
   mode = databag['attributes']['network']['mode']
-  if not ['single', 'dual', 'team'].include?(mode)
-    raise "Invalid mode '#{mode}': must be one of 'single', 'dual', 'team'"
+  if not ['single', 'dual', 'quad', 'team'].include?(mode)
+    raise "Invalid mode '#{mode}': must be one of 'single', 'dual', 'quad', 'team'"
   end
 
   teaming_mode = databag['attributes']['network']['teaming']['mode']
