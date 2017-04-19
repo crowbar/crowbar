@@ -116,6 +116,13 @@ n.save"
     rm -f /etc/systemd/system/crowbar.service
     systemctl daemon-reload
 
+    # Make sure latest chef data are uploaded
+    # Normally packages should take care of it, but for the rare case of chef-server
+    # not being available during the upgrade, better make sure and do it explicitely.
+    systemctl restart chef-server
+    pushd /opt/dell/crowbar_framework
+    sudo -u crowbar RAILS_ENV=production bin/rake chef:upload:all
+
     # cleanup upgrading indication
     # technically the upgrade is not done yet but it has to be
     # done before the reboot
