@@ -1047,6 +1047,11 @@ fi
 # this has machine key world readable? care?
 $CROWBAR crowbar proposal show default >/var/log/crowbar/default-proposal.json
 
+# FIXME: temporary workaround for bsc#988961
+# this should be only temporary until https://bugzilla.suse.com/show_bug.cgi?id=988961
+# is fixed
+sleep 10
+
 # next will fail if ntp barclamp not present (or did for me...)
 $CROWBAR crowbar proposal commit default || \
     die "Could not commit default proposal!"
