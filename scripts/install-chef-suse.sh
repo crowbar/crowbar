@@ -483,6 +483,7 @@ sign_repositories () {
         echo "Signing $repo ($version / $arch) repository"
         gpg -a --detach-sign $tftpdir/repodata/repomd.xml
         gpg -a --export > $tftpdir/repodata/repomd.xml.key
+        rpmkeys --import $tftpdir/repodata/repomd.xml.key
         else
         echo "$repo ($version / $arch) repository is already signed"
         fi
