@@ -4,9 +4,6 @@ ruby:
 haml:
   config_file: .hound.haml.yml
 
-javascript:
-  config_file: .hound.js.json
-
 scss:
   config_file: .hound.scss.yml
 
