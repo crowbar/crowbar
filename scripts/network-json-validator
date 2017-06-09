@@ -311,11 +311,6 @@ end
 
 
 def validate_basic_attributes databag
-  mode = databag['attributes']['network']['mode']
-  if not ['single', 'dual', 'team'].include?(mode)
-    raise "Invalid mode '#{mode}': must be one of 'single', 'dual', 'team'"
-  end
-
   teaming_mode = databag['attributes']['network']['teaming']['mode']
   if not Range.new(0, 6).include?(teaming_mode)
     raise "Invalid teaming mode '#{teaming_mode}': must be a value between 0 and 6, see https://www.kernel.org/doc/Documentation/networking/bonding.txt"
