@@ -50,17 +50,17 @@ namespace :crowbar do
     ).flatten.compact.uniq
   end
 
-  desc "Init all barclamps"
+  desc "Initialize all barclamps (:fork, :clone, :add_upstream, :add_susecloud)"
   task init: [:fork, :clone, :add_upstream, :add_susecloud] do
     # nothing to do here
   end
 
-  desc "Update all clones"
+  desc "Update all clones (:pull_upstream)"
   task update: [:pull_upstream] do
     # nothing to do here
   end
 
-  desc "Forks all required barclamps to your home project"
+  desc "Forks all required barclamps to your home project on GitHub"
   task fork: [:configure] do
     client = Octokit::Client.new(netrc: true)
 
@@ -99,7 +99,7 @@ namespace :crowbar do
     end
   end
 
-  desc "Add upstream remote to the crowbar organisation"
+  desc "Add upstream remote to git:crowbar/crowbar"
   task add_upstream: [:configure] do
     client = Octokit::Client.new(netrc: true)
 
@@ -124,7 +124,7 @@ namespace :crowbar do
     end
   end
 
-  desc "Add upstream remote to the SUSE-Cloud organisation"
+  desc "Add suse-cloud remote to git:SUSE-Cloud/crowbar"
   task add_susecloud: [:configure] do
     client = Octokit::Client.new(netrc: true)
 
@@ -149,7 +149,7 @@ namespace :crowbar do
     end
   end
 
-  desc "Update remotes repositories"
+  desc "Fetch from remote repositories"
   task update_remotes: [:configure] do
     @barclamps.each do |barclamp|
       barclamp_dir = File.join("barclamps", barclamp.gsub(/\Acrowbar-/, ""))
