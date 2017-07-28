@@ -103,7 +103,7 @@ if ! suse_ver 12; then
 else
     if [ "$BOOTDEV" != "eth0" ]; then
         mv /etc/sysconfig/network/ifcfg-eth0 /etc/sysconfig/network/ifcfg-$BOOTDEV
-        ifup $BOOTDEV
+        wicked ifup --timeout ${WAIT_FOR_INTERFACES:-60} $BOOTDEV
     fi
 fi
 
