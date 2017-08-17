@@ -103,7 +103,7 @@ if ! suse_ver 12; then
 else
     if [ "$BOOTDEV" != "eth0" ]; then
         mv /etc/sysconfig/network/ifcfg-eth0 /etc/sysconfig/network/ifcfg-$BOOTDEV
-        ifup $BOOTDEV
+        wicked ifup --timeout ${WAIT_FOR_INTERFACES:-120} $BOOTDEV
     fi
 fi
 
@@ -115,7 +115,7 @@ MYIP="${BASH_REMATCH[1]}"
 
 if suse_ver 12; then
     [ -f /etc/sysconfig/network/config ] && source /etc/sysconfig/network/config
-    WAIT_FOR_INTERFACES=${WAIT_FOR_INTERFACES:-60}
+    WAIT_FOR_INTERFACES=${WAIT_FOR_INTERFACES:-120}
     /usr/lib/wicked/bin/wickedd-dhcp4 --test --test-output /tmp/wicked-dhcp-$BOOTDEV --test-timeout $WAIT_FOR_INTERFACES $BOOTDEV
     source /tmp/wicked-dhcp-$BOOTDEV
     ADMIN_IP=$SERVERID
