@@ -65,7 +65,7 @@ upgrade_admin_server()
         exit 1
     fi
 
-    if [[ -f $UPGRADEDIR/admin-server-upgraded-ok ]] && grep -q "12.2" $UPGRADEDIR/admin-server-upgraded-ok ; then
+    if [[ -f $UPGRADEDIR/admin-server-upgraded-ok ]] && grep -q "12.4" $UPGRADEDIR/admin-server-upgraded-ok ; then
         echo "Exit: Admin server already upgraded"
         exit 0
     fi
@@ -89,17 +89,17 @@ upgrade_admin_server()
 
     # Update the OS values for admin node
     knife exec -E "n = nodes.find(:roles => 'provisioner-server').first
-n.target_platform = 'suse-12.2'
-n.provisioner.default_os = 'suse-12.2'
+n.target_platform = 'suse-12.4'
+n.provisioner.default_os = 'suse-12.4'
 n.save"
 
     ret=$?
     if [ $ret != 0 ]; then
-        report_failure $ret "Setting the platform to suse-12.2 has failed."
+        report_failure $ret "Setting the platform to suse-12.4 has failed."
     fi
 
     # Upgrade the distribution non-interactively
-    zypper --no-color --releasever 12.2 ref -f
+    zypper --no-color --releasever 12.4 ref -f
     zypper --no-color --non-interactive dist-upgrade -l --recommends --replacefiles
     ret=$?
     if [ $ret != 0 ]; then
@@ -109,7 +109,7 @@ n.save"
     fi
 
     # Signalize that the upgrade correctly ended
-    echo "12.2" >> $UPGRADEDIR/admin-server-upgraded-ok
+    echo "12.4" >> $UPGRADEDIR/admin-server-upgraded-ok
 
     # Make sure to do schema migration properly after packages were upgraded
     pushd /opt/dell/crowbar_framework
