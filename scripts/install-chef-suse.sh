@@ -661,6 +661,16 @@ if [ ! -f /etc/rabbitmq/rabbitmq.config ] ; then
 EOF
 fi
 
+# Tell system-widde epmd to listen on right address (new rabbitmq-server
+# packages use this epmd service)
+mkdir -p /etc/systemd/system/epmd.socket.d
+cat << EOF > /etc/systemd/system/epmd.socket.d/port.conf
+[Socket]
+ListenStream=$IPv4_addr:4369
+FreeBind=true
+EOF
+systemctl daemon-reload
+
 chkconfig rabbitmq-server on
 ensure_service_running rabbitmq-server
 
