@@ -1176,7 +1176,7 @@ touch $crowbar_install_dir/crowbar-installed-ok
 rm -f $crowbar_install_dir/crowbar_installing
 
 # activate provisioner repos
-curl -X POST http://localhost:3000/utils/repositories/activate_all.json
+crowbarctl repository activate-all
 
 kill_spinner
 
