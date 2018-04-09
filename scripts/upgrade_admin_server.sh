@@ -113,6 +113,20 @@ n.save"
     # Signalize that the upgrade correctly ended
     echo "12.3" >> $UPGRADEDIR/admin-server-upgraded-ok
 
+    # epmd needs to listen on all interfaces for rabbit to be able to ask for a port
+    # this file will get overwritten by the crowbar cookbook afterwards to listen only in the
+    # listen address of rabbit
+    mkdir -p /etc/systemd/system/epmd.socket.d/
+    touch /etc/systemd/system/epmd.socket.d/ports.conf
+    cat >/etc/systemd/system/epmd.socket.d/ports.conf <<EOF
+[Socket]
+# unset all ports defined in the global file, in our case this is 127.0.0.1:4369
+ListenStream=
+# add our new ports
+ListenStream=[::]:4369
+FreeBind=true
+EOF
+
     # On Cloud7, crowbar-init bootstraps crowbar
     systemctl disable crowbar
     systemctl enable crowbar-init
