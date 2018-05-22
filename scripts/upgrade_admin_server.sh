@@ -78,14 +78,6 @@ upgrade_admin_server()
 
     trap cleanup INT EXIT
 
-    # we will need the dump for later migrating it into postgresql
-    pushd /opt/dell/crowbar_framework
-    sudo -u crowbar RAILS_ENV=production bin/rake db:migrate
-    cp -a db/schema.rb /var/lib/crowbar/upgrade
-    sudo -u crowbar RAILS_ENV=production bin/rake db:dump
-    cp -a db/data.yml /var/lib/crowbar/upgrade
-    popd
-
     ### Chef-client could lockj zypper and break upgrade
     rcchef-client stop
 
