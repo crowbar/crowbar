@@ -119,6 +119,11 @@ ListenStream=[::]:4369
 FreeBind=true
 EOF
 
+    # Make sure to do schema migration properly after packages were upgraded
+    pushd /opt/dell/crowbar_framework
+    sudo -u crowbar RAILS_ENV=production bin/rake crowbar:schema_migrate_prod
+    popd
+
     # cleanup upgrading indication
     # technically the upgrade is not done yet but it has to be
     # done before the reboot
