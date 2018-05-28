@@ -72,6 +72,12 @@ upgrade_admin_server()
 
     trap cleanup INT EXIT
 
+    # Lock crowbar-ui package until upgrade is finished.
+    # During N->N+1 upgrade, version from N will handle whole upgrade process.
+    # With this lock, older version of crowbar-ui package will be kept while
+    # the rest of packages are upgraded.
+    zypper addlock 'crowbar-ui*'
+
     # we will need the dump for later migrating it into postgresql
     pushd /opt/dell/crowbar_framework
     sudo -u crowbar RAILS_ENV=production bin/rake db:migrate
