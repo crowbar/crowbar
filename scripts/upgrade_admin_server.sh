@@ -78,14 +78,6 @@ upgrade_admin_server()
 
     trap cleanup INT EXIT
 
-    # we will need the dump for later migrating it into postgresql
-    pushd /opt/dell/crowbar_framework
-    sudo -u crowbar RAILS_ENV=production bin/rake db:migrate
-    cp -a db/schema.rb /var/lib/crowbar/upgrade
-    sudo -u crowbar RAILS_ENV=production bin/rake db:dump
-    cp -a db/data.yml /var/lib/crowbar/upgrade
-    popd
-
     ### Chef-client could lockj zypper and break upgrade
     rcchef-client stop
 
@@ -113,14 +105,10 @@ n.save"
     # Signalize that the upgrade correctly ended
     echo "12.2" >> $UPGRADEDIR/admin-server-upgraded-ok
 
-    # On Cloud7, crowbar-init bootstraps crowbar
-    systemctl disable crowbar
-    systemctl enable crowbar-init
-
-    # remove old (chef-created) crowbar systemd unit file, the file
-    # is part of the package now and installed in /usr/lib/systemd/
-    rm -f /etc/systemd/system/crowbar.service
-    systemctl daemon-reload
+    # Make sure to do schema migration properly after packages were upgraded
+    pushd /opt/dell/crowbar_framework
+    sudo -u crowbar RAILS_ENV=production bin/rake crowbar:schema_migrate_prod
+    popd
 
     # cleanup upgrading indication
     # technically the upgrade is not done yet but it has to be
