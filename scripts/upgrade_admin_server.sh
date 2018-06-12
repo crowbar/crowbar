@@ -78,6 +78,12 @@ upgrade_admin_server()
 
     trap cleanup INT EXIT
 
+    # Lock crowbar-ui package until upgrade is finished.
+    # During N->N+1 upgrade, version from N will handle whole upgrade process.
+    # With this lock, older version of crowbar-ui package will be kept while
+    # the rest of packages are upgraded.
+    zypper addlock 'crowbar-ui*'
+
     ### Chef-client could lockj zypper and break upgrade
     rcchef-client stop
 
