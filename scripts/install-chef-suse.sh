@@ -520,8 +520,8 @@ else
 fi
 
 for arch in $product_arches; do
-    # Checks for SLE12 SP3 media
-    MEDIA=/srv/tftpboot/suse-12.3/$arch/install
+    # Checks for SLE12 SP4 media
+    MEDIA=/srv/tftpboot/suse-12.4/$arch/install
 
     # Only x86_64 is truly mandatory; other architectures are only checked
     # if they exist
@@ -535,28 +535,28 @@ for arch in $product_arches; do
         echo "Detected SUSE OpenStack Cloud Deps media."
     else
 
-        sp3mediasum="59280f20e0bee15615b598a3ea3f027e"
+        sp4mediasum="59280f20e0bee15615b598a3ea3f027e"
         case "$arch" in
             aarch64)
-                sp3mediasum="e61256a60b311beecdd70bb116670a62"
+                sp4mediasum="e61256a60b311beecdd70bb116670a62"
                 ;;
             s390x)
-                sp3mediasum="c8f4a977a48ffcb7a0aa4d11ca235337"
+                sp4mediasum="c8f4a977a48ffcb7a0aa4d11ca235337"
                 ;;
         esac
 
         # FIXME: Do not check the sum until the media is final
-        sp3mediasum=""
+        sp4mediasum=""
 
         check_media_content \
-            SLES12-SP3 \
+            SLES12-SP4 \
             $MEDIA \
-            $sp3mediasum
+            $sp4mediasum
 
         if [ ! is_ses -a $arch == "x86_64" ]; then
             check_media_content \
                 Cloud \
-                /srv/tftpboot/suse-12.3/$arch/repos/Cloud \
+                /srv/tftpboot/suse-12.4/$arch/repos/Cloud \
                 #1558be86e7354d31e71e7c8c2574031a
         fi
     fi
@@ -576,12 +576,12 @@ fi
 
 
 for arch in $supported_arches; do
+    check_or_create_ptf_repository 12.4 $arch PTF
     check_or_create_ptf_repository 12.3 $arch PTF
-    check_or_create_ptf_repository 12.2 $arch PTF
 
     # Currently we only sign the PTF repository
+    sign_repositories 12.4 $arch PTF
     sign_repositories 12.3 $arch PTF
-    sign_repositories 12.2 $arch PTF
 done
 
 # Setup helper for git
@@ -605,11 +605,11 @@ if [ -n "$CROWBAR_FROM_GIT" ]; then
     #        Additional work (e.g. on the autoyast profile) is required to make
     #        those repos available to any client nodes.
     if [ $CROWBAR_FROM_GIT = "ibs" ]; then
-        add_ibs_repo http://dist.suse.de/install/SLP/SLE-12-SP3-Server-LATEST/x86_64/DVD1/ sle12sp3
-        add_ibs_repo http://euklid.suse.de/mirror/SuSE/build.suse.de/SUSE/Updates/SLE-SERVER/12-SP3/x86_64/update/ sle12sp3-update
-        add_ibs_repo http://dist.suse.de/install/SLP/SLE-12-SP3-SDK-LATEST/x86_64/DVD1/ sle12sp3-sdk
-        add_ibs_repo http://euklid.suse.de/mirror/SuSE/build.suse.de/SUSE/Updates/SLE-SDK/12-SP3/x86_64/update/ sle12sp3-sdk-update
-        add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud:/8/SLE_12_SP3/ cloud
+        add_ibs_repo http://dist.suse.de/install/SLP/SLE-12-SP4-Server-LATEST/x86_64/DVD1/ sle12sp4
+        add_ibs_repo http://euklid.suse.de/mirror/SuSE/build.suse.de/SUSE/Updates/SLE-SERVER/12-SP4/x86_64/update/ sle12sp4-update
+        add_ibs_repo http://dist.suse.de/install/SLP/SLE-12-SP4-SDK-LATEST/x86_64/DVD1/ sle12sp4-sdk
+        add_ibs_repo http://euklid.suse.de/mirror/SuSE/build.suse.de/SUSE/Updates/SLE-SDK/12-SP4/x86_64/update/ sle12sp4-sdk-update
+        add_ibs_repo http://dist.suse.de/ibs/Devel:/Cloud:/9/SLE_12_SP4/ cloud
     fi
 
     # install chef and its dependencies
