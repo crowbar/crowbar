@@ -577,11 +577,9 @@ fi
 
 for arch in $supported_arches; do
     check_or_create_ptf_repository 12.4 $arch PTF
-    check_or_create_ptf_repository 12.3 $arch PTF
 
     # Currently we only sign the PTF repository
     sign_repositories 12.4 $arch PTF
-    sign_repositories 12.3 $arch PTF
 done
 
 # Setup helper for git
