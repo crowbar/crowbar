@@ -638,9 +638,28 @@ set_step "pre_sanity_checks"
 
 echo_summary "Starting required services"
 
-# Add frame_max setting as environment variable, because it's just a workaround
+# Configure frame_max and channel_max to 0 (unlimited) as a workaround to the
+# problem where certain older versions of ampq is always sending them as 0
+# to the server, which causes the server to drop the connection immediately
+# because by default the max allowed values for channel_max and frame_max are
+# 2047 and 131072 respectively on the server side. See
+#
+# https://www.rabbitmq.com/configure.html
+# https://github.com/ruby-amqp/amqp/blob/0.6.8/lib/amqp/client.rb#L27
+#
 if [ $(rpm -q --qf "%{version}" rubygem-chef | cut -d . -f 1) -ne 10 ]; then
-    die "Please remove the frame_max setting in rabbitmq."
+    die "Please remove the frame_max and channel_max setting in rabbitmq."
+fi
+
+if test -f /etc/rabbitmq/rabbitmq-env.conf && \
+    grep -q ^SERVER_START_ARGS= /etc/rabbitmq/rabbitmq-env.conf && \
+    ! grep -q '^SERVER_START_ARGS=.*-rabbit frame_max 0 channel_max 0' /etc/rabbitmq/rabbitmq-env.conf; then
+    die "SERVER_START_ARGS already defined in /etc/rabbitmq/rabbitmq-env.conf, without \"-rabbit frame_max 0 channel_max 0\""
+elif ! ( test -f /etc/rabbitmq/rabbitmq-env.conf && \
+    grep -q ^SERVER_START_ARGS= /etc/rabbitmq/rabbitmq-env.conf ); then
+    echo '# Workaround for bunny version required by chef not supporting frames and channels' >> /etc/rabbitmq/rabbitmq-env.conf
+    echo '# https://bugzilla.suse.com/show_bug.cgi?id=910815' >> /etc/rabbitmq/rabbitmq-env.conf
+    echo 'SERVER_START_ARGS="-rabbit frame_max 0 channel_max 0"' >> /etc/rabbitmq/rabbitmq-env.conf
 fi
 
 if test -f /etc/rabbitmq/rabbitmq-env.conf && \
