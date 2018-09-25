@@ -114,7 +114,7 @@ is_ses () {
 }
 
 
-DIALOG_TITLE=" SUSE OpenStack Cloud 8 "
+DIALOG_TITLE=" SUSE OpenStack Cloud 9 "
 
 if is_ses; then
     DIALOG_TITLE=" SUSE Enterprise Storage "
