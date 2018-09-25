@@ -109,16 +109,7 @@ mkdir -p "`dirname "$LOGFILE"`"
 
 run_succeeded=
 
-is_ses () {
-    [ -d /opt/dell/barclamps/ses ]
-}
-
-
 DIALOG_TITLE=" SUSE OpenStack Cloud 9 "
-
-if is_ses; then
-    DIALOG_TITLE=" SUSE Enterprise Storage "
-fi
 
 # Infrastructure for nice output/logging
 # --------------------------------------
@@ -511,15 +502,8 @@ fi
 
 #supported_arches="x86_64 ppc64le"
 supported_arches="aarch64 x86_64 s390x"
-supported_arches_ses="aarch64 x86_64"
 
-if is_ses; then
-    product_arches="$supported_arches_ses"
-else
-    product_arches="$supported_arches"
-fi
-
-for arch in $product_arches; do
+for arch in $supported_arches; do
     # Checks for SLE12 SP4 media
     MEDIA=/srv/tftpboot/suse-12.4/$arch/install
 
@@ -553,7 +537,7 @@ for arch in $product_arches; do
             $MEDIA \
             $sp4mediasum
 
-        if [ ! is_ses -a $arch == "x86_64" ]; then
+        if [ $arch == "x86_64" ]; then
             check_media_content \
                 Cloud \
                 /srv/tftpboot/suse-12.4/$arch/repos/Cloud \
@@ -565,10 +549,6 @@ done
 if [ -z "$CROWBAR_FROM_GIT" ]; then
     pattern=patterns-cloud-admin
     pattern_short=cloud_admin
-    if is_ses; then
-        pattern=patterns-ses-admin
-        pattern_short=ses_admin
-    fi
     if ! rpm -q --whatprovides $pattern &> /dev/null; then
         die "$pattern package is not installed; please install with \"zypper in -t pattern $pattern_short\" or \"zypper in $pattern\". Aborting."
     fi
@@ -775,12 +755,7 @@ for i in $BARCLAMP_SRC/*; do
     fi
 done
 
-required_components="core"
-if is_ses ; then
-    required_components+=" ses ceph"
-else
-    required_components+=" openstack ha ceph"
-fi
+required_components="core openstack ha ceph"
 # Install optional components if they're present
 if test -d $BARCLAMP_SRC/hyperv; then
     required_components+=" hyperv"
@@ -962,12 +937,6 @@ for bc in crowbar dns network provisioner ntp; do
             --raw -v "[ \"$json_to_merge\" ]"
     fi
 done
-
-if is_ses; then
-    $json_edit "$CROWBAR_JSON" \
-        -a attributes.crowbar.realm \
-        -v 'SUSE Enterprise Storage Crowbar Admin Server'
-fi
 
 mkdir -p /opt/dell/crowbar_framework
 CROWBAR_REALM=$(json_read "$CROWBAR_JSON" attributes.crowbar.realm)
