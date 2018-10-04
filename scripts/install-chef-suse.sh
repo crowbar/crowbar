@@ -755,7 +755,7 @@ for i in $BARCLAMP_SRC/*; do
     fi
 done
 
-required_components="core openstack ha ceph"
+required_components="core openstack ha"
 
 /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $required_components
 
