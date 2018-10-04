@@ -756,10 +756,6 @@ for i in $BARCLAMP_SRC/*; do
 done
 
 required_components="core openstack ha ceph"
-# Install optional components if they're present
-if test -d $BARCLAMP_SRC/hyperv; then
-    required_components+=" hyperv"
-fi
 
 /opt/dell/bin/barclamp_install.rb $BARCLAMP_INSTALL_OPTS $required_components
 
