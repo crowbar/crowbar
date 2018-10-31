@@ -349,9 +349,18 @@ reset_crowbar
 FQDN=$(hostname -f 2>/dev/null);
 DOMAIN=$(hostname -d 2>/dev/null);
 IPv4_addr=$( getent ahosts $FQDN 2>/dev/null | awk '{ if ($1 !~ /:/) { print $1; exit } }' )
+IPv6_addr=$( getent ahosts $FQDN 2>/dev/null | awk '{ if ($1 ~ /:/) { print $1; exit } }' )
 # Set no_proxy for localhost, the FQDN and the hostname, so chef will not use
 # the proxy for them.
-export no_proxy="$no_proxy,localhost,$FQDN,$IPv4_addr"
+export no_proxy="$no_proxy,localhost,$FQDN,$IPv4_addr,$IPv6_addr"
+
+if [ -n "$IPv4_addr" ]; then
+    IP_addr=$IPv4_addr
+    IP_addr_wrapped=$IPv4_addr
+elif [ -n "$IPv6_addr" ]; then
+    IP_addr=$IPv6_addr
+    IP_addr_wrapped="[$IPv6_addr]"
+fi
 
 # Sanity checks
 # -------------
@@ -394,7 +403,7 @@ elif [ -n "$CROWBAR_FROM_GIT" -a -f /root/crowbar/provisioner.json ]; then
     PROVISIONER_JSON=/root/crowbar/provisioner.json
 fi
 
-if [ -n "$IPv4_addr" ]; then
+if [ -n "$IP_addr" ]; then
     if [ -f /etc/crowbar/network.json ]; then
         NETWORK_JSON=/etc/crowbar/network.json
     elif [ -n "$CROWBAR_FROM_GIT" ]; then
@@ -405,7 +414,7 @@ if [ -n "$IPv4_addr" ]; then
     # allow using old json files # TODO: drop in 2017
     sed -i -e 's/bc-template-network/template-network/' $NETWORK_JSON
 
-    if ! /opt/dell/bin/network-json-validator --admin-ip "$IPv4_addr" $NETWORK_JSON; then
+    if ! /opt/dell/bin/network-json-validator --admin-ip "$IP_addr" $NETWORK_JSON; then
         die "Failed to validate network.json configuration. Please check and fix with yast2 crowbar. Aborting."
     fi
 fi
@@ -650,7 +659,7 @@ fi
 mkdir -p /etc/systemd/system/epmd.socket.d
 cat << EOF > /etc/systemd/system/epmd.socket.d/port.conf
 [Socket]
-ListenStream=$IPv4_addr:4369
+ListenStream=$IP_addr_wrapped:4369
 FreeBind=true
 EOF
 systemctl daemon-reload
@@ -665,6 +674,12 @@ ensure_service_running couchdb
 sed -i 's/log_level  *:.*/log_level :warn/' /etc/chef/server.rb
 # increase chef-solr index field size
 perl -i -pe 's{<maxFieldLength>.*</maxFieldLength>}{<maxFieldLength>200000</maxFieldLength>}' /var/lib/chef/solr/conf/solrconfig.xml
+
+if [ -n "$IPv6_addr" ]; then
+    cat << EOF > /etc/sysconfig/chef-server
+OPTIONS="-h ::"
+EOF
+fi
 
 services='solr expander server'
 for service in $services; do
@@ -724,7 +739,7 @@ knife node -y bulk delete ".*"
 knife role -y bulk delete ".*"
 
 cat > /etc/chef/client.rb <<EOF
-chef_server_url 'http://$IPv4_addr:4000'
+chef_server_url 'http://$IP_addr_wrapped:4000'
 enable_reporting false
 EOF
 
@@ -1088,6 +1103,8 @@ echo_summary "Performing post-installation sanity checks"
 # Spit out a warning message if we managed to not get an IP address
 IP=$($CROWBAR network proposal show default | \
     json_read - attributes.network.networks.admin.ranges.admin.start)
+# Sanitize the IP as it may be IPv6 and using v6 addresss shortcuts differently
+IP=$(ruby -e "require 'ipaddr'; puts IPAddr.new('$IP').to_s")
 ip addr | grep -q "$IP" || {
     die "eth0 not configured, but should have been."
 }
@@ -1100,11 +1117,15 @@ if [ -n "$CROWBAR_RUN_TESTS" ]; then
         die "Crowbar validation has errors! Please check the logs and correct."
 fi
 
-for s in dhcpd apache2 ; do
-    if ! service $s status > /dev/null ; then
-        die "service $s missing"
-    fi
-done
+# check that either dhcpd or dhcpd6 is running
+if ! (service dhcpd status > /dev/null || service dhcpd6 status > /dev/null) ; then
+    die "service dhcpd or dhcpd6 missing"
+fi
+
+
+if ! service apache2 status > /dev/null ; then
+    die "service apache2 missing"
+fi
 
 set_step "post_sanity_checks"
 
@@ -1120,6 +1141,10 @@ rm -f $crowbar_install_dir/crowbar_installing
 crowbarctl repository activate-all
 
 kill_spinner
+
+if [ $(ruby -e "require 'ipaddr'; puts IPAddr.new('$IP').ipv6?") == "true" ]; then
+    IP="[$IP]"
+fi
 
 cat <<EOF | pipe_show_and_log
 

@@ -207,8 +207,13 @@ class CrowbarNetwork
     @conduit = json['conduit']
 
     @subnet_addr = IPAddr.new(@subnet)
+    cidr_to_netmask
     @netmask_addr = IPAddr.new(@netmask)
-    @broadcast_addr = IPAddr.new(@broadcast)
+    if @subnet_addr.ipv4?
+        @broadcast_addr = IPAddr.new(@broadcast)
+    else
+        @broadcast_addr = nil
+    end
     @router_addr = nil
     @router_addr = IPAddr.new(@router) unless @router.nil?
 
@@ -229,6 +234,27 @@ class CrowbarNetwork
     end
   end
 
+  def cidr_to_netmask
+    if @subnet_addr.ipv6?
+      range = 128
+    else
+      range = 32
+    end
+
+    cidr = Integer(@netmask) rescue nil
+    if cidr && !(1..range).cover?(cidr)
+      raise "invalid CIDR netmask '#{cidr}' > '#{range}'"
+    end
+
+    if cidr
+      if @subnet_addr.ipv6?
+        @netmask = IPAddr.new('ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff').mask(cidr).to_s
+      else
+        @netmask = IPAddr.new('255.255.255.255').mask(cidr).to_s
+      end
+    end
+  end
+
   def validate
     netmask_bits = @netmask_addr.to_i.to_s(2).count("1")
 
@@ -245,8 +271,10 @@ class CrowbarNetwork
       raise "invalid subnet '#{@subnet}' for netmask '#{@netmask}'"
     end
 
-    if @broadcast_addr != @subnet_addr|~@netmask_addr
-      raise "invalid broadcast '#{@broadcast}' for subnet '#{@subnet}/#{@netmask}' (should be '#{(@subnet_addr|~@netmask_addr).to_s}')"
+    if @subnet_addr.ipv4?
+      if @broadcast_addr != @subnet_addr|~@netmask_addr
+        raise "invalid broadcast '#{@broadcast}' for subnet '#{@subnet}/#{@netmask}' (should be '#{(@subnet_addr|~@netmask_addr).to_s}')"
+      end
     end
 
     unless @router.nil?
@@ -434,7 +462,7 @@ def validate_networks databag
 
   @networks.each do |namea, neta|
     @networks.each do |nameb, netb|
-      unless namea == nameb
+      unless namea == nameb || neta.subnet_addr.ipv6? || netb.subnet_addr.ipv6?
         no_conflicting_ranges(neta, netb)
       end
     end
