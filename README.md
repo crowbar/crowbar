@@ -1,5 +1,7 @@
 # Crowbar Documentation README
 
+[![Reviewed by Hound](https://img.shields.io/badge/Reviewed_by-Hound-8E64B0.svg)](https://houndci.com)
+
 _This is not the documentation you are looking for... it is a pointer to the real documentation._
 
 ## Looking for Crowbar Resources?
