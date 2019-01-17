@@ -100,16 +100,18 @@ n.save"
 
     # Upgrade the distribution non-interactively
     zypper --no-color --releasever 12.3 ref -f
-    zypper --no-color --non-interactive dist-upgrade -l --recommends --replacefiles
-    ret=$?
-    if [ $ret != 0 ]; then
-        # In the failed case, crowbar should tell user to check zypper logs,
-        # fix the errors and continue admin server manually
-        report_failure $ret "zypper dist-upgrade has failed with $ret, check zypper logs"
-    fi
 
-    # Signalize that the upgrade correctly ended
-    echo "12.3" >> $UPGRADEDIR/admin-server-upgraded-ok
+    # Make sure to upgrade epmd and rabbitmq in the right order and make sure
+    # they are stopped (also in the right order)
+    systemctl stop rabbitmq-server
+    systemctl stop couchdb
+    systemctl stop epmd.socket
+    systemctl stop epmd.service
+    killall epmd
+    sleep 5
+
+    zypper --no-color --non-interactive up erlang
+    zypper --no-color --non-interactive up rabbitmq-server
 
     # epmd needs to listen on all interfaces for rabbit to be able to ask for a port
     # this file will get overwritten by the crowbar cookbook afterwards to listen only in the
@@ -124,6 +126,22 @@ ListenStream=
 ListenStream=[::]:4369
 FreeBind=true
 EOF
+
+    # make systemd read our temporary config and start the services in the right order
+    systemctl daemon-reload
+    systemctl start rabbitmq-server
+    systemctl start couchdb
+
+    zypper --no-color --non-interactive dist-upgrade -l --recommends --replacefiles
+    ret=$?
+    if [ $ret != 0 ]; then
+        # In the failed case, crowbar should tell user to check zypper logs,
+        # fix the errors and continue admin server manually
+        report_failure $ret "zypper dist-upgrade has failed with $ret, check zypper logs"
+    fi
+
+    # Signalize that the upgrade correctly ended
+    echo "12.3" >> $UPGRADEDIR/admin-server-upgraded-ok
 
     # Make sure to do schema migration properly after packages were upgraded
     pushd /opt/dell/crowbar_framework
