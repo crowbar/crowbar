@@ -100,6 +100,24 @@ n.save"
 
     # Upgrade the distribution non-interactively
     zypper --no-color --releasever 12.4 ref -f
+
+    # Make sure to upgrade epmd and rabbitmq in the right order and make sure
+    # they are stopped (also in the right order)
+    systemctl stop rabbitmq-server
+    systemctl stop couchdb
+    systemctl stop epmd.socket
+    systemctl stop epmd.service
+    killall epmd
+    sleep 5
+
+    zypper --no-color --non-interactive up erlang
+    zypper --no-color --non-interactive up rabbitmq-server
+
+    # make systemd read our temporary config and start the services in the right order
+    systemctl daemon-reload
+    systemctl start rabbitmq-server
+    systemctl start couchdb
+
     zypper --no-color --non-interactive dist-upgrade -l --recommends --replacefiles
     ret=$?
     if [ $ret != 0 ]; then
