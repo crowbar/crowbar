@@ -5,6 +5,8 @@ through all the steps neccessary to create a minimal (without UI elements)
 Barclamp for Crowbar. It will then guide you through all the testing, CI and
 review steps until the point where it gets merged into Crowbar.
 
+See also the [advanced development exercises](barclamp_development_exercises.md).
+
 ## What is a Barclamp?
 
 A barclamp is a plugin for Crowbar that configures a particular service or
