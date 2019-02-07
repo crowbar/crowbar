@@ -188,6 +188,7 @@ class CrowbarNetwork
   attr_reader :conduit
   attr_reader :vlan
   attr_reader :use_vlan
+  attr_reader :ip_version
 
   def initialize name, json
     @name = name
@@ -211,8 +212,10 @@ class CrowbarNetwork
     @netmask_addr = IPAddr.new(@netmask)
     if @subnet_addr.ipv4?
         @broadcast_addr = IPAddr.new(@broadcast)
+        @ip_version = "4"
     else
         @broadcast_addr = nil
+        @ip_version = "6"
     end
     @router_addr = nil
     @router_addr = IPAddr.new(@router) unless @router.nil?
@@ -431,14 +434,24 @@ def validate_networks databag
     end
   end
 
+  ip_versions = Hash.new(0)
   networks.each do |name, value|
     begin
       net = CrowbarNetwork.new(name, value)
+      ip_versions[net.ip_version] += 1
       net.validate
       @networks[name] = net
     rescue Exception => e
       raise "Cannot validate definition for network '#{name}': #{e.to_s}"
     end
+  end
+
+  if ip_versions.length > 1
+    ip_stats = ""
+    ip_versions.each do | version, count |
+      ip_stats += "IPv#{version}: #{count} "
+    end
+    raise "All networks must either be IPv4 or IPv6. A mix is not supported: #{ip_stats}"
   end
 
   if !@networks['public'].subnet_addr_full.include?(@networks['nova_floating'].subnet_addr_full) &&
