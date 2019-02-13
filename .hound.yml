@@ -7,4 +7,7 @@ haml:
 scss:
   config_file: .hound.scss.yml
 
+jshint:
+  config_file: .hound.jshint.yml
+
 fail_on_violations: true
