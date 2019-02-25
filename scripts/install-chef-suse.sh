@@ -887,8 +887,8 @@ $json_edit "$CROWBAR_JSON" \
 
 # Use existing SSH authorized keys
 if [ -f /root/.ssh/authorized_keys ]; then
-    # remove empty lines and change newline to \n
-    access_keys=$(sed "/^ *$/d" /root/.ssh/authorized_keys | sed "N;s/\n/\\n/g")
+    # remove empty lines and comments and change newline to \n
+    access_keys=$(sed "/^ *$/d;/^ *#/d" /root/.ssh/authorized_keys | sed "N;s/\n/\\n/g")
     provisioner_keys=$(json_read "$PROVISIONER_JSON" \
         attributes.provisioner.access_keys)
     if [ ! -f "$PROVISIONER_JSON" -o -z "$provisioner_keys" ]
