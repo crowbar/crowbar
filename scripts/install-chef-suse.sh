@@ -344,7 +344,21 @@ EOF
     exit 1
 fi
 
-reset_crowbar
+if ! (systemctl -q is-active crowbar-init.service && reset_crowbar ); then
+
+    cat <<EOF | pipe_show_and_log
+Aborting: Can not initialize Crowbar database
+
+Prior running the installation script, please execute at least
+
+  systemctl start crowbar-init.service
+  crowbarctl database create
+
+If you configured an external database,
+there might be an error connecting.
+EOF
+    exit 1
+fi
 
 FQDN=$(hostname -f 2>/dev/null);
 DOMAIN=$(hostname -d 2>/dev/null);
