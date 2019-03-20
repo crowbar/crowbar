@@ -344,19 +344,28 @@ EOF
     exit 1
 fi
 
-if ! (systemctl -q is-active crowbar-init.service && reset_crowbar ); then
-
-    cat <<EOF | pipe_show_and_log
+if ! (reset_crowbar 2> /dev/null); then
+    if systemctl --quiet is-active crowbar-init.service; then
+        cat <<EOF | pipe_show_and_log
 Aborting: Can not initialize Crowbar database
 
-Prior running the installation script, please execute at least
+Prior to running the installation script, please execute at least
+(c.f. Chapter 8 of the Deployment Guide):
 
   systemctl start crowbar-init.service
   crowbarctl database create
 
-If you configured an external database,
-there might be an error connecting.
+If you have configured an external database, there might be an error
+connecting.
 EOF
+    else
+        cat <<EOF | pipe_show_and_log
+Aborting: Cannot initialize Crowbar database
+
+If you have configured an external database, there might be an error
+connecting.
+EOF
+    fi
     exit 1
 fi
 
