@@ -53,10 +53,17 @@ if [[ $(cat /proc/cmdline) =~ $state_re ]] && [ ${BASH_REMATCH[1]} == discovery 
     fi
 fi
 
+# if the admin ip was passed on the cmdline grab it
+admin_ip_re='adminip=([^ ]+)'
+if [[ $(cat /proc/cmdline) =~ $admin_ip_re ]]; then
+    ADMIN_IP="${BASH_REMATCH[1]}"
+fi
+
 # Figure out where we PXE booted from.
 MAC=
 bootif_re='BOOTIF=([^ ]+)'
 ip_re='inet ([0-9.]+)/([0-9]+)'
+ip6_re='inet6 ([0-9a-f:]+)/([0-9]+)'
 if [[ $(cat /proc/cmdline) =~ $bootif_re ]]; then
     MAC="${BASH_REMATCH[1]//-/:}"
     MAC="${MAC#*:}"
@@ -107,28 +114,40 @@ else
     fi
 fi
 
+ip_version=4
 if ! [[ $(ip -4 -o addr show dev $BOOTDEV) =~ $ip_re ]]; then
-    echo "We did not get an address on $BOOTDEV"
-    echo "Things will end badly."
+    if [[ $(ip -6 -o addr show dev $BOOTDEV) =~ $ip6_re ]]; then
+        ip_version=6
+    else
+        echo "We did not get an address on $BOOTDEV"
+        echo "Things will end badly."
+    fi
 fi
 MYIP="${BASH_REMATCH[1]}"
 
 if suse_ver 12; then
     [ -f /etc/sysconfig/network/config ] && source /etc/sysconfig/network/config
     WAIT_FOR_INTERFACES=${WAIT_FOR_INTERFACES:-120}
-    /usr/lib/wicked/bin/wickedd-dhcp4 --test --test-output /tmp/wicked-dhcp-$BOOTDEV --test-timeout $WAIT_FOR_INTERFACES $BOOTDEV
+    /usr/lib/wicked/bin/wickedd-dhcp$ip_version --test --test-output /tmp/wicked-dhcp-$BOOTDEV --test-timeout $WAIT_FOR_INTERFACES $BOOTDEV
     source /tmp/wicked-dhcp-$BOOTDEV
-    ADMIN_IP=$SERVERID
+    if [ -z "$ADMIN_IP" ]; then
+        ADMIN_IP=$SERVERID
+    fi
     DOMAIN=$DNSDOMAIN
 else
-    ADMIN_IP=$(grep dhcp-server $DHCPDIR/dhclient*.leases | \
-        uniq | cut -d" " -f5 | cut -d";" -f1)
+    if [ -z "$ADMIN_IP" ]; then
+        ADMIN_IP=$(grep dhcp-server $DHCPDIR/dhclient*.leases | \
+            uniq | cut -d" " -f5 | cut -d";" -f1)
+    fi
     DOMAIN=$(grep "domain-name " $DHCPDIR/dhclient*.leases | \
         uniq | cut -d" " -f5 | cut -d";" -f1 | awk -F\" '{ print $2 }')
 fi
 HOSTNAME="d${MAC//:/-}.${DOMAIN}"
 
 sed -i -e "s/\(127\.0\.0\.1.*\)/127.0.0.1 $HOSTNAME ${HOSTNAME%%.*} localhost.localdomain localhost/" /etc/hosts
+if (( $ip_version == 6 )); then
+    sed -i -e "s/\(\:\:1.*\)/::1 $HOSTNAME ${HOSTNAME%%.*} localhost.localdomain localhost ipv6-localhost ipv6-loopback/" /etc/hosts
+fi
 if is_suse; then
     echo "$HOSTNAME" > /etc/HOSTNAME
 else
@@ -150,16 +169,20 @@ echo "*.* @@${ADMIN_IP}" >> /etc/rsyslog.conf
 service $RSYSLOGSERVICE restart
 
 # Sometimes at this point network is not up yet, wait for it
+ping="ping"
+if (( $ip_version == 6 )); then
+    ping="ping6"
+fi
 n=60
 echo "Waiting for admin server ($ADMIN_IP) to be reachable; will wait up to $n seconds..."
-while (( $n > 0 )) && ! ping -q -c 1 -w 1 $ADMIN_IP > /dev/null ; do
+while (( $n > 0 )) && ! $ping -q -c 1 -w 1 $ADMIN_IP > /dev/null ; do
     sleep 1
     let n--
 done
-(( $n > 0 )) || {
+if (( $n == 0 )); then
     echo "Admin server ($ADMIN_IP) not reachable."
     echo "Things will end badly."
-}
+fi
 
 # showmount needs a running rpcbind service
 service rpcbind start
@@ -168,7 +191,11 @@ service rpcbind start
 exports=$(showmount -e $ADMIN_IP --no-headers | cut -f1 -d " ")
 for d in $exports; do
     mkdir -p $d
-    mount -t nfs $ADMIN_IP:$d $d
+    if (( $ip_version == 6 )); then
+        mount -t nfs [$ADMIN_IP]:$d $d
+    else
+        mount -t nfs $ADMIN_IP:$d $d
+    fi
 done
 
 export MAC BOOTDEV ADMIN_IP DOMAIN HOSTNAME HOSTNAME_MAC MYIP
