@@ -1027,14 +1027,9 @@ if [ "$($CROWBAR crowbar proposal list)" != "default" ] ; then
     fi
 fi
 
-# this has machine key world readable? care?
-$CROWBAR crowbar proposal show default >/var/log/crowbar/default-proposal.json
-
 # next will fail if ntp barclamp not present (or did for me...)
 $CROWBAR crowbar proposal commit default || \
     die "Could not commit default proposal!"
-
-$CROWBAR crowbar proposal show default >/var/log/crowbar/default.json
 
 crowbar_up=true
 $chef_client
