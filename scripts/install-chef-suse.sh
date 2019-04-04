@@ -831,6 +831,7 @@ for service in dhcpd nfsserver; do
     service $service status &> /dev/null && service $service stop
 done
 test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
+test -f /etc/crowbarrc && rm /etc/crowbarrc
 test -f /opt/dell/crowbar_framework/htdigest && \
     rm /opt/dell/crowbar_framework/htdigest
 test -d /var/lib/crowbar/config && rm -f /var/lib/crowbar/config/*.json
@@ -852,8 +853,6 @@ for file in /etc/resolv.conf; do
         cp -a "$file" "/var/lib/crowbar/cache/$file"
     fi
 done
-
-CROWBAR=/opt/dell/bin/crowbar
 
 # Use custom configurations from /etc where they exist and are permitted.
 # These are treated as read-only and copied into /var/lib/crowbar/config
@@ -963,6 +962,14 @@ done
 
 mkdir -p /opt/dell/crowbar_framework
 CROWBAR_REALM=$(json_read "$CROWBAR_JSON" attributes.crowbar.realm)
+CROWBAR_USER=crowbar
+CROWBAR_PASSWORD=$(json_read "$CROWBAR_JSON" attributes.crowbar.users.$CROWBAR_USER.password)
+
+cat > /etc/crowbarrc <<EOF
+[default]
+username = $CROWBAR_USER
+password = $CROWBAR_PASSWORD
+EOF
 
 # Generate the machine install username and password.
 if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
@@ -972,7 +979,7 @@ if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
 fi
 
 if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
-    export CROWBAR_KEY=$(</etc/crowbar.install.key)
+    CROWBAR_KEY=$(</etc/crowbar.install.key)
     $json_edit "$CROWBAR_JSON" \
         -a attributes.crowbar.users.machine-install.password \
         -v "${CROWBAR_KEY##*:}"
@@ -1003,13 +1010,12 @@ wait_for_chef
 # From here, you should probably read along with the equivalent steps in
 # install-chef.sh for comparison
 
-if [ "$($CROWBAR crowbar proposal list)" != "default" ] ; then
-    proposal_opts=()
+if [ "$(crowbarctl proposal list crowbar --plain)" != "default" ] ; then
+    proposal_opts=
     # If your custom crowbar.json is somewhere else, probably substitute that here
     if [[ -e $CROWBAR_JSON ]]; then
-        proposal_opts+=(--file $CROWBAR_JSON)
+        proposal_opts="--file $CROWBAR_JSON"
     fi
-    proposal_opts+=(proposal create default)
 
     # Sometimes proposal creation fails if Chef and Crowbar are not quite
     # fully prepared -- this can happen due to solr not having everything
@@ -1017,7 +1023,7 @@ if [ "$($CROWBAR crowbar proposal list)" != "default" ] ; then
     # we fail to create a proposal -- instead, we will kick Chef, sleep a bit,
     # and try again up to 5 times before bailing out.
     for ((x=1; x<6; x++)); do
-        $CROWBAR crowbar "${proposal_opts[@]}" && { proposal_created=true; break; }
+        crowbarctl proposal create crowbar default $proposal_opts && { proposal_created=true; break; }
         echo "Proposal create failed, pass $x.  Will kick Chef and try again."
         $chef_client
         sleep 1
@@ -1028,7 +1034,7 @@ if [ "$($CROWBAR crowbar proposal list)" != "default" ] ; then
 fi
 
 # next will fail if ntp barclamp not present (or did for me...)
-$CROWBAR crowbar proposal commit default || \
+crowbarctl proposal commit crowbar default || \
     die "Could not commit default proposal!"
 
 crowbar_up=true
@@ -1063,7 +1069,7 @@ do
     flock /var/chef/cache/chef-client-running.pid true
 
     printf "$state: "
-    $CROWBAR crowbar transition "$FQDN" "$state" || \
+    crowbarctl node transition "$FQDN" "$state" || \
         die "Transition to $state failed!"
 
     if type -f "transition_check_$state"&>/dev/null; then
@@ -1108,7 +1114,7 @@ set_step "chef_client_daemon"
 echo_summary "Performing post-installation sanity checks"
 
 # Spit out a warning message if we managed to not get an IP address
-IP=$($CROWBAR network proposal show default | \
+IP=$(crowbarctl proposal show network default --json --raw | \
     json_read - attributes.network.networks.admin.ranges.admin.start)
 # Sanitize the IP as it may be IPv6 and using v6 addresss shortcuts differently
 IP=$(ruby -e "require 'ipaddr'; puts IPAddr.new('$IP').to_s")
