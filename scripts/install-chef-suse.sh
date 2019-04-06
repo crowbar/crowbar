@@ -961,7 +961,6 @@ for bc in crowbar dns network provisioner ntp; do
 done
 
 mkdir -p /opt/dell/crowbar_framework
-CROWBAR_REALM=$(json_read "$CROWBAR_JSON" attributes.crowbar.realm)
 CROWBAR_USER=crowbar
 CROWBAR_PASSWORD=$(json_read "$CROWBAR_JSON" attributes.crowbar.users.$CROWBAR_USER.password)
 
@@ -970,20 +969,6 @@ cat > /etc/crowbarrc <<EOF
 username = $CROWBAR_USER
 password = $CROWBAR_PASSWORD
 EOF
-
-# Generate the machine install username and password.
-if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
-    dd if=/dev/urandom bs=65536 count=1 2>/dev/null | \
-        sha512sum - 2>/dev/null | \
-        (read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
-fi
-
-if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
-    CROWBAR_KEY=$(</etc/crowbar.install.key)
-    $json_edit "$CROWBAR_JSON" \
-        -a attributes.crowbar.users.machine-install.password \
-        -v "${CROWBAR_KEY##*:}"
-fi
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /var/run/crowbar/deploying
