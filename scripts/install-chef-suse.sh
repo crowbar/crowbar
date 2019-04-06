@@ -831,7 +831,6 @@ for service in dhcpd nfsserver; do
     service $service status &> /dev/null && service $service stop
 done
 test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
-test -f /etc/crowbarrc && rm /etc/crowbarrc
 test -f /opt/dell/crowbar_framework/htdigest && \
     rm /opt/dell/crowbar_framework/htdigest
 test -d /var/lib/crowbar/config && rm -f /var/lib/crowbar/config/*.json
@@ -961,14 +960,6 @@ for bc in crowbar dns network provisioner ntp; do
 done
 
 mkdir -p /opt/dell/crowbar_framework
-CROWBAR_USER=crowbar
-CROWBAR_PASSWORD=$(json_read "$CROWBAR_JSON" attributes.crowbar.users.$CROWBAR_USER.password)
-
-cat > /etc/crowbarrc <<EOF
-[default]
-username = $CROWBAR_USER
-password = $CROWBAR_PASSWORD
-EOF
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /var/run/crowbar/deploying
