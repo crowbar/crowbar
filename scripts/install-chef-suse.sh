@@ -870,12 +870,10 @@ for bc in crowbar dns network provisioner ntp; do
     declare $json_var_name=$json_to_merge
 done
 
-# if crowbar user has been removed from crowbar.json, mark it as disabled (as it's still in main json)
-if test -z "`json_read "$CROWBAR_JSON" attributes.crowbar.users.crowbar`"; then
-    $json_edit "$CROWBAR_JSON" \
-        -a attributes.crowbar.users.crowbar.disabled \
-        --raw -v "true"
-fi
+# in case a user uses an old crowbar.json, remove the now deprecated users
+# attribute
+$json_edit "$CROWBAR_JSON" --remove -a attributes.crowbar.users
+
 # we don't use ganglia at all
 $json_edit "$CROWBAR_JSON" \
     -a attributes.crowbar.instances.ganglia \
