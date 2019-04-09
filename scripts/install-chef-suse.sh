@@ -793,6 +793,18 @@ set_step "barclamp_install"
 
 echo_summary "Bootstrapping Crowbar setup"
 
+# create /etc/crowbarrc with default credentials in case it's missing
+if [ ! -f /etc/crowbarrc ]; then
+    OLD_UMASK=$(umask)
+    umask 0077
+    cat > /etc/crowbarrc <<EOF
+[default]
+username = crowbar
+password = crowbar
+EOF
+    umask $OLD_UMASK
+fi
+
 echo "Create Admin node role"
 NODE_ROLE="crowbar-${FQDN//./_}"
 cat > "$CROWBAR_TMPDIR/role.rb" <<EOF
