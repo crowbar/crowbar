@@ -831,7 +831,6 @@ for service in dhcpd nfsserver; do
     service $service status &> /dev/null && service $service stop
 done
 test -f /etc/crowbar.install.key && rm /etc/crowbar.install.key
-test -f /etc/crowbarrc && rm /etc/crowbarrc
 test -f /opt/dell/crowbar_framework/htdigest && \
     rm /opt/dell/crowbar_framework/htdigest
 test -d /var/lib/crowbar/config && rm -f /var/lib/crowbar/config/*.json
@@ -871,12 +870,10 @@ for bc in crowbar dns network provisioner ntp; do
     declare $json_var_name=$json_to_merge
 done
 
-# if crowbar user has been removed from crowbar.json, mark it as disabled (as it's still in main json)
-if test -z "`json_read "$CROWBAR_JSON" attributes.crowbar.users.crowbar`"; then
-    $json_edit "$CROWBAR_JSON" \
-        -a attributes.crowbar.users.crowbar.disabled \
-        --raw -v "true"
-fi
+# in case a user uses an old crowbar.json, remove the now deprecated users
+# attribute
+$json_edit "$CROWBAR_JSON" --remove -a attributes.crowbar.users
+
 # we don't use ganglia at all
 $json_edit "$CROWBAR_JSON" \
     -a attributes.crowbar.instances.ganglia \
@@ -961,29 +958,6 @@ for bc in crowbar dns network provisioner ntp; do
 done
 
 mkdir -p /opt/dell/crowbar_framework
-CROWBAR_REALM=$(json_read "$CROWBAR_JSON" attributes.crowbar.realm)
-CROWBAR_USER=crowbar
-CROWBAR_PASSWORD=$(json_read "$CROWBAR_JSON" attributes.crowbar.users.$CROWBAR_USER.password)
-
-cat > /etc/crowbarrc <<EOF
-[default]
-username = $CROWBAR_USER
-password = $CROWBAR_PASSWORD
-EOF
-
-# Generate the machine install username and password.
-if [[ ! -e /etc/crowbar.install.key && $CROWBAR_REALM ]]; then
-    dd if=/dev/urandom bs=65536 count=1 2>/dev/null | \
-        sha512sum - 2>/dev/null | \
-        (read key rest; echo "machine-install:$key" >/etc/crowbar.install.key)
-fi
-
-if [[ $CROWBAR_REALM && -f /etc/crowbar.install.key ]]; then
-    CROWBAR_KEY=$(</etc/crowbar.install.key)
-    $json_edit "$CROWBAR_JSON" \
-        -a attributes.crowbar.users.machine-install.password \
-        -v "${CROWBAR_KEY##*:}"
-fi
 
 # Make sure looper_chef_client is a NOOP until we are finished deploying
 touch /var/run/crowbar/deploying
