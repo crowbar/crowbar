@@ -8,6 +8,6 @@ scss:
   config_file: .hound.scss.yml
 
 jshint:
-  config_file: .hound.jshint.yml
+  ignore_file: .jshint_ignore
 
 fail_on_violations: true
