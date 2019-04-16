@@ -551,18 +551,15 @@ for arch in $supported_arches; do
         echo "Detected SUSE OpenStack Cloud Deps media."
     else
 
-        sp4mediasum="59280f20e0bee15615b598a3ea3f027e"
+        sp4mediasum="6f9e8505cc2852d8a1c5e9b71a273acf"
         case "$arch" in
             aarch64)
-                sp4mediasum="e61256a60b311beecdd70bb116670a62"
+                sp4mediasum="799f76136121186f7ec6f0b40b55230d"
                 ;;
             s390x)
-                sp4mediasum="c8f4a977a48ffcb7a0aa4d11ca235337"
+                sp4mediasum="754d11333da81a610e3599061fe4e8d8"
                 ;;
         esac
-
-        # FIXME: Do not check the sum until the media is final
-        sp4mediasum=""
 
         check_media_content \
             SLES12-SP4 \
