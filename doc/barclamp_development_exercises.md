@@ -113,7 +113,7 @@ Add a schema migration in ``/opt/dell/chef/data_bags/migrate/keystone/``. The
 start with the new schema revision number that you incremented in the default
 data bag and should describe the migration action. For example, if the new
 revision number is 302, the schema migration should go in
-``/opt/dell/chef/data_bags/migrate/keystone/302_add_insecure_debug.rb``. The
+``/opt/dell/chef/data_bags/crowbar/migrate/keystone/302_add_insecure_debug.rb``. The
 upgrade migration needs to take the new parameter from the template attributes
 hash and add it to the attributes hash, and the downgrade needs to do the
 opposite. It will look something like this:
