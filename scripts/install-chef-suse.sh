@@ -344,7 +344,7 @@ EOF
     exit 1
 fi
 
-if ! (reset_crowbar 2> /dev/null); then
+if ! reset_crowbar; then
     if systemctl --quiet is-active crowbar-init.service; then
         cat <<EOF | pipe_show_and_log
 Aborting: Can not initialize Crowbar database
