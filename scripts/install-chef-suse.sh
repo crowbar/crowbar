@@ -875,6 +875,7 @@ for file in /etc/resolv.conf; do
 done
 
 CROWBAR=/opt/dell/bin/crowbar
+NETWORK_JSON_RESOLVE=/opt/dell/bin/network-json-resolve
 
 # Use custom configurations from /etc where they exist and are permitted.
 # These are treated as read-only and copied into /var/lib/crowbar/config
@@ -1068,6 +1069,27 @@ $CROWBAR crowbar proposal show default >/var/log/crowbar/default.json
 
 crowbar_up=true
 $chef_client
+
+# VLAN validation for bmc network if bmc_vlan conduit resolves 
+# to the same physical interface used for admin network.
+bmc_subnet=$($CROWBAR network proposal show default | \
+             json_read - attributes.network.networks.bmc.subnet)
+admin_subnet=$($CROWBAR network proposal show default | \
+               json_read - attributes.network.networks.admin.subnet)
+bmc_use_vlan=$($CROWBAR network proposal show default | \
+               json_read - attributes.network.networks.bmc.use_vlan)
+
+admin_subnet_if=$($NETWORK_JSON_RESOLVE networks admin admin)
+admin_subnet_if="${admin_subnet_if#*admin\:}"
+bmcvlan_subnet_if=$($NETWORK_JSON_RESOLVE networks admin bmc_vlan)
+bmcvlan_subnet_if="${bmcvlan_subnet_if#*bmc_vlan\:}"
+
+if [ $bmc_subnet != $admin_subnet ] &&
+   [ "$admin_subnet_if" = "$bmcvlan_subnet_if" ] &&
+   [ $bmc_use_vlan = "false" ]; then
+  die "'bmc' and admin network on the same interface: $admin_subnet_if.
+       'bmc' network must use a VLAN when it is not the same as the 'admin' network"
+fi
 
 # Need to make sure that we have the indexer/expander finished
 wait_for_chef

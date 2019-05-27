@@ -419,10 +419,6 @@ def validate_networks databag
   end
 
   if @networks['bmc'].subnet_addr_full != @networks['admin'].subnet_addr_full
-    if @networks['bmc'].vlan.nil?
-      raise "'bmc' network must use a VLAN when it is not the same as the 'admin' network"
-    end
-
     if @networks['bmc_vlan'].vlan != @networks['bmc'].vlan
       raise "'bmc_vlan' network must have the same VLAN configuration as 'bmc' network"
     end
