@@ -114,10 +114,10 @@ else
     fi
 fi
 
-ip_version=4
+IP_VERSION=4
 if ! [[ $(ip -4 -o addr show dev $BOOTDEV) =~ $ip_re ]]; then
     if [[ $(ip -6 -o addr show dev $BOOTDEV) =~ $ip6_re ]]; then
-        ip_version=6
+        IP_VERSION=6
     else
         echo "We did not get an address on $BOOTDEV"
         echo "Things will end badly."
@@ -128,12 +128,18 @@ MYIP="${BASH_REMATCH[1]}"
 if suse_ver 12; then
     [ -f /etc/sysconfig/network/config ] && source /etc/sysconfig/network/config
     WAIT_FOR_INTERFACES=${WAIT_FOR_INTERFACES:-120}
-    /usr/lib/wicked/bin/wickedd-dhcp$ip_version --test --test-output /tmp/wicked-dhcp-$BOOTDEV --test-timeout $WAIT_FOR_INTERFACES $BOOTDEV
+    /usr/lib/wicked/bin/wickedd-dhcp$IP_VERSION --test --test-output /tmp/wicked-dhcp-$BOOTDEV --test-timeout $WAIT_FOR_INTERFACES $BOOTDEV
     source /tmp/wicked-dhcp-$BOOTDEV
     if [ -z "$ADMIN_IP" ]; then
         ADMIN_IP=$SERVERID
     fi
-    DOMAIN=$DNSDOMAIN
+    if [ -z "$DNSDOMAIN" ]; then
+        # DNSSEARCH can potentually be a comma seperated list of search domains
+        # so below we're making sure we only grab the first.
+        DOMAIN=${DNSSEARCH%%,*}
+    else
+        DOMAIN=$DNSDOMAIN
+    fi
 else
     if [ -z "$ADMIN_IP" ]; then
         ADMIN_IP=$(grep dhcp-server $DHCPDIR/dhclient*.leases | \
@@ -142,10 +148,14 @@ else
     DOMAIN=$(grep "domain-name " $DHCPDIR/dhclient*.leases | \
         uniq | cut -d" " -f5 | cut -d";" -f1 | awk -F\" '{ print $2 }')
 fi
-HOSTNAME="d${MAC//:/-}.${DOMAIN}"
+if [ -n "$DOMAIN" ]; then
+    HOSTNAME="d${MAC//:/-}.${DOMAIN}"
+else
+    HOSTNAME="d${MAC//:/-}"
+fi
 
 sed -i -e "s/\(127\.0\.0\.1.*\)/127.0.0.1 $HOSTNAME ${HOSTNAME%%.*} localhost.localdomain localhost/" /etc/hosts
-if (( $ip_version == 6 )); then
+if (( $IP_VERSION == 6 )); then
     sed -i -e "s/\(\:\:1.*\)/::1 $HOSTNAME ${HOSTNAME%%.*} localhost.localdomain localhost ipv6-localhost ipv6-loopback/" /etc/hosts
 fi
 if is_suse; then
@@ -170,7 +180,7 @@ service $RSYSLOGSERVICE restart
 
 # Sometimes at this point network is not up yet, wait for it
 ping="ping"
-if (( $ip_version == 6 )); then
+if (( $IP_VERSION == 6 )); then
     ping="ping6"
 fi
 n=60
@@ -191,14 +201,14 @@ service rpcbind start
 exports=$(showmount -e $ADMIN_IP --no-headers | cut -f1 -d " ")
 for d in $exports; do
     mkdir -p $d
-    if (( $ip_version == 6 )); then
+    if (( $IP_VERSION == 6 )); then
         mount -t nfs [$ADMIN_IP]:$d $d
     else
         mount -t nfs $ADMIN_IP:$d $d
     fi
 done
 
-export MAC BOOTDEV ADMIN_IP DOMAIN HOSTNAME HOSTNAME_MAC MYIP
+export MAC BOOTDEV ADMIN_IP ADMIN_IP_WRAPPED DOMAIN HOSTNAME HOSTNAME_MAC MYIP IP_VERSION
 
 cd /updates
 cp /updates/control.sh /tmp
