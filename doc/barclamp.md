@@ -1385,5 +1385,150 @@ barclamp needs VM side infrastructure such as additional block devices in
 place) you will have to add additional setup code to 
 [mkcloud](https://github.com/SUSE-Cloud/automation/blob/master/scripts/mkcloud)
 and/or
-[qa_crowbarsetup.sh](https://github.com/SUSE-Cloud/automation/blob/master/scripts/qa_crobarsetup.sh)
+[qa_crowbarsetup.sh](https://github.com/SUSE-Cloud/automation/blob/master/scripts/qa_crowbarsetup.sh)
 to take care of your barclamp's needs.
+
+## High Availability (HA) Integration
+
+Using the [barbican barclamp](https://github.com/crowbar/crowbar-openstack/tree/master/chef/cookbooks/barbican)
+as an example, we will try to investigate what changes are required to make a barclamp
+HA compatible.
+
+The first [PR](https://github.com/crowbar/crowbar-openstack/pull/512/files)
+which started molding the barclamp to be HA compatible was not entirely correct and needed
+[more commits](https://github.com/crowbar/crowbar-openstack/commits/master/chef/cookbooks/barbican)
+to become correct. There are a lot of potential mistakes in getting HA working, maybe 
+whatever you are struggling with right now turned up in the Barbican barclamp as well.
+
+-  [default.rb](https://github.com/crowbar/crowbar-openstack/commits/master/chef/cookbooks/barbican/attributes/default.rb)
+
+    This file defines the defaults for all the values of the variables required by barclamp.
+    It allows you to set defaults (or overrides) for any attributes in the node object.
+    In this case we will use that capability to set a bunch of HA-related attributes that
+    are rarely changed and, hence need not be put in the data bag.
+
+    ```ruby
+    # HA attributes
+    default[:barbican][:ha][:enabled] = false
+
+    # Ports for actual application to bind to
+    default[:barbican][:ha][:ports][:api] = 5621
+
+    # pacemaker definitions
+    default[:barbican][:ha][:api][:op][:monitor][:interval] = "10s"
+    default[:barbican][:worker][:op][:monitor][:interval] = "10s"
+    default[:barbican][:keystone_listener][:op][:monitor][:interval] = "10s"
+
+    default[:barbican][:worker][:agent] = "systemd:openstack-barbican-worker"
+    default[:barbican][:keystone_listener][:agent] = "systemd:openstack-barbican-keystone-listener"
+    ```
+
+Resource Agent: In 'LayMan' terms, resource agent is a script that the  cluster
+manager uses to manage the resource.
+- LSB: is a specification of writing resource agent.(Use lsb scripts to manage
+the resource)
+- OCF: Pacemaker specific extension to LSB.
+- systemd: Use systemd unit files for managing the resource.
+
+- [barbican_service.rb(cookbook)](https://github.com/crowbar/crowbar-openstack/commits/master/chef/cookbooks/barbican/definitions)
+
+    Makes the installation be HA aware, by using [`provider  Chef::Provider::CrowbarPacemakerService`](https://github.com/crowbar/crowbar-ha/blob/master/chef/cookbooks/crowbar-pacemaker/providers/service.rb)
+    (Beware internal documentation on link) By adding that line we tell chef to use
+    **service resource** from that provider and not the default one. The file has
+    huge documentation and is good read for some internal interactions between chef
+    and pacemaker. Chef tries to manage resources locally, while pacemaker
+    operations are cluster-wide. So we need special ways to interact with pacemaker
+    about status of [clone/group/service](http://clusterlabs.org/doc/en-US/Pacemaker/1.1/html/Pacemaker_Explained/ch10.html)
+    and its configuration. As the link has good starting explanation about
+    clone/group and would help understand the need of a custom **service resource**
+    Also, the Barbican barclamp in its current shape does not use it, because it
+    only runs services that are horizontally scalable anyway (such as
+    `barbican-worker`). There are some vestiges in `definitions/barbican.rb`, but
+    nothing uses that anymore.
+    `CrowbarPacemakerService` in use in the Neutron barclamp, for example:
+    https://github.com/crowbar/crowbar-openstack/blob/f26dc78fe3038ebb5bdb426e70d6750f2351cf29/chef/cookbooks/neutron/recipes/server.rb#L374
+
+- [`helpers.rb`](https://github.com/crowbar/crowbar-openstack/commits/master/chef/cookbooks/barbican/libraries/)
+
+    Here we define a helper class to initialize the variables/ports correctly `if ha_enabled`
+
+- [`common.rb`](https://github.com/crowbar/crowbar-openstack/commits/fb4cd02a09ba35182e401cac48858e2e5d1d5508/chef/cookbooks/barbican/recipes/common.rb)
+
+   Common recipe is executed for all services and on all nodes of a cluster in
+   parallel. So in case of ha, the db/user should only be created once, so make
+   sure only `cluster_founder` allowed to do these tasks and create sychronization
+   markers around them.  Also be sure to listen for request to VIP, as request will be
+   sent to VIP in case of HA.(which is actually the cluster address where HAproxy is
+   listening)
+
+
+To make sure the other nodes do not start accessing the database before the
+founder has created the database. **sync_marks** are created. This is part of
+the **crowbar_pacemaker**
+([provider](https://github.com/crowbar/crowbar-ha/blob/master/chef/cookbooks/crowbar-pacemaker/providers/sync_mark.rb),
+[resource](https://github.com/crowbar/crowbar-ha/blob/master/chef/cookbooks/crowbar-pacemaker/resources/sync_mark.rb))
+cookbook on the [crowbar-ha](https://github.com/crowbar/crowbar-ha)
+These marks help provide synchronization between the nodes while chef is
+   applying the states on the nodes. This synchronization can be of two types. 
+- Wait and watch (**wait**-_ActionToBeDone_- **create**-_ActionToBeDone_)
+([example](https://github.com/crowbar/crowbar-openstack/blob/1718ebdcd5071ceac796744a33faaaddbdf71d73/chef/cookbooks/barbican/recipes/common.rb#L44-L101))
+
+   To be more precise these markers make sure that certain section of a cookbook
+  which should be **entered and finished by founder node** and other nodes should
+  wait until then.  All non-founder nodes wait till they see _ActionToBeDone_
+  while founder node keep going. It is upto the founder to do 
+  *create-_ActionToBeDone_**. So wait and create always go in **pairs**. And
+  if founder does not do create-_ActionToBeDone_ non-founders will timeout.
+- Wait and start together ([example](https://github.com/crowbar/crowbar-openstack/blob/1718ebdcd5071ceac796744a33faaaddbdf71d73/chef/cookbooks/glance/recipes/ha.rb#L46))
+
+   As the name says, let everyone reach here. No node can proceed unless all the
+    other nodes have reached here.
+
+  
+-  [`api.rb`](https://github.com/crowbar/crowbar-openstack/commits/master/chef/cookbooks/barbican/recipes/api.rb)
+  
+     First make sure the service and user are correctly registered with keystone,
+     use keystone_setting_helper to get keystone endpoint details. Then register
+     the endpoint with keystone, using appropriate port.
+  
+         If !ha => use the standard port
+         else   => use port where ha is listening
+         ...
+         bind api on correct port accordingly
+  
+     If using ha, host address will be from admin network, as HAProxy will listen
+     virtual-ip-address form admin network, as the node is part of the cluster.
+     Otherwise just register on `*`
+  
+-  [`ha.rb`](https://github.com/crowbar/crowbar-openstack/commits/master/chef/cookbooks/barbican/recipes/ha.rb)
+  
+     This is a complicated piece because in case of chef the state of the object is
+     changed only if it needs to change. So in case of upgrade we need to figure out
+    what has changed and ask chef to apply those changes. In most cases since we are
+    using the built-in resources and so chef is able to figure out most of the changes
+    and apply them. In case of pacemaker we need to figure what primitives, groups,
+    and clones have been created/changed. So for this custom resources and providers
+    are created considering pacemaker as the cluster manager.
+
+- [`role_barbican_controller.rb`](https://github.com/crowbar/crowbar-openstack/commits/master/chef/cookbooks/barbican/recipes/role_barbican_controller.rb)
+
+    Include this recipe by default while applying the cookbook. The recipe(ha.rb) has a
+    check for `ha_enaled` at the top. If not the it just "logs-out"
+
+- [`barbican_service.rb(webapp)`](https://github.com/crowbar/crowbar-openstack/commits/master/chef/cookbooks/barbican/recipes/barbican_service.rb)
+
+   Almost all of it is book keeping. And all of it is documented [here in
+   pacemaker_service_object](https://github.com/crowbar/crowbar-ha/blob/2adc8529c215c32772a09fcb8e9b84fb01b1a1dc/crowbar_framework/app/models/pacemaker_service_object.rb) 
+
+	- [role_expand_elements](https://github.com/crowbar/crowbar-ha/blob/2adc8529c215c32772a09fcb8e9b84fb01b1a1dc/crowbar_framework/app/models/pacemaker_service_object.rb#L187)
+      Get elements(list of nodes Including clusters) for this role
+
+	- [Openstack::HA.set_controller_role](https://github.com/sjamgade/crowbar-openstack/blob/87947ecb4cdb56a6ecf8cfc3fec1bde7c77762fb/chef/cookbooks/crowbar-openstack/libraries/ha_helpers.rb)
+    set server_nodes as controller so that, when the either of the nodes become
+    cluster-founder, it is capable to run
+    [apache2](https://github.com/crowbar/crowbar-ha/blob/2adc8529c215c32772a09fcb8e9b84fb01b1a1dc/chef/cookbooks/crowbar-pacemaker/recipes/apache.rb#L85)/[haproxy](https://github.com/crowbar/crowbar-ha/blob/2adc8529c215c32772a09fcb8e9b84fb01b1a1dc/chef/cookbooks/crowbar-pacemaker/recipes/haproxy.rb#L87).
+    The links point to the recipes locations where pacemaker
+    [location](https://github.com/sjamgade/crowbar-openstack/blob/87947ecb4cdb56a6ecf8cfc3fec1bde7c77762fb/chef/cookbooks/crowbar-openstack/definitions/openstack_pacemaker_controller_only_location_for.rb) [constraint](https://github.com/sjamgade/crowbar-openstack/blob/87947ecb4cdb56a6ecf8cfc3fec1bde7c77762fb/chef/cookbooks/crowbar-openstack/libraries/ha_helpers.rb)
+    has been set.
+
+	- [prepare_role_for_ha_with_proxy](https://github.com/crowbar/crowbar-ha/blob/2adc8529c215c32772a09fcb8e9b84fb01b1a1dc/crowbar_framework/app/models/pacemaker_service_object.rb#L187)
